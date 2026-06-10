@@ -37,7 +37,7 @@ def user_is_estimate_creator(user, estimate) -> bool:
 
 def user_can_convert_estimate_follow_on(user, estimate) -> bool:
     """
-    Who may convert an approved / quotation-won estimate to invoice or project.
+    Who may convert a quotation-won estimate to invoice or project.
     Only the assigned salesperson or the creator (not every user with sales access).
     """
     if not user or not user.is_authenticated:
@@ -139,9 +139,7 @@ def estimate_status_change_allowed(current_status, new_status, *, user=None, est
         return True
 
     if current_status == 'quotation_won':
-        if user and user.is_superuser and new_status == 'under_negotiation':
-            return True
-        return False
+        return current_status == new_status
 
     if new_status in ('approved', 'rejected'):
         return (
@@ -205,13 +203,6 @@ def get_estimate_status_actions(estimate, user):
     actions = []
 
     if current == 'quotation_won':
-        if user.is_superuser:
-            actions.append({
-                'status': 'under_negotiation',
-                'label': 'Mark under negotiation',
-                'btn_class': 'btn-outline-info',
-                'icon': 'fa-handshake',
-            })
         return actions
 
     if can_approve_status and current == 'sent':

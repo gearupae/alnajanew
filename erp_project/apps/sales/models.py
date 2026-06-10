@@ -31,7 +31,7 @@ class Estimate(BaseModel):
     ]
 
     #: Estimates allowed to convert to invoice / project (won or internally approved).
-    FOLLOW_ON_STATUSES = frozenset({'approved', 'quotation_won'})
+    FOLLOW_ON_STATUSES = frozenset({'quotation_won'})
 
     EDIT_APPROVAL_STATUS_CHOICES = [
         ('none', 'No pending edit review'),
@@ -275,6 +275,22 @@ class Estimate(BaseModel):
             return Decimal('0.00')
         return val.quantize(Decimal('0.01'))
 
+    def discount_applied_incl_vat(self) -> Decimal:
+        """Total discount impact on the grand total (excl. VAT portion + VAT reduction)."""
+        if not self.discount_applied or self.discount_applied <= 0:
+            return Decimal('0.00')
+        items = list(self.items.all())
+        if not items:
+            return Decimal('0.00')
+        vat_without_discount = sum(
+            (item.total * item.vat_rate / Decimal('100')).quantize(Decimal('0.01'))
+            for item in items
+        )
+        vat_reduction = (vat_without_discount - (self.vat_amount or Decimal('0.00'))).quantize(
+            Decimal('0.01')
+        )
+        return (self.discount_applied + vat_reduction).quantize(Decimal('0.01'))
+
     def compute_discount_amount(self, subtotal: Decimal) -> Decimal:
         """Discount applied to subtotal (excl. VAT) before tax."""
         subtotal = subtotal if isinstance(subtotal, Decimal) else Decimal(str(subtotal or '0'))
@@ -376,7 +392,7 @@ class Estimate(BaseModel):
 
     @property
     def allows_follow_on_conversion(self) -> bool:
-        """True when the estimate may be converted to an invoice or project."""
+        """True when the estimate may be converted to an invoice or project (quotation won only)."""
         return self.status in self.FOLLOW_ON_STATUSES
 
     def active_invoices(self):

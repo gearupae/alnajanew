@@ -1257,7 +1257,7 @@ def estimate_update_status(request, pk, status):
 
 @login_required
 def estimate_convert_to_invoice(request, pk):
-    """Convert an approved or quotation-won estimate to invoice."""
+    """Convert a quotation-won estimate to invoice."""
     estimate = get_object_or_404(Estimate, pk=pk)
 
     from .approval_rules import user_can_convert_estimate_follow_on
@@ -1270,7 +1270,7 @@ def estimate_convert_to_invoice(request, pk):
         return redirect('sales:estimate_detail', pk=pk)
 
     if not estimate.allows_follow_on_conversion:
-        messages.error(request, 'Only approved or quotation-won estimates can be converted to an invoice.')
+        messages.error(request, 'Only quotation-won estimates can be converted to an invoice.')
         return redirect('sales:estimate_detail', pk=pk)
 
     existing = estimate.primary_invoice
@@ -1321,7 +1321,7 @@ def estimate_convert_to_invoice(request, pk):
 
 @login_required
 def estimate_convert_to_project(request, pk):
-    """Create a project from an approved or quotation-won estimate; optionally copy estimate lines."""
+    """Create a project from a quotation-won estimate; optionally copy estimate lines."""
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
 
@@ -1338,7 +1338,7 @@ def estimate_convert_to_project(request, pk):
         return redirect('sales:estimate_detail', pk=pk)
 
     if not estimate.allows_follow_on_conversion:
-        messages.error(request, 'Only approved or quotation-won estimates can be converted to a project.')
+        messages.error(request, 'Only quotation-won estimates can be converted to a project.')
         return redirect('sales:estimate_detail', pk=pk)
 
     from .estimate_conversion import estimate_convert_to_project_block_reason

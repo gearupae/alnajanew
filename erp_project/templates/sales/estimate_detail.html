@@ -463,8 +463,12 @@
                 </div>
                 {% if estimate.discount_applied and estimate.discount_applied > 0 %}
                 <div class="d-flex justify-content-between mb-2">
-                    <span>Discount (excl. VAT)</span>
+                    <span>Discount (before VAT)</span>
                     <span class="text-danger">− AED {{ estimate.discount_applied|floatformat:2 }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Discount (after VAT)</span>
+                    <span class="text-danger">− AED {{ estimate.discount_applied_incl_vat|floatformat:2 }}</span>
                 </div>
                 {% endif %}
                 <div class="d-flex justify-content-between mb-2">

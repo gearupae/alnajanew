@@ -47,11 +47,11 @@
 .crm-customer-table th {
     white-space: nowrap;
 }
-.crm-customer-table .col-name {
+.crm-customer-table .col-company {
     max-width: 11rem;
 }
-.crm-customer-table .col-company {
-    max-width: 8rem;
+.crm-customer-table .col-name {
+    max-width: 9rem;
 }
 .crm-customer-table .col-company > span {
     display: block;
@@ -561,8 +561,8 @@
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th class="col-name">Name</th>
-                        <th class="col-company">Company</th>
+                        <th class="col-company">Customer</th>
+                        <th class="col-name">Contact person</th>
                         <th class="col-email">Email</th>
                         <th>Phone</th>
                         <th>Type</th>
@@ -579,15 +579,25 @@
                                 {{ customer.customer_number }}
                             </a>
                         </td>
-                        <td class="col-name">
+                        <td class="col-company">
                             <div class="d-flex align-items-center">
                                 <div class="bg-{{ customer.customer_type|yesno:'primary,success' }} text-white rounded-circle d-flex align-items-center justify-content-center me-1 customer-avatar">
-                                    {{ customer.name.0|upper }}
+                                    {% if customer.company %}{{ customer.company.0|upper }}{% elif customer.name %}{{ customer.name.0|upper }}{% else %}?{% endif %}
                                 </div>
-                                <span class="text-truncate" title="{{ customer.name }}">{{ customer.name }}</span>
+                                {% if customer.company %}
+                                <span class="text-truncate fw-medium" title="{{ customer.company }}">{{ customer.company }}</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
                             </div>
                         </td>
-                        <td class="col-company">{% if customer.company %}<span title="{{ customer.company }}">{{ customer.company }}</span>{% else %}<span class="text-muted">-</span>{% endif %}</td>
+                        <td class="col-name">
+                            {% if customer.name %}
+                            <span class="text-truncate" title="{{ customer.name }}">{{ customer.name }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td class="col-email">
                             {% if customer.email %}
                             <a href="mailto:{{ customer.email }}" class="text-decoration-none" title="{{ customer.email }}">{{ customer.email }}</a>
