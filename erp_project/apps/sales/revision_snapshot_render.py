@@ -106,6 +106,21 @@ class SnapshotEstimateProxy:
     def get_type_of_occupancy_display(self):
         return self._live.get_type_of_occupancy_display()
 
+    def discount_applied_incl_vat(self) -> Decimal:
+        """Total discount impact on grand total (excl. VAT portion + VAT reduction)."""
+        if not self.discount_applied or self.discount_applied <= 0:
+            return Decimal('0.00')
+        if not self._items:
+            return Decimal('0.00')
+        vat_without_discount = sum(
+            (item.vat_amount for item in self._items),
+            Decimal('0.00'),
+        )
+        vat_reduction = (vat_without_discount - (self.vat_amount or Decimal('0.00'))).quantize(
+            Decimal('0.01')
+        )
+        return (self.discount_applied + vat_reduction).quantize(Decimal('0.01'))
+
     def get_type_of_work_display(self):
         return self._live.get_type_of_work_display()
 

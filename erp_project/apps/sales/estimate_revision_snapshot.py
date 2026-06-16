@@ -1,8 +1,6 @@
-"""Store estimate PDF + data snapshot before each revision bump."""
+"""Store estimate data snapshot before each revision bump."""
 import logging
 from decimal import Decimal
-
-from django.core.files.base import ContentFile
 
 logger = logging.getLogger(__name__)
 from django.db.models import Prefetch
@@ -65,7 +63,8 @@ def _serialize_estimate_snapshot(estimate: Estimate) -> dict:
 
 def snapshot_estimate_before_revision(request, estimate: Estimate) -> EstimateRevisionSnapshot | None:
     """
-    Capture the current estimate (before save/revision bump) as PDF + JSON.
+    Capture the current estimate (before save/revision bump) as JSON snapshot.
+    PDF is generated lazily on first open (see ensure_revision_snapshot_pdf).
     """
     items_qs = EstimateItem.objects.select_related('inventory_item', 'tax_code').order_by('sort_order', 'id')
     est = (
@@ -90,31 +89,23 @@ def snapshot_estimate_before_revision(request, estimate: Estimate) -> EstimateRe
         snapshot_data=snapshot_data,
         created_by=request.user if getattr(request, 'user', None) and request.user.is_authenticated else None,
     )
-
-    from .estimate_pdf_render import render_estimate_quotation_pdf_bytes
-
-    if not request.META.get('HTTP_HOST'):
-        request.META['HTTP_HOST'] = request.get_host() or 'localhost'
-
-    pdf_bytes, err = render_estimate_quotation_pdf_bytes(request, est)
-    if pdf_bytes:
-        filename = f'{est.estimate_number}-{label or "original"}.pdf'
-        snap.pdf_file.save(filename, ContentFile(pdf_bytes), save=False)
-    elif err:
-        logger.warning(
-            'Revision snapshot PDF not saved for %s (%s): %s',
-            est.estimate_number,
-            label or 'original',
-            err,
-        )
-
     snap.save()
     return snap
 
 
-def maybe_snapshot_before_revision(request, estimate: Estimate, *, pre_status: str, has_changes: bool):
+def maybe_snapshot_before_revision(
+    request,
+    estimate: Estimate,
+    *,
+    pre_status: str,
+    has_changes: bool,
+    pre_awaiting_resubmit_revision: bool = False,
+):
     if not has_changes:
         return None
-    if not status_requires_revision_resubmit(pre_status):
+    needs_snapshot = status_requires_revision_resubmit(pre_status) or (
+        pre_status == 'sent' and pre_awaiting_resubmit_revision
+    )
+    if not needs_snapshot:
         return None
     return snapshot_estimate_before_revision(request, estimate)

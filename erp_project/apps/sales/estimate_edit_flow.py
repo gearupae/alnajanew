@@ -8,7 +8,6 @@ REVISION_RESUBMIT_STATUSES = frozenset({
     'under_negotiation',
     'quotation_won',
     'quotation_lost',
-    'sent',
 })
 
 # Backwards-compatible alias
@@ -23,15 +22,25 @@ class EstimateEditApplyResult:
     edit_pending: bool = False
 
 
-def apply_after_estimate_save(request, estimate, *, pre_status: str) -> EstimateEditApplyResult:
+def apply_after_estimate_save(
+    request,
+    estimate,
+    *,
+    pre_status: str,
+    pre_awaiting_resubmit_revision: bool = False,
+) -> EstimateEditApplyResult:
     """
     After a successful estimate save with detected changes:
-    - approved / under negotiation / quot won / quot lost / sent / rejected → sent + revision bump
+    - approved / under negotiation / quot won / quot lost / rejected → sent + revision bump
+    - sent → keep as-is unless revise was requested explicitly
     - draft → no approval action
     """
     result = EstimateEditApplyResult(changed=True)
 
-    if pre_status in REVISION_RESUBMIT_STATUSES:
+    should_resubmit = pre_status in REVISION_RESUBMIT_STATUSES or (
+        pre_status == 'sent' and pre_awaiting_resubmit_revision
+    )
+    if should_resubmit:
         estimate.revision_count = (estimate.revision_count or 0) + 1
         estimate.status = 'sent'
         estimate.approval_requested_by = request.user

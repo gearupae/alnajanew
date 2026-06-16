@@ -75,6 +75,9 @@
             {% elif estimate.edit_approval_status == 'rejected' %}
             <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Edit rejected — correct and save to resubmit (next revision: R{{ estimate.revision_count|add:1 }})</span>
             {% endif %}
+            {% if estimate.awaiting_resubmit_revision and estimate.status == 'sent' %}
+            <span class="badge bg-info text-dark"><i class="fas fa-code-branch me-1"></i>Revision requested (next: R{{ estimate.revision_count|add:1 }})</span>
+            {% endif %}
             {% if can_approve_estimate_edit %}
             <form method="post" action="{% url 'sales:estimate_approve_edit' estimate.pk %}" class="d-inline" onsubmit="return confirm('Approve these estimate changes?');">
                 {% csrf_token %}
@@ -91,6 +94,14 @@
                 <i class="fas fa-edit me-2"></i>Edit
             </a>
             {% endif %}
+            {% if can_request_revision %}
+            <form method="post" action="{% url 'sales:estimate_request_revision' estimate.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-info" onclick="return confirm('Open the edit page and create a new revision when you save changes?');">
+                    <i class="fas fa-code-branch me-2"></i>Revise quotation
+                </button>
+            </form>
+            {% endif %}
             {% if can_convert_estimate_follow_on and estimate.can_create_invoice_from_estimate %}
             <a href="{% url 'sales:estimate_convert' estimate.pk %}" class="btn btn-outline-success" onclick="return confirm('Create invoice from this estimate? Each estimate can only be converted once.');">
                 <i class="fas fa-file-invoice me-2"></i>Convert to Invoice
@@ -105,18 +116,9 @@
                 <i class="fas fa-project-diagram me-2"></i>{% if estimate.project.status == 'draft' and estimate.project.conversion_approval_status == 'pending' %}View project (awaiting approval){% else %}View linked project{% endif %}
             </a>
             {% elif can_convert_to_project %}
-                {% if estimate_to_project_prompt_include_lines %}
-                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#convertProjectModal">
-                    <i class="fas fa-project-diagram me-2"></i>Convert to Project
-                </button>
-                {% else %}
-                <form method="post" action="{% url 'sales:estimate_convert_project' estimate.pk %}" class="d-inline" onsubmit="return confirm('Create a project from this estimate? Scope Items will not be copied (company setting).');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-outline-primary">
-                        <i class="fas fa-project-diagram me-2"></i>Convert to Project
-                    </button>
-                </form>
-                {% endif %}
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#convertProjectModal">
+                <i class="fas fa-project-diagram me-2"></i>Convert to Project
+            </button>
             {% elif can_convert_estimate_follow_on and estimate.allows_follow_on_conversion and estimate.is_active and convert_to_project_block_reason %}
             <span class="d-inline-block convert-project-blocked-wrap" tabindex="0" role="button" aria-label="Why convert to project is unavailable">
                 <button type="button" class="btn btn-outline-primary" disabled>
@@ -426,7 +428,7 @@
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-code-branch me-2 text-dark"></i>Revision history</h6>
             </div>
             <div class="card-body pt-0">
-                <p class="text-muted small mb-3">Previous versions saved automatically before each edit while approved, under negotiation, or quot won/lost.</p>
+                <p class="text-muted small mb-3">Previous versions are saved before revision bumps (automatic for approved/under negotiation/quot won-lost, or via the Revise quotation button when sent).</p>
                 <ul class="list-group list-group-flush">
                     {% for snap in revision_snapshots %}
                     <li class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
@@ -624,7 +626,7 @@
     </div>
 </div>
 
-{% if can_convert_to_project and estimate_to_project_prompt_include_lines %}
+{% if can_convert_to_project %}
 <div class="modal fade" id="convertProjectModal" tabindex="-1" aria-labelledby="convertProjectModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -632,19 +634,67 @@
                 <h5 class="modal-title" id="convertProjectModalLabel">Convert to project</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <form method="post" action="{% url 'sales:estimate_convert_project' estimate.pk %}">
-                    {% csrf_token %}
-                    <p class="mb-3">Include all estimate line items on the new project under <strong>Items</strong>? (Operational work stays in Tasks, added separately.)</p>
-                    <div class="d-flex flex-wrap gap-2">
-                        <button type="submit" name="include_items" value="1" class="btn btn-primary">Yes, include all lines</button>
-                        <button type="submit" name="include_items" value="0" class="btn btn-outline-secondary">No, empty project</button>
+            <form method="post" action="{% url 'sales:estimate_convert_project' estimate.pk %}" id="convertProjectForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Target project</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="convert_mode" id="convertModeNew" value="new" checked>
+                            <label class="form-check-label" for="convertModeNew">Create new project</label>
+                        </div>
+                        {% if existing_projects_for_conversion %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="convert_mode" id="convertModeExisting" value="existing">
+                            <label class="form-check-label" for="convertModeExisting">Add to existing project</label>
+                        </div>
+                        <select class="form-select form-select-sm mt-2 d-none" name="project_id" id="convertExistingProjectSelect" aria-label="Existing project">
+                            <option value="">Select project…</option>
+                            {% for p in existing_projects_for_conversion %}
+                            <option value="{{ p.pk }}">{{ p.project_code }} — {{ p.name }} ({{ p.get_status_display }})</option>
+                            {% endfor %}
+                        </select>
+                        {% endif %}
                     </div>
-                </form>
-            </div>
+                    <div class="mb-0">
+                        <label class="form-label small fw-semibold">Include line items</label>
+                        <p class="small text-muted mb-2">Copy all quotation lines to the project <strong>Items</strong> table. Operational work stays in Tasks.</p>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" name="include_items" value="1" class="btn btn-primary">Yes, include all lines</button>
+                            <button type="submit" name="include_items" value="0" class="btn btn-outline-secondary">No, link only</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
+<script>
+(function () {
+    var form = document.getElementById('convertProjectForm');
+    if (!form) return;
+    var modeNew = document.getElementById('convertModeNew');
+    var modeExisting = document.getElementById('convertModeExisting');
+    var projectSelect = document.getElementById('convertExistingProjectSelect');
+    function syncProjectSelect() {
+        if (!projectSelect || !modeExisting) return;
+        var show = modeExisting.checked;
+        projectSelect.classList.toggle('d-none', !show);
+        projectSelect.required = show;
+    }
+    if (modeNew) modeNew.addEventListener('change', syncProjectSelect);
+    if (modeExisting) modeExisting.addEventListener('change', syncProjectSelect);
+    form.addEventListener('submit', function (e) {
+        if (modeExisting && modeExisting.checked) {
+            if (!projectSelect || !projectSelect.value) {
+                e.preventDefault();
+                alert('Select an existing project.');
+            }
+        }
+    });
+    syncProjectSelect();
+})();
+</script>
 {% endif %}
 {% if can_create_proforma %}
 {% include 'sales/includes/proforma_invoice_modal.html' %}

@@ -139,7 +139,9 @@ def estimate_status_change_allowed(current_status, new_status, *, user=None, est
         return True
 
     if current_status == 'quotation_won':
-        return current_status == new_status
+        if user and user.is_superuser and new_status == 'under_negotiation':
+            return True
+        return False
 
     if new_status in ('approved', 'rejected'):
         return (
@@ -203,6 +205,13 @@ def get_estimate_status_actions(estimate, user):
     actions = []
 
     if current == 'quotation_won':
+        if user.is_superuser:
+            actions.append({
+                'status': 'under_negotiation',
+                'label': 'Mark under negotiation',
+                'btn_class': 'btn-outline-info',
+                'icon': 'fa-handshake',
+            })
         return actions
 
     if can_approve_status and current == 'sent':

@@ -55,123 +55,105 @@ def build_expense_type_totals(item_groups):
     return totals
 
 
-def build_pdf_item_groups(estimate):
+def _effective_group_names(items) -> list[str]:
     """
-    Ordered groups of estimate lines for PDF.
-    Items sharing a group_name are merged into one section (order = first time
-    that name appears on the estimate). Each entry: name, items, line_total,
-    line_subtotal, hide_items_on_pdf (from inventory ItemGroup when names match).
-    line_total is incl. VAT per line.
+    Resolve group_name per line in document order.
+    Blank group_name inherits the previous non-empty group (common when a new
+    line is added without re-entering the section name).
     """
-    hide_by_name = _itemgroup_hide_by_name()
-    group_order = []
-    groups_by_name = {}
+    prev = ''
+    names: list[str] = []
+    for item in items:
+        name = (getattr(item, 'group_name', None) or '').strip()
+        if not name and prev:
+            name = prev
+        elif name:
+            prev = name
+        names.append(name)
+    return names
 
-    for item in estimate.items.select_related('inventory_item').all():
-        name = (item.group_name or '').strip()
-        line_amt = (item.total or Decimal('0.00')) + (item.vat_amount or Decimal('0.00'))
 
-        if name not in groups_by_name:
-            group_order.append(name)
-            groups_by_name[name] = {
-                'name': name,
-                'items': [],
-                'line_total': Decimal('0.00'),
-                'line_subtotal': Decimal('0.00'),
-            }
+def _line_amount(item) -> Decimal:
+    return (getattr(item, 'total', None) or Decimal('0.00')) + (
+        getattr(item, 'vat_amount', None) or Decimal('0.00')
+    )
 
-        groups_by_name[name]['items'].append(item)
-        groups_by_name[name]['line_total'] += line_amt
-        groups_by_name[name]['line_subtotal'] += item.total or Decimal('0.00')
 
-    groups = []
+def _build_consecutive_groups(items, hide_by_name: dict, *, apply_hide_items: bool = True) -> list[dict]:
+    """
+    Build PDF sections from consecutive lines sharing the same effective group
+    name (preserves estimate sort order; subtotal follows each run).
+    """
+    if not items:
+        return []
+
+    names = _effective_group_names(items)
+    groups: list[dict] = []
     row_index = 0
-    for name in group_order:
-        data = groups_by_name[name]
-        hide_items = bool(name and hide_by_name.get(name.lower(), False))
+    idx = 0
 
-        if hide_items:
-            row_index += 1
-            groups.append({
-                'name': data['name'],
-                'items': [],
-                'line_total': data['line_total'],
-                'line_subtotal': data['line_subtotal'],
-                'hide_items_on_pdf': True,
-                'collapsed_index': row_index,
-            })
-            continue
+    while idx < len(items):
+        name = names[idx]
+        chunk: list = []
+        line_total = Decimal('0.00')
+        line_subtotal = Decimal('0.00')
 
+        while idx < len(items) and names[idx] == name:
+            item = items[idx]
+            chunk.append(item)
+            line_total += _line_amount(item)
+            line_subtotal += getattr(item, 'total', None) or Decimal('0.00')
+            idx += 1
+
+        hide_items = (
+            bool(name and hide_by_name.get(name.lower(), False))
+            if apply_hide_items
+            else False
+        )
         numbered_items = []
-        for item in data['items']:
-            row_index += 1
-            numbered_items.append({'item': item, 'index': row_index})
+        if not hide_items:
+            for item in chunk:
+                row_index += 1
+                numbered_items.append({'item': item, 'index': row_index})
 
         groups.append({
-            'name': data['name'],
+            'name': name,
             'items': numbered_items,
-            'line_total': data['line_total'],
-            'line_subtotal': data['line_subtotal'],
-            'hide_items_on_pdf': False,
+            'line_total': line_total,
+            'line_subtotal': line_subtotal,
+            'hide_items_on_pdf': hide_items,
         })
 
     return groups
+
+
+def build_pdf_item_groups(estimate):
+    """
+    Ordered groups of estimate lines for PDF.
+    Consecutive lines with the same group name form one section (in sort_order).
+    Each entry: name, items, line_total, line_subtotal, hide_items_on_pdf.
+    line_total is incl. VAT per line.
+    """
+    hide_by_name = _itemgroup_hide_by_name()
+    items = list(
+        estimate.items.select_related('inventory_item').order_by('sort_order', 'id')
+    )
+    return _build_consecutive_groups(items, hide_by_name, apply_hide_items=True)
+
+
+def build_item_groups_for_estimate_detail(estimate):
+    """
+    Item grouping for the *on-screen* estimate detail page.
+    It must show all items even when `hide_items_on_pdf` is enabled for an
+    inventory sub-group (that setting is for PDFs only).
+    """
+    items = list(estimate.items.select_related('inventory_item').order_by('sort_order', 'id'))
+    # No need to query ItemGroup.hide_items_on_pdf for the on-screen view.
+    return _build_consecutive_groups(items, {}, apply_hide_items=False)
 
 
 def build_pdf_item_groups_for_line_items(line_items):
     """Same grouping as build_pdf_item_groups, for snapshot / mock line rows."""
     hide_by_name = _itemgroup_hide_by_name()
-    group_order = []
-    groups_by_name = {}
-
-    for item in line_items:
-        name = (getattr(item, 'group_name', None) or '').strip()
-        line_amt = (getattr(item, 'total', None) or Decimal('0.00')) + (
-            getattr(item, 'vat_amount', None) or Decimal('0.00')
-        )
-
-        if name not in groups_by_name:
-            group_order.append(name)
-            groups_by_name[name] = {
-                'name': name,
-                'items': [],
-                'line_total': Decimal('0.00'),
-                'line_subtotal': Decimal('0.00'),
-            }
-
-        groups_by_name[name]['items'].append(item)
-        groups_by_name[name]['line_total'] += line_amt
-        groups_by_name[name]['line_subtotal'] += getattr(item, 'total', None) or Decimal('0.00')
-
-    groups = []
-    row_index = 0
-    for name in group_order:
-        data = groups_by_name[name]
-        hide_items = bool(name and hide_by_name.get(name.lower(), False))
-
-        if hide_items:
-            row_index += 1
-            groups.append({
-                'name': data['name'],
-                'items': [],
-                'line_total': data['line_total'],
-                'line_subtotal': data['line_subtotal'],
-                'hide_items_on_pdf': True,
-                'collapsed_index': row_index,
-            })
-            continue
-
-        numbered_items = []
-        for item in data['items']:
-            row_index += 1
-            numbered_items.append({'item': item, 'index': row_index})
-
-        groups.append({
-            'name': data['name'],
-            'items': numbered_items,
-            'line_total': data['line_total'],
-            'line_subtotal': data['line_subtotal'],
-            'hide_items_on_pdf': False,
-        })
-
-    return groups
+    items = list(line_items)
+    return _build_consecutive_groups(items, hide_by_name, apply_hide_items=True)

@@ -254,6 +254,7 @@
             font-size: 10px;
             color: var(--ink);
             border-top: 1px solid var(--accent-border);
+            white-space: nowrap;
         }
 
         .item-number { color: var(--silver); font-size: 9px; }
@@ -708,21 +709,12 @@
                 </tr>
                 {% else %}
                 {% for group in pdf_item_groups %}
-                {% if pdf_variant == 'quotation' and group.hide_items_on_pdf and group.name %}
-                <tr>
-                    <td class="item-number">{{ group.collapsed_index }}</td>
-                    <td class="item-description"><strong>{{ group.name }}</strong></td>
-                    {% if estimate.show_brand_name_on_pdf %}<td></td>{% endif %}
-                    <td class="text-center">1.00</td>
-                    <td class="text-right">{{ group.line_subtotal|floatformat:2 }}</td>
-                    <td class="text-right">{{ group.line_total|floatformat:2 }}</td>
-                </tr>
-                {% else %}
                 {% if group.name %}
                 <tr class="group-row">
                     <td colspan="{% if estimate.show_brand_name_on_pdf %}6{% else %}5{% endif %}">{{ group.name }}</td>
                 </tr>
                 {% endif %}
+                {% if not group.hide_items_on_pdf or pdf_variant != 'quotation' %}
                 {% for row in group.items %}
                 <tr>
                     <td class="item-number">{{ row.index }}</td>
@@ -735,10 +727,11 @@
                     <td class="text-right">{{ row.item.total|add:row.item.vat_amount|floatformat:2 }}</td>
                 </tr>
                 {% endfor %}
-                {% if group.name and estimate.show_group_totals_on_pdf %}
+                {% endif %}
+                {% if group.name %}
+                {% if pdf_variant == 'quotation' or estimate.show_group_totals_on_pdf %}
                 <tr class="group-total-row">
-                    <td colspan="{% if estimate.show_brand_name_on_pdf %}5{% else %}4{% endif %}" class="text-right">Subtotal:</td>
-                    <td class="text-right">AED {{ group.line_total|floatformat:2 }}</td>
+                    <td colspan="{% if estimate.show_brand_name_on_pdf %}6{% else %}5{% endif %}" class="text-right">Subtotal: AED {{ group.line_total|floatformat:2 }}</td>
                 </tr>
                 {% endif %}
                 {% endif %}
@@ -775,19 +768,12 @@
                 </tr>
                 {% else %}
                 {% for group in pdf_item_groups %}
-                {% if pdf_variant == 'quotation' and group.hide_items_on_pdf and group.name %}
-                <tr>
-                    <td class="item-number">{{ group.collapsed_index }}</td>
-                    <td class="item-description"><strong>{{ group.name }}</strong> <span style="color:#525252;">— AED {{ group.line_total|floatformat:2 }}</span></td>
-                    {% if estimate.show_brand_name_on_pdf %}<td></td>{% endif %}
-                    <td class="text-center">1.00</td>
-                </tr>
-                {% else %}
                 {% if group.name %}
                 <tr class="group-row">
                     <td colspan="{% if estimate.show_brand_name_on_pdf %}4{% else %}3{% endif %}">{{ group.name }}</td>
                 </tr>
                 {% endif %}
+                {% if not group.hide_items_on_pdf or pdf_variant != 'quotation' %}
                 {% for row in group.items %}
                 <tr>
                     <td class="item-number">{{ row.index }}</td>
@@ -798,7 +784,9 @@
                     <td class="text-center">{{ row.item.quantity|floatformat:2 }}</td>
                 </tr>
                 {% endfor %}
-                {% if group.name and estimate.show_group_totals_on_pdf %}
+                {% endif %}
+                {% if group.name %}
+                {% if pdf_variant == 'quotation' or estimate.show_group_totals_on_pdf %}
                 <tr class="group-total-row">
                     <td colspan="{% if estimate.show_brand_name_on_pdf %}4{% else %}3{% endif %}" class="text-right">Subtotal: AED {{ group.line_total|floatformat:2 }}</td>
                 </tr>
@@ -839,8 +827,12 @@
                 </div>
                 {% if estimate.discount_applied and estimate.discount_applied > 0 %}
                 <div class="totals-row">
-                    <span class="totals-label">Discount (excl. VAT)</span>
+                    <span class="totals-label">Discount (before VAT)</span>
                     <span class="totals-value" style="color:var(--discount);">− AED {{ estimate.discount_applied|floatformat:2 }}</span>
+                </div>
+                <div class="totals-row">
+                    <span class="totals-label">Discount (after VAT)</span>
+                    <span class="totals-value" style="color:var(--discount);">− AED {{ estimate.discount_applied_incl_vat|floatformat:2 }}</span>
                 </div>
                 {% endif %}
                 {% for rate, amounts in vat_summary.items %}
@@ -852,8 +844,12 @@
                 {% else %}
                 {% if estimate.discount_applied and estimate.discount_applied > 0 %}
                 <div class="totals-row">
-                    <span class="totals-label">Discount (excl. VAT)</span>
+                    <span class="totals-label">Discount (before VAT)</span>
                     <span class="totals-value" style="color:var(--discount);">− AED {{ estimate.discount_applied|floatformat:2 }}</span>
+                </div>
+                <div class="totals-row">
+                    <span class="totals-label">Discount (after VAT)</span>
+                    <span class="totals-value" style="color:var(--discount);">− AED {{ estimate.discount_applied_incl_vat|floatformat:2 }}</span>
                 </div>
                 {% endif %}
                 <div class="totals-row">

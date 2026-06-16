@@ -135,7 +135,13 @@
                     <tr>
                         <td><a href="{% url 'projects:project_detail' project.pk %}" class="fw-medium text-decoration-none">{{ project.project_code }}</a></td>
                         <td>{{ project.name }}</td>
-                        <td>{{ project.customer.name|default:"-" }}</td>
+                        <td>
+                            {% if project.customer %}
+                                {{ project.customer.company|default:project.customer.name|default:"-" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                         <td class="text-nowrap">{% if project.budget %}AED {{ project.budget }}{% else %}—{% endif %}</td>
                         <td>{% if project.conversion_approval_submitted_by %}{{ project.conversion_approval_submitted_by.get_full_name|default:project.conversion_approval_submitted_by.username }}{% else %}—{% endif %}</td>
                         <td class="text-nowrap">{% if project.conversion_approval_submitted_at %}{{ project.conversion_approval_submitted_at|date:"M d, Y H:i" }}{% else %}—{% endif %}</td>
@@ -176,7 +182,13 @@
                     <tr>
                         <td><a href="{% url 'projects:project_detail' project.pk %}" class="fw-medium text-decoration-none">{{ project.project_code }}</a></td>
                         <td>{{ project.name }}</td>
-                        <td>{{ project.customer.name|default:"-" }}</td>
+                        <td>
+                            {% if project.customer %}
+                                {{ project.customer.company|default:project.customer.name|default:"-" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                         <td><span class="badge bg-secondary">{{ project.get_status_display }}</span></td>
                         <td>{% if project.edit_approval_submitted_by %}{{ project.edit_approval_submitted_by.get_full_name|default:project.edit_approval_submitted_by.username }}{% else %}—{% endif %}</td>
                         <td class="text-nowrap">{% if project.edit_approval_submitted_at %}{{ project.edit_approval_submitted_at|date:"M d, Y H:i" }}{% else %}—{% endif %}</td>
@@ -206,7 +218,13 @@
                     <tr>
                         <td><a href="{% url 'projects:project_detail' project.pk %}" class="fw-medium text-decoration-none">{{ project.project_code }}</a></td>
                         <td>{{ project.name }}</td>
-                        <td>{{ project.customer.name|default:"-" }}</td>
+                        <td>
+                            {% if project.customer %}
+                                {{ project.customer.company|default:project.customer.name|default:"-" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                         <td>{% if project.manager %}{{ project.manager.get_full_name|default:project.manager.username }}{% else %}-{% endif %}</td>
                         <td>
                             {% if project.status == 'completed' %}<span class="badge badge-active">Completed</span>

@@ -4,6 +4,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import Max
 
 from apps.projects.models import Project, ProjectItemLine
 
@@ -30,6 +31,45 @@ def _estimate_line_display_label(line: EstimateItem) -> str:
     if group:
         return group[:500]
     return f'Estimate line #{line.pk}'[:500]
+
+
+def _next_item_line_sort_order(project) -> int:
+    agg = ProjectItemLine.objects.filter(project_id=project.pk).aggregate(mx=Max('sort_order'))
+    return (agg['mx'] or 0) + 1
+
+
+def copy_estimate_items_to_project(*, estimate, project, sort_start: int | None = None) -> int:
+    """Append estimate lines as ProjectItemLine rows. Returns count created."""
+    if sort_start is None:
+        sort_start = _next_item_line_sort_order(project)
+
+    qs = (
+        EstimateItem.objects.filter(estimate=estimate)
+        .order_by('sort_order', 'id')
+        .select_related('inventory_item')
+    )
+    bulk = []
+    sort_order = sort_start
+    for line in qs:
+        bulk.append(
+            ProjectItemLine(
+                project=project,
+                sort_order=sort_order,
+                group_name=(line.group_name or '')[:200],
+                description=_estimate_line_display_label(line),
+                inventory_item_id=line.inventory_item_id,
+                quantity=line.quantity or Decimal('0'),
+                unit_price=line.unit_price or Decimal('0'),
+                rate=line.rate or Decimal('0'),
+                line_net=line.total or Decimal('0'),
+                vat_amount=line.vat_amount or Decimal('0'),
+                source_estimate=estimate,
+            )
+        )
+        sort_order += 1
+    if bulk:
+        ProjectItemLine.objects.bulk_create(bulk)
+    return len(bulk)
 
 
 @transaction.atomic
@@ -78,28 +118,32 @@ def create_project_from_estimate(*, estimate, include_items: bool, submitted_by=
         queue_project_conversion_approval(submitted_by, project)
 
     if include_items:
-        qs = (
-            EstimateItem.objects.filter(estimate=estimate)
-            .order_by('sort_order', 'id')
-            .select_related('inventory_item')
-        )
-        bulk = []
-        for line in qs:
-            bulk.append(
-                ProjectItemLine(
-                    project=project,
-                    sort_order=line.sort_order,
-                    group_name=(line.group_name or '')[:200],
-                    description=_estimate_line_display_label(line),
-                    inventory_item_id=line.inventory_item_id,
-                    quantity=line.quantity or Decimal('0'),
-                    unit_price=line.unit_price or Decimal('0'),
-                    rate=line.rate or Decimal('0'),
-                    line_net=line.total or Decimal('0'),
-                    vat_amount=line.vat_amount or Decimal('0'),
-                )
-            )
-        if bulk:
-            ProjectItemLine.objects.bulk_create(bulk)
+        copy_estimate_items_to_project(estimate=estimate, project=project, sort_start=0)
+
+    return project
+
+
+@transaction.atomic
+def link_estimate_to_existing_project(*, estimate, project, include_items: bool, submitted_by=None):
+    """
+    Link a quotation-won estimate to an existing project and optionally append its lines.
+
+    Does not run conversion approval (that applies only to newly created projects).
+    Adds estimate totals to project contract_value and budget.
+    """
+    estimate.project = project
+    estimate.save(update_fields=['project'])
+
+    project.contract_value = (project.contract_value or Decimal('0')) + (
+        estimate.total_amount or Decimal('0')
+    )
+    project.budget = (project.budget or Decimal('0')) + estimate.total_cost()
+    project.save(update_fields=['contract_value', 'budget'])
+
+    if estimate.assigned_to_id and not project.members.filter(pk=estimate.assigned_to_id).exists():
+        project.members.add(estimate.assigned_to)
+
+    if include_items:
+        copy_estimate_items_to_project(estimate=estimate, project=project)
 
     return project

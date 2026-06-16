@@ -342,6 +342,18 @@ class ProjectUpdateView(UpdatePermissionMixin, UpdateView):
 
         return filter_projects_for_user(Project.objects.filter(is_active=True), self.request.user)
 
+    def dispatch(self, request, *args, **kwargs):
+        from .conversion_approval import project_awaiting_conversion_approval
+
+        project = self.get_object()
+        if project_awaiting_conversion_approval(project):
+            messages.error(
+                request,
+                'This project is locked until conversion from quotation is approved.',
+            )
+            return redirect('projects:project_detail', pk=project.pk)
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
         from .conversion_approval import project_awaiting_conversion_approval
 
@@ -610,7 +622,9 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
     def _base_queryset(self):
         from apps.sales.models import Estimate
 
-        item_line_qs = ProjectItemLine.objects.select_related('inventory_item').order_by(
+        item_line_qs = ProjectItemLine.objects.select_related(
+            'inventory_item', 'source_estimate'
+        ).order_by(
             'sort_order', 'id'
         )
         estimate_qs = Estimate.objects.filter(is_active=True).order_by('-date', '-pk')
@@ -666,6 +680,10 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         context['title'] = f'Project: {self.object.name}'
         source_estimate = get_project_source_estimate(self.object)
         context['source_estimate'] = source_estimate
+        linked_estimates = list(
+            self.object.estimates.filter(is_active=True).order_by('date', 'pk')
+        )
+        context['linked_estimates'] = linked_estimates
         if source_estimate:
             name = self.object.name or ''
             suffix = ''
@@ -716,6 +734,16 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
                 line.track_by_serial = False
                 line.requires_whole_quantity = False
         context['project_item_lines'] = item_lines
+        from .project_item_sections import build_project_item_sections
+
+        sections = build_project_item_sections(item_lines)
+        context['project_item_sections'] = sections
+        if sections:
+            context['project_items_grand_net'] = sum(s['subtotal_net'] for s in sections)
+            context['project_items_grand_vat'] = sum(s['subtotal_vat'] for s in sections)
+            context['project_items_grand_incl_vat'] = (
+                context['project_items_grand_net'] + context['project_items_grand_vat']
+            )
         if 'task_form' not in context:
             context['task_form'] = ProjectTaskCreateForm()
 
@@ -894,10 +922,22 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         return context
 
     def post(self, request, *args, **kwargs):
+        from .conversion_approval import project_awaiting_conversion_approval
+
         self.object = self.get_object()
+        if project_awaiting_conversion_approval(self.object):
+            messages.error(
+                request,
+                'This project is locked until conversion from quotation is approved.',
+            )
+            return redirect('projects:project_detail', pk=self.object.pk)
+
         action = request.POST.get('action', 'add_task')
 
         if action == 'record_item_delivery':
+            if not self.object.allows_edit_by(request.user):
+                messages.error(request, 'This project cannot be edited.')
+                return redirect('projects:project_detail', pk=self.object.pk)
             if not (
                 request.user.is_superuser
                 or PermissionChecker.has_permission(request.user, 'inventory', 'edit')
@@ -978,6 +1018,99 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
             messages.error(request, 'Please correct the return form errors below.')
             context = self.get_context_data(item_return_form=form)
             return self.render_to_response(context)
+
+        if action == 'bulk_deliver_items':
+            if not (
+                request.user.is_superuser
+                or PermissionChecker.has_permission(request.user, 'inventory', 'edit')
+            ):
+                messages.error(request, 'Permission denied.')
+                return redirect('projects:project_detail', pk=self.object.pk)
+            if not self.object.allows_edit_by(request.user):
+                messages.error(request, 'This project cannot be edited.')
+                return redirect('projects:project_detail', pk=self.object.pk)
+
+            line_ids = request.POST.getlist('line_id')
+            item_ids = request.POST.getlist('item_id')
+            quantities = request.POST.getlist('quantity')
+            if not line_ids:
+                messages.error(request, 'Select at least one item to deliver.')
+                return redirect('projects:project_detail', pk=self.object.pk)
+
+            from apps.inventory.models import Item
+
+            today = timezone.now().date()
+            delivered = 0
+            failed = []
+
+            for i, line_pk in enumerate(line_ids):
+                if not line_pk.isdigit():
+                    continue
+                item_pk = item_ids[i] if i < len(item_ids) else ''
+                qty_raw = quantities[i] if i < len(quantities) else ''
+                if not item_pk.isdigit():
+                    failed.append('Invalid item on one of the selected lines.')
+                    continue
+
+                line = ProjectItemLine.objects.filter(
+                    pk=int(line_pk),
+                    project=self.object,
+                ).first()
+                if not line or not line.inventory_item_id:
+                    failed.append('One selected line is no longer valid.')
+                    continue
+
+                item = Item.objects.filter(pk=int(item_pk), is_active=True).first()
+                if not item or item.pk != line.inventory_item_id:
+                    failed.append(f'{line.description or "Item"}: line mismatch.')
+                    continue
+
+                remaining = project_item_remaining_qty(self.object, item) or Decimal('0')
+                max_qty = min(remaining, line.quantity)
+                try:
+                    qty = Decimal(str(qty_raw)).quantize(Decimal('0.01'))
+                except Exception:
+                    failed.append(f'{item.name}: enter a valid quantity.')
+                    continue
+
+                if qty <= 0:
+                    failed.append(f'{item.name}: quantity must be greater than zero.')
+                    continue
+                if qty > max_qty:
+                    failed.append(
+                        f'{item.name}: you can deliver at most {max_qty} '
+                        f'(listed qty {line.quantity}).'
+                    )
+                    continue
+
+                try:
+                    result = deliver_items_to_project(
+                        self.object,
+                        item,
+                        qty,
+                        today,
+                        request.user,
+                    )
+                    delivered += 1
+                except ValidationError as exc:
+                    msg = exc.messages[0] if exc.messages else str(exc)
+                    failed.append(f'{item.name}: {msg}')
+
+            if delivered:
+                messages.success(
+                    request,
+                    f'Delivered {delivered} item(s) to the project.',
+                )
+            for msg in failed[:5]:
+                messages.warning(request, msg)
+            if len(failed) > 5:
+                messages.warning(
+                    request,
+                    f'…and {len(failed) - 5} more item(s) could not be delivered.',
+                )
+            if not delivered and not failed:
+                messages.info(request, 'No items were delivered.')
+            return redirect('projects:project_detail', pk=self.object.pk)
 
         if action in ('inline_deliver_item', 'inline_return_item'):
             if not (

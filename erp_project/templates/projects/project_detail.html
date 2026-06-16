@@ -119,6 +119,17 @@
     </div>
 </div>
 
+{% if conversion_approval_pending %}
+<div class="alert alert-warning mb-4">
+    <i class="fas fa-lock me-2"></i>
+    This project is <strong>locked</strong> until conversion from quotation is approved.
+    You can review details here, but editing, deliveries, tasks, and item requests are disabled.
+    {% if can_approve_project_conversion %}
+    Use <strong>Approve conversion</strong> above to activate the project.
+    {% endif %}
+</div>
+{% endif %}
+
 <div class="row g-4">
     <div class="col-lg-8">
         <div class="card mb-4">
@@ -127,7 +138,28 @@
             </div>
             <div class="card-body pt-0">
                 <div class="row g-4">
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Customer</h6><p class="mb-0">{{ project.customer.name|default:"-" }}</p></div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Customer</h6>
+                        <p class="mb-0">
+                            {% if project.customer %}
+                                {{ project.customer.company|default:project.customer.name|default:"-" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Contact person</h6>
+                        <p class="mb-0">
+                            {% if project.customer and project.customer.company %}
+                                {{ project.customer.name|default:"-" }}
+                            {% elif project.customer %}
+                                -
+                            {% else %}
+                                -
+                            {% endif %}
+                        </p>
+                    </div>
                     <div class="col-md-4"><h6 class="text-muted mb-2">Manager</h6><p class="mb-0">{% if project.manager %}{{ project.manager.get_full_name|default:project.manager.username }}{% else %}-{% endif %}</p></div>
                     <div class="col-md-4"><h6 class="text-muted mb-2">Budget</h6><p class="mb-0">AED {{ project.budget|floatformat:2 }}</p></div>
                     <div class="col-md-4"><h6 class="text-muted mb-2">Estimated cost</h6><p class="mb-0">{% if project.estimated_cost and project.estimated_cost > 0 %}AED {{ project.estimated_cost|floatformat:2 }}{% else %}—{% endif %}</p></div>
@@ -189,6 +221,11 @@
                 #projectItemsTable .project-inline-qty { width: 4.5rem; }
                 #projectItemsTable .line-action-cell form { margin: 0; }
                 #projectItemsTable .project-line-actions { min-width: 8.5rem; }
+                #projectItemsTable tfoot .project-items-total-spacer td {
+                    border: 0;
+                    padding-top: 1.25rem;
+                    padding-bottom: 0.25rem;
+                }
             </style>
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-boxes me-2 text-dark"></i>Items</h6>
@@ -200,10 +237,15 @@
                     <button class="btn btn-sm btn-outline-dark" type="button" data-bs-toggle="collapse" data-bs-target="#itemReturnFormPanel" aria-expanded="false" title="Return to stock" aria-label="Return to stock">
                         <i class="fas fa-undo"></i>
                     </button>
+                    <button type="button" class="btn btn-sm btn-success d-none" id="projectBulkDeliverBtn" title="Deliver all selected items">
+                        <i class="fas fa-check me-1"></i>Deliver selected
+                    </button>
                     {% endif %}
+                    {% if can_edit %}
                     <a href="{% url 'inventory:consumable_request_create' %}?project={{ project.pk }}" class="btn btn-sm btn-primary">
                         <i class="fas fa-plus me-1"></i>Request items
                     </a>
+                    {% endif %}
                 </div>
             </div>
             {% if can_deliver_items %}
@@ -283,11 +325,27 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for line in project_item_lines %}
+                            {% for section in project_item_sections %}
+                            {% if section.spacer_before %}
+                            <tr class="project-item-section-spacer">
+                                <td colspan="{% if can_deliver_items %}6{% else %}4{% endif %}" class="border-0 py-3"></td>
+                            </tr>
+                            {% endif %}
+                            {% if project_item_sections|length > 1 %}
+                            <tr class="table-light">
+                                <td colspan="{% if can_deliver_items %}6{% else %}4{% endif %}" class="fw-semibold small">
+                                    {{ section.label }}
+                                    {% if section.estimate %}
+                                    <a href="{% url 'sales:estimate_detail' section.estimate.pk %}" class="ms-2 text-decoration-none">View quotation</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% for line in section.lines %}
                             {% ifchanged line.group_name %}
                             {% if line.group_name %}
                             <tr class="table-secondary">
-                                <td colspan="{% if can_deliver_items %}7{% else %}4{% endif %}" class="fw-semibold small text-uppercase">{{ line.group_name }}</td>
+                                <td colspan="{% if can_deliver_items %}6{% else %}4{% endif %}" class="fw-semibold small text-uppercase">{{ line.group_name }}</td>
                             </tr>
                             {% endif %}
                             {% endifchanged %}
@@ -376,13 +434,50 @@
                                 {% endif %}
                             </tr>
                             {% endfor %}
+                            {% if project_item_sections|length > 1 %}
+                            <tr class="project-item-section-subtotal">
+                                <td colspan="{% if can_deliver_items %}4{% else %}3{% endif %}" class="text-end small text-muted border-0">Subtotal (excl. VAT)</td>
+                                <td class="text-end fw-semibold border-0 text-nowrap">AED {{ section.subtotal_net|floatformat:2 }}</td>
+                                {% if can_deliver_items %}<td class="border-0"></td>{% endif %}
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
                         </tbody>
+                        <tfoot class="table-light">
+                            <tr class="project-items-total-spacer">
+                                <td colspan="{% if can_deliver_items %}6{% else %}4{% endif %}"></td>
+                            </tr>
+                            <tr>
+                                <td colspan="{% if can_deliver_items %}4{% else %}3{% endif %}" class="text-end fw-semibold border-top">Subtotal (excl. VAT)</td>
+                                <td class="text-end fw-semibold border-top text-nowrap">AED {{ project_items_grand_net|floatformat:2 }}</td>
+                                {% if can_deliver_items %}<td class="border-top"></td>{% endif %}
+                            </tr>
+                            {% if project_items_grand_vat %}
+                            <tr>
+                                <td colspan="{% if can_deliver_items %}4{% else %}3{% endif %}" class="text-end small text-muted border-0">VAT</td>
+                                <td class="text-end border-0 text-nowrap">AED {{ project_items_grand_vat|floatformat:2 }}</td>
+                                {% if can_deliver_items %}<td class="border-0"></td>{% endif %}
+                            </tr>
+                            <tr>
+                                <td colspan="{% if can_deliver_items %}4{% else %}3{% endif %}" class="text-end fw-semibold border-0">Total (incl. VAT)</td>
+                                <td class="text-end fw-semibold border-0 text-nowrap">AED {{ project_items_grand_incl_vat|floatformat:2 }}</td>
+                                {% if can_deliver_items %}<td class="border-0"></td>{% endif %}
+                            </tr>
+                            {% endif %}
+                        </tfoot>
                     </table>
                 </div>
                 {% else %}
                 <p class="text-muted small mb-0 p-3">No items yet.</p>
                 {% endif %}
             </div>
+            {% if can_deliver_items %}
+            <form method="post" id="projectBulkDeliverForm" class="d-none">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="bulk_deliver_items">
+                <div id="projectBulkDeliverFields"></div>
+            </form>
+            {% endif %}
         </div>
         
         <div class="card mb-4">
@@ -390,7 +485,7 @@
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-list-check me-2 text-dark"></i>Tasks</h6>
                 <div class="d-flex flex-wrap gap-2">
                     <a href="{% url 'projects:task_list' %}?project={{ project.pk }}" class="btn btn-sm btn-light"><i class="fas fa-list-check me-1"></i>All tasks (this project)</a>
-                    {% if can_create_projects %}<button class="btn btn-sm btn-primary" type="button" onclick="toggleInlineForm('taskForm')"><i class="fas fa-plus me-1"></i>Add Task</button>{% endif %}
+                    {% if can_edit %}<button class="btn btn-sm btn-primary" type="button" onclick="toggleInlineForm('taskForm')"><i class="fas fa-plus me-1"></i>Add Task</button>{% endif %}
                 </div>
             </div>
             <div id="taskForm" class="inline-form-container m-3" style="display:{% if task_form.errors %}block{% else %}none{% endif %};">
@@ -571,6 +666,31 @@
     </div>
     
     <div class="col-lg-4">
+        {% if linked_estimates %}
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-header bg-transparent py-3 border-bottom">
+                <h6 class="mb-0 fw-semibold"><i class="fas fa-file-invoice me-2 text-dark"></i>Quotations</h6>
+            </div>
+            <div class="card-body pt-2 pb-2">
+                <ul class="list-group list-group-flush">
+                    {% for est in linked_estimates %}
+                    <li class="list-group-item px-0 py-2 border-0 border-bottom">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div class="min-w-0">
+                                <a href="{% url 'sales:estimate_detail' est.pk %}" class="fw-semibold text-decoration-none">{{ est.display_estimate_number }}</a>
+                                <div class="small text-muted">{{ est.date|date:"d M Y" }}</div>
+                            </div>
+                            <div class="text-end text-nowrap">
+                                <span class="badge bg-light text-dark border">{{ est.get_status_display }}</span>
+                                <div class="small fw-medium mt-1">AED {{ est.total_amount|floatformat:2 }}</div>
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
         {% if show_expense_comparison_card %}
         <div class="card mb-4 border-0 shadow-sm">
             <div class="card-header bg-transparent py-3 border-bottom">
@@ -792,9 +912,11 @@
                     </div>
                     {% else %}
                     <p class="text-muted small mb-2">No item requests yet.</p>
+                    {% if can_edit %}
                     <a href="{% url 'inventory:consumable_request_create' %}?project={{ project.pk }}" class="btn btn-sm btn-outline-primary">
                         <i class="fas fa-plus me-1"></i>Request items
                     </a>
+                    {% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -996,6 +1118,60 @@ $(function () {
 
     var headerActionCols = itemsTable.querySelectorAll('thead .line-action-col');
     var selectAll = document.getElementById('projectItemSelectAll');
+    var bulkDeliverBtn = document.getElementById('projectBulkDeliverBtn');
+    var bulkDeliverForm = document.getElementById('projectBulkDeliverForm');
+    var bulkDeliverFields = document.getElementById('projectBulkDeliverFields');
+
+    function deliverableSelectedRows() {
+        return Array.from(itemsTable.querySelectorAll('.project-item-select:checked')).filter(function (cb) {
+            var row = cb.closest('tr.project-item-row--inventory');
+            if (!row) return false;
+            var max = parseFloat(row.getAttribute('data-max-deliver'), 10);
+            return !isNaN(max) && max > 0;
+        });
+    }
+
+    function syncBulkDeliverButton() {
+        if (!bulkDeliverBtn) return;
+        var rows = deliverableSelectedRows();
+        bulkDeliverBtn.classList.toggle('d-none', rows.length === 0);
+    }
+
+    function submitBulkDeliver() {
+        if (!bulkDeliverForm || !bulkDeliverFields) return;
+        var selected = deliverableSelectedRows();
+        if (!selected.length) return;
+
+        bulkDeliverFields.innerHTML = '';
+        selected.forEach(function (cb) {
+            var row = cb.closest('tr.project-item-row--inventory');
+            if (!row) return;
+            var max = parseFloat(row.getAttribute('data-max-deliver'), 10);
+            if (isNaN(max) || max <= 0) return;
+
+            var qtyInput = row.querySelector('.project-inline-deliver-form .project-inline-qty');
+            var qty = qtyInput ? parseFloat(qtyInput.value, 10) : max;
+            if (isNaN(qty) || qty <= 0) qty = max;
+            if (qty > max) qty = max;
+
+            var lineId = row.getAttribute('data-line-id');
+            var itemId = row.getAttribute('data-item-id');
+            if (!lineId || !itemId) return;
+
+            ['line_id', 'item_id', 'quantity'].forEach(function (name, idx) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = idx === 0 ? lineId : (idx === 1 ? itemId : String(qty));
+                bulkDeliverFields.appendChild(input);
+            });
+        });
+
+        if (!bulkDeliverFields.children.length) return;
+        var count = bulkDeliverFields.querySelectorAll('input[name="line_id"]').length;
+        if (!confirm('Deliver ' + count + ' selected item(s) to this project?')) return;
+        bulkDeliverForm.submit();
+    }
 
     function setRowSelected(row, selected) {
         row.querySelectorAll('.line-action-cell').forEach(function (cell) {
@@ -1028,6 +1204,7 @@ $(function () {
             if (row) setRowSelected(row, cb.checked);
             syncHeaderActionCols();
             syncSelectAll();
+            syncBulkDeliverButton();
         });
     });
 
@@ -1040,8 +1217,15 @@ $(function () {
             });
             syncHeaderActionCols();
             syncSelectAll();
+            syncBulkDeliverButton();
         });
     }
+
+    if (bulkDeliverBtn) {
+        bulkDeliverBtn.addEventListener('click', submitBulkDeliver);
+    }
+
+    syncBulkDeliverButton();
 
     itemsTable.querySelectorAll('.project-inline-deliver-form, .project-inline-return-form').forEach(function (form) {
         form.addEventListener('submit', function (e) {

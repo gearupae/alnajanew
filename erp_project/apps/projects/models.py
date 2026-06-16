@@ -308,6 +308,14 @@ class ProjectItemLine(models.Model):
         help_text='Line amount excluding VAT (matches estimate line total)',
     )
     vat_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0'))
+    source_estimate = models.ForeignKey(
+        'sales.Estimate',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='project_item_lines',
+        help_text='Estimate this line was copied from (when converting quotation to project).',
+    )
 
     class Meta:
         ordering = ['sort_order', 'id']

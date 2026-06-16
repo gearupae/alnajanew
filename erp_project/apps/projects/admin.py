@@ -5,7 +5,7 @@ from .models import Project, Task, ProjectGatepass, ProjectPublicUpload, Project
 class ProjectItemLineInline(admin.TabularInline):
     model = ProjectItemLine
     extra = 0
-    fields = ('sort_order', 'group_name', 'description', 'inventory_item', 'quantity', 'unit_price', 'rate', 'line_net', 'vat_amount')
+    fields = ('sort_order', 'group_name', 'description', 'inventory_item', 'quantity', 'unit_price', 'rate', 'line_net', 'vat_amount', 'source_estimate')
     raw_id_fields = ('inventory_item',)
     show_change_link = True
 

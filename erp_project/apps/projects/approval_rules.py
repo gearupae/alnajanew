@@ -6,7 +6,13 @@ from apps.settings_app.models import ApprovalConfiguration
 def user_can_edit_project(user, project) -> bool:
     if not user or not user.is_authenticated:
         return False
-    return user.is_superuser or PermissionChecker.has_permission(user, 'projects', 'edit')
+    if not (user.is_superuser or PermissionChecker.has_permission(user, 'projects', 'edit')):
+        return False
+    from .conversion_approval import project_awaiting_conversion_approval
+
+    if project and project_awaiting_conversion_approval(project):
+        return False
+    return True
 
 
 def get_configured_project_approver(project):

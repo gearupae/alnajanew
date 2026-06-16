@@ -738,6 +738,11 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
                 context['items_formset'] = EstimateItemFormSet(instance=self.object, prefix='items')
         else:
             context['items_formset'] = kwargs['items_formset']
+        context['revision_pending'] = bool(
+            self.object.status == 'sent' and self.object.awaiting_resubmit_revision
+        )
+        if context['revision_pending']:
+            context['next_revision_label'] = f'R{(self.object.revision_count or 0) + 1}'
         return context
     
     def post(self, request, *args, **kwargs):
@@ -758,9 +763,14 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
                     return self.form_invalid(form, items_formset)
                 old_assignee_id = self.object.assigned_to_id
                 pre_status = self.object.status
+                pre_awaiting_resubmit_revision = bool(self.object.awaiting_resubmit_revision)
                 rev_before = self.object.revision_count or 0
                 maybe_snapshot_before_revision(
-                    request, self.object, pre_status=pre_status, has_changes=True,
+                    request,
+                    self.object,
+                    pre_status=pre_status,
+                    has_changes=True,
+                    pre_awaiting_resubmit_revision=pre_awaiting_resubmit_revision,
                 )
                 self.object = form.save()
                 bulk_create_estimate_items(self.object, rows, replace_existing=True)
@@ -770,6 +780,7 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
                     request,
                     self.object,
                     pre_status=pre_status,
+                    pre_awaiting_resubmit_revision=pre_awaiting_resubmit_revision,
                 )
                 self.object.refresh_from_db()
                 detail_url = redirect('sales:estimate_detail', pk=self.object.pk)
@@ -820,10 +831,15 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
         has_changes = estimate_form_has_changes(form, items_formset)
         old_assignee_id = self.object.assigned_to_id
         pre_status = self.object.status
+        pre_awaiting_resubmit_revision = bool(self.object.awaiting_resubmit_revision)
         rev_before = self.object.revision_count or 0
         if has_changes:
             maybe_snapshot_before_revision(
-                self.request, self.object, pre_status=pre_status, has_changes=True,
+                self.request,
+                self.object,
+                pre_status=pre_status,
+                has_changes=True,
+                pre_awaiting_resubmit_revision=pre_awaiting_resubmit_revision,
             )
         self.object = form.save()
         items_formset.instance = self.object
@@ -837,6 +853,7 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
                 self.request,
                 self.object,
                 pre_status=pre_status,
+                pre_awaiting_resubmit_revision=pre_awaiting_resubmit_revision,
             )
             self.object.refresh_from_db()
 
@@ -921,6 +938,11 @@ class EstimateDetailView(PermissionRequiredMixin, DetailView):
         )
 
         context['can_edit'] = self.object.allows_edit_by(self.request.user)
+        context['can_request_revision'] = (
+            context['can_edit']
+            and self.object.status == 'sent'
+            and not self.object.awaiting_resubmit_revision
+        )
         context['can_convert_estimate_follow_on'] = user_can_convert_estimate_follow_on(
             self.request.user, self.object
         )
@@ -938,6 +960,7 @@ class EstimateDetailView(PermissionRequiredMixin, DetailView):
         co = CompanySettings.get_settings()
         context['estimate_to_project_prompt_include_lines'] = co.estimate_to_project_prompt_include_lines
         from .estimate_conversion import (
+            eligible_existing_projects_for_estimate,
             estimate_convert_to_project_block_reason,
             estimate_show_b2b_compliance_banner,
         )
@@ -950,6 +973,9 @@ class EstimateDetailView(PermissionRequiredMixin, DetailView):
             and not block_reason
         )
         context['convert_to_project_block_reason'] = block_reason
+        context['existing_projects_for_conversion'] = list(
+            eligible_existing_projects_for_estimate(self.object, self.request.user)
+        )
         context['show_b2b_compliance_banner'] = estimate_show_b2b_compliance_banner(self.object)
         if self.object.customer_id:
             context['customer_edit_url'] = reverse(
@@ -985,8 +1011,11 @@ class EstimateDetailView(PermissionRequiredMixin, DetailView):
         context['proforma_invoices'] = list(
             self.object.proforma_invoices.select_related('created_by').all()[:20]
         )
-        from .estimate_pdf_groups import build_expense_type_totals, build_pdf_item_groups
-        item_groups = build_pdf_item_groups(self.object)
+        from .estimate_pdf_groups import (
+            build_expense_type_totals,
+            build_item_groups_for_estimate_detail,
+        )
+        item_groups = build_item_groups_for_estimate_detail(self.object)
         expense_type_totals = build_expense_type_totals(item_groups)
         context['item_groups'] = item_groups
         context['expense_type_totals'] = expense_type_totals
@@ -1256,6 +1285,34 @@ def estimate_update_status(request, pk, status):
 
 
 @login_required
+@require_POST
+def estimate_request_revision(request, pk):
+    """Enable explicit revision bump on next save for sent quotations."""
+    estimate = get_object_or_404(Estimate, pk=pk, is_active=True)
+
+    if not estimate.allows_edit_by(request.user):
+        messages.error(request, 'You do not have permission to revise this quotation.')
+        return redirect('sales:estimate_detail', pk=pk)
+
+    if estimate.status != 'sent':
+        messages.error(request, 'Revise quotation is available only when status is Sent.')
+        return redirect('sales:estimate_detail', pk=pk)
+
+    if estimate.awaiting_resubmit_revision:
+        messages.info(request, 'Continue editing and save your changes to create the next revision.')
+        return redirect('sales:estimate_edit', pk=pk)
+
+    estimate.awaiting_resubmit_revision = True
+    estimate.save(update_fields=['awaiting_resubmit_revision', 'updated_at'])
+    next_label = f'R{(estimate.revision_count or 0) + 1}'
+    messages.success(
+        request,
+        f'Revision mode enabled ({next_label}). Save your changes to apply the new revision.',
+    )
+    return redirect('sales:estimate_edit', pk=pk)
+
+
+@login_required
 def estimate_convert_to_invoice(request, pk):
     """Convert a quotation-won estimate to invoice."""
     estimate = get_object_or_404(Estimate, pk=pk)
@@ -1321,7 +1378,7 @@ def estimate_convert_to_invoice(request, pk):
 
 @login_required
 def estimate_convert_to_project(request, pk):
-    """Create a project from a quotation-won estimate; optionally copy estimate lines."""
+    """Create a project from a quotation-won estimate, or link to an existing project."""
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
 
@@ -1341,21 +1398,71 @@ def estimate_convert_to_project(request, pk):
         messages.error(request, 'Only quotation-won estimates can be converted to a project.')
         return redirect('sales:estimate_detail', pk=pk)
 
-    from .estimate_conversion import estimate_convert_to_project_block_reason
+    from .estimate_conversion import (
+        estimate_convert_to_project_block_reason,
+        eligible_existing_projects_for_estimate,
+        existing_project_link_block_reason,
+    )
 
     block = estimate_convert_to_project_block_reason(estimate)
     if block:
         messages.error(request, block)
         return redirect('sales:estimate_detail', pk=pk)
 
-    from .estimate_to_project import create_project_from_estimate
-
     company = CompanySettings.get_settings()
-    if company.estimate_to_project_prompt_include_lines:
-        raw = (request.POST.get('include_items') or '').strip().lower()
-        include_items = raw in ('1', 'true', 'yes', 'on')
+    raw_include = (request.POST.get('include_items') or '').strip().lower()
+    if company.estimate_to_project_prompt_include_lines or raw_include:
+        include_items = raw_include in ('1', 'true', 'yes', 'on')
     else:
         include_items = False
+
+    convert_mode = (request.POST.get('convert_mode') or 'new').strip().lower()
+    if convert_mode == 'existing':
+        from apps.core.visibility import filter_projects_for_user
+        from apps.projects.models import Project
+        from .estimate_to_project import link_estimate_to_existing_project
+
+        project_pk = (request.POST.get('project_id') or '').strip()
+        if not project_pk.isdigit():
+            messages.error(request, 'Select an existing project.')
+            return redirect('sales:estimate_detail', pk=pk)
+
+        eligible_ids = set(
+            eligible_existing_projects_for_estimate(estimate, request.user).values_list('pk', flat=True)
+        )
+        project = filter_projects_for_user(
+            Project.objects.filter(pk=int(project_pk), is_active=True),
+            request.user,
+        ).first()
+        if not project or project.pk not in eligible_ids:
+            messages.error(request, 'You cannot link this quotation to the selected project.')
+            return redirect('sales:estimate_detail', pk=pk)
+
+        link_block = existing_project_link_block_reason(estimate, project)
+        if link_block:
+            messages.error(request, link_block)
+            return redirect('sales:estimate_detail', pk=pk)
+
+        link_estimate_to_existing_project(
+            estimate=estimate,
+            project=project,
+            include_items=include_items,
+            submitted_by=request.user,
+        )
+        if include_items:
+            messages.success(
+                request,
+                f'Quotation {estimate.estimate_number} linked to project {project.project_code}. '
+                f'Items were added to the project.',
+            )
+        else:
+            messages.success(
+                request,
+                f'Quotation {estimate.estimate_number} linked to project {project.project_code}.',
+            )
+        return redirect('projects:project_detail', pk=project.pk)
+
+    from .estimate_to_project import create_project_from_estimate
 
     project = create_project_from_estimate(
         estimate=estimate,

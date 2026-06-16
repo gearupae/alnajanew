@@ -254,6 +254,15 @@
     <h4 class="mb-0 fw-bold">{{ title }}</h4>
 </div>
 
+{% if revision_pending %}
+<div class="alert alert-info mb-4">
+    <i class="fas fa-code-branch me-2"></i>
+    <strong>Revision mode.</strong>
+    Saving changes will create revision <strong>{{ next_revision_label }}</strong> and send the quotation for approval again.
+    Use <strong>Edit</strong> from the detail page without clicking <strong>Revise quotation</strong> if you only want to update without a new revision.
+</div>
+{% endif %}
+
 {% if form.errors and form.errors.items %}
 <div class="alert alert-danger mb-4">
     <h6 class="alert-heading mb-2"><i class="fas fa-exclamation-triangle me-2"></i>Please correct the errors below:</h6>
@@ -1492,6 +1501,8 @@ function addLinesFromInventoryGroupSelect(sel) {
 
 function addItemRow() {
     const tbody = document.getElementById('itemsBody');
+    const rows = getVisibleEstimateRows();
+    const inheritGroup = rows.length ? getRowGroupName(rows[rows.length - 1]) : '';
     const tr = document.createElement('tr');
     tr.className = 'item-row';
     tr.innerHTML = `
@@ -1499,7 +1510,7 @@ function addItemRow() {
             <input type="hidden" name="items-${formCount}-id" id="id_items-${formCount}-id">
             <div class="input-group input-group-sm flex-nowrap estimate-group-combo">
                 <select class="form-select form-select-sm estimate-add-from-group estimate-pick-group" aria-label="Pick inventory group to add all its lines on this estimate"></select>
-                <input type="text" name="items-${formCount}-group_name" class="form-control form-control-sm item-group-name" value="" list="estimate-group-names" placeholder="PDF section" title="Estimate / PDF section title for this line. Editing this does not change inventory masters—only how this estimate is grouped on the PDF.">
+                <input type="text" name="items-${formCount}-group_name" class="form-control form-control-sm item-group-name" value="${inheritGroup.replace(/"/g, '&quot;')}" list="estimate-group-names" placeholder="PDF section" title="Estimate / PDF section title for this line. Editing this does not change inventory masters—only how this estimate is grouped on the PDF.">
             </div>
             <input type="hidden" name="items-${formCount}-sort_order" value="${formCount}" id="id_items-${formCount}-sort_order">
         </td>
