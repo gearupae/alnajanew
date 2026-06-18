@@ -10,6 +10,7 @@ from django.urls import reverse, reverse_lazy
 from django.db import transaction
 from django.db.models import Q, Sum, Prefetch, Count
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
@@ -28,9 +29,46 @@ from apps.core.utils import PermissionChecker
 from apps.settings_app.models import CompanySettings
 
 from .estimate_pdf_render import render_estimate_quotation_pdf_bytes
-from .estimate_change_detection import estimate_form_has_changes
-from .estimate_edit_flow import apply_after_estimate_save, EstimateEditApplyResult
-from .estimate_revision_snapshot import maybe_snapshot_before_revision
+from .estimate_change_detection import (
+    capture_estimate_pricing_snapshot,
+    estimate_form_has_amount_affecting_changes,
+    estimate_form_has_changes,
+    estimate_pricing_snapshots_differ,
+)
+from .estimate_edit_flow import REVISE_QUOTATION_STATUSES, apply_after_estimate_save, EstimateEditApplyResult
+from .estimate_revision_snapshot import (
+    discard_revision_snapshot_if_no_amount_change,
+    maybe_snapshot_before_revision,
+)
+
+
+def _estimate_revise_session_key(pk: int) -> str:
+    return f'estimate_revise_{pk}'
+
+
+def _is_estimate_revision_session(request, pk: int) -> bool:
+    return bool(request.session.get(_estimate_revise_session_key(pk)))
+
+
+def _set_estimate_revision_session(request, pk: int) -> None:
+    request.session[_estimate_revise_session_key(pk)] = True
+    request.session.modified = True
+
+
+def _clear_estimate_revision_session(request, pk: int) -> None:
+    key = _estimate_revise_session_key(pk)
+    if key in request.session:
+        del request.session[key]
+        request.session.modified = True
+
+
+def _clear_stale_estimate_revision_flag(estimate) -> None:
+    if getattr(estimate, 'awaiting_resubmit_revision', False):
+        Estimate.objects.filter(pk=estimate.pk).update(
+            awaiting_resubmit_revision=False,
+            updated_at=timezone.now(),
+        )
+        estimate.awaiting_resubmit_revision = False
 
 
 def _pdf_media_absolute_url(request, file_field, *, for_weasyprint=False):
@@ -62,14 +100,21 @@ def _estimate_save_success_message(
     estimate,
     *,
     has_changes: bool,
+    amount_affecting_changes: bool,
     result: EstimateEditApplyResult | None,
     rev_before: int,
+    revision_mode: bool = False,
 ) -> str:
     if not has_changes:
-        return 'No changes were made; the estimate was not sent for re-approval.'
+        return 'No changes were made.'
     msg = f'Estimate {estimate.display_estimate_number} updated successfully.'
+    if revision_mode and has_changes and not amount_affecting_changes:
+        return (
+            f'{msg} No discount or line amount changes — quotation number unchanged '
+            f'and not sent for approval. Change amounts to create the next revision.'
+        )
     if result and result.resubmitted_for_approval:
-        msg += ' Sent for approval again.'
+        msg += ' Sent for approval.'
         if result.revision_bumped and estimate.revision_label:
             msg += f' Revision {estimate.revision_label}.'
     elif result and result.edit_pending:
@@ -740,11 +785,11 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
             context['items_formset'] = kwargs['items_formset']
         from .estimate_edit_flow import REVISE_QUOTATION_STATUSES
 
-        context['revision_pending'] = bool(
-            self.object.awaiting_resubmit_revision
+        context['revision_hint'] = (
+            _is_estimate_revision_session(self.request, self.object.pk)
             and self.object.status in REVISE_QUOTATION_STATUSES
         )
-        if context['revision_pending']:
+        if context['revision_hint']:
             context['next_revision_label'] = f'R{(self.object.revision_count or 0) + 1}'
         return context
     
@@ -766,7 +811,7 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
                     return self.form_invalid(form, items_formset)
                 old_assignee_id = self.object.assigned_to_id
                 pre_status = self.object.status
-                pre_awaiting_resubmit_revision = bool(self.object.awaiting_resubmit_revision)
+                pre_awaiting_resubmit_revision = _is_estimate_revision_session(request, self.object.pk)
                 rev_before = self.object.revision_count or 0
                 maybe_snapshot_before_revision(
                     request,
@@ -784,16 +829,22 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
                     self.object,
                     pre_status=pre_status,
                     pre_awaiting_resubmit_revision=pre_awaiting_resubmit_revision,
+                    has_changes=True,
+                    amount_affecting_changes=True,
                 )
                 self.object.refresh_from_db()
+                _clear_estimate_revision_session(request, self.object.pk)
+                _clear_stale_estimate_revision_flag(self.object)
                 detail_url = redirect('sales:estimate_detail', pk=self.object.pk)
                 messages.success(
                     request,
                     _estimate_save_success_message(
                         self.object,
                         has_changes=True,
+                        amount_affecting_changes=True,
                         result=result,
                         rev_before=rev_before,
+                        revision_mode=pre_awaiting_resubmit_revision,
                     ),
                 )
                 est = self.object
@@ -834,21 +885,33 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
         has_changes = estimate_form_has_changes(form, items_formset)
         old_assignee_id = self.object.assigned_to_id
         pre_status = self.object.status
-        pre_awaiting_resubmit_revision = bool(self.object.awaiting_resubmit_revision)
+        pre_awaiting_resubmit_revision = _is_estimate_revision_session(self.request, self.object.pk)
         rev_before = self.object.revision_count or 0
+
+        pricing_before = capture_estimate_pricing_snapshot(
+            Estimate.objects.get(pk=self.object.pk)
+        )
+        revision_snapshot = None
         if has_changes:
-            maybe_snapshot_before_revision(
+            revision_snapshot = maybe_snapshot_before_revision(
                 self.request,
                 self.object,
                 pre_status=pre_status,
                 has_changes=True,
                 pre_awaiting_resubmit_revision=pre_awaiting_resubmit_revision,
             )
+
         self.object = form.save()
         items_formset.instance = self.object
         items_formset.save()
         self.object.calculate_totals()
         self.object.refresh_from_db()
+
+        pricing_after = capture_estimate_pricing_snapshot(self.object)
+        amount_affecting_changes = estimate_pricing_snapshots_differ(pricing_before, pricing_after)
+        if not amount_affecting_changes:
+            amount_affecting_changes = estimate_form_has_amount_affecting_changes(form, items_formset)
+        discard_revision_snapshot_if_no_amount_change(revision_snapshot, amount_affecting_changes)
 
         result = None
         if has_changes:
@@ -857,16 +920,23 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
                 self.object,
                 pre_status=pre_status,
                 pre_awaiting_resubmit_revision=pre_awaiting_resubmit_revision,
+                has_changes=True,
+                amount_affecting_changes=amount_affecting_changes,
             )
             self.object.refresh_from_db()
+
+        _clear_estimate_revision_session(self.request, self.object.pk)
+        _clear_stale_estimate_revision_flag(self.object)
 
         messages.success(
             self.request,
             _estimate_save_success_message(
                 self.object,
                 has_changes=has_changes,
+                amount_affecting_changes=amount_affecting_changes,
                 result=result,
                 rev_before=rev_before,
+                revision_mode=pre_awaiting_resubmit_revision,
             ),
         )
         est = self.object
@@ -926,7 +996,14 @@ class EstimateDetailView(PermissionRequiredMixin, DetailView):
             if not user_can_access_estimate(request.user, est):
                 messages.error(request, 'You do not have permission to view this estimate.')
                 return redirect('sales:estimate_list')
+        if request.method == 'GET' and pk:
+            _clear_estimate_revision_session(request, pk)
         return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        _clear_stale_estimate_revision_flag(obj)
+        return obj
     
     def get_context_data(self, **kwargs):
         from apps.purchase.email_outbound import outgoing_mail_hint
@@ -939,14 +1016,12 @@ class EstimateDetailView(PermissionRequiredMixin, DetailView):
             user_can_approve_estimate_status,
             user_can_convert_estimate_follow_on,
         )
-
-        context['can_edit'] = self.object.allows_edit_by(self.request.user)
         from .estimate_edit_flow import REVISE_QUOTATION_STATUSES
 
+        context['can_edit'] = self.object.allows_edit_by(self.request.user)
         context['can_request_revision'] = (
             context['can_edit']
             and self.object.status in REVISE_QUOTATION_STATUSES
-            and not self.object.awaiting_resubmit_revision
         )
         context['can_convert_estimate_follow_on'] = user_can_convert_estimate_follow_on(
             self.request.user, self.object
@@ -1292,7 +1367,7 @@ def estimate_update_status(request, pk, status):
 @login_required
 @require_POST
 def estimate_request_revision(request, pk):
-    """Enable explicit revision bump on next save."""
+    """Open revise mode — next save with amount changes creates a revision and sends for approval."""
     from .estimate_edit_flow import REVISE_QUOTATION_STATUSES
 
     estimate = get_object_or_404(Estimate, pk=pk, is_active=True)
@@ -1302,24 +1377,48 @@ def estimate_request_revision(request, pk):
         return redirect('sales:estimate_detail', pk=pk)
 
     if estimate.status not in REVISE_QUOTATION_STATUSES:
-        messages.error(
-            request,
-            'Revise quotation is not available for this status.',
-        )
+        if estimate.status == 'sent':
+            messages.info(
+                request,
+                'This quotation is awaiting approval. Revise quotation is available after it is approved.',
+            )
+        else:
+            messages.error(request, 'Revise quotation is not available for this status.')
         return redirect('sales:estimate_detail', pk=pk)
 
-    if estimate.awaiting_resubmit_revision:
-        messages.info(request, 'Continue editing and save your changes to create the next revision.')
+    if _is_estimate_revision_session(request, pk):
+        messages.info(request, 'Continue editing and save amount changes to create the next revision.')
         return redirect('sales:estimate_edit', pk=pk)
 
-    estimate.awaiting_resubmit_revision = True
-    estimate.save(update_fields=['awaiting_resubmit_revision', 'updated_at'])
+    _clear_stale_estimate_revision_flag(estimate)
+    _set_estimate_revision_session(request, pk)
     next_label = f'R{(estimate.revision_count or 0) + 1}'
     messages.success(
         request,
-        f'Revision mode enabled ({next_label}). Save your changes to apply the new revision.',
+        f'Revision mode enabled. Change discount or line amounts and save to create {next_label} '
+        f'and send for approval. Other edits save without a new revision or approval.',
     )
     return redirect('sales:estimate_edit', pk=pk)
+
+
+@login_required
+@require_POST
+def estimate_cancel_revision(request, pk):
+    """Exit revision mode without saving — restores the Revise quotation button."""
+    estimate = get_object_or_404(Estimate, pk=pk, is_active=True)
+
+    if not estimate.allows_edit_by(request.user):
+        messages.error(request, 'You do not have permission to change this quotation.')
+        return redirect('sales:estimate_detail', pk=pk)
+
+    if not _is_estimate_revision_session(request, pk) and not estimate.awaiting_resubmit_revision:
+        messages.info(request, 'Revision mode is not active.')
+        return redirect('sales:estimate_detail', pk=pk)
+
+    _clear_estimate_revision_session(request, pk)
+    _clear_stale_estimate_revision_flag(estimate)
+    messages.success(request, 'Revision mode cancelled.')
+    return redirect('sales:estimate_detail', pk=pk)
 
 
 @login_required

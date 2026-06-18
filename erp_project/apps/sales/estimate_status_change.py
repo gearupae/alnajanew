@@ -41,6 +41,8 @@ def apply_estimate_status_fields(
         estimate.rejection_reason = ''
         update_fields.append('rejection_reason')
         update_fields.extend(clear_awaiting_revision(estimate))
+    elif new_status in ('quotation_won', 'quotation_lost') and old_status != new_status:
+        update_fields.extend(clear_awaiting_revision(estimate))
     elif new_status == 'draft':
         estimate.rejection_reason = ''
         update_fields.append('rejection_reason')
@@ -55,6 +57,9 @@ def apply_estimate_status_fields(
                 'edit_approval_submitted_at',
                 'edit_approval_submitted_by',
             ])
+
+    # Manual status changes end an in-progress revise session (e.g. marked Quot Won).
+    update_fields.extend(clear_awaiting_revision(estimate))
 
     estimate.status = new_status
     return list(dict.fromkeys(update_fields))

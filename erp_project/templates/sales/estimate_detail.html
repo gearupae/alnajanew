@@ -73,10 +73,7 @@
             {% if estimate.edit_approval_status == 'pending' %}
             <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Edit pending approval</span>
             {% elif estimate.edit_approval_status == 'rejected' %}
-            <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Edit rejected — correct and save to resubmit (next revision: R{{ estimate.revision_count|add:1 }})</span>
-            {% endif %}
-            {% if estimate.awaiting_resubmit_revision %}
-            <span class="badge bg-info text-dark"><i class="fas fa-code-branch me-1"></i>Revision requested (next: R{{ estimate.revision_count|add:1 }})</span>
+            <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Edit rejected — correct and save to resubmit</span>
             {% endif %}
             {% if can_approve_estimate_edit %}
             <form method="post" action="{% url 'sales:estimate_approve_edit' estimate.pk %}" class="d-inline" onsubmit="return confirm('Approve these estimate changes?');">
@@ -97,7 +94,7 @@
             {% if can_request_revision %}
             <form method="post" action="{% url 'sales:estimate_request_revision' estimate.pk %}" class="d-inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-outline-info" onclick="return confirm('Open the edit page and create a new revision when you save changes?');">
+                <button type="submit" class="btn btn-outline-info">
                     <i class="fas fa-code-branch me-2"></i>Revise quotation
                 </button>
             </form>
@@ -428,7 +425,7 @@
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-code-branch me-2 text-dark"></i>Revision history</h6>
             </div>
             <div class="card-body pt-0">
-                <p class="text-muted small mb-3">Previous versions are saved when you click <strong>Revise quotation</strong>, then save your changes (R1, R2, …).</p>
+                <p class="text-muted small mb-3">After approval, use <strong>Revise quotation</strong>. Only <strong>discount or line amount</strong> changes create the next revision (R1, R2, …) and send for approval.</p>
                 <ul class="list-group list-group-flush">
                     {% for snap in revision_snapshots %}
                     <li class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
@@ -465,12 +462,8 @@
                 </div>
                 {% if estimate.discount_applied and estimate.discount_applied > 0 %}
                 <div class="d-flex justify-content-between mb-2">
-                    <span>Discount (before VAT)</span>
+                    <span>Discount</span>
                     <span class="text-danger">− AED {{ estimate.discount_applied|floatformat:2 }}</span>
-                </div>
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Discount (after VAT)</span>
-                    <span class="text-danger">− AED {{ estimate.discount_applied_incl_vat|floatformat:2 }}</span>
                 </div>
                 {% endif %}
                 <div class="d-flex justify-content-between mb-2">

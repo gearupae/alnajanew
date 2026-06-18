@@ -23,6 +23,7 @@ urlpatterns = [
     path('estimates/<int:pk>/convert-project/', views.estimate_convert_to_project, name='estimate_convert_project'),
     path('estimates/<int:pk>/status/<str:status>/', views.estimate_update_status, name='estimate_status'),
     path('estimates/<int:pk>/request-revision/', views.estimate_request_revision, name='estimate_request_revision'),
+    path('estimates/<int:pk>/cancel-revision/', views.estimate_cancel_revision, name='estimate_cancel_revision'),
     path('estimates/<int:pk>/set-status/', views.estimate_set_status, name='estimate_set_status'),
     path('estimates/<int:pk>/pdf/download/', views.estimate_pdf_download, name='estimate_pdf_download'),
     path('estimates/<int:pk>/pdf/', views.estimate_pdf, name='estimate_pdf'),

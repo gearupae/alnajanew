@@ -254,11 +254,19 @@
     <h4 class="mb-0 fw-bold">{{ title }}</h4>
 </div>
 
-{% if revision_pending %}
-<div class="alert alert-info mb-4">
-    <i class="fas fa-code-branch me-2"></i>
-    <strong>Revision mode.</strong>
-    Saving changes will create revision <strong>{{ next_revision_label }}</strong> and send the quotation for approval again.
+{% if revision_hint %}
+<div class="alert alert-info mb-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div>
+        <i class="fas fa-code-branch me-2"></i>
+        <strong>Revision mode.</strong>
+        Only <strong>discount</strong> or <strong>line amount</strong> changes create revision
+        <strong>{{ next_revision_label }}</strong> and send the quotation for approval.
+        Other edits save without a new revision or approval.
+    </div>
+    <form method="post" action="{% url 'sales:estimate_cancel_revision' object.pk %}" class="mb-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Cancel revision</button>
+    </form>
 </div>
 {% endif %}
 
@@ -474,15 +482,9 @@
                             <td></td>
                             <td></td>
                         </tr>
-                        <tr id="discountExclRow" class="d-none">
-                            <td colspan="10" class="text-end fw-medium text-danger">Discount (before VAT):</td>
-                            <td class="text-end fw-medium text-danger" id="discountDisplayExcl">0.00</td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                        <tr id="discountInclRow" class="d-none">
-                            <td colspan="10" class="text-end fw-medium text-danger">Discount (after VAT):</td>
-                            <td class="text-end fw-medium text-danger" id="discountDisplayIncl">0.00</td>
+                        <tr id="discountRow" class="d-none">
+                            <td colspan="10" class="text-end fw-medium text-danger">Discount:</td>
+                            <td class="text-end fw-medium text-danger" id="discountDisplay">0.00</td>
                             <td></td>
                             <td></td>
                         </tr>
@@ -1758,9 +1760,7 @@ function calculateTotals() {
 
     let remainingDisc = disc;
     let vatTotal = 0;
-    let vatWithoutDiscount = 0;
     rows.forEach((row, idx) => {
-        vatWithoutDiscount += Math.round(row.net * (row.vatRate / 100) * 100) / 100;
         let lineDisc = 0;
         if (disc > 0 && subtotal > 0) {
             if (idx === rows.length - 1) {
@@ -1774,15 +1774,12 @@ function calculateTotals() {
         vatTotal += Math.round(lineNet * (row.vatRate / 100) * 100) / 100;
     });
 
-    const discInclVat = disc + Math.round((vatWithoutDiscount - vatTotal) * 100) / 100;
     const grand = subtotal - disc + vatTotal;
     document.getElementById('subtotal').textContent = subtotal.toFixed(2);
     const showDiscount = disc > 0;
-    document.getElementById('discountExclRow')?.classList.toggle('d-none', !showDiscount);
-    document.getElementById('discountInclRow')?.classList.toggle('d-none', !showDiscount);
+    document.getElementById('discountRow')?.classList.toggle('d-none', !showDiscount);
     if (showDiscount) {
-        document.getElementById('discountDisplayExcl').textContent = disc.toFixed(2);
-        document.getElementById('discountDisplayIncl').textContent = discInclVat.toFixed(2);
+        document.getElementById('discountDisplay').textContent = disc.toFixed(2);
     }
     document.getElementById('vatTotal').textContent = vatTotal.toFixed(2);
     document.getElementById('grandTotal').textContent = grand.toFixed(2);

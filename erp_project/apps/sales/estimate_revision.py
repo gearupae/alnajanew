@@ -18,7 +18,8 @@ def apply_revision_on_status_sent(estimate, old_status: str) -> list[str]:
     Returns extra model fields to save alongside status.
     """
     extra_fields = []
-    should_bump = old_status == 'rejected' or getattr(estimate, 'awaiting_resubmit_revision', False)
+    # Revision bumps from the edit form use apply_after_estimate_save (amount changes only).
+    should_bump = old_status == 'rejected'
     if should_bump and old_status != 'sent':
         estimate.revision_count = (estimate.revision_count or 0) + 1
         extra_fields.append('revision_count')
@@ -36,7 +37,5 @@ def clear_awaiting_revision(estimate) -> list[str]:
 
 
 def mark_awaiting_revision_after_status_reject(estimate) -> list[str]:
-    if not getattr(estimate, 'awaiting_resubmit_revision', False):
-        estimate.awaiting_resubmit_revision = True
-        return ['awaiting_resubmit_revision']
+    """Legacy no-op — revisions bump on save when amounts change."""
     return []

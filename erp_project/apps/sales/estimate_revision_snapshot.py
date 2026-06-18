@@ -9,7 +9,7 @@ from .models import Estimate, EstimateItem, EstimateRevisionSnapshot
 
 
 def status_requires_revision_resubmit(status: str) -> bool:
-    """Snapshot only when an explicit Revise quotation was requested."""
+    """Legacy — revisions bump on save when amounts change."""
     return False
 
 
@@ -100,9 +100,16 @@ def maybe_snapshot_before_revision(
     has_changes: bool,
     pre_awaiting_resubmit_revision: bool = False,
 ):
-    if not has_changes:
+    """Capture pre-save state before a revision bump; caller may discard if amounts unchanged."""
+    from .estimate_edit_flow import REVISE_QUOTATION_STATUSES
+
+    if not has_changes or not pre_awaiting_resubmit_revision:
         return None
-    needs_snapshot = pre_awaiting_resubmit_revision
-    if not needs_snapshot:
+    if pre_status not in REVISE_QUOTATION_STATUSES:
         return None
     return snapshot_estimate_before_revision(request, estimate)
+
+
+def discard_revision_snapshot_if_no_amount_change(snapshot, amount_affecting_changes: bool) -> None:
+    if snapshot and not amount_affecting_changes:
+        snapshot.delete()

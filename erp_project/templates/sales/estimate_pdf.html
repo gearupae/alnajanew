@@ -827,12 +827,8 @@
                 </div>
                 {% if estimate.discount_applied and estimate.discount_applied > 0 %}
                 <div class="totals-row">
-                    <span class="totals-label">Discount (before VAT)</span>
+                    <span class="totals-label">Discount</span>
                     <span class="totals-value" style="color:var(--discount);">− AED {{ estimate.discount_applied|floatformat:2 }}</span>
-                </div>
-                <div class="totals-row">
-                    <span class="totals-label">Discount (after VAT)</span>
-                    <span class="totals-value" style="color:var(--discount);">− AED {{ estimate.discount_applied_incl_vat|floatformat:2 }}</span>
                 </div>
                 {% endif %}
                 {% for rate, amounts in vat_summary.items %}
@@ -844,12 +840,8 @@
                 {% else %}
                 {% if estimate.discount_applied and estimate.discount_applied > 0 %}
                 <div class="totals-row">
-                    <span class="totals-label">Discount (before VAT)</span>
+                    <span class="totals-label">Discount</span>
                     <span class="totals-value" style="color:var(--discount);">− AED {{ estimate.discount_applied|floatformat:2 }}</span>
-                </div>
-                <div class="totals-row">
-                    <span class="totals-label">Discount (after VAT)</span>
-                    <span class="totals-value" style="color:var(--discount);">− AED {{ estimate.discount_applied_incl_vat|floatformat:2 }}</span>
                 </div>
                 {% endif %}
                 <div class="totals-row">

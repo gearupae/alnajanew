@@ -269,6 +269,10 @@ class EstimateItemInlineFormSet(BaseInlineFormSet):
                 self.saved_forms.append(form)
         return self.new_objects
 
+    def save(self, commit=True):
+        # Parent estimate is saved in the view; do not re-save here (would overwrite header fields).
+        return super(BaseInlineFormSet, self).save(commit=commit)
+
     def add_fields(self, form, index):
         super().add_fields(form, index)
         if self.can_delete and 'DELETE' in form.fields:
