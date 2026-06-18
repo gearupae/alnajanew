@@ -491,6 +491,7 @@ class ApprovalConfiguration(BaseModel):
         ('estimate', 'Sales Estimate'),
         ('project', 'Project'),
         ('project_conversion', 'Project from estimate (draft)'),
+        ('project_operation_access', 'Project operation access (estimate)'),
         ('leave', 'Leave Request'),
     ]
     
@@ -565,6 +566,7 @@ class ApprovalConfiguration(BaseModel):
                 'estimate': f'/sales/estimates/{pk}/' if pk else '',
                 'project': f'/projects/{pk}/' if pk else '',
                 'project_conversion': f'/projects/{pk}/' if pk else '',
+                'project_operation_access': f'/projects/{pk}/' if pk else '',
                 'leave': f'/hr/leave/{pk}/' if pk else '',
             }
             link = link_map.get(module, str(pk) if pk else '')

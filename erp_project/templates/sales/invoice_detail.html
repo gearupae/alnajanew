@@ -274,6 +274,17 @@
             </div>
         </div>
         {% endif %}
+
+        {% if linked_project %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Related Project</h6>
+                <a href="{% url 'projects:project_detail' linked_project.pk %}" class="text-decoration-none fw-medium">
+                    {{ linked_project.project_code }} — {{ linked_project.name }}
+                </a>
+            </div>
+        </div>
+        {% endif %}
         
         <!-- Audit Info -->
         <div class="card mb-4">

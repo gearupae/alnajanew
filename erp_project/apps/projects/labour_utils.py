@@ -36,6 +36,17 @@ def infer_project_for_technician(user):
     return None
 
 
+def primary_technician_project(user):
+    """Pick the best active project for bulk attendance / labour when not explicitly chosen."""
+    if not user:
+        return None
+    qs = active_technician_projects(user)
+    in_progress = qs.filter(status='in_progress').order_by('-start_date', '-pk').first()
+    if in_progress:
+        return in_progress
+    return qs.order_by('-start_date', '-pk').first()
+
+
 def labour_attendance_queryset(employee: Employee, project):
     """Attendance sessions explicitly clocked to this project only."""
     from apps.hr.models_extended import AttendanceRecord

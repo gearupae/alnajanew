@@ -1,16 +1,17 @@
 """Post-save estimate edit workflow: re-approval and revision bumps."""
 from dataclasses import dataclass
 
-# Editing in these statuses requires re-approval and bumps R1, R2, …
-REVISION_RESUBMIT_STATUSES = frozenset({
+# Statuses where the user may click "Revise quotation" before saving a new R1/R2…
+REVISE_QUOTATION_STATUSES = frozenset({
+    'sent',
     'approved',
-    'rejected',
     'under_negotiation',
-    'quotation_won',
+    'rejected',
     'quotation_lost',
 })
 
-# Backwards-compatible alias
+# Legacy alias — revision bumps now require awaiting_resubmit_revision for all statuses.
+REVISION_RESUBMIT_STATUSES = REVISE_QUOTATION_STATUSES
 RESUBMIT_AFTER_EDIT_STATUSES = REVISION_RESUBMIT_STATUSES
 
 
@@ -31,15 +32,12 @@ def apply_after_estimate_save(
 ) -> EstimateEditApplyResult:
     """
     After a successful estimate save with detected changes:
-    - approved / under negotiation / quot won / quot lost / rejected → sent + revision bump
-    - sent → keep as-is unless revise was requested explicitly
+    - Any status → revision bump + sent only when Revise quotation was requested
     - draft → no approval action
     """
     result = EstimateEditApplyResult(changed=True)
 
-    should_resubmit = pre_status in REVISION_RESUBMIT_STATUSES or (
-        pre_status == 'sent' and pre_awaiting_resubmit_revision
-    )
+    should_resubmit = pre_awaiting_resubmit_revision
     if should_resubmit:
         estimate.revision_count = (estimate.revision_count or 0) + 1
         estimate.status = 'sent'

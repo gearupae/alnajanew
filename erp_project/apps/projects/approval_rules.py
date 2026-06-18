@@ -9,8 +9,28 @@ def user_can_edit_project(user, project) -> bool:
     if not (user.is_superuser or PermissionChecker.has_permission(user, 'projects', 'edit')):
         return False
     from .conversion_approval import project_awaiting_conversion_approval
+    from .operation_access import project_operations_locked
 
     if project and project_awaiting_conversion_approval(project):
+        return False
+    if project and project_operations_locked(project):
+        return False
+    return True
+
+
+def user_can_request_project_operation_access(user, project) -> bool:
+    """May submit a request to unlock project detail-page operations."""
+    if not user or not user.is_authenticated:
+        return False
+    if not (user.is_superuser or PermissionChecker.has_permission(user, 'projects', 'edit')):
+        return False
+    from .operation_access import project_operations_locked
+
+    if not project or not project_operations_locked(project):
+        return False
+    if project.operation_access_status == 'pending':
+        return False
+    if project.operation_access_status == 'approved':
         return False
     return True
 
@@ -145,6 +165,53 @@ def user_can_approve_project_conversion(user, project) -> bool:
     if project.conversion_approval_status != 'pending' or project.status != 'draft':
         return False
     approver = get_configured_project_conversion_approver(project)
+    if approver is not None:
+        return approver.pk == user.pk
+    return user.is_superuser
+
+
+def get_configured_project_operation_access_approver(project):
+    """Approver for unlocking estimate-sourced project operations."""
+    config = ApprovalConfiguration.objects.filter(
+        module='project_operation_access', is_active=True
+    ).first()
+    if not config:
+        return None
+    if config.approval_type == 'single':
+        return config.default_approver
+    amount = project.contract_value or project.budget or 0
+    level = (
+        config.levels.filter(is_active=True)
+        .order_by('amount_threshold')
+        .filter(amount_threshold__gte=amount)
+        .first()
+    )
+    if not level:
+        level = config.levels.filter(is_active=True).order_by('-amount_threshold').first()
+    return (level.approver if level else None) or config.default_approver
+
+
+def user_is_project_operation_access_approver(user) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    config = ApprovalConfiguration.objects.filter(
+        module='project_operation_access', is_active=True
+    ).first()
+    if not config:
+        return user.is_superuser
+    if config.default_approver_id == user.pk:
+        return True
+    if config.approval_type == 'single':
+        return config.default_approver_id == user.pk
+    return config.levels.filter(is_active=True, approver_id=user.pk).exists()
+
+
+def user_can_approve_project_operation_access(user, project) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    if project.operation_access_status != 'pending':
+        return False
+    approver = get_configured_project_operation_access_approver(project)
     if approver is not None:
         return approver.pk == user.pk
     return user.is_superuser

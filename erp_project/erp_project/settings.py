@@ -35,6 +35,8 @@ CSRF_TRUSTED_ORIGINS = config(
     default='http://127.0.0.1:8001,http://localhost:8001,http://37.27.16.210,https://37.27.16.210',
     cast=Csv(),
 )
+CSRF_FAILURE_VIEW = 'apps.core.csrf.csrf_failure'
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Estimates with scope-of-work can POST 100+ line rows (Django default limit is 1000 fields).
 DATA_UPLOAD_MAX_NUMBER_FIELDS = config('DATA_UPLOAD_MAX_NUMBER_FIELDS', default=20000, cast=int)

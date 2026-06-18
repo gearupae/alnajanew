@@ -40,6 +40,13 @@ class Project(BaseModel):
         ('pending', 'Pending conversion approval'),
         ('rejected', 'Conversion rejected'),
     ]
+
+    OPERATION_ACCESS_STATUS_CHOICES = [
+        ('none', 'Locked (awaiting paid invoice or approval)'),
+        ('pending', 'Operation access request pending'),
+        ('approved', 'Operation access approved'),
+        ('rejected', 'Operation access rejected'),
+    ]
     
     BILLING_TYPE_CHOICES = [
         ('fixed', 'Fixed Price'),
@@ -80,6 +87,20 @@ class Project(BaseModel):
         null=True,
         blank=True,
         related_name='project_edit_approval_submissions',
+    )
+    operation_access_status = models.CharField(
+        max_length=20,
+        choices=OPERATION_ACCESS_STATUS_CHOICES,
+        default='none',
+        help_text='Estimate-sourced projects stay locked until a paid invoice or approver grants access.',
+    )
+    operation_access_submitted_at = models.DateTimeField(null=True, blank=True)
+    operation_access_submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='project_operation_access_submissions',
     )
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
@@ -181,6 +202,19 @@ class Project(BaseModel):
         if self.budget > 0:
             return (self.total_expenses / self.budget * 100).quantize(Decimal('0.01'))
         return Decimal('0.00')
+
+    @property
+    def estimate_total_amount(self) -> Decimal:
+        """Grand total of all linked quotations (selling price incl. profit and VAT)."""
+        agg = self.estimates.filter(is_active=True).aggregate(s=Sum('total_amount'))
+        total = agg['s']
+        if total is not None and total > 0:
+            return total.quantize(Decimal('0.01'))
+        cv = self.contract_value or Decimal('0')
+        if cv > 0:
+            return cv.quantize(Decimal('0.01'))
+        ec = self.estimated_cost or Decimal('0')
+        return ec.quantize(Decimal('0.01')) if ec > 0 else Decimal('0.00')
     
     def update_totals(self):
         """Recalculate project totals from expenses and revenue entries."""

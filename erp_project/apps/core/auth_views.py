@@ -1,8 +1,12 @@
-"""Authentication views."""
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib import messages
 from django.contrib.auth.views import LoginView
 
 
+@method_decorator(never_cache, name='dispatch')
+@method_decorator(ensure_csrf_cookie, name='dispatch')
 class ERPLoginView(LoginView):
     """Clear stale flash messages from prior requests when login succeeds."""
 

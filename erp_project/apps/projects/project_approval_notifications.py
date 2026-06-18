@@ -91,3 +91,47 @@ def notify_submitter_project_completion_rejected(project, *, approver, submitter
         message=msg,
         link=f'/projects/{project.pk}/',
     )
+
+
+def notify_approver_project_operation_access_pending(project):
+    from django.contrib.auth import get_user_model
+
+    from .approval_rules import get_configured_project_operation_access_approver
+
+    approver = get_configured_project_operation_access_approver(project)
+    if not approver:
+        approver = get_user_model().objects.filter(is_superuser=True, is_active=True).first()
+    if not approver:
+        return
+    submitter = _user_display(project.operation_access_submitted_by)
+    Notification.create(
+        user=approver,
+        title=f'Project access request: {project.project_code}',
+        message=f'{submitter} requested permission to update {project.name} before a paid invoice exists.',
+        link=f'/projects/{project.pk}/',
+    )
+
+
+def notify_submitter_project_operation_access_approved(project, *, approver, submitter):
+    if not submitter:
+        return
+    Notification.create(
+        user=submitter,
+        title=f'Project access approved — {project.project_code}',
+        message=f'{_user_display(approver)} approved update access for {project.name}.',
+        link=f'/projects/{project.pk}/',
+    )
+
+
+def notify_submitter_project_operation_access_rejected(project, *, approver, submitter, comment=''):
+    if not submitter:
+        return
+    msg = f'{_user_display(approver)} rejected update access for {project.name}.'
+    if comment:
+        msg = f'{msg} Reason: {comment}'
+    Notification.create(
+        user=submitter,
+        title=f'Project access rejected — {project.project_code}',
+        message=msg,
+        link=f'/projects/{project.pk}/',
+    )

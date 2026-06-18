@@ -31,6 +31,8 @@ from apps.hr.attendance_utils import (
     holiday_on_date_for_employee,
     is_uae_weekend,
     mark_all_present_today,
+    bulk_present_blocks_punch,
+    bulk_present_block_message,
     month_absent_rate_pct,
     company_overtime_month,
     open_attendance_session,
@@ -240,9 +242,10 @@ class AttendanceMarkView(CreatePermissionMixin, FormView):
         if rid and str(rid).isdigit():
             kwargs['instance'] = get_object_or_404(AttendanceRecord, pk=int(rid))
         elif emp_id and d_raw:
-            try:
-                ad = date.fromisoformat(d_raw[:10])
-            except ValueError:
+            from apps.hr.attendance_utils import parse_attendance_lookup_date
+
+            ad = parse_attendance_lookup_date(d_raw)
+            if not ad:
                 return kwargs
             emp = get_object_or_404(Employee, pk=int(emp_id), is_active=True)
             kwargs['instance'] = (
@@ -252,19 +255,59 @@ class AttendanceMarkView(CreatePermissionMixin, FormView):
         return kwargs
 
     def form_valid(self, form):
+        from apps.hr.attendance_utils import bulk_present_block_message
+
+        emp = form.cleaned_data.get('employee')
+        ad = form.cleaned_data.get('date')
+        if emp and ad and not form.instance.pk:
+            bulk = AttendanceRecord.objects.filter(
+                employee=emp,
+                date=ad,
+                is_active=True,
+                source='bulk_present',
+            ).first()
+            if bulk:
+                form.add_error(None, bulk_present_block_message())
+                return self.form_invalid(form)
         form.instance.source = form.cleaned_data.get('source') or 'manual'
         form.save()
         recalculate_summary_for_employee_month(form.instance.employee, form.instance.date.year, form.instance.date.month)
         messages.success(self.request, 'Attendance saved.')
         return super().form_valid(form)
 
+    def form_invalid(self, form):
+        for err in form.non_field_errors():
+            messages.error(self.request, err)
+        return super().form_invalid(form)
+
     def get_context_data(self, **kwargs):
+        from apps.hr.attendance_utils import attendance_mark_blocked_for
+
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = 'Mark attendance'
         ctx['snapshot'] = attendance_snapshot_today()
         ctx['can_mark_all'] = self.request.user.is_superuser or PermissionChecker.has_permission(
             self.request.user, 'hr', 'create'
         )
+        form = ctx.get('form')
+        blocked = False
+        message = ''
+        if form is not None:
+            instance = form.instance
+            if getattr(instance, 'employee_id', None) and getattr(instance, 'date', None):
+                blocked, message = attendance_mark_blocked_for(instance.employee, instance.date)
+        if not blocked:
+            emp_id = self.request.GET.get('employee')
+            d_raw = self.request.GET.get('date')
+            if emp_id and str(emp_id).isdigit() and d_raw:
+                from apps.hr.attendance_utils import parse_attendance_lookup_date
+
+                ad = parse_attendance_lookup_date(d_raw)
+                emp = Employee.objects.filter(pk=int(emp_id), is_active=True).first()
+                if emp and ad:
+                    blocked, message = attendance_mark_blocked_for(emp, ad)
+        ctx['attendance_mark_blocked'] = blocked
+        ctx['attendance_mark_blocked_message'] = message
         return ctx
 
 
@@ -288,10 +331,11 @@ def attendance_record_lookup(request):
     if not emp_id or not d_raw:
         return JsonResponse({'ok': False}, status=400)
     emp = get_object_or_404(Employee, pk=int(emp_id), is_active=True)
-    try:
-        ad = date.fromisoformat(d_raw[:10])
-    except ValueError:
-        return JsonResponse({'ok': False}, status=400)
+    from apps.hr.attendance_utils import attendance_mark_blocked_for, parse_attendance_lookup_date
+
+    ad = parse_attendance_lookup_date(d_raw)
+    if not ad:
+        return JsonResponse({'ok': False, 'error': 'Invalid date.'}, status=400)
     rec = AttendanceRecord.objects.filter(employee=emp, date=ad).first()
     mf = date(ad.year, ad.month, 1)
     qs = AttendanceRecord.objects.filter(employee=emp, date__year=ad.year, date__month=ad.month)
@@ -301,9 +345,15 @@ def attendance_record_lookup(request):
         late=Count('pk', filter=Q(status='late')),
         wh=Sum('working_hours'),
     )
+    from apps.hr.attendance_utils import bulk_present_block_message
+
+    blocked, blocked_message = attendance_mark_blocked_for(emp, ad)
+
     data = {
         'ok': True,
         'record': None,
+        'bulk_present_blocked': blocked,
+        'blocked_message': blocked_message,
         'month': {
             'present': agg['present'] or 0,
             'absent': agg['absent'] or 0,
@@ -755,6 +805,8 @@ def _perform_attendance_punch(*, employee: Employee, action: str, when, lat, lng
     t = when.time().replace(microsecond=0)
 
     if action == 'check_in':
+        if bulk_present_blocks_punch(employee, d):
+            return False, bulk_present_block_message()
         if open_attendance_session(employee, d):
             return False, 'Already clocked in. Clock out first.'
         overlap = attendance_overlap_message(employee, d, t, check_out=None)

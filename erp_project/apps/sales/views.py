@@ -738,8 +738,11 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
                 context['items_formset'] = EstimateItemFormSet(instance=self.object, prefix='items')
         else:
             context['items_formset'] = kwargs['items_formset']
+        from .estimate_edit_flow import REVISE_QUOTATION_STATUSES
+
         context['revision_pending'] = bool(
-            self.object.status == 'sent' and self.object.awaiting_resubmit_revision
+            self.object.awaiting_resubmit_revision
+            and self.object.status in REVISE_QUOTATION_STATUSES
         )
         if context['revision_pending']:
             context['next_revision_label'] = f'R{(self.object.revision_count or 0) + 1}'
@@ -938,9 +941,11 @@ class EstimateDetailView(PermissionRequiredMixin, DetailView):
         )
 
         context['can_edit'] = self.object.allows_edit_by(self.request.user)
+        from .estimate_edit_flow import REVISE_QUOTATION_STATUSES
+
         context['can_request_revision'] = (
             context['can_edit']
-            and self.object.status == 'sent'
+            and self.object.status in REVISE_QUOTATION_STATUSES
             and not self.object.awaiting_resubmit_revision
         )
         context['can_convert_estimate_follow_on'] = user_can_convert_estimate_follow_on(
@@ -1287,15 +1292,20 @@ def estimate_update_status(request, pk, status):
 @login_required
 @require_POST
 def estimate_request_revision(request, pk):
-    """Enable explicit revision bump on next save for sent quotations."""
+    """Enable explicit revision bump on next save."""
+    from .estimate_edit_flow import REVISE_QUOTATION_STATUSES
+
     estimate = get_object_or_404(Estimate, pk=pk, is_active=True)
 
     if not estimate.allows_edit_by(request.user):
         messages.error(request, 'You do not have permission to revise this quotation.')
         return redirect('sales:estimate_detail', pk=pk)
 
-    if estimate.status != 'sent':
-        messages.error(request, 'Revise quotation is available only when status is Sent.')
+    if estimate.status not in REVISE_QUOTATION_STATUSES:
+        messages.error(
+            request,
+            'Revise quotation is not available for this status.',
+        )
         return redirect('sales:estimate_detail', pk=pk)
 
     if estimate.awaiting_resubmit_revision:
@@ -1362,6 +1372,9 @@ def estimate_convert_to_invoice(request, pk):
         )
     
     invoice.calculate_totals()
+    if estimate.project_id:
+        from .invoice_project_link import save_invoice_project_link
+        save_invoice_project_link(invoice, estimate.project)
     messages.success(request, f'Invoice {invoice.invoice_number} created from estimate.')
     link = reverse('sales:invoice_edit', kwargs={'pk': invoice.pk})
     notify_if_new_assignee(
@@ -2113,6 +2126,40 @@ def inventory_item_json(request, pk):
 
 # ============ INVOICE VIEWS ============
 
+def _invoice_form_project_context():
+    """JSON data for invoice form project / estimate filtering."""
+    from apps.projects.models import Project
+
+    projects = list(
+        Project.objects.filter(is_active=True)
+        .exclude(status='cancelled')
+        .select_related('customer')
+        .order_by('-created_at')
+        .values('id', 'customer_id', 'project_code', 'name')
+    )
+    estimate_projects = dict(
+        Estimate.objects.filter(is_active=True, status='quotation_won', project__isnull=False)
+        .values_list('pk', 'project_id')
+    )
+    return {
+        'invoice_project_options_json': json.dumps(
+            [
+                {
+                    'id': p['id'],
+                    'customer_id': p['customer_id'],
+                    'label': f"{p['project_code']} — {p['name']}",
+                }
+                for p in projects
+            ],
+            cls=DjangoJSONEncoder,
+        ),
+        'invoice_estimate_project_map_json': json.dumps(
+            {str(k): v for k, v in estimate_projects.items()},
+            cls=DjangoJSONEncoder,
+        ),
+    }
+
+
 class InvoiceListView(PermissionRequiredMixin, ListView):
     """List all invoices."""
     model = Invoice
@@ -2170,9 +2217,29 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
     template_name = 'sales/invoice_form.html'
     success_url = reverse_lazy('sales:invoice_list')
     module_name = 'sales'
+
+    def get_initial(self):
+        initial = super().get_initial()
+        project_pk = self.request.GET.get('project')
+        if project_pk:
+            initial['project'] = project_pk
+        estimate_pk = self.request.GET.get('estimate')
+        if estimate_pk:
+            initial['estimate'] = estimate_pk
+            est = Estimate.objects.filter(pk=estimate_pk).only('customer_id', 'project_id').first()
+            if est:
+                if est.customer_id:
+                    initial['customer'] = est.customer_id
+                if est.project_id:
+                    initial['project'] = est.project_id
+        customer_pk = self.request.GET.get('customer')
+        if customer_pk and 'customer' not in initial:
+            initial['customer'] = customer_pk
+        return initial
     
     def get_context_data(self, **kwargs):
         from apps.finance.models import TaxCode
+
         context = super().get_context_data(**kwargs)
         context['title'] = 'Create Invoice'
         context['today'] = date.today().isoformat()
@@ -2186,6 +2253,7 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
                 context['items_formset'] = InvoiceItemFormSet()
         else:
             context['items_formset'] = kwargs['items_formset']
+        context.update(_invoice_form_project_context())
         return context
     
     def post(self, request, *args, **kwargs):
@@ -2259,6 +2327,7 @@ class InvoiceUpdateView(UpdatePermissionMixin, UpdateView):
                 context['items_formset'] = InvoiceItemFormSet(instance=self.object)
         else:
             context['items_formset'] = kwargs['items_formset']
+        context.update(_invoice_form_project_context())
         return context
     
     def post(self, request, *args, **kwargs):
@@ -2299,12 +2368,29 @@ class InvoiceDetailView(PermissionRequiredMixin, DetailView):
     context_object_name = 'invoice'
     module_name = 'sales'
     permission_type = 'view'
+
+    def get_queryset(self):
+        from apps.projects.models import ProjectInvoice
+
+        return (
+            super()
+            .get_queryset()
+            .select_related('customer', 'estimate')
+            .prefetch_related(
+                Prefetch(
+                    'project_links',
+                    queryset=ProjectInvoice.objects.filter(is_active=True).select_related('project'),
+                )
+            )
+        )
     
     def get_context_data(self, **kwargs):
         from apps.core.audit import get_entity_audit_history
-        
+        from .invoice_project_link import get_invoice_project
+
         context = super().get_context_data(**kwargs)
         context['title'] = f'Invoice: {self.object.invoice_number}'
+        context['linked_project'] = get_invoice_project(self.object)
         has_permission = self.request.user.is_superuser or PermissionChecker.has_permission(
             self.request.user, 'sales', 'edit'
         )

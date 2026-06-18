@@ -407,22 +407,90 @@ def attendance_snapshot_today() -> dict:
     }
 
 
+def bulk_present_blocks_punch(employee: Employee, d: date) -> bool:
+    """True when Mark all present already recorded attendance for this employee on this date."""
+    return AttendanceRecord.objects.filter(
+        employee=employee,
+        date=d,
+        is_active=True,
+        source='bulk_present',
+    ).exists()
+
+
+def bulk_present_block_message() -> str:
+    return (
+        'Attendance for this day is already marked for this employee '
+        '(via Mark all present). You cannot add or change it here.'
+    )
+
+
+def parse_attendance_lookup_date(raw: str):
+    """Accept ISO (YYYY-MM-DD) or US (MM/DD/YYYY) date strings from forms."""
+    from django.utils.dateparse import parse_date
+
+    text = (raw or '').strip()
+    if not text:
+        return None
+    if len(text) >= 10 and text[4:5] == '-':
+        try:
+            return date.fromisoformat(text[:10])
+        except ValueError:
+            pass
+    parsed = parse_date(text[:10])
+    if parsed:
+        return parsed
+    for fmt in ('%m/%d/%Y', '%d/%m/%Y'):
+        try:
+            from datetime import datetime as dt
+
+            return dt.strptime(text[:10], fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def attendance_mark_blocked_for(employee: Employee, ad: date) -> tuple[bool, str]:
+    """Whether the mark-attendance form should block saves for this employee/day."""
+    if not employee or not ad:
+        return False, ''
+    rec = AttendanceRecord.objects.filter(
+        employee=employee,
+        date=ad,
+        is_active=True,
+        source='bulk_present',
+    ).first()
+    if rec:
+        return True, bulk_present_block_message()
+    return False, ''
+
+
 def mark_all_present_today() -> int:
     """Create Present rows for active employees with no record today; skip weekend/holidays."""
+    from apps.projects.labour_utils import primary_technician_project
+
     today = date.today()
     if not is_uae_working_day(today):
         return 0
+    settings = get_attendance_settings()
+    shift_in = settings.shift_start or time(9, 0)
+    shift_out = settings.shift_end or time(18, 0)
     n = 0
     for emp in Employee.objects.filter(is_active=True, status='active'):
         if holiday_on_date_for_employee(today, emp):
             continue
         if AttendanceRecord.objects.filter(employee=emp, date=today).exists():
             continue
+        project = None
+        if emp.user_id:
+            project = primary_technician_project(emp.user)
         AttendanceRecord.objects.create(
             employee=emp,
             date=today,
             status='present',
-            source='manual',
+            source='bulk_present',
+            check_in=shift_in,
+            check_out=shift_out,
+            project=project,
             notes='Marked all present',
         )
         n += 1

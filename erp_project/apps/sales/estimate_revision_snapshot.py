@@ -9,9 +9,8 @@ from .models import Estimate, EstimateItem, EstimateRevisionSnapshot
 
 
 def status_requires_revision_resubmit(status: str) -> bool:
-    from .estimate_edit_flow import REVISION_RESUBMIT_STATUSES
-
-    return status in REVISION_RESUBMIT_STATUSES
+    """Snapshot only when an explicit Revise quotation was requested."""
+    return False
 
 
 def _revision_label_for_count(revision_count: int) -> str:
@@ -103,9 +102,7 @@ def maybe_snapshot_before_revision(
 ):
     if not has_changes:
         return None
-    needs_snapshot = status_requires_revision_resubmit(pre_status) or (
-        pre_status == 'sent' and pre_awaiting_resubmit_revision
-    )
+    needs_snapshot = pre_awaiting_resubmit_revision
     if not needs_snapshot:
         return None
     return snapshot_estimate_before_revision(request, estimate)

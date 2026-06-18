@@ -11,6 +11,14 @@ from apps.projects.models import Project, ProjectItemLine
 from .models import EstimateItem
 
 
+def _estimate_line_base_unit_price(line: EstimateItem) -> Decimal:
+    """Base price per unit for project budget (estimate base = inventory selling price)."""
+    base = line.unit_price or Decimal('0')
+    if base <= 0 and line.inventory_item_id:
+        base = line.inventory_item.selling_price or Decimal('0')
+    return base
+
+
 def _estimate_line_display_label(line: EstimateItem) -> str:
     """Label for copied scope line — prefer inventory name, then description / group."""
     if line.inventory_item_id:
@@ -59,7 +67,7 @@ def copy_estimate_items_to_project(*, estimate, project, sort_start: int | None 
                 description=_estimate_line_display_label(line),
                 inventory_item_id=line.inventory_item_id,
                 quantity=line.quantity or Decimal('0'),
-                unit_price=line.unit_price or Decimal('0'),
+                unit_price=_estimate_line_base_unit_price(line),
                 rate=line.rate or Decimal('0'),
                 line_net=line.total or Decimal('0'),
                 vat_amount=line.vat_amount or Decimal('0'),
@@ -79,8 +87,9 @@ def create_project_from_estimate(*, estimate, include_items: bool, submitted_by=
     ProjectItemLine rows (shown under “Items” on the project — not as tasks).
     `estimate` must be quotation-won and not already linked to a project.
 
-    Project fields: ``contract_value`` = estimate selling total; ``budget`` = sum of line
-    base cost (qty × unit_price); ``estimated_cost`` is left at zero for manual entry later.
+    Project fields: ``contract_value`` = estimate selling total (incl. profit + VAT);
+    ``budget`` = sum of line base prices (inventory selling price × qty, excl. profit and VAT);
+    ``estimated_cost`` is left at zero for manual entry later.
     """
     name = f'{estimate.estimate_number} — {estimate.customer.name}'[:200]
     desc_parts = []
@@ -105,7 +114,7 @@ def create_project_from_estimate(*, estimate, include_items: bool, submitted_by=
         status=initial_status,
         start_date=estimate.date,
         contract_value=estimate.total_amount or Decimal('0.00'),
-        budget=estimate.total_cost(),
+        budget=estimate.project_budget(),
         estimated_cost=Decimal('0.00'),
     )
     if estimate.assigned_to_id:
@@ -129,7 +138,7 @@ def link_estimate_to_existing_project(*, estimate, project, include_items: bool,
     Link a quotation-won estimate to an existing project and optionally append its lines.
 
     Does not run conversion approval (that applies only to newly created projects).
-    Adds estimate totals to project contract_value and budget.
+    Adds estimate contract total to ``contract_value`` and base-cost total to ``budget``.
     """
     estimate.project = project
     estimate.save(update_fields=['project'])
@@ -137,7 +146,7 @@ def link_estimate_to_existing_project(*, estimate, project, include_items: bool,
     project.contract_value = (project.contract_value or Decimal('0')) + (
         estimate.total_amount or Decimal('0')
     )
-    project.budget = (project.budget or Decimal('0')) + estimate.total_cost()
+    project.budget = (project.budget or Decimal('0')) + estimate.project_budget()
     project.save(update_fields=['contract_value', 'budget'])
 
     if estimate.assigned_to_id and not project.members.filter(pk=estimate.assigned_to_id).exists():

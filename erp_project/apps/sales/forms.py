@@ -13,7 +13,9 @@ from .models import Estimate, EstimateItem, Invoice, InvoiceItem
 from apps.crm.models import Customer
 from apps.finance.models import TaxCode
 from apps.inventory.models import ItemBaseGroup
+from apps.projects.models import Project
 from .estimate_csv import get_default_estimate_csv_tax_code
+from .invoice_project_link import get_invoice_project, save_invoice_project_link
 
 User = get_user_model()
 
@@ -290,6 +292,13 @@ EstimateItemFormSet = forms.inlineformset_factory(
 
 class InvoiceForm(forms.ModelForm):
     """Form for creating/editing invoices."""
+
+    project = forms.ModelChoiceField(
+        queryset=Project.objects.none(),
+        required=False,
+        label='Project',
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_project'}),
+    )
     
     class Meta:
         model = Invoice
@@ -304,13 +313,43 @@ class InvoiceForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['customer'].queryset = Customer.objects.filter(is_active=True)
         self.fields['customer'].widget.attrs['class'] = 'form-select'
+        self.fields['customer'].widget.attrs['id'] = 'id_customer'
         self.fields['estimate'].queryset = Estimate.objects.filter(
             is_active=True, status='quotation_won',
-        )
+        ).select_related('project')
         self.fields['estimate'].widget.attrs['class'] = 'form-select'
+        self.fields['estimate'].widget.attrs['id'] = 'id_estimate'
         self.fields['estimate'].required = False
         self.fields['status'].widget.attrs['class'] = 'form-select'
         self.fields['notes'].required = False
+
+        self.fields['project'].queryset = (
+            Project.objects.filter(is_active=True)
+            .exclude(status='cancelled')
+            .select_related('customer')
+            .order_by('-created_at')
+        )
+        if self.instance and self.instance.pk:
+            linked = get_invoice_project(self.instance)
+            if linked:
+                self.fields['project'].initial = linked.pk
+
+    def clean(self):
+        cleaned = super().clean()
+        customer = cleaned.get('customer')
+        project = cleaned.get('project')
+        if project and customer and project.customer_id and project.customer_id != customer.pk:
+            self.add_error(
+                'project',
+                'Selected project belongs to a different customer.',
+            )
+        return cleaned
+
+    def save(self, commit=True):
+        invoice = super().save(commit=commit)
+        if commit:
+            save_invoice_project_link(invoice, self.cleaned_data.get('project'))
+        return invoice
 
 
 class InvoiceItemForm(forms.ModelForm):

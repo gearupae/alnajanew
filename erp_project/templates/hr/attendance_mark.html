@@ -1,4 +1,25 @@
 {% extends 'base.html' %}
+{% block extra_css %}
+<style>
+    .att-mark-blocked-banner {
+        display: block;
+        background: #fff3cd;
+        border: 2px solid #ffc107;
+        border-radius: 0.5rem;
+        color: #664d03;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+    }
+    .att-mark-blocked-banner[hidden] {
+        display: none !important;
+    }
+    .att-mark-blocked-banner strong {
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 0.35rem;
+    }
+</style>
+{% endblock %}
 {% block content %}
 <div class="page-header mb-3">
     <h4 class="mb-1 fw-bold">{{ title }}</h4>
@@ -22,6 +43,19 @@
 
 <div class="card mb-3">
     <div class="card-body">
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger mb-3">
+            {% for error in form.non_field_errors %}
+            <div><i class="fas fa-exclamation-circle me-2"></i>{{ error }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div id="att-bulk-block-alert" class="att-mark-blocked-banner"{% if not attendance_mark_blocked %} hidden{% endif %}>
+            <strong><i class="fas fa-exclamation-triangle me-2"></i>Attendance already marked for this day</strong>
+            <span id="att-bulk-block-text">{% if attendance_mark_blocked %}{{ attendance_mark_blocked_message }}{% else %}Attendance for this day is already marked for this employee (via Mark all present). You cannot add or change it here.{% endif %}</span>
+        </div>
+
         <div id="att-mini-summary" class="small text-muted mb-3 d-none"></div>
         <form method="post" id="attendance-mark-form">{% csrf_token %}
             <div class="row g-3">
@@ -29,7 +63,7 @@
                 <div class="col-md-6">{{ field.label_tag }} {{ field.errors }} {{ field }}</div>
                 {% endfor %}
             </div>
-            <button type="submit" class="btn btn-primary mt-3">Save</button>
+            <button type="submit" class="btn btn-primary mt-3" id="attendance-mark-save"{% if attendance_mark_blocked %} disabled{% endif %}>Save</button>
             <a href="{% url 'hr:attendance_list' %}" class="btn btn-light mt-3">Cancel</a>
         </form>
     </div>
@@ -41,16 +75,60 @@
   var emp = document.getElementById('id_employee');
   var dt = document.getElementById('id_date');
   var box = document.getElementById('att-mini-summary');
+  var blockAlert = document.getElementById('att-bulk-block-alert');
+  var blockText = document.getElementById('att-bulk-block-text');
+  var saveBtn = document.getElementById('attendance-mark-save');
+  var form = document.getElementById('attendance-mark-form');
+  var defaultBlockedMsg = 'Attendance for this day is already marked for this employee (via Mark all present). You cannot add or change it here.';
+
+  function normalizeDateInput(val) {
+    if (!val) return '';
+    val = String(val).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    var us = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (us) {
+      return us[3] + '-' + String(us[1]).padStart(2, '0') + '-' + String(us[2]).padStart(2, '0');
+    }
+    return val;
+  }
+
+  function showBlocked(message) {
+    if (blockAlert) blockAlert.hidden = false;
+    if (blockText) blockText.textContent = message || defaultBlockedMsg;
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.title = message || defaultBlockedMsg;
+    }
+  }
+
+  function hideBlocked() {
+    if (blockAlert) blockAlert.hidden = true;
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.title = '';
+    }
+  }
+
   function fetchCtx() {
-    if (!emp || !dt || !emp.value || !dt.value) { box.classList.add('d-none'); return; }
-    var url = '{% url "hr:attendance_record_lookup" %}?employee_id=' + encodeURIComponent(emp.value) + '&date=' + encodeURIComponent(dt.value);
+    if (!emp || !dt || !emp.value || !dt.value) {
+      if (box) box.classList.add('d-none');
+      return;
+    }
+    var dateParam = normalizeDateInput(dt.value);
+    var url = '{% url "hr:attendance_record_lookup" %}?employee_id=' + encodeURIComponent(emp.value) + '&date=' + encodeURIComponent(dateParam);
     fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.ok) return;
-        if (data.month) {
+        if (data.month && box) {
           box.classList.remove('d-none');
           box.innerHTML = '<strong>This month:</strong> Present ' + data.month.present + ' · Absent ' + data.month.absent + ' · Late ' + data.month.late + ' · Hours ' + data.month.hours;
+        }
+        var blocked = !!(data.bulk_present_blocked || (data.record && data.record.source === 'bulk_present'));
+        if (blocked) {
+          showBlocked(data.blocked_message || defaultBlockedMsg);
+        } else {
+          hideBlocked();
         }
         if (data.record) {
           var cin = document.getElementById('id_check_in');
@@ -67,12 +145,27 @@
           if (notes) notes.value = data.record.notes || '';
           if (src) src.value = data.record.source || 'manual';
           if (prj) prj.value = data.record.project_id ? String(data.record.project_id) : '';
+          if (blocked) showBlocked(data.blocked_message || defaultBlockedMsg);
         }
-      }).catch(function () {});
+      })
+      .catch(function () {});
+  }
+
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      if (blockAlert && !blockAlert.hidden) {
+        e.preventDefault();
+        alert(blockText && blockText.textContent ? blockText.textContent : defaultBlockedMsg);
+      }
+    });
   }
   if (emp) emp.addEventListener('change', fetchCtx);
-  if (dt) dt.addEventListener('change', fetchCtx);
-  document.addEventListener('DOMContentLoaded', fetchCtx);
+  if (dt) {
+    dt.addEventListener('change', fetchCtx);
+    dt.addEventListener('blur', fetchCtx);
+  }
+  fetchCtx();
+  window.setTimeout(fetchCtx, 400);
 })();
 </script>
 {% endblock %}

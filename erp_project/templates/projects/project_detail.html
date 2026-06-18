@@ -81,6 +81,13 @@
             {% elif project.conversion_approval_status == 'rejected' %}
             <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Conversion rejected</span>
             {% endif %}
+            {% if operation_access_pending %}
+            <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Update access pending approval</span>
+            {% elif project.operation_access_status == 'rejected' %}
+            <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Update access rejected</span>
+            {% elif project_operations_locked and project_from_estimate %}
+            <span class="badge bg-secondary"><i class="fas fa-lock me-1"></i>Read-only</span>
+            {% endif %}
             {% if project.edit_approval_status == 'pending' %}
             <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Completion pending approval</span>
             {% elif project.edit_approval_status == 'rejected' %}
@@ -113,6 +120,23 @@
                 <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Reject this completion request?');"><i class="fas fa-times me-1"></i>Reject</button>
             </form>
             {% endif %}
+            {% if can_request_operation_access %}
+            <form method="post" action="{% url 'projects:project_request_operation_access' project.pk %}" class="d-inline" onsubmit="return confirm('Request permission to update this project before a paid invoice exists?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-primary btn-sm"><i class="fas fa-unlock me-1"></i>Request update access</button>
+            </form>
+            {% endif %}
+            {% if can_approve_project_operation_access and operation_access_pending %}
+            <form method="post" action="{% url 'projects:project_approve_operation_access' project.pk %}" class="d-inline" onsubmit="return confirm('Approve update access for this project?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check me-1"></i>Approve update access</button>
+            </form>
+            <form method="post" action="{% url 'projects:project_reject_operation_access' project.pk %}" class="d-inline">
+                {% csrf_token %}
+                <textarea name="comment" class="form-control form-control-sm d-inline-block align-middle" style="width:14rem; vertical-align:middle;" rows="1" placeholder="Rejection reason (optional)"></textarea>
+                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Reject update access request?');"><i class="fas fa-times me-1"></i>Reject access</button>
+            </form>
+            {% endif %}
             <a href="{% url 'projects:project_report_pdf' project.pk %}" class="btn btn-light" target="_blank" rel="noopener"><i class="fas fa-file-pdf me-2"></i>Project report</a>
             {% if can_edit %}<a href="{% url 'projects:project_edit' project.pk %}" class="btn btn-primary"><i class="fas fa-edit me-2"></i>Edit</a>{% endif %}
         </div>
@@ -127,6 +151,18 @@
     {% if can_approve_project_conversion %}
     Use <strong>Approve conversion</strong> above to activate the project.
     {% endif %}
+</div>
+{% endif %}
+
+{% if project_operations_locked and project_from_estimate and not conversion_approval_pending %}
+<div class="alert alert-warning mb-4">
+    <i class="fas fa-lock me-2"></i>
+    This project was created from a quotation and is <strong>read-only</strong> until either:
+    <ul class="mb-2 mt-2">
+        <li>A sales invoice linked to this project is <strong>paid</strong>{% if project_has_paid_invoice %} <span class="text-success">(paid invoice found — refresh if actions are still disabled)</span>{% endif %}, or</li>
+        <li>An approver grants <strong>update access</strong>{% if can_request_operation_access %} — use <strong>Request update access</strong> above{% endif %}.</li>
+    </ul>
+    Editing, deliveries, tasks, item requests, and other updates are disabled on this page.
 </div>
 {% endif %}
 
@@ -162,7 +198,7 @@
                     </div>
                     <div class="col-md-4"><h6 class="text-muted mb-2">Manager</h6><p class="mb-0">{% if project.manager %}{{ project.manager.get_full_name|default:project.manager.username }}{% else %}-{% endif %}</p></div>
                     <div class="col-md-4"><h6 class="text-muted mb-2">Budget</h6><p class="mb-0">AED {{ project.budget|floatformat:2 }}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Estimated cost</h6><p class="mb-0">{% if project.estimated_cost and project.estimated_cost > 0 %}AED {{ project.estimated_cost|floatformat:2 }}{% else %}—{% endif %}</p></div>
+                    <div class="col-md-4"><h6 class="text-muted mb-2">Estimated cost</h6><p class="mb-0">{% if project_estimate_total > 0 %}AED {{ project_estimate_total|floatformat:2 }}{% else %}—{% endif %}</p></div>
                     <div class="col-md-4">
                         <h6 class="text-muted mb-2">Total profit <span class="small fw-normal">({{ header_profit_label }})</span></h6>
                         <p class="mb-0 fw-semibold d-flex align-items-center flex-wrap gap-2">
@@ -170,7 +206,7 @@
                             {% if header_profit_vs_expenses > 0 %}
                             <span class="badge badge-active">Profitable</span>
                             {% elif header_profit_vs_expenses < 0 %}
-                            <span class="badge badge-inactive">Over budget</span>
+                            <span class="badge badge-inactive">Loss</span>
                             {% else %}
                             <span class="badge" style="background:#fef3c7;color:#92400e;">Break-even</span>
                             {% endif %}
@@ -735,8 +771,9 @@
                     <span class="text-muted small">Actual spend</span>
                     <span class="fw-semibold text-nowrap">AED {{ recorded_expenses_total|floatformat:2 }}</span>
                 </div>
-                {% if inventory_spend_total > 0 or has_vendor_bills or has_manual_expenses %}
+                {% if inventory_spend_total > 0 or has_vendor_bills or has_manual_expenses or labour_total_cost > 0 %}
                 <div class="small text-muted mb-3 ps-1">
+                    {% if labour_total_cost > 0 %}<div class="d-flex justify-content-between"><span>Labour</span><span>AED {{ labour_total_cost|floatformat:2 }}</span></div>{% endif %}
                     {% if has_vendor_bills %}<div class="d-flex justify-content-between"><span>Vendor bills</span><span>AED {{ project_vendor_bills_total|floatformat:2 }}</span></div>{% endif %}
                     {% if has_manual_expenses %}<div class="d-flex justify-content-between"><span>Other expenses</span><span>AED {{ manual_expenses_total|floatformat:2 }}</span></div>{% endif %}
                     {% if inventory_spend_total > 0 %}<div class="d-flex justify-content-between"><span>Inventory on site</span><span>AED {{ inventory_spend_total|floatformat:2 }}</span></div>{% endif %}

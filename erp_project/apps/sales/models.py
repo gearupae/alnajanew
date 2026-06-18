@@ -258,22 +258,25 @@ class Estimate(BaseModel):
             self.estimate_number = generate_number('ESTIMATE', Estimate, 'estimate_number')
         super().save(*args, **kwargs)
     
-    def total_cost(self) -> Decimal:
-        """Sum of line base cost (qty × unit_price) before profit markup; used when converting to project budget."""
-        from django.db.models import DecimalField, ExpressionWrapper, F, Sum
+    def project_budget(self) -> Decimal:
+        """
+        Proposed project budget when converting this quotation.
 
-        agg = self.items.aggregate(
-            s=Sum(
-                ExpressionWrapper(
-                    F('quantity') * F('unit_price'),
-                    output_field=DecimalField(max_digits=15, decimal_places=2),
-                )
-            )
-        )
-        val = agg['s']
-        if val is None:
-            return Decimal('0.00')
-        return val.quantize(Decimal('0.01'))
+        Sum of each line's base unit price (``unit_price`` — inventory selling price
+        on the estimate) × quantity, excluding profit markup and VAT.
+        """
+        total = Decimal('0.00')
+        for line in self.items.select_related('inventory_item'):
+            base = line.unit_price or Decimal('0')
+            if base <= 0 and line.inventory_item_id:
+                base = line.inventory_item.selling_price or Decimal('0')
+            qty = line.quantity or Decimal('0')
+            total += (base * qty).quantize(Decimal('0.01'))
+        return total.quantize(Decimal('0.01'))
+
+    def total_cost(self) -> Decimal:
+        """Alias for :meth:`project_budget` (historical name)."""
+        return self.project_budget()
 
     def discount_applied_incl_vat(self) -> Decimal:
         """Total discount impact on the grand total (excl. VAT portion + VAT reduction)."""

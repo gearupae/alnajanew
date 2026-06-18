@@ -166,6 +166,7 @@ class AttendanceRecord(BaseModel):
         ('biometric', 'Biometric'),
         ('public_link', 'Public link'),
         ('self_service', 'Self-service'),
+        ('bulk_present', 'Mark all present'),
     ]
     STATUS_CHOICES = [
         ('present', 'Present'),

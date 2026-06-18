@@ -79,6 +79,67 @@ def _line_amount(item) -> Decimal:
     )
 
 
+def _line_base_amount(item) -> Decimal:
+    """Qty × base price (inventory selling / estimate unit_price), excl. profit and VAT."""
+    qty = getattr(item, 'quantity', None) or Decimal('0')
+    unit_price = getattr(item, 'unit_price', None) or Decimal('0')
+    if unit_price <= 0 and getattr(item, 'inventory_item_id', None):
+        inv = getattr(item, 'inventory_item', None)
+        if inv is not None:
+            unit_price = getattr(inv, 'selling_price', None) or Decimal('0')
+    return (qty * unit_price).quantize(Decimal('0.01'))
+
+
+def build_expense_type_base_totals(estimate):
+    """
+    Totals by expense type using qty × base price per line (excl. profit and VAT).
+    Maps estimate group names to inventory sub-group expense types.
+    """
+    expense_by_name = _itemgroup_expense_type_by_name()
+    items = list(
+        estimate.items.select_related('inventory_item').order_by('sort_order', 'id')
+    )
+    names = _effective_group_names(items)
+    by_type = {}
+    for item, name in zip(items, names):
+        name = (name or '').strip()
+        if not name:
+            continue
+        meta = expense_by_name.get(name.lower())
+        if not meta:
+            continue
+        type_name = meta['expense_type_name']
+        entry = by_type.setdefault(type_name, {
+            'expense_type_name': type_name,
+            'expense_type_sort_order': meta['expense_type_sort_order'],
+            'line_total': Decimal('0.00'),
+        })
+        entry['line_total'] += _line_base_amount(item)
+
+    totals = list(by_type.values())
+    totals.sort(key=lambda row: (row['expense_type_sort_order'], row['expense_type_name']))
+    return totals
+
+
+def build_expense_type_base_totals_for_estimates(estimates):
+    """Merge base expense-type totals across multiple quotations."""
+    combined = {}
+    for estimate in estimates:
+        for row in build_expense_type_base_totals(estimate):
+            key = row['expense_type_name']
+            if key not in combined:
+                combined[key] = {
+                    'expense_type_name': key,
+                    'expense_type_sort_order': row['expense_type_sort_order'],
+                    'line_total': Decimal('0.00'),
+                }
+            combined[key]['line_total'] += row['line_total']
+
+    totals = list(combined.values())
+    totals.sort(key=lambda row: (row['expense_type_sort_order'], row['expense_type_name']))
+    return totals
+
+
 def _build_consecutive_groups(items, hide_by_name: dict, *, apply_hide_items: bool = True) -> list[dict]:
     """
     Build PDF sections from consecutive lines sharing the same effective group

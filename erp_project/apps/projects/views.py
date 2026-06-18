@@ -344,12 +344,19 @@ class ProjectUpdateView(UpdatePermissionMixin, UpdateView):
 
     def dispatch(self, request, *args, **kwargs):
         from .conversion_approval import project_awaiting_conversion_approval
+        from .operation_access import project_operations_locked
 
         project = self.get_object()
         if project_awaiting_conversion_approval(project):
             messages.error(
                 request,
                 'This project is locked until conversion from quotation is approved.',
+            )
+            return redirect('projects:project_detail', pk=project.pk)
+        if project_operations_locked(project):
+            messages.error(
+                request,
+                'This project is locked. Create and pay a linked invoice, or request operation access approval.',
             )
             return redirect('projects:project_detail', pk=project.pk)
         return super().dispatch(request, *args, **kwargs)
@@ -574,6 +581,98 @@ def project_reject_conversion(request, pk):
 
 
 @login_required
+def project_request_operation_access(request, pk):
+    """Request permission to update a locked estimate-sourced project."""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    project = get_object_or_404(Project, pk=pk, is_active=True)
+    from .approval_rules import user_can_request_project_operation_access
+
+    if not user_can_request_project_operation_access(request.user, project):
+        messages.error(request, 'You cannot request operation access for this project.')
+        return redirect('projects:project_detail', pk=pk)
+
+    from .operation_access import queue_project_operation_access_request
+
+    queue_project_operation_access_request(request.user, project)
+    messages.info(
+        request,
+        'Operation access request submitted. An approver must approve before you can '
+        'deliver items, add tasks, or edit this project.',
+    )
+    return redirect('projects:project_detail', pk=pk)
+
+
+@login_required
+def project_approve_operation_access(request, pk):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    project = get_object_or_404(Project, pk=pk, is_active=True)
+    from .approval_rules import user_can_approve_project_operation_access
+
+    if not user_can_approve_project_operation_access(request.user, project):
+        messages.error(request, 'Permission denied.')
+        return redirect('projects:project_detail', pk=pk)
+
+    submitter = project.operation_access_submitted_by
+    from .operation_access import approve_project_operation_access
+    from apps.settings_app.models import ApprovalAuditLog
+    from .project_approval_notifications import notify_submitter_project_operation_access_approved
+
+    approve_project_operation_access(project)
+    ApprovalAuditLog.objects.create(
+        module='project_operation_access',
+        reference=project.project_code,
+        approver=request.user,
+        action='approve',
+        comment='Project operation access approved',
+    )
+    if submitter:
+        notify_submitter_project_operation_access_approved(
+            project, approver=request.user, submitter=submitter
+        )
+    messages.success(
+        request,
+        f'{project.project_code} — update access approved. The project page is now active.',
+    )
+    return redirect('projects:project_detail', pk=pk)
+
+
+@login_required
+def project_reject_operation_access(request, pk):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    project = get_object_or_404(Project, pk=pk, is_active=True)
+    from .approval_rules import user_can_approve_project_operation_access
+
+    if not user_can_approve_project_operation_access(request.user, project):
+        messages.error(request, 'Permission denied.')
+        return redirect('projects:project_detail', pk=pk)
+
+    submitter = project.operation_access_submitted_by
+    comment = (request.POST.get('comment') or '').strip()
+    from .operation_access import reject_project_operation_access
+    from apps.settings_app.models import ApprovalAuditLog
+    from .project_approval_notifications import notify_submitter_project_operation_access_rejected
+
+    reject_project_operation_access(project)
+    ApprovalAuditLog.objects.create(
+        module='project_operation_access',
+        reference=project.project_code,
+        approver=request.user,
+        action='reject',
+        comment=comment or 'Project operation access rejected',
+    )
+    if submitter:
+        notify_submitter_project_operation_access_rejected(
+            project, approver=request.user, submitter=submitter, comment=comment
+        )
+    messages.warning(request, f'Operation access for {project.project_code} was rejected.')
+    return redirect('projects:project_detail', pk=pk)
+
+
+@login_required
 def project_request_completion(request, pk):
     """Submit a completion request from the project detail page (no edit form required)."""
     if request.method != 'POST':
@@ -791,13 +890,31 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         ]
         context['project_gatepasses'] = all_gp
         context['can_edit'] = self.object.allows_edit_by(self.request.user)
-        from .approval_rules import user_can_approve_project_completion
+        from .approval_rules import (
+            user_can_approve_project_completion,
+            user_can_approve_project_conversion,
+            user_can_approve_project_operation_access,
+            user_can_request_project_operation_access,
+        )
+        from .operation_access import (
+            project_created_from_estimate,
+            project_has_paid_invoice,
+            project_operations_locked,
+        )
 
+        context['project_operations_locked'] = project_operations_locked(self.object)
+        context['project_from_estimate'] = project_created_from_estimate(self.object)
+        context['project_has_paid_invoice'] = project_has_paid_invoice(self.object)
+        context['can_request_operation_access'] = user_can_request_project_operation_access(
+            self.request.user, self.object
+        )
+        context['can_approve_project_operation_access'] = user_can_approve_project_operation_access(
+            self.request.user, self.object
+        )
+        context['operation_access_pending'] = self.object.operation_access_status == 'pending'
         context['can_approve_project_completion'] = user_can_approve_project_completion(
             self.request.user, self.object
         )
-        from .approval_rules import user_can_approve_project_conversion
-
         context['can_approve_project_conversion'] = user_can_approve_project_conversion(
             self.request.user, self.object
         )
@@ -839,19 +956,22 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         inventory_spend = project_inventory_spend_total(self.object)
         context['inventory_spend_total'] = inventory_spend
 
-        recorded = manual_expenses_total + bills_total + inventory_spend
+        labour_rows, labour_hours, labour_cost = project_labour_summary(self.object)
+        context['labour_rows'] = labour_rows
+        context['labour_total_hours'] = labour_hours
+        context['labour_total_cost'] = labour_cost
+        context['show_labour_card'] = (
+            self.object.technicians.exists() or labour_hours > 0 or labour_cost > 0
+        )
+
+        recorded = manual_expenses_total + bills_total + inventory_spend + (labour_cost or Decimal('0.00'))
         context['recorded_expenses_total'] = recorded
         budget_prop = self.object.budget
         context['budget_profit'] = budget_prop - recorded
-        # Header “profit” vs expenses: use contract value when set (e.g. from estimate conversion),
-        # since budget may hold cost baseline rather than customer revenue.
-        cv = self.object.contract_value or Decimal('0.00')
-        if cv > 0:
-            context['header_profit_vs_expenses'] = cv - recorded
-            context['header_profit_label'] = 'Contract value − total expense'
-        else:
-            context['header_profit_vs_expenses'] = budget_prop - recorded
-            context['header_profit_label'] = 'Budget − total expense'
+        estimate_total = self.object.estimate_total_amount
+        context['project_estimate_total'] = estimate_total
+        context['header_profit_vs_expenses'] = estimate_total - recorded
+        context['header_profit_label'] = 'Estimated cost − total expense'
         if budget_prop > 0:
             pct = (recorded / budget_prop * Decimal('100')).quantize(Decimal('0.1'))
             context['budget_pct_used'] = pct
@@ -867,13 +987,6 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         context['gatepass_alert_horizon'] = date.today() + timedelta(days=10)
         context['public_uploads'] = (
             self.object.public_uploads.filter(is_active=True).order_by('-created_at')
-        )
-        labour_rows, labour_hours, labour_cost = project_labour_summary(self.object)
-        context['labour_rows'] = labour_rows
-        context['labour_total_hours'] = labour_hours
-        context['labour_total_cost'] = labour_cost
-        context['show_labour_card'] = (
-            self.object.technicians.exists() or labour_hours > 0 or labour_cost > 0
         )
         from .project_expense_comparison import build_project_expense_comparison_context
 
@@ -923,12 +1036,19 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
 
     def post(self, request, *args, **kwargs):
         from .conversion_approval import project_awaiting_conversion_approval
+        from .operation_access import project_operations_locked
 
         self.object = self.get_object()
         if project_awaiting_conversion_approval(self.object):
             messages.error(
                 request,
                 'This project is locked until conversion from quotation is approved.',
+            )
+            return redirect('projects:project_detail', pk=self.object.pk)
+        if project_operations_locked(self.object):
+            messages.error(
+                request,
+                'This project is locked. Create and pay a linked invoice, or request operation access approval.',
             )
             return redirect('projects:project_detail', pk=self.object.pk)
 
@@ -1345,6 +1465,16 @@ def task_set_status(request, pk):
     if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'projects', 'edit')):
         messages.error(request, 'Permission denied.')
         return redirect('projects:task_list')
+
+    if task.project_id:
+        from .operation_access import project_operations_locked
+
+        if project_operations_locked(task.project):
+            messages.error(
+                request,
+                'This project is locked until a linked invoice is paid or update access is approved.',
+            )
+            return redirect('projects:project_detail', pk=task.project_id)
 
     status = request.POST.get('status')
     valid_statuses = [c[0] for c in Task.STATUS_CHOICES]

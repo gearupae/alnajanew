@@ -46,6 +46,11 @@
                     {% if form.estimate.errors %}<div class="text-danger small">{{ form.estimate.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-md-4">
+                    <label class="form-label">Project</label>
+                    {{ form.project }}
+                    {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
                     <label class="form-label">Status</label>
                     {{ form.status }}
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
@@ -288,6 +293,41 @@ document.addEventListener('DOMContentLoaded', function() {
         const qty = row.querySelector('.item-qty');
         if (qty) calculateRowTotal(qty);
     });
+
+    const projectOptions = {{ invoice_project_options_json|safe }};
+    const estimateProjectMap = {{ invoice_estimate_project_map_json|safe }};
+    const customerSelect = document.getElementById('id_customer');
+    const projectSelect = document.getElementById('id_project');
+    const estimateSelect = document.getElementById('id_estimate');
+
+    function rebuildProjectOptions() {
+        if (!projectSelect) return;
+        const customerId = customerSelect ? parseInt(customerSelect.value, 10) : null;
+        const current = projectSelect.value;
+        projectSelect.innerHTML = '<option value="">---------</option>';
+        projectOptions.forEach(p => {
+            if (customerId && p.customer_id && p.customer_id !== customerId) return;
+            const opt = document.createElement('option');
+            opt.value = String(p.id);
+            opt.textContent = p.label;
+            if (String(p.id) === current) opt.selected = true;
+            projectSelect.appendChild(opt);
+        });
+    }
+
+    if (customerSelect) {
+        customerSelect.addEventListener('change', rebuildProjectOptions);
+        rebuildProjectOptions();
+    }
+
+    if (estimateSelect && projectSelect) {
+        estimateSelect.addEventListener('change', function() {
+            const projectId = estimateProjectMap[this.value];
+            if (projectId) {
+                projectSelect.value = String(projectId);
+            }
+        });
+    }
 });
 </script>
 {% endblock %}
