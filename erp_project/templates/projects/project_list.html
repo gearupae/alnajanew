@@ -219,6 +219,12 @@
                         <th>Name</th>
                         <th>Manager</th>
                         <th>Status</th>
+                        <th class="text-end">Contract value</th>
+                        <th class="text-end">Est. expense</th>
+                        <th class="text-end">Actual expense</th>
+                        <th class="text-end">Received</th>
+                        <th class="text-end">Balance</th>
+                        <th class="text-end">Work %</th>
                         <th class="text-center" width="100">Actions</th>
                     </tr>
                 </thead>
@@ -247,12 +253,39 @@
                             <span class="badge bg-warning text-dark ms-1" title="Completion pending approval">Completion pending</span>
                             {% endif %}
                         </td>
+                        <td class="text-end text-nowrap">
+                            {% if project.list_contract_value > 0 %}AED {{ project.list_contract_value|floatformat:2 }}{% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-end text-nowrap">
+                            {% if project.list_estimated_expense > 0 %}AED {{ project.list_estimated_expense|floatformat:2 }}{% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-end text-nowrap">
+                            {% if project.list_actual_expense > 0 %}AED {{ project.list_actual_expense|floatformat:2 }}{% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-end text-nowrap">
+                            {% if project.list_received_amount > 0 %}AED {{ project.list_received_amount|floatformat:2 }}{% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-end text-nowrap">
+                            {% if project.list_contract_value > 0 or project.list_received_amount > 0 %}
+                                AED {{ project.list_balance_amount|floatformat:2 }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end text-nowrap">
+                            {% if project.tasks_total_count %}
+                                {{ project.list_work_percent }}%
+                                <span class="text-muted small">({{ project.tasks_completed_count }}/{{ project.tasks_total_count }})</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                         <td class="text-center">
                             <a href="{% url 'projects:project_detail' project.pk %}" class="btn btn-action btn-outline-info"><i class="fas fa-eye"></i></a>
                             {% if can_edit %}<a href="{% url 'projects:project_edit' project.pk %}" class="btn btn-action btn-outline-primary"><i class="fas fa-edit"></i></a>{% endif %}
                         </td>
                     </tr>
-                    {% empty %}<tr><td colspan="6" class="text-center py-5 text-muted"><i class="fas fa-project-diagram fa-3x mb-3 d-block"></i>No projects found</td></tr>{% endfor %}
+                    {% empty %}<tr><td colspan="12" class="text-center py-5 text-muted"><i class="fas fa-project-diagram fa-3x mb-3 d-block"></i>No projects found</td></tr>{% endfor %}
                 </tbody>
             </table>
         </div>
