@@ -290,21 +290,27 @@ ESTIMATE_LIST_SORT_FIELDS = {
     'estimate_number': 'estimate_number',
     'customer': 'customer__company',
     'date': 'date',
+    'created': 'created_at',
     'valid': 'valid_until',
     'status': 'status',
     'amount': 'total_amount',
 }
 
 
+def _estimate_list_default_sort_key():
+    return 'created'
+
+
 def _estimate_list_sort_querystring(request_get, field):
     """Next sort state for list links (toggles asc/desc on same column, drops page)."""
     params = request_get.copy()
     params.pop('page', None)
+    default_sort = _estimate_list_default_sort_key()
     if field not in ESTIMATE_LIST_SORT_FIELDS:
-        field = 'date'
-    current = params.get('sort', 'date')
+        field = default_sort
+    current = params.get('sort') or default_sort
     if current not in ESTIMATE_LIST_SORT_FIELDS:
-        current = 'date'
+        current = default_sort
     order = (params.get('order') or 'desc').lower()
     if order not in ('asc', 'desc'):
         order = 'desc'
@@ -418,9 +424,10 @@ class EstimateListView(PermissionRequiredMixin, ListView):
         return self.paginate_by
 
     def _get_list_sort(self):
-        sort_key = self.request.GET.get('sort') or 'date'
+        default_sort = _estimate_list_default_sort_key()
+        sort_key = self.request.GET.get('sort') or default_sort
         if sort_key not in ESTIMATE_LIST_SORT_FIELDS:
-            sort_key = 'date'
+            sort_key = default_sort
         order = (self.request.GET.get('order') or 'desc').lower()
         if order not in ('asc', 'desc'):
             order = 'desc'
@@ -469,12 +476,15 @@ class EstimateListView(PermissionRequiredMixin, ListView):
 
         v = (self.request.GET.get('view') or '').strip().lower()
         if is_portal or v in ('kanban', 'board'):
-            return queryset.order_by('-date', '-pk')
+            return queryset.order_by('-created_at', '-pk')
 
         sort_key, order = self._get_list_sort()
         field = ESTIMATE_LIST_SORT_FIELDS[sort_key]
         prefix = '' if order == 'asc' else '-'
-        return queryset.order_by(f'{prefix}{field}', f'{prefix}pk')
+        ordering = [f'{prefix}{field}', f'{prefix}pk']
+        if sort_key != 'created':
+            ordering.insert(1, '-created_at')
+        return queryset.order_by(*ordering)
     
     def get_context_data(self, **kwargs):
         from .approval_rules import user_is_estimate_approver_portal
@@ -1105,6 +1115,9 @@ class EstimateDetailView(PermissionRequiredMixin, DetailView):
                 Decimal('0.00'),
             )
         context['revision_snapshots'] = list(self.object.revision_snapshots.all())
+        from .estimate_approval_comments import estimate_edit_rejection_detail
+
+        context['edit_rejection_detail'] = estimate_edit_rejection_detail(self.object)
         return context
 
 
@@ -1127,11 +1140,13 @@ def estimate_approve_edit(request, pk):
     estimate.edit_approval_status = 'none'
     estimate.edit_approval_submitted_at = None
     estimate.edit_approval_submitted_by_id = None
+    estimate.edit_approval_rejection_reason = ''
     estimate.save(
         update_fields=[
             'edit_approval_status',
             'edit_approval_submitted_at',
             'edit_approval_submitted_by',
+            'edit_approval_rejection_reason',
             'updated_at',
         ]
     )
@@ -1169,8 +1184,9 @@ def estimate_reject_edit(request, pk):
         return redirect('sales:estimate_detail', pk=pk)
     comment = (request.POST.get('comment') or '').strip()
     estimate.edit_approval_status = 'rejected'
+    estimate.edit_approval_rejection_reason = comment[:2000]
     estimate.save(
-        update_fields=['edit_approval_status', 'updated_at']
+        update_fields=['edit_approval_status', 'edit_approval_rejection_reason', 'updated_at']
     )
     from apps.settings_app.models import ApprovalAuditLog
     from .estimate_approval_notifications import notify_submitter_estimate_edit_rejected

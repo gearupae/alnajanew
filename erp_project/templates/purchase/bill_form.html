@@ -317,6 +317,11 @@ function loadPOItems(poId) {
                 const vendorSelect = document.getElementById('id_vendor');
                 if (vendorSelect) vendorSelect.value = data.vendor_id;
             }
+
+            if (data.project_id) {
+                const projectSelect = document.getElementById('id_project');
+                if (projectSelect) projectSelect.value = data.project_id;
+            }
             
             calculateTotals();
         })

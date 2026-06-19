@@ -14,11 +14,13 @@ def queue_project_completion_approval(user, project):
     project.edit_approval_status = 'pending'
     project.edit_approval_submitted_at = timezone.now()
     project.edit_approval_submitted_by = user
+    project.edit_approval_rejection_reason = ''
     project.save(
         update_fields=[
             'edit_approval_status',
             'edit_approval_submitted_at',
             'edit_approval_submitted_by',
+            'edit_approval_rejection_reason',
             'updated_at',
         ]
     )
@@ -31,3 +33,4 @@ def clear_project_completion_approval(project):
     project.edit_approval_status = 'none'
     project.edit_approval_submitted_at = None
     project.edit_approval_submitted_by_id = None
+    project.edit_approval_rejection_reason = ''

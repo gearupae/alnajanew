@@ -74,6 +74,7 @@ class Project(BaseModel):
         blank=True,
         related_name='project_conversion_approval_submissions',
     )
+    conversion_approval_rejection_reason = models.TextField(blank=True)
     edit_approval_status = models.CharField(
         max_length=20,
         choices=EDIT_APPROVAL_STATUS_CHOICES,
@@ -88,6 +89,7 @@ class Project(BaseModel):
         blank=True,
         related_name='project_edit_approval_submissions',
     )
+    edit_approval_rejection_reason = models.TextField(blank=True)
     operation_access_status = models.CharField(
         max_length=20,
         choices=OPERATION_ACCESS_STATUS_CHOICES,
@@ -102,6 +104,7 @@ class Project(BaseModel):
         blank=True,
         related_name='project_operation_access_submissions',
     )
+    operation_access_rejection_reason = models.TextField(blank=True)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     
@@ -215,9 +218,61 @@ class Project(BaseModel):
             return cv.quantize(Decimal('0.01'))
         ec = self.estimated_cost or Decimal('0')
         return ec.quantize(Decimal('0.01')) if ec > 0 else Decimal('0.00')
-    
+
+    def quotation_budget_from_estimates(self) -> Decimal:
+        """
+        Proposed budget: sum of base unit price × qty on every linked quotation line
+        (excl. profit markup and VAT). Falls back to stored budget when no quotations.
+        """
+        from apps.sales.models import EstimateItem
+        from django.db.models import Prefetch
+
+        estimates = list(
+            self.estimates.filter(is_active=True).prefetch_related(
+                Prefetch(
+                    'items',
+                    queryset=EstimateItem.objects.select_related('inventory_item'),
+                )
+            )
+        )
+        if not estimates:
+            return (self.budget or Decimal('0')).quantize(Decimal('0.01'))
+        total = sum((est.project_budget() for est in estimates), Decimal('0'))
+        return total.quantize(Decimal('0.01'))
+
+    def sync_financials_from_linked_estimates(self) -> Decimal:
+        """Refresh stored budget and contract value from all linked quotations."""
+        from apps.sales.models import EstimateItem
+        from django.db.models import Prefetch
+
+        estimates = list(
+            self.estimates.filter(is_active=True).prefetch_related(
+                Prefetch(
+                    'items',
+                    queryset=EstimateItem.objects.select_related('inventory_item'),
+                )
+            )
+        )
+        if not estimates:
+            return (self.budget or Decimal('0')).quantize(Decimal('0.01'))
+
+        budget = sum((est.project_budget() for est in estimates), Decimal('0')).quantize(Decimal('0.01'))
+        contract = sum(
+            ((est.total_amount or Decimal('0')) for est in estimates),
+            Decimal('0'),
+        ).quantize(Decimal('0.01'))
+        update_fields = []
+        if self.budget != budget:
+            self.budget = budget
+            update_fields.append('budget')
+        if self.contract_value != contract:
+            self.contract_value = contract
+            update_fields.append('contract_value')
+        if update_fields:
+            self.save(update_fields=update_fields)
+        return budget
+
     def update_totals(self):
-        """Recalculate project totals from expenses and revenue entries."""
         # Sum expenses
         expense_total = self.project_expenses.filter(
             is_active=True, posted=True

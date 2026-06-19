@@ -56,11 +56,13 @@ def queue_project_operation_access_request(user, project):
     project.operation_access_status = 'pending'
     project.operation_access_submitted_at = timezone.now()
     project.operation_access_submitted_by = user
+    project.operation_access_rejection_reason = ''
     project.save(
         update_fields=[
             'operation_access_status',
             'operation_access_submitted_at',
             'operation_access_submitted_by',
+            'operation_access_rejection_reason',
             'updated_at',
         ]
     )
@@ -71,9 +73,15 @@ def queue_project_operation_access_request(user, project):
 
 def approve_project_operation_access(project):
     project.operation_access_status = 'approved'
-    project.save(update_fields=['operation_access_status', 'updated_at'])
+    project.operation_access_rejection_reason = ''
+    project.save(
+        update_fields=['operation_access_status', 'operation_access_rejection_reason', 'updated_at']
+    )
 
 
-def reject_project_operation_access(project):
+def reject_project_operation_access(project, comment: str = ''):
     project.operation_access_status = 'rejected'
-    project.save(update_fields=['operation_access_status', 'updated_at'])
+    project.operation_access_rejection_reason = (comment or '').strip()[:2000]
+    project.save(
+        update_fields=['operation_access_status', 'operation_access_rejection_reason', 'updated_at']
+    )

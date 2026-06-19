@@ -88,6 +88,13 @@ class PurchaseRequest(BaseModel):
     )
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    vendor = models.ForeignKey(
+        Vendor,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='purchase_requests',
+    )
     notes = models.TextField(blank=True)
     
     # Calculated
@@ -161,8 +168,15 @@ class PurchaseRequestAttachment(models.Model):
         on_delete=models.CASCADE,
         related_name='attachments'
     )
-    file = models.FileField(upload_to='purchase_request_attachments/%Y/%m/')
+    file = models.FileField(upload_to='purchase_request_attachments/%Y/%m/', blank=True, null=True)
     filename = models.CharField(max_length=255, blank=True)
+    vendor_ref = models.ForeignKey(
+        Vendor,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='purchase_request_quotes',
+    )
     vendor = models.CharField(max_length=500, blank=True, default='')
     total_price = models.DecimalField(
         max_digits=15,
@@ -181,6 +195,12 @@ class PurchaseRequestAttachment(models.Model):
     
     class Meta:
         ordering = ['-uploaded_at']
+
+    @property
+    def vendor_display(self):
+        if self.vendor_ref_id:
+            return self.vendor_ref.name
+        return self.vendor or '—'
 
 
 class PurchaseOrder(BaseModel):
@@ -215,6 +235,14 @@ class PurchaseOrder(BaseModel):
         Vendor,
         on_delete=models.PROTECT,
         related_name='purchase_orders'
+    )
+    project = models.ForeignKey(
+        'projects.Project',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='purchase_orders',
+        help_text='If set, costs from bills linked to this PO can be charged to this project.',
     )
     order_date = models.DateField()
     expected_delivery_date = models.DateField(null=True, blank=True)

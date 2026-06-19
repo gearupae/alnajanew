@@ -71,35 +71,15 @@ class ProjectListView(PermissionRequiredMixin, ListView):
             )
         elif status:
             queryset = queryset.filter(status=status)
-        # Sum manual project expenses (active, not rejected, not from a vendor bill)
-        queryset = queryset.annotate(
-            manual_expenses_sum=Coalesce(
-                Sum(
-                    'project_expenses__total_amount',
-                    filter=Q(project_expenses__is_active=True)
-                    & ~Q(project_expenses__status='rejected')
-                    & Q(project_expenses__vendor_bill__isnull=True),
-                ),
-                Value(Decimal('0.00')),
-                output_field=DecimalField(max_digits=18, decimal_places=2),
-            )
-        )
-        # Sum vendor bill amounts linked to the project (all active, non-cancelled)
-        queryset = queryset.annotate(
-            vendor_bills_sum=Coalesce(
-                Sum(
-                    'vendor_bills__total_amount',
-                    filter=Q(vendor_bills__is_active=True)
-                    & ~Q(vendor_bills__status='cancelled'),
-                ),
-                Value(Decimal('0.00')),
-                output_field=DecimalField(max_digits=18, decimal_places=2),
-            )
-        )
-        return queryset.order_by('-created_at', '-pk')
-    
+        from .project_list_metrics import annotate_project_list_queryset
+
+        return annotate_project_list_queryset(queryset).order_by('-created_at', '-pk')
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        from .project_list_metrics import enrich_projects_for_list
+
+        enrich_projects_for_list(list(context['projects']))
         context['title'] = 'Projects'
         context['status_choices'] = Project.STATUS_CHOICES
         context['can_create'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'projects', 'create')
@@ -126,8 +106,7 @@ class ProjectListView(PermissionRequiredMixin, ListView):
             ('conversion_pending', 'Pending conversion approval'),
             ('completion_pending', 'Pending completion approval'),
         ]
-        
-        # Calculate metrics (respect visibility scope for non-elevated users)
+
         from apps.core.visibility import filter_projects_for_user
 
         all_projects = filter_projects_for_user(
@@ -136,7 +115,7 @@ class ProjectListView(PermissionRequiredMixin, ListView):
         context['total_projects'] = all_projects.count()
         context['in_progress_projects'] = all_projects.filter(status='in_progress').count()
         context['completed_projects'] = all_projects.filter(status='completed').count()
-        
+
         return context
 
 
@@ -440,12 +419,14 @@ def project_approve_completion(request, pk):
     project.edit_approval_status = 'none'
     project.edit_approval_submitted_at = None
     project.edit_approval_submitted_by_id = None
+    project.edit_approval_rejection_reason = ''
     project.save(
         update_fields=[
             'status',
             'edit_approval_status',
             'edit_approval_submitted_at',
             'edit_approval_submitted_by',
+            'edit_approval_rejection_reason',
             'updated_at',
         ]
     )
@@ -488,7 +469,8 @@ def project_reject_completion(request, pk):
     comment = (request.POST.get('comment') or '').strip()
     submitter = project.edit_approval_submitted_by
     project.edit_approval_status = 'rejected'
-    project.save(update_fields=['edit_approval_status', 'updated_at'])
+    project.edit_approval_rejection_reason = comment[:2000]
+    project.save(update_fields=['edit_approval_status', 'edit_approval_rejection_reason', 'updated_at'])
     from apps.settings_app.models import ApprovalAuditLog
     from .project_approval_notifications import notify_submitter_project_completion_rejected
 
@@ -507,7 +489,11 @@ def project_reject_completion(request, pk):
             comment=comment,
         )
     messages.warning(request, f'Completion request for {project.project_code} was rejected.')
-    return redirect('projects:project_detail', pk=pk)
+    from apps.core.visibility import user_can_access_project
+
+    if user_can_access_project(request.user, project):
+        return redirect('projects:project_detail', pk=pk)
+    return redirect('projects:project_list')
 
 
 @login_required
@@ -561,13 +547,14 @@ def project_reject_conversion(request, pk):
     from apps.settings_app.models import ApprovalAuditLog
     from .project_approval_notifications import notify_submitter_project_conversion_rejected
 
-    reject_project_conversion(project)
+    comment = (request.POST.get('comment') or '').strip()
+    reject_project_conversion(project, comment=comment)
     ApprovalAuditLog.objects.create(
         module='project_conversion',
         reference=project.project_code,
         approver=request.user,
         action='reject',
-        comment=(request.POST.get('comment') or 'Project conversion rejected').strip()[:2000],
+        comment=comment or 'Project conversion rejected',
     )
     if submitter:
         notify_submitter_project_conversion_rejected(
@@ -656,7 +643,7 @@ def project_reject_operation_access(request, pk):
     from apps.settings_app.models import ApprovalAuditLog
     from .project_approval_notifications import notify_submitter_project_operation_access_rejected
 
-    reject_project_operation_access(project)
+    reject_project_operation_access(project, comment=comment)
     ApprovalAuditLog.objects.create(
         module='project_operation_access',
         reference=project.project_code,
@@ -922,6 +909,17 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
             self.object.status == 'draft'
             and self.object.conversion_approval_status == 'pending'
         )
+        from .project_approval_comments import (
+            project_completion_rejection_detail,
+            project_conversion_rejection_detail,
+            project_operation_access_rejection_detail,
+        )
+
+        context['completion_rejection_detail'] = project_completion_rejection_detail(self.object)
+        context['conversion_rejection_detail'] = project_conversion_rejection_detail(self.object)
+        context['operation_access_rejection_detail'] = project_operation_access_rejection_detail(
+            self.object
+        )
         context['can_request_project_completion'] = (
             context['can_edit']
             and self.object.status not in ('completed', 'draft', 'cancelled')
@@ -966,12 +964,12 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
 
         recorded = manual_expenses_total + bills_total + inventory_spend + (labour_cost or Decimal('0.00'))
         context['recorded_expenses_total'] = recorded
-        budget_prop = self.object.budget
+        budget_prop = self.object.sync_financials_from_linked_estimates()
         context['budget_profit'] = budget_prop - recorded
         estimate_total = self.object.estimate_total_amount
         context['project_estimate_total'] = estimate_total
         context['header_profit_vs_expenses'] = estimate_total - recorded
-        context['header_profit_label'] = 'Estimated cost − total expense'
+        context['header_profit_label'] = 'Quotation price − total expense'
         if budget_prop > 0:
             pct = (recorded / budget_prop * Decimal('100')).quantize(Decimal('0.1'))
             context['budget_pct_used'] = pct

@@ -1,0 +1,213 @@
+{% if can_manage_vendor_quotes %}
+<script>
+(function() {
+    const CSRF = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    const UPLOAD_URL = "{{ pr_vendor_upload_url|escapejs }}";
+    const ADD_URL = "{{ pr_vendor_add_url|escapejs }}";
+    const UPDATE_URL_PATTERN = "{{ pr_vendor_update_url_pattern|escapejs }}";
+    const saveTimers = {};
+
+    function updateUrl(id) {
+        return UPDATE_URL_PATTERN.replace('__ATT_ID__', String(id));
+    }
+
+    function showSaveHint(text) {
+        const el = document.getElementById('vendor-quote-save-hint');
+        if (!el) return;
+        el.style.display = 'inline-block';
+        el.textContent = text;
+        if (text === 'Saved') {
+            setTimeout(() => { el.style.display = 'none'; }, 2000);
+        }
+    }
+
+    function initVendorSelect2(el) {
+        if (!el || typeof $ === 'undefined' || !$.fn.select2) return;
+        const $el = $(el);
+        if ($el.data('select2')) return;
+        $el.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Select vendor…',
+            allowClear: true,
+            minimumResultsForSearch: 0,
+            dropdownParent: $(document.body),
+        });
+    }
+
+    function scheduleSave(tr) {
+        const id = tr.getAttribute('data-attachment-id');
+        if (!id) return;
+        clearTimeout(saveTimers[id]);
+        showSaveHint('Saving…');
+        saveTimers[id] = setTimeout(() => {
+            const vendorSel = tr.querySelector('.quote-vendor-select');
+            const totalEl = tr.querySelector('.quote-total');
+            const totalRaw = totalEl ? totalEl.value.trim() : '';
+            const body = {
+                total_price: totalRaw === '' ? null : totalRaw,
+            };
+            if (vendorSel) {
+                body.vendor_id = vendorSel.value || null;
+            }
+            fetch(updateUrl(id), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF,
+                },
+                body: JSON.stringify(body),
+            })
+                .then(r => r.json().then(data => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok || !data.ok) {
+                        toastr.error(data.error || 'Could not save.');
+                        showSaveHint('');
+                        return;
+                    }
+                    showSaveHint('Saved');
+                })
+                .catch(() => {
+                    toastr.error('Network error while saving.');
+                    showSaveHint('');
+                });
+        }, 450);
+    }
+
+    function bindRow(tr) {
+        const vendorSel = tr.querySelector('.quote-vendor-select');
+        if (vendorSel) {
+            initVendorSelect2(vendorSel);
+            $(vendorSel).on('change', () => scheduleSave(tr));
+        }
+        tr.querySelectorAll('.quote-total').forEach(inp => {
+            inp.addEventListener('input', () => scheduleSave(tr));
+            inp.addEventListener('change', () => scheduleSave(tr));
+        });
+    }
+
+    function buildVendorSelectOptions(selectedId) {
+        const master = document.getElementById('pr-new-vendor-select');
+        let html = '<option value=""></option>';
+        if (master) {
+            master.querySelectorAll('option').forEach(opt => {
+                if (!opt.value) return;
+                const sel = selectedId && String(selectedId) === String(opt.value) ? ' selected' : '';
+                html += `<option value="${opt.value}"${sel}>${opt.textContent}</option>`;
+            });
+        }
+        return html;
+    }
+
+    function appendAttachmentRow(a) {
+        const tbody = document.getElementById('vendor-quote-tbody');
+        document.getElementById('vendor-quote-empty-row')?.remove();
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-attachment-id', String(a.id));
+
+        const tdV = document.createElement('td');
+        const selV = document.createElement('select');
+        selV.className = 'form-select form-select-sm quote-vendor-select select2-pr-vendor-row';
+        selV.innerHTML = buildVendorSelectOptions(a.vendor_id);
+        tdV.appendChild(selV);
+
+        const tdT = document.createElement('td');
+        const inpT = document.createElement('input');
+        inpT.type = 'number';
+        inpT.className = 'form-control form-control-sm text-end quote-total';
+        inpT.step = '0.01';
+        inpT.min = '0';
+        inpT.placeholder = '0.00';
+        inpT.value = (a.total_price != null && a.total_price !== '') ? String(a.total_price) : '';
+        tdT.appendChild(inpT);
+
+        const tdF = document.createElement('td');
+        tdF.className = 'small';
+        if (a.has_file && a.file_url) {
+            const linkView = document.createElement('a');
+            linkView.href = a.file_url;
+            linkView.target = '_blank';
+            linkView.rel = 'noopener';
+            linkView.className = 'd-block';
+            linkView.textContent = 'View';
+            const linkDl = document.createElement('a');
+            linkDl.href = a.file_url;
+            linkDl.download = '';
+            linkDl.className = 'd-block';
+            linkDl.textContent = 'Download';
+            tdF.appendChild(linkView);
+            tdF.appendChild(linkDl);
+        } else {
+            tdF.textContent = '—';
+        }
+
+        tr.appendChild(tdV);
+        tr.appendChild(tdT);
+        tr.appendChild(tdF);
+        tbody.appendChild(tr);
+        bindRow(tr);
+    }
+
+    document.querySelectorAll('#vendor-quote-tbody tr[data-attachment-id]').forEach(bindRow);
+    initVendorSelect2(document.getElementById('pr-new-vendor-select'));
+
+    const addBtn = document.getElementById('pr-add-vendor-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', function() {
+            const vendorSel = document.getElementById('pr-new-vendor-select');
+            const totalEl = document.getElementById('pr-new-vendor-total');
+            const vendorId = vendorSel ? vendorSel.value : '';
+            if (!vendorId) {
+                toastr.error('Select a vendor.');
+                return;
+            }
+            const totalRaw = totalEl ? totalEl.value.trim() : '';
+            fetch(ADD_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF,
+                },
+                body: JSON.stringify({
+                    vendor_id: vendorId,
+                    total_price: totalRaw === '' ? null : totalRaw,
+                }),
+            })
+                .then(r => r.json().then(data => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok || !data.ok) {
+                        toastr.error(data.error || 'Could not add vendor.');
+                        return;
+                    }
+                    appendAttachmentRow(data);
+                    if (vendorSel) $(vendorSel).val(null).trigger('change');
+                    if (totalEl) totalEl.value = '';
+                    toastr.success('Vendor added.');
+                })
+                .catch(() => toastr.error('Could not add vendor.'));
+        });
+    }
+
+    const fileInput = document.getElementById('pr-vendor-file-input');
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            if (!this.files || !this.files.length) return;
+            const fd = new FormData();
+            for (const f of this.files) fd.append('files', f);
+            fetch(UPLOAD_URL, { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd })
+                .then(r => r.json().then(data => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok || !data.ok) {
+                        toastr.error(data.error || 'Upload failed.');
+                        return;
+                    }
+                    (data.attachments || []).forEach(appendAttachmentRow);
+                    toastr.success('File(s) uploaded.');
+                    fileInput.value = '';
+                })
+                .catch(() => toastr.error('Upload failed.'));
+        });
+    }
+})();
+</script>
+{% endif %}

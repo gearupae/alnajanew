@@ -51,11 +51,13 @@ def apply_estimate_status_fields(
             estimate.edit_approval_status = 'none'
             estimate.edit_approval_submitted_at = None
             estimate.edit_approval_submitted_by_id = None
+            estimate.edit_approval_rejection_reason = ''
             update_fields.extend([
                 'approval_requested_by',
                 'edit_approval_status',
                 'edit_approval_submitted_at',
                 'edit_approval_submitted_by',
+                'edit_approval_rejection_reason',
             ])
 
     # Manual status changes end an in-progress revise session (e.g. marked Quot Won).

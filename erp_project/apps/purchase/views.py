@@ -86,16 +86,37 @@ def _can_manage_pr_vendor_attachments(user, pr) -> bool:
     return PermissionChecker.has_permission(user, 'purchase', 'edit')
 
 
+def _pr_vendor_quotes_context(request, pr):
+    """Shared context for vendor quote UI on PR detail and edit pages."""
+    _ph = 999_999_999
+    return {
+        'can_manage_vendor_quotes': _can_manage_pr_vendor_attachments(request.user, pr),
+        'quote_attachments': pr.attachments.select_related('vendor_ref').order_by('id'),
+        'vendor_choices': Vendor.objects.filter(is_active=True).order_by('name'),
+        'pr_vendor_add_url': reverse('purchase:pr_vendor_add', args=[pr.pk]),
+        'pr_vendor_upload_url': reverse('purchase:pr_vendor_attachment_upload', args=[pr.pk]),
+        'pr_vendor_update_url_pattern': reverse(
+            'purchase:pr_vendor_attachment_update',
+            args=[pr.pk, _ph],
+        ).replace(str(_ph), '__ATT_ID__'),
+    }
+
+
 def _serialize_pr_vendor_attachment(att):
     name = att.filename or ''
     if not name and att.file:
         name = Path(att.file.name).name
+    vendor_id = att.vendor_ref_id or ''
+    vendor_label = att.vendor_display if att.vendor_ref_id or att.vendor else ''
     return {
         'id': att.pk,
+        'vendor_id': vendor_id,
         'vendor': att.vendor or '',
+        'vendor_label': vendor_label,
         'total_price': str(att.total_price) if att.total_price is not None else '',
         'filename': name,
         'file_url': att.file.url if att.file else '',
+        'has_file': bool(att.file),
     }
 
 
@@ -216,7 +237,22 @@ class PurchaseRequestListView(PermissionRequiredMixin, ListView):
         context['can_delete'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'purchase', 'delete')
         context['can_convert'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'purchase', 'create')
         context['today'] = date.today().isoformat()
-        annotate_pr_approval_actions(self.request.user, context.get('purchase_requests', []))
+
+        from .pr_approval_rules import (
+            annotate_pr_approval_actions,
+            pending_purchase_requests_for_user,
+            user_is_purchase_request_approver,
+        )
+
+        purchase_requests = context.get('purchase_requests')
+        if purchase_requests is not None:
+            annotate_pr_approval_actions(self.request.user, purchase_requests)
+
+        pending_for_approver = pending_purchase_requests_for_user(self.request.user)
+        context['pending_approval_prs'] = pending_for_approver
+        context['pending_approval_count'] = len(pending_for_approver)
+        context['is_pr_approver'] = user_is_purchase_request_approver(self.request.user)
+
         return context
 
 
@@ -308,7 +344,11 @@ class PurchaseRequestUpdateView(UpdatePermissionMixin, UpdateView):
             return self.form_invalid(form, items_formset)
     
     def form_valid(self, form, items_formset):
-        self.object = form.save()
+        pr = form.save(commit=False)
+        if self.object.pk and self.object.status not in ('draft', 'returned'):
+            pr.status = self.object.status
+        pr.save()
+        self.object = pr
         items_formset.instance = self.object
         items_formset.save()
         self.object.calculate_total()
@@ -321,7 +361,7 @@ class PurchaseRequestUpdateView(UpdatePermissionMixin, UpdateView):
                 uploaded_by=self.request.user
             )
         messages.success(self.request, f'Purchase Request {self.object.pr_number} updated.')
-        return redirect('purchase:pr_list')
+        return redirect('purchase:pr_detail', pk=self.object.pk)
     
     def form_invalid(self, form, items_formset):
         return self.render_to_response(
@@ -339,7 +379,7 @@ class PurchaseRequestDetailView(PermissionRequiredMixin, DetailView):
     def get_queryset(self):
         qs = (
             PurchaseRequest.objects.filter(is_active=True)
-            .select_related('requested_by', 'department', 'created_by')
+            .select_related('requested_by', 'department', 'created_by', 'vendor')
             .prefetch_related('items', 'attachments')
         )
         from apps.core.visibility import filter_purchase_requests_for_user
@@ -364,18 +404,6 @@ class PurchaseRequestDetailView(PermissionRequiredMixin, DetailView):
             self.request.user.is_superuser or
             PermissionChecker.has_permission(self.request.user, 'purchase', 'create')
         ) and self.object.status == 'approved'
-        context['can_manage_vendor_quotes'] = _can_manage_pr_vendor_attachments(
-            self.request.user, self.object
-        )
-        context['quote_attachments'] = self.object.attachments.order_by('id')
-        context['pr_vendor_upload_url'] = reverse(
-            'purchase:pr_vendor_attachment_upload', args=[self.object.pk]
-        )
-        _ph = 999_999_999
-        context['pr_vendor_update_url_pattern'] = reverse(
-            'purchase:pr_vendor_attachment_update',
-            args=[self.object.pk, _ph],
-        ).replace(str(_ph), '__ATT_ID__')
         return context
 
 
@@ -436,7 +464,22 @@ def pr_vendor_attachment_update(request, pk, attachment_id):
     except json.JSONDecodeError:
         return JsonResponse({'ok': False, 'error': 'Invalid JSON.'}, status=400)
     update_fields = []
-    if 'vendor' in data:
+    if 'vendor_id' in data:
+        raw_id = data.get('vendor_id')
+        if raw_id in (None, '', 0, '0'):
+            att.vendor_ref = None
+            update_fields.append('vendor_ref')
+        else:
+            try:
+                vendor = Vendor.objects.filter(pk=int(raw_id), is_active=True).first()
+            except (TypeError, ValueError):
+                return JsonResponse({'ok': False, 'error': 'Invalid vendor.'}, status=400)
+            if not vendor:
+                return JsonResponse({'ok': False, 'error': 'Vendor not found.'}, status=400)
+            att.vendor_ref = vendor
+            att.vendor = vendor.name[:500]
+            update_fields.extend(['vendor_ref', 'vendor'])
+    elif 'vendor' in data:
         att.vendor = (data.get('vendor') or '')[:500]
         update_fields.append('vendor')
     if 'total_price' in data:
@@ -452,6 +495,55 @@ def pr_vendor_attachment_update(request, pk, attachment_id):
     if not update_fields:
         return JsonResponse({'ok': False, 'error': 'No fields to update.'}, status=400)
     att.save(update_fields=update_fields)
+    payload = _serialize_pr_vendor_attachment(att)
+    payload['ok'] = True
+    return JsonResponse(payload)
+
+
+@login_required
+@require_POST
+def pr_vendor_add(request, pk):
+    """Add a vendor quote row without requiring a file (JSON body)."""
+    ct = (request.content_type or '').split(';')[0].strip().lower()
+    if ct != 'application/json':
+        return JsonResponse({'ok': False, 'error': 'Expected application/json.'}, status=400)
+    pr = get_object_or_404(PurchaseRequest, pk=pk, is_active=True)
+    if not _can_manage_pr_vendor_attachments(request.user, pr):
+        return JsonResponse({'ok': False, 'error': 'Permission denied.'}, status=403)
+    try:
+        data = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON.'}, status=400)
+
+    vendor_ref = None
+    vendor_name = (data.get('vendor') or '').strip()[:500]
+    raw_id = data.get('vendor_id')
+    if raw_id not in (None, '', 0, '0'):
+        try:
+            vendor_ref = Vendor.objects.filter(pk=int(raw_id), is_active=True).first()
+        except (TypeError, ValueError):
+            return JsonResponse({'ok': False, 'error': 'Invalid vendor.'}, status=400)
+        if not vendor_ref:
+            return JsonResponse({'ok': False, 'error': 'Vendor not found.'}, status=400)
+        vendor_name = vendor_ref.name[:500]
+    if not vendor_name:
+        return JsonResponse({'ok': False, 'error': 'Select a vendor.'}, status=400)
+
+    total_price = None
+    raw_total = data.get('total_price')
+    if raw_total not in (None, ''):
+        try:
+            total_price = Decimal(str(raw_total))
+        except (InvalidOperation, TypeError, ValueError):
+            return JsonResponse({'ok': False, 'error': 'Invalid total price.'}, status=400)
+
+    att = PurchaseRequestAttachment.objects.create(
+        purchase_request=pr,
+        vendor_ref=vendor_ref,
+        vendor=vendor_name,
+        total_price=total_price,
+        uploaded_by=request.user,
+    )
     payload = _serialize_pr_vendor_attachment(att)
     payload['ok'] = True
     return JsonResponse(payload)
@@ -628,7 +720,10 @@ def pr_items_json(request, pk):
             'vat_rate': '5.00',
             'inventory_item_id': item.inventory_item_id,
         })
-    return JsonResponse({'items': items})
+    return JsonResponse({
+        'items': items,
+        'vendor_id': pr.vendor_id,
+    })
 
 
 @login_required
@@ -646,7 +741,8 @@ def po_items_json(request, pk):
         })
     return JsonResponse({
         'items': items,
-        'vendor_id': po.vendor.id if po.vendor else None
+        'vendor_id': po.vendor.id if po.vendor else None,
+        'project_id': po.project_id,
     })
 
 
@@ -662,7 +758,7 @@ class PurchaseOrderListView(PermissionRequiredMixin, ListView):
     
     def get_queryset(self):
         queryset = PurchaseOrder.objects.filter(is_active=True).select_related(
-            'vendor', 'created_by', 'purchase_request', 'purchase_request__requested_by'
+            'vendor', 'project', 'created_by', 'purchase_request', 'purchase_request__requested_by'
         )
         from apps.core.visibility import filter_purchase_orders_for_user
 
@@ -829,7 +925,7 @@ class PurchaseOrderDetailView(PermissionRequiredMixin, DetailView):
         )
         qs = (
             PurchaseOrder.objects.filter(is_active=True)
-            .select_related('vendor', 'purchase_request', 'service_request', 'created_by')
+            .select_related('vendor', 'project', 'purchase_request', 'service_request', 'created_by')
             .prefetch_related(
                 Prefetch('goods_receipts', queryset=rcpt_qs),
                 'items__inventory_item',
@@ -1024,6 +1120,43 @@ def po_receive(request, pk):
         'purchase/po_receive.html',
         _po_receive_context(po, warehouses),
     )
+
+
+@login_required
+def pr_pdf(request, pk):
+    """Purchase request PDF / printable HTML."""
+    from .pr_pdf_render import build_pr_pdf_context, render_pr_pdf_bytes
+    from apps.core.visibility import filter_purchase_requests_for_user
+
+    pr = get_object_or_404(
+        PurchaseRequest.objects.filter(is_active=True)
+        .select_related('requested_by', 'department', 'vendor')
+        .prefetch_related('items', 'attachments'),
+        pk=pk,
+    )
+    if not filter_purchase_requests_for_user(
+        PurchaseRequest.objects.filter(pk=pr.pk), request.user
+    ).exists():
+        messages.error(request, 'Permission denied.')
+        return redirect('purchase:pr_list')
+
+    if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'purchase', 'view')):
+        messages.error(request, 'Permission denied.')
+        return redirect('purchase:pr_list')
+
+    context = build_pr_pdf_context(request, pr)
+    output_format = request.GET.get('format', 'html')
+    if output_format == 'pdf':
+        pdf, err = render_pr_pdf_bytes(request, pr)
+        if pdf is not None:
+            response = HttpResponse(pdf, content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename="PR_{pr.pr_number}.pdf"'
+            return response
+        if err:
+            messages.info(request, err)
+        return render(request, 'purchase/pr_pdf.html', context)
+
+    return render(request, 'purchase/pr_pdf.html', context)
 
 
 @login_required

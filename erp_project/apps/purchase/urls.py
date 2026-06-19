@@ -34,6 +34,12 @@ urlpatterns = [
         views.pr_vendor_attachment_update,
         name='pr_vendor_attachment_update',
     ),
+    path(
+        'requests/<int:pk>/vendor-quotes/add/',
+        views.pr_vendor_add,
+        name='pr_vendor_add',
+    ),
+    path('requests/<int:pk>/pdf/', views.pr_pdf, name='pr_pdf'),
     
     # Purchase Orders
     path('orders/', views.PurchaseOrderListView.as_view(), name='po_list'),

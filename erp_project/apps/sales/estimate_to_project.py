@@ -143,11 +143,7 @@ def link_estimate_to_existing_project(*, estimate, project, include_items: bool,
     estimate.project = project
     estimate.save(update_fields=['project'])
 
-    project.contract_value = (project.contract_value or Decimal('0')) + (
-        estimate.total_amount or Decimal('0')
-    )
-    project.budget = (project.budget or Decimal('0')) + estimate.project_budget()
-    project.save(update_fields=['contract_value', 'budget'])
+    project.sync_financials_from_linked_estimates()
 
     if estimate.assigned_to_id and not project.members.filter(pk=estimate.assigned_to_id).exists():
         project.members.add(estimate.assigned_to)

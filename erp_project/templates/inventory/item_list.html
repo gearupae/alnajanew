@@ -26,7 +26,7 @@
 <!-- Stats -->
 <div class="row g-3 mb-4">
     <div class="col-md-6">
-        <div class="card">
+        <a href="{{ all_items_filter_url }}" class="card text-decoration-none h-100{% if not low_stock_filter_active %} border-primary shadow-sm{% endif %}">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="bg-primary bg-opacity-10 rounded p-3 me-3">
@@ -34,14 +34,14 @@
                     </div>
                     <div>
                         <p class="text-muted mb-0 small">Total Items</p>
-                        <h5 class="mb-0 fw-bold">{{ total_items }}</h5>
+                        <h5 class="mb-0 fw-bold text-dark">{{ total_items }}</h5>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
     <div class="col-md-6">
-        <div class="card">
+        <a href="{{ low_stock_filter_url }}" class="card text-decoration-none h-100{% if low_stock_filter_active %} border-danger shadow-sm{% endif %}">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="bg-danger bg-opacity-10 rounded p-3 me-3">
@@ -49,11 +49,14 @@
                     </div>
                     <div>
                         <p class="text-muted mb-0 small">Low Stock Items</p>
-                        <h5 class="mb-0 fw-bold">{{ low_stock_count }}</h5>
+                        <h5 class="mb-0 fw-bold text-dark">{{ low_stock_count }}</h5>
+                        {% if low_stock_filter_active %}
+                        <span class="badge bg-danger mt-1">Filtered</span>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 
@@ -61,6 +64,9 @@
 <div class="card mb-4">
     <div class="card-body py-3">
         <form method="get" class="row g-3 align-items-end">
+            {% if request.GET.low_stock == '1' %}
+            <input type="hidden" name="low_stock" value="1">
+            {% endif %}
             <div class="col-md-2">
                 <input type="text" name="search" class="form-control" placeholder="Search items..." value="{{ request.GET.search }}">
             </div>

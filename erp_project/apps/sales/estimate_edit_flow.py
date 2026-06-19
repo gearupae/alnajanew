@@ -29,6 +29,7 @@ def _send_estimate_for_approval(request, estimate) -> None:
     estimate.edit_approval_status = 'none'
     estimate.edit_approval_submitted_at = None
     estimate.edit_approval_submitted_by_id = None
+    estimate.edit_approval_rejection_reason = ''
 
 
 def apply_after_estimate_save(
@@ -60,6 +61,7 @@ def apply_after_estimate_save(
         'edit_approval_status',
         'edit_approval_submitted_at',
         'edit_approval_submitted_by',
+        'edit_approval_rejection_reason',
         'updated_at',
     ]
 

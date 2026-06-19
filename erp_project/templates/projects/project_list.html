@@ -122,8 +122,8 @@
                 <thead>
                     <tr>
                         <th>Code</th>
-                        <th>Name</th>
                         <th>Customer</th>
+                        <th>Name</th>
                         <th>Budget</th>
                         <th>Submitted by</th>
                         <th>Submitted</th>
@@ -134,7 +134,6 @@
                     {% for project in pending_conversion_projects %}
                     <tr>
                         <td><a href="{% url 'projects:project_detail' project.pk %}" class="fw-medium text-decoration-none">{{ project.project_code }}</a></td>
-                        <td>{{ project.name }}</td>
                         <td>
                             {% if project.customer %}
                                 {{ project.customer.company|default:project.customer.name|default:"-" }}
@@ -142,6 +141,7 @@
                                 -
                             {% endif %}
                         </td>
+                        <td>{{ project.name }}</td>
                         <td class="text-nowrap">{% if project.budget %}AED {{ project.budget }}{% else %}—{% endif %}</td>
                         <td>{% if project.conversion_approval_submitted_by %}{{ project.conversion_approval_submitted_by.get_full_name|default:project.conversion_approval_submitted_by.username }}{% else %}—{% endif %}</td>
                         <td class="text-nowrap">{% if project.conversion_approval_submitted_at %}{{ project.conversion_approval_submitted_at|date:"M d, Y H:i" }}{% else %}—{% endif %}</td>
@@ -169,8 +169,8 @@
                 <thead>
                     <tr>
                         <th>Code</th>
-                        <th>Name</th>
                         <th>Customer</th>
+                        <th>Name</th>
                         <th>Current status</th>
                         <th>Requested by</th>
                         <th>Requested</th>
@@ -181,7 +181,6 @@
                     {% for project in pending_completion_projects %}
                     <tr>
                         <td><a href="{% url 'projects:project_detail' project.pk %}" class="fw-medium text-decoration-none">{{ project.project_code }}</a></td>
-                        <td>{{ project.name }}</td>
                         <td>
                             {% if project.customer %}
                                 {{ project.customer.company|default:project.customer.name|default:"-" }}
@@ -189,6 +188,7 @@
                                 -
                             {% endif %}
                         </td>
+                        <td>{{ project.name }}</td>
                         <td><span class="badge bg-secondary">{{ project.get_status_display }}</span></td>
                         <td>{% if project.edit_approval_submitted_by %}{{ project.edit_approval_submitted_by.get_full_name|default:project.edit_approval_submitted_by.username }}{% else %}—{% endif %}</td>
                         <td class="text-nowrap">{% if project.edit_approval_submitted_at %}{{ project.edit_approval_submitted_at|date:"M d, Y H:i" }}{% else %}—{% endif %}</td>
@@ -212,12 +212,20 @@
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead><tr><th>Code</th><th>Name</th><th>Customer</th><th>Manager</th><th>Status</th><th>Progress</th><th class="text-end">Expense</th><th class="text-center" width="100">Actions</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Customer</th>
+                        <th>Name</th>
+                        <th>Manager</th>
+                        <th>Status</th>
+                        <th class="text-center" width="100">Actions</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for project in projects %}
                     <tr>
                         <td><a href="{% url 'projects:project_detail' project.pk %}" class="fw-medium text-decoration-none">{{ project.project_code }}</a></td>
-                        <td>{{ project.name }}</td>
                         <td>
                             {% if project.customer %}
                                 {{ project.customer.company|default:project.customer.name|default:"-" }}
@@ -225,6 +233,7 @@
                                 -
                             {% endif %}
                         </td>
+                        <td>{{ project.name }}</td>
                         <td>{% if project.manager %}{{ project.manager.get_full_name|default:project.manager.username }}{% else %}-{% endif %}</td>
                         <td>
                             {% if project.status == 'completed' %}<span class="badge badge-active">Completed</span>
@@ -238,31 +247,12 @@
                             <span class="badge bg-warning text-dark ms-1" title="Completion pending approval">Completion pending</span>
                             {% endif %}
                         </td>
-                        <td>{{ project.completed_tasks }}/{{ project.total_tasks }} tasks</td>
-                        <td class="text-end text-nowrap">
-                            {% if project.budget > 0 %}
-                                {% with total_exp=project.manual_expenses_sum|add:project.vendor_bills_sum %}
-                                {% widthratio total_exp project.budget 100 as exp_pct %}
-                                {% with p=exp_pct|add:0 %}
-                                {% if p < 50 %}
-                                <span class="badge badge-active">{{ exp_pct }}% of budget</span>
-                                {% elif p <= 80 %}
-                                <span class="badge" style="background:#fef3c7;color:#92400e;">{{ exp_pct }}% of budget</span>
-                                {% else %}
-                                <span class="badge badge-inactive">{{ exp_pct }}% of budget</span>
-                                {% endif %}
-                                {% endwith %}
-                                {% endwith %}
-                            {% else %}
-                                <span class="text-muted">—</span>
-                            {% endif %}
-                        </td>
                         <td class="text-center">
                             <a href="{% url 'projects:project_detail' project.pk %}" class="btn btn-action btn-outline-info"><i class="fas fa-eye"></i></a>
                             {% if can_edit %}<a href="{% url 'projects:project_edit' project.pk %}" class="btn btn-action btn-outline-primary"><i class="fas fa-edit"></i></a>{% endif %}
                         </td>
                     </tr>
-                    {% empty %}<tr><td colspan="8" class="text-center py-5 text-muted"><i class="fas fa-project-diagram fa-3x mb-3 d-block"></i>No projects found</td></tr>{% endfor %}
+                    {% empty %}<tr><td colspan="6" class="text-center py-5 text-muted"><i class="fas fa-project-diagram fa-3x mb-3 d-block"></i>No projects found</td></tr>{% endfor %}
                 </tbody>
             </table>
         </div>

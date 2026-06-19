@@ -78,15 +78,15 @@ def purchase_request_approver_records_q(user):
 
 
 def project_approver_records_q(user):
-    """Projects the user may see as configured completion approver (pending or completed)."""
+    """Projects the user may see as configured completion approver (pending, rejected, or completed)."""
     config = ApprovalConfiguration.objects.filter(module='project', is_active=True).first()
     if not config:
         return Q(pk__in=[])
     amount_q = _build_amount_tier_q(config, user, '_approval_amount')
-    pending = Q(edit_approval_status='pending') & amount_q
+    completion_review = Q(edit_approval_status__in=['pending', 'rejected']) & amount_q
     # Keep completed projects visible after approval (avoid 404 on redirect).
     completed = Q(status='completed') & amount_q
-    return pending | completed
+    return completion_review | completed
 
 
 def project_conversion_approver_records_q(user):
@@ -135,7 +135,7 @@ def user_is_project_approver_for(user, project):
 
     if not project:
         return False
-    if project.edit_approval_status == 'pending':
+    if project.edit_approval_status in ('pending', 'rejected'):
         return user_can_approve_project_completion(user, project)
     if project.status == 'completed':
         approver = get_configured_project_approver(project)

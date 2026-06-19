@@ -229,8 +229,7 @@ class ItemListView(PermissionRequiredMixin, ListView):
     permission_type = 'view'
     paginate_by = 25
     
-    def get_queryset(self):
-        # Annotate total_stock at database level to ensure fresh data
+    def _build_item_list_queryset(self):
         queryset = Item.objects.filter(is_active=True).select_related('category').prefetch_related(
             'item_groups',
             Prefetch(
@@ -243,19 +242,18 @@ class ItemListView(PermissionRequiredMixin, ListView):
             )
         )
         queryset = annotate_item_available_stock(queryset)
-        queryset = annotate_item_available_stock(queryset)
-        
+
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(
                 Q(item_code__icontains=search) |
                 Q(name__icontains=search)
             )
-        
+
         category = self.request.GET.get('category')
         if category:
             queryset = queryset.filter(category_id=category)
-        
+
         item_type = self.request.GET.get('item_type')
         if item_type:
             queryset = queryset.filter(item_type=item_type)
@@ -265,6 +263,17 @@ class ItemListView(PermissionRequiredMixin, ListView):
             queryset = queryset.annotate(_gc=Count('item_groups')).filter(_gc=0)
         elif group.isdigit():
             queryset = queryset.filter(item_groups__pk=int(group)).distinct()
+
+        return queryset
+
+    def get_queryset(self):
+        queryset = self._build_item_list_queryset()
+
+        if self.request.GET.get('low_stock') == '1':
+            queryset = queryset.filter(
+                item_type='product',
+                total_stock_calc__lt=F('minimum_stock'),
+            )
 
         return queryset.order_by('-created_at', '-pk')
     
@@ -277,20 +286,30 @@ class ItemListView(PermissionRequiredMixin, ListView):
         context['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'inventory', 'edit')
         context['can_delete'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'inventory', 'delete')
         
-        # Stats
-        items = self.get_queryset()
+        # Stats (respect search/category/type/group filters, but not low_stock toggle)
+        items = self._build_item_list_queryset()
         context['total_items'] = items.count()
-        # Use annotation for low stock check
-        context['low_stock_count'] = sum(
-            1 for item in items 
-            if item.item_type == 'product' 
-            and (item.total_stock_calc or Decimal('0.00')) < item.minimum_stock
-        )
+        context['low_stock_count'] = items.filter(
+            item_type='product',
+            total_stock_calc__lt=F('minimum_stock'),
+        ).count()
+        context['low_stock_filter_active'] = self.request.GET.get('low_stock') == '1'
 
-        context['item_groups'] = list(ItemGroup.objects.all().order_by('name'))
         q = self.request.GET.copy()
         q.pop('page', None)
         context['filter_querystring'] = q.urlencode()
+
+        all_q = q.copy()
+        all_q.pop('low_stock', None)
+        context['all_items_filter_url'] = (
+            '?' + all_q.urlencode() if all_q else reverse('inventory:item_list')
+        )
+
+        low_stock_q = q.copy()
+        low_stock_q['low_stock'] = '1'
+        context['low_stock_filter_url'] = '?' + low_stock_q.urlencode()
+
+        context['item_groups'] = list(ItemGroup.objects.all().order_by('name'))
         
         return context
 

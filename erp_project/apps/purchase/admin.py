@@ -42,7 +42,7 @@ class PurchaseOrderItemInline(admin.TabularInline):
 
 @admin.register(PurchaseOrder)
 class PurchaseOrderAdmin(admin.ModelAdmin):
-    list_display = ['po_number', 'vendor', 'order_date', 'status', 'total_amount']
+    list_display = ['po_number', 'vendor', 'project', 'order_date', 'status', 'total_amount']
     list_filter = ['status', 'order_date']
     search_fields = ['po_number', 'vendor__name']
     readonly_fields = ['po_number', 'subtotal', 'vat_amount', 'total_amount']

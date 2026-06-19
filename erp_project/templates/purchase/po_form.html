@@ -70,6 +70,12 @@
                     {% if form.vendor.errors %}<div class="text-danger small">{{ form.vendor.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-md-4">
+                    <label class="form-label">Project</label>
+                    {{ form.project }}
+                    {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
+                    <small class="text-muted d-block mt-1">Optional. Vendor bills from this PO can use the same project for budget tracking.</small>
+                </div>
+                <div class="col-md-4">
                     <label class="form-label">Order Date <span class="text-danger">*</span></label>
                     {{ form.order_date }}
                     {% if form.order_date.errors %}<div class="text-danger small">{{ form.order_date.errors|join:", " }}</div>{% endif %}
@@ -550,6 +556,13 @@ function loadPRItems(prId) {
                 ensureTrailingEmptyRow();
             }
             
+            if (data.vendor_id) {
+                const vendorSelect = document.getElementById('id_vendor');
+                if (vendorSelect) {
+                    vendorSelect.value = String(data.vendor_id);
+                }
+            }
+
             hydrateTaxCodeDataRates();
             calculateTotals();
         })

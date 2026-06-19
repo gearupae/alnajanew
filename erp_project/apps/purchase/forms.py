@@ -47,12 +47,13 @@ class PurchaseRequestForm(forms.ModelForm):
     
     class Meta:
         model = PurchaseRequest
-        fields = ['date', 'required_by_date', 'department', 'priority', 'status', 'notes']
+        fields = ['date', 'required_by_date', 'department', 'priority', 'status', 'vendor', 'notes']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'required_by_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'department': forms.Select(attrs={'class': 'form-select'}),
             'priority': forms.Select(attrs={'class': 'form-select'}),
+            'vendor': forms.Select(attrs={'class': 'form-select select2-pr-vendor'}),
             'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
     
@@ -62,8 +63,14 @@ class PurchaseRequestForm(forms.ModelForm):
         self.fields['department'].queryset = Department.objects.filter(is_active=True)
         self.fields['department'].required = False
         self.fields['status'].widget.attrs['class'] = 'form-select'
+        self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True).order_by('name')
+        self.fields['vendor'].required = False
+        self.fields['vendor'].empty_label = '— Select vendor —'
         self.fields['required_by_date'].required = False
         self.fields['notes'].required = False
+        if self.instance and self.instance.pk and self.instance.status not in ('draft', 'returned'):
+            self.fields['status'].disabled = True
+            self.fields['status'].help_text = 'Status is changed through approval workflow, not manual edit.'
 
 
 class PurchaseRequestItemForm(forms.ModelForm):
@@ -158,7 +165,7 @@ class PurchaseOrderForm(forms.ModelForm):
     
     class Meta:
         model = PurchaseOrder
-        fields = ['vendor', 'purchase_request', 'service_request', 'order_date', 'expected_delivery_date', 'status', 'notes']
+        fields = ['vendor', 'project', 'purchase_request', 'service_request', 'order_date', 'expected_delivery_date', 'status', 'notes']
         widgets = {
             'order_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'expected_delivery_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
@@ -180,6 +187,13 @@ class PurchaseOrderForm(forms.ModelForm):
         
         self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True, status='active')
         self.fields['vendor'].widget.attrs['class'] = 'form-select'
+
+        self.fields['project'].queryset = Project.objects.filter(is_active=True).exclude(
+            status='cancelled'
+        ).order_by('project_code', 'name')
+        self.fields['project'].required = False
+        self.fields['project'].widget.attrs['class'] = 'form-select'
+        self.fields['project'].empty_label = '— None (not charged to a project) —'
         
         if not is_edit:
             # Show approved PRs (create form only)

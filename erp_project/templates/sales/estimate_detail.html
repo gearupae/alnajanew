@@ -211,6 +211,18 @@
                         <p class="mb-0">{% for label in estimate.scope_display_labels %}<span class="badge bg-light text-dark border me-1 mb-1">{{ label }}</span>{% endfor %}</p>
                     </div>
                     {% endif %}
+                    {% if estimate.status == 'rejected' %}
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Rejection reason</h6>
+                        <p class="mb-0">{{ estimate.rejection_reason|default:"—" }}</p>
+                    </div>
+                    {% endif %}
+                    {% if estimate.edit_approval_status == 'rejected' %}
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Edit rejection detail</h6>
+                        <p class="mb-0">{{ edit_rejection_detail|default:"—" }}</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -390,12 +402,6 @@
                         <span class="badge bg-secondary fs-6">{{ estimate.get_status_display }}</span>
                     {% endif %}
                 </div>
-                {% if estimate.status == 'rejected' and estimate.rejection_reason %}
-                <div class="alert alert-warning py-2 px-3 mb-0 small">
-                    <strong>Rejection reason:</strong> {{ estimate.rejection_reason|linebreaksbr }}
-                </div>
-                {% endif %}
-                
                 {% if estimate_status_actions %}
                 <hr>
                 <h6 class="text-muted mb-3"><i class="fas fa-sync-alt me-2 text-dark"></i>Update Status</h6>

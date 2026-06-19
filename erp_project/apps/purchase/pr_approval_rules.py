@@ -39,3 +39,33 @@ def annotate_pr_approval_actions(user, purchase_requests):
     for pr in purchase_requests:
         pr.show_approve_actions = user_can_act_on_purchase_request(user, pr)
     return purchase_requests
+
+
+def user_is_purchase_request_approver(user) -> bool:
+    """True if user is configured as a PR approver (or superuser with no config)."""
+    if not user or not user.is_authenticated:
+        return False
+    config = ApprovalConfiguration.objects.filter(module='purchase_request', is_active=True).first()
+    if not config:
+        return user.is_superuser
+    if config.default_approver_id == user.pk:
+        return True
+    if config.approval_type == 'single':
+        return False
+    return config.levels.filter(is_active=True, approver_id=user.pk).exists()
+
+
+def pending_purchase_requests_for_user(user):
+    """Pending PRs this user can approve, reject, or return."""
+    if not user or not user.is_authenticated:
+        return []
+    from apps.purchase.models import PurchaseRequest
+
+    qs = (
+        PurchaseRequest.objects.filter(is_active=True, status='pending')
+        .select_related('requested_by', 'department', 'vendor')
+        .order_by('-date', '-pk')
+    )
+    pending = [pr for pr in qs if user_can_act_on_purchase_request(user, pr)]
+    annotate_pr_approval_actions(user, pending)
+    return pending

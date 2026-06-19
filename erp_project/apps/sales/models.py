@@ -140,6 +140,7 @@ class Estimate(BaseModel):
         blank=True,
         related_name='estimate_edit_approval_submissions',
     )
+    edit_approval_rejection_reason = models.TextField(blank=True)
     revision_count = models.PositiveIntegerField(
         default=0,
         help_text='Increments when resubmitted for approval after an edit rejection (R1, R2, … on PDF).',

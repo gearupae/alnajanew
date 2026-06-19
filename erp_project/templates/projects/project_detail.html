@@ -100,6 +100,7 @@
             </form>
             <form method="post" action="{% url 'projects:project_reject_conversion' project.pk %}" class="d-inline">
                 {% csrf_token %}
+                <textarea name="comment" class="form-control form-control-sm d-inline-block align-middle" style="width:14rem; vertical-align:middle;" rows="1" placeholder="Rejection reason (optional)"></textarea>
                 <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Reject this project conversion? The quotation will be unlinked.');"><i class="fas fa-times me-1"></i>Reject conversion</button>
             </form>
             {% endif %}
@@ -198,7 +199,7 @@
                     </div>
                     <div class="col-md-4"><h6 class="text-muted mb-2">Manager</h6><p class="mb-0">{% if project.manager %}{{ project.manager.get_full_name|default:project.manager.username }}{% else %}-{% endif %}</p></div>
                     <div class="col-md-4"><h6 class="text-muted mb-2">Budget</h6><p class="mb-0">AED {{ project.budget|floatformat:2 }}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Estimated cost</h6><p class="mb-0">{% if project_estimate_total > 0 %}AED {{ project_estimate_total|floatformat:2 }}{% else %}—{% endif %}</p></div>
+                    <div class="col-md-4"><h6 class="text-muted mb-2">Quotation price</h6><p class="mb-0">{% if project_estimate_total > 0 %}AED {{ project_estimate_total|floatformat:2 }}{% else %}—{% endif %}</p></div>
                     <div class="col-md-4">
                         <h6 class="text-muted mb-2">Total profit <span class="small fw-normal">({{ header_profit_label }})</span></h6>
                         <p class="mb-0 fw-semibold d-flex align-items-center flex-wrap gap-2">
@@ -215,6 +216,24 @@
                     <div class="col-md-4"><h6 class="text-muted mb-2">Team</h6><p class="mb-0">{{ project_team.member_count }} member{% if project_team.member_count != 1 %}s{% endif %}{% if project_team.technician_count %}, {{ project_team.technician_count }} technician{% if project_team.technician_count != 1 %}s{% endif %}{% endif %}</p></div>
                     <div class="col-md-4"><h6 class="text-muted mb-2">Start Date</h6><p class="mb-0">{{ project.start_date|date:"d/m/Y"|default:"-" }}</p></div>
                     <div class="col-md-4"><h6 class="text-muted mb-2">End Date</h6><p class="mb-0">{{ project.end_date|date:"d/m/Y"|default:"-" }}</p></div>
+                    {% if project.conversion_approval_status == 'rejected' %}
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">Conversion rejection detail</h6>
+                        <p class="mb-0">{{ conversion_rejection_detail|default:"—" }}</p>
+                    </div>
+                    {% endif %}
+                    {% if project.edit_approval_status == 'rejected' %}
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">Rejection reason</h6>
+                        <p class="mb-0">{{ completion_rejection_detail|default:"—" }}</p>
+                    </div>
+                    {% endif %}
+                    {% if project.operation_access_status == 'rejected' %}
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">Update access rejection detail</h6>
+                        <p class="mb-0">{{ operation_access_rejection_detail|default:"—" }}</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -857,14 +876,18 @@
             <div class="card-body">
                 <h6 class="mb-3 fw-semibold"><i class="fas fa-flag me-2 text-dark"></i>Status</h6>
                 {% if project.status == 'completed' %}<span class="badge badge-active fs-6">Completed</span>
-                {% elif project.status == 'in_progress' %}<span class="badge fs-6" style="background:#dbeafe;color:#1e40af;">In Progress</span>
+                {% elif project.status == 'in_progress' %}
+                <span class="badge fs-6" style="background:#dbeafe;color:#1e40af;">In Progress</span>
+                {% if project.edit_approval_status == 'rejected' %}
+                <span class="badge bg-danger fs-6 ms-1">Completion rejected</span>
+                {% endif %}
                 {% else %}<span class="badge bg-secondary fs-6">{{ project.get_status_display }}</span>{% endif %}
                 {% if conversion_approval_pending %}
                 <p class="small text-warning mb-0 mt-2"><i class="fas fa-lock me-1"></i>Locked at <strong>Draft</strong> until conversion is approved. Status changes to <strong>Planning</strong> when the approver confirms.</p>
                 {% elif project.edit_approval_status == 'pending' %}
-                <p class="small text-warning mb-0 mt-2"><i class="fas fa-info-circle me-1"></i>Completion approval is pending — status will update once the approver confirms.</p>
+                <p class="small text-warning mb-0 mt-2"><i class="fas fa-info-circle me-1"></i>Completion approval is pending — status will update to <strong>Completed</strong> once the approver confirms.</p>
                 {% elif project.edit_approval_status == 'rejected' %}
-                <p class="small text-danger mb-2 mt-2"><i class="fas fa-info-circle me-1"></i>Completion was rejected. Use <strong>Mark as completed</strong> to resubmit.</p>
+                <p class="small text-muted mb-0 mt-2"><i class="fas fa-info-circle me-1"></i>The completion request was rejected, so the project stays <strong>In Progress</strong>. Use <strong>Mark as completed</strong> to resubmit when ready.</p>
                 {% endif %}
                 {% if can_request_project_completion %}
                 <form method="post" action="{% url 'projects:project_request_completion' project.pk %}" class="mt-3" onsubmit="return confirm('Submit for completion approval?');">

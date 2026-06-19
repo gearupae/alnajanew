@@ -15,6 +15,19 @@
     </div>
 </div>
 
+{% if is_pr_approver and pending_approval_count %}
+<div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4" role="alert">
+    <div>
+        <i class="fas fa-clock me-2"></i>
+        <strong>{{ pending_approval_count }}</strong>
+        purchase request{{ pending_approval_count|pluralize }} awaiting your approval.
+    </div>
+    {% if request.GET.status != 'pending' %}
+    <a href="{% url 'purchase:pr_list' %}?status=pending" class="btn btn-sm btn-outline-dark">View all pending</a>
+    {% endif %}
+</div>
+{% endif %}
+
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body py-3">
@@ -38,6 +51,58 @@
     </div>
 </div>
 
+{% if pending_approval_prs and request.GET.status != 'pending' %}
+<div class="card mb-4 border-warning">
+    <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h6 class="mb-0 fw-bold"><i class="fas fa-inbox me-2 text-warning"></i>Awaiting your approval</h6>
+        <span class="badge bg-warning text-dark">{{ pending_approval_count }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>PR #</th>
+                        <th>Date</th>
+                        <th>Requested By</th>
+                        <th>Required By</th>
+                        <th class="text-end">Amount</th>
+                        <th class="text-center" width="220">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pr in pending_approval_prs %}
+                    <tr>
+                        <td class="fw-medium"><a href="{% url 'purchase:pr_detail' pr.pk %}">{{ pr.pr_number }}</a></td>
+                        <td>{{ pr.date|date:"d/m/Y" }}</td>
+                        <td>{{ pr.requested_by.get_full_name|default:pr.requested_by.username }}</td>
+                        <td>{{ pr.required_by_date|date:"d/m/Y"|default:"-" }}</td>
+                        <td class="text-end">AED {{ pr.total_amount|floatformat:2 }}</td>
+                        <td class="text-center text-nowrap">
+                            <a href="{% url 'purchase:pr_detail' pr.pk %}" class="btn btn-action btn-outline-primary" title="Review">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'purchase:pr_approve' pr.pk %}" class="btn btn-action btn-outline-success" title="Approve" onclick="return confirm('Approve {{ pr.pr_number }}?');">
+                                <i class="fas fa-check"></i>
+                            </a>
+                            <button type="button" class="btn btn-action btn-outline-danger pr-reject-btn" title="Reject"
+                                data-pr-id="{{ pr.pk }}" data-pr-number="{{ pr.pr_number }}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button type="button" class="btn btn-action btn-outline-warning pr-return-btn" title="Return for revision"
+                                data-pr-id="{{ pr.pk }}" data-pr-number="{{ pr.pr_number }}">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Table -->
 <div class="card">
     <div class="card-body p-0">
@@ -51,7 +116,7 @@
                         <th>Required By</th>
                         <th>Status</th>
                         <th class="text-end">Amount</th>
-                        <th class="text-center" width="150">Actions</th>
+                        <th class="text-center" width="240">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -66,16 +131,26 @@
                             <span class="badge bg-secondary">Draft</span>
                             {% elif pr.status == 'pending' %}
                             <span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>
+                            {% elif pr.status == 'returned' %}
+                            <span class="badge bg-warning text-dark">Returned</span>
                             {% elif pr.status == 'approved' %}
                             <span class="badge badge-active">Approved</span>
                             {% elif pr.status == 'rejected' %}
                             <span class="badge badge-inactive">Rejected</span>
+                            {% elif pr.status == 'converted' %}
+                            <span class="badge bg-success">Converted</span>
                             {% else %}
                             <span class="badge bg-secondary">{{ pr.get_status_display }}</span>
                             {% endif %}
                         </td>
                         <td class="text-end">AED {{ pr.total_amount|floatformat:2 }}</td>
-                        <td class="text-center">
+                        <td class="text-center text-nowrap">
+                            <a href="{% url 'purchase:pr_pdf' pr.pk %}?print=1" class="btn btn-action btn-outline-secondary" title="Print" target="_blank" rel="noopener">
+                                <i class="fas fa-print"></i>
+                            </a>
+                            <a href="{% url 'purchase:pr_pdf' pr.pk %}?format=pdf" class="btn btn-action btn-outline-danger" title="Download PDF" target="_blank" rel="noopener">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
                             <a href="{% url 'purchase:pr_detail' pr.pk %}" class="btn btn-action btn-outline-primary" title="View">
                                 <i class="fas fa-eye"></i>
                             </a>
@@ -93,9 +168,14 @@
                             <a href="{% url 'purchase:pr_approve' pr.pk %}" class="btn btn-action btn-outline-success" title="Approve" onclick="return confirm('Approve this PR?');">
                                 <i class="fas fa-check"></i>
                             </a>
-                            <a href="{% url 'purchase:pr_reject' pr.pk %}" class="btn btn-action btn-outline-danger" title="Reject" onclick="return confirm('Reject this PR?');">
+                            <button type="button" class="btn btn-action btn-outline-danger pr-reject-btn" title="Reject"
+                                data-pr-id="{{ pr.pk }}" data-pr-number="{{ pr.pr_number }}">
                                 <i class="fas fa-times"></i>
-                            </a>
+                            </button>
+                            <button type="button" class="btn btn-action btn-outline-warning pr-return-btn" title="Return for revision"
+                                data-pr-id="{{ pr.pk }}" data-pr-number="{{ pr.pr_number }}">
+                                <i class="fas fa-undo"></i>
+                            </button>
                             {% endif %}
                             {% if can_delete %}
                             <a href="{% url 'purchase:pr_delete' pr.pk %}" class="btn btn-action btn-outline-danger" title="Delete" onclick="return confirm('Delete this PR?');">
@@ -117,9 +197,99 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="rejectPrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" id="rejectPrForm" action="">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="rejectPrModalTitle">Reject purchase request</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Rejection reason</label>
+                    <textarea name="comment" class="form-control" rows="3" placeholder="Enter reason for rejection..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-times me-2"></i>Reject</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="returnPrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" id="returnPrForm" action="">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="returnPrModalTitle">Return for revision</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Revision feedback <span class="text-danger">*</span></label>
+                    <textarea name="comment" class="form-control" rows="3" required placeholder="Enter revision feedback..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning"><i class="fas fa-undo me-2"></i>Return</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rejectUrlTemplate = '{% url "purchase:pr_reject" pk=0 %}';
+    const returnUrlTemplate = '{% url "purchase:pr_return" pk=0 %}';
+    const rejectModal = document.getElementById('rejectPrModal');
+    const returnModal = document.getElementById('returnPrModal');
+    const rejectForm = document.getElementById('rejectPrForm');
+    const returnForm = document.getElementById('returnPrForm');
 
+    function prActionUrl(template, prId) {
+        return template.replace('/0/', '/' + prId + '/');
+    }
 
+    function bindActionButtons(selector, modalEl, formEl, titleEl, urlTemplate, actionLabel) {
+        document.querySelectorAll(selector).forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const prId = btn.getAttribute('data-pr-id');
+                const prNumber = btn.getAttribute('data-pr-number');
+                formEl.action = prActionUrl(urlTemplate, prId);
+                titleEl.textContent = actionLabel + ' ' + prNumber;
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            });
+        });
+    }
 
-
+    if (rejectModal && rejectForm) {
+        bindActionButtons(
+            '.pr-reject-btn',
+            rejectModal,
+            rejectForm,
+            document.getElementById('rejectPrModalTitle'),
+            rejectUrlTemplate,
+            'Reject'
+        );
+    }
+    if (returnModal && returnForm) {
+        bindActionButtons(
+            '.pr-return-btn',
+            returnModal,
+            returnForm,
+            document.getElementById('returnPrModalTitle'),
+            returnUrlTemplate,
+            'Return'
+        );
+    }
+});
+</script>
+{% endblock %}

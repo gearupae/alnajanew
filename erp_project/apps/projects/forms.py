@@ -1,11 +1,14 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from django.db.models import Prefetch
 from decimal import Decimal
 from .models import Project, Task, ProjectExpense, ProjectGatepass, ProjectItemLine
+from .member_roles import get_project_source_estimate
 from apps.crm.models import Customer
 from apps.inventory.models import Item
 from apps.purchase.models import Vendor
 from apps.finance.models import Account
+from apps.sales.models import Estimate
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -26,6 +29,31 @@ def project_staff_choice_label(user):
     if name:
         return name
     return user.username
+
+
+def _project_customer_display_name(customer):
+    if not customer:
+        return ''
+    return (customer.company or customer.name or '').strip()
+
+
+def project_expense_choice_label(project):
+    """Project code, linked estimate number, and customer name from that estimate."""
+    parts = [project.project_code]
+    estimate = get_project_source_estimate(project)
+    if estimate:
+        est_num = getattr(estimate, 'display_estimate_number', None) or estimate.estimate_number
+        parts.append(est_num)
+        customer_name = _project_customer_display_name(estimate.customer)
+        if customer_name:
+            parts.append(customer_name)
+    else:
+        customer_name = _project_customer_display_name(project.customer)
+        if customer_name:
+            parts.append(customer_name)
+        elif project.name:
+            parts.append(project.name)
+    return ' - '.join(parts)
 
 
 def project_staff_select_queryset():
@@ -264,13 +292,21 @@ class ProjectExpenseForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         # Active projects that can still incur expenses (exclude cancelled only)
+        estimate_qs = (
+            Estimate.objects.filter(is_active=True)
+            .select_related('customer')
+            .order_by('-date', '-pk')
+        )
         self.fields['project'].queryset = (
             Project.objects.filter(is_active=True)
             .exclude(status='cancelled')
+            .select_related('customer')
+            .prefetch_related(Prefetch('estimates', queryset=estimate_qs))
             .order_by('-created_at', '-pk')
         )
+        self.fields['project'].label_from_instance = project_expense_choice_label
         self.fields['project'].widget.attrs['class'] = 'form-select select2-project'
-        self.fields['project'].widget.attrs['data-placeholder'] = 'Search by code or name…'
+        self.fields['project'].widget.attrs['data-placeholder'] = 'Search by code or customer…'
         
         # Filter active vendors
         self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True)

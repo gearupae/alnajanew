@@ -15,7 +15,13 @@
             {% if pr.required_by_date %}• Required by {{ pr.required_by_date|date:"d/m/Y" }}{% endif %}
         </p>
     </div>
-    <div>
+    <div class="d-flex flex-wrap gap-2 justify-content-end">
+        <a href="{% url 'purchase:pr_pdf' pr.pk %}" class="btn btn-outline-danger" target="_blank" rel="noopener">
+            <i class="fas fa-file-pdf me-2"></i>PDF / Print
+        </a>
+        <a href="{% url 'purchase:pr_pdf' pr.pk %}?format=pdf" class="btn btn-outline-success" target="_blank" rel="noopener">
+            <i class="fas fa-download me-2"></i>Download PDF
+        </a>
         {% if can_submit %}
         <a href="{% url 'purchase:pr_submit' pr.pk %}" class="btn btn-primary" onclick="return confirm('Submit for approval?');">
             <i class="fas fa-paper-plane me-2"></i>Submit for Approval
@@ -30,6 +36,12 @@
         <a href="{% url 'purchase:pr_approve' pr.pk %}" class="btn btn-success" onclick="return confirm('Approve this request?');">
             <i class="fas fa-check me-2"></i>Approve
         </a>
+        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectPrModal">
+            <i class="fas fa-times me-2"></i>Reject
+        </button>
+        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#returnPrModal">
+            <i class="fas fa-undo me-2"></i>Return
+        </button>
         {% endif %}
         {% if can_convert and pr.status == 'approved' %}
         <a href="{% url 'purchase:pr_convert' pr.pk %}" class="btn btn-primary" onclick="return confirm('Convert to Purchase Order?');">
@@ -39,15 +51,8 @@
     </div>
 </div>
 
-{% if pr.rejection_reason %}
-<div class="alert alert-warning mb-4">
-    <strong><i class="fas fa-comment-alt me-2"></i>Comment from approver:</strong><br>
-    {{ pr.rejection_reason }}
-</div>
-{% endif %}
-
 <div class="row">
-    <div class="col-lg-8">
+    <div class="col-lg-12">
         <div class="card mb-4">
             <div class="card-header"><h6 class="mb-0 fw-semibold">Request Details</h6></div>
             <div class="card-body">
@@ -63,6 +68,10 @@
                     <div class="col-md-4">
                         <label class="form-label text-muted small">Department</label>
                         <p class="mb-0">{{ pr.department.name|default:"-" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Vendor</label>
+                        <p class="mb-0">{% if pr.vendor %}{{ pr.vendor.name }}{% else %}—{% endif %}</p>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label text-muted small">Requested By</label>
@@ -84,6 +93,17 @@
                             {% else %}<span class="badge bg-secondary">{{ pr.get_status_display }}</span>{% endif %}
                         </p>
                     </div>
+                    {% if pr.status == 'rejected' %}
+                    <div class="col-12">
+                        <label class="form-label text-muted small">Rejection detail</label>
+                        <p class="mb-0">{{ pr.rejection_reason|default:"—" }}</p>
+                    </div>
+                    {% elif pr.status == 'returned' and pr.rejection_reason %}
+                    <div class="col-12">
+                        <label class="form-label text-muted small">Revision feedback</label>
+                        <p class="mb-0">{{ pr.rejection_reason }}</p>
+                    </div>
+                    {% endif %}
                     {% if pr.notes %}
                     <div class="col-12">
                         <label class="form-label text-muted small">Notes / Justification</label>
@@ -132,238 +152,53 @@
             </div>
         </div>
     </div>
-
-    <div class="col-lg-4">
-        <div class="card mb-4 border-primary border-opacity-25">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-semibold">Vendor quotes &amp; files</h6>
-                <span class="badge bg-light text-dark border" id="vendor-quote-save-hint" style="display:none;"></span>
-            </div>
-            <div class="card-body">
-                <p class="text-muted small mb-2">
-                    Each PDF or Excel file is one row. Vendor and total price save automatically when you change them (no save button).
-                </p>
-                {% if can_manage_vendor_quotes %}
-                <div class="mb-3">
-                    <label class="form-label small fw-semibold">Add files (PDF, .xlsx, .xls)</label>
-                    <input type="file" id="pr-vendor-file-input" class="form-control form-control-sm" multiple
-                           accept=".pdf,.xlsx,.xls,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
-                </div>
-                {% endif %}
-                <div class="table-responsive">
-                    <table class="table table-sm table-bordered align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Vendor</th>
-                                <th class="text-end" style="min-width:7rem;">Total (AED)</th>
-                                <th style="min-width:6.5rem;">File</th>
-                            </tr>
-                        </thead>
-                        <tbody id="vendor-quote-tbody">
-                            {% for att in quote_attachments %}
-                            <tr data-attachment-id="{{ att.pk }}">
-                                <td>
-                                    <input type="text" class="form-control form-control-sm quote-vendor"
-                                           value="{{ att.vendor }}"
-                                           {% if not can_manage_vendor_quotes %}readonly{% endif %}
-                                           maxlength="500" placeholder="Vendor name">
-                                </td>
-                                <td>
-                                    <input type="number" class="form-control form-control-sm text-end quote-total" step="0.01" min="0"
-                                           value="{% if att.total_price is not None %}{{ att.total_price }}{% endif %}"
-                                           {% if not can_manage_vendor_quotes %}readonly{% endif %}
-                                           placeholder="0.00">
-                                </td>
-                                <td class="small">
-                                    {% if att.file %}
-                                    <a href="{{ att.file.url }}" target="_blank" rel="noopener" class="d-block">View</a>
-                                    <a href="{{ att.file.url }}" download class="d-block">Download</a>
-                                    {% else %}
-                                    —
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr id="vendor-quote-empty-row">
-                                <td colspan="3" class="text-center text-muted py-3">No attachments yet.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
-
-{% if can_reject or can_return %}
-<div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0 fw-semibold">Reject / Return for Revision</h6></div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-6">
-                <form method="post" action="{% url 'purchase:pr_reject' pr.pk %}">
-                    {% csrf_token %}
-                    <label class="form-label">Reject with comment</label>
-                    <textarea name="comment" class="form-control mb-2" rows="2" placeholder="Enter rejection reason..."></textarea>
-                    <button type="submit" class="btn btn-danger"><i class="fas fa-times me-2"></i>Reject</button>
-                </form>
-            </div>
-            <div class="col-md-6">
-                <form method="post" action="{% url 'purchase:pr_return' pr.pk %}">
-                    {% csrf_token %}
-                    <label class="form-label">Return for revision with comment</label>
-                    <textarea name="comment" class="form-control mb-2" rows="2" required placeholder="Enter revision feedback..."></textarea>
-                    <button type="submit" class="btn btn-warning"><i class="fas fa-undo me-2"></i>Return for Revision</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
 
 <a href="{% url 'purchase:pr_list' %}" class="btn btn-light"><i class="fas fa-arrow-left me-2"></i>Back to List</a>
 
-{% if can_manage_vendor_quotes %}{% csrf_token %}{% endif %}
-{% endblock %}
+{% if can_approve %}
+<div class="modal fade" id="rejectPrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'purchase:pr_reject' pr.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Reject {{ pr.pr_number }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Rejection reason</label>
+                    <textarea name="comment" class="form-control" rows="3" placeholder="Enter reason for rejection..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-times me-2"></i>Reject</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-{% block extra_js %}
-{% if can_manage_vendor_quotes %}
-<script>
-(function() {
-    const CSRF = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
-    const UPLOAD_URL = "{{ pr_vendor_upload_url|escapejs }}";
-    const UPDATE_URL_PATTERN = "{{ pr_vendor_update_url_pattern|escapejs }}";
-    const saveTimers = {};
-
-    function updateUrl(id) {
-        return UPDATE_URL_PATTERN.replace('__ATT_ID__', String(id));
-    }
-
-    function showSaveHint(text) {
-        const el = document.getElementById('vendor-quote-save-hint');
-        if (!el) return;
-        el.style.display = 'inline-block';
-        el.textContent = text;
-        if (text === 'Saved') {
-            setTimeout(() => { el.style.display = 'none'; }, 2000);
-        }
-    }
-
-    function scheduleSave(tr) {
-        const id = tr.getAttribute('data-attachment-id');
-        if (!id) return;
-        clearTimeout(saveTimers[id]);
-        showSaveHint('Saving…');
-        saveTimers[id] = setTimeout(() => {
-            const vendor = tr.querySelector('.quote-vendor')?.value ?? '';
-            const totalEl = tr.querySelector('.quote-total');
-            const totalRaw = totalEl ? totalEl.value.trim() : '';
-            fetch(updateUrl(id), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': CSRF,
-                },
-                body: JSON.stringify({
-                    vendor: vendor,
-                    total_price: totalRaw === '' ? null : totalRaw,
-                }),
-            })
-                .then(r => r.json().then(data => ({ ok: r.ok, data })))
-                .then(({ ok, data }) => {
-                    if (!ok || !data.ok) {
-                        toastr.error(data.error || 'Could not save.');
-                        showSaveHint('');
-                        return;
-                    }
-                    showSaveHint('Saved');
-                })
-                .catch(() => {
-                    toastr.error('Network error while saving.');
-                    showSaveHint('');
-                });
-        }, 450);
-    }
-
-    function bindRow(tr) {
-        tr.querySelectorAll('.quote-vendor, .quote-total').forEach(inp => {
-            inp.addEventListener('input', () => scheduleSave(tr));
-            inp.addEventListener('change', () => scheduleSave(tr));
-        });
-    }
-
-    function appendAttachmentRow(a) {
-        const tbody = document.getElementById('vendor-quote-tbody');
-        document.getElementById('vendor-quote-empty-row')?.remove();
-        const tr = document.createElement('tr');
-        tr.setAttribute('data-attachment-id', String(a.id));
-
-        const tdV = document.createElement('td');
-        const inpV = document.createElement('input');
-        inpV.type = 'text';
-        inpV.className = 'form-control form-control-sm quote-vendor';
-        inpV.maxLength = 500;
-        inpV.placeholder = 'Vendor name';
-        inpV.value = a.vendor || '';
-        tdV.appendChild(inpV);
-
-        const tdT = document.createElement('td');
-        const inpT = document.createElement('input');
-        inpT.type = 'number';
-        inpT.className = 'form-control form-control-sm text-end quote-total';
-        inpT.step = '0.01';
-        inpT.min = '0';
-        inpT.placeholder = '0.00';
-        inpT.value = (a.total_price != null && a.total_price !== '') ? String(a.total_price) : '';
-        tdT.appendChild(inpT);
-
-        const tdF = document.createElement('td');
-        tdF.className = 'small';
-        const linkView = document.createElement('a');
-        linkView.href = a.file_url;
-        linkView.target = '_blank';
-        linkView.rel = 'noopener';
-        linkView.className = 'd-block';
-        linkView.textContent = 'View';
-        const linkDl = document.createElement('a');
-        linkDl.href = a.file_url;
-        linkDl.download = '';
-        linkDl.className = 'd-block';
-        linkDl.textContent = 'Download';
-        tdF.appendChild(linkView);
-        tdF.appendChild(linkDl);
-
-        tr.appendChild(tdV);
-        tr.appendChild(tdT);
-        tr.appendChild(tdF);
-        tbody.appendChild(tr);
-        bindRow(tr);
-    }
-
-    document.querySelectorAll('#vendor-quote-tbody tr[data-attachment-id]').forEach(bindRow);
-
-    const fileInput = document.getElementById('pr-vendor-file-input');
-    if (fileInput) {
-        fileInput.addEventListener('change', function() {
-            if (!this.files || !this.files.length) return;
-            const fd = new FormData();
-            for (const f of this.files) fd.append('files', f);
-            fetch(UPLOAD_URL, { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd })
-                .then(r => r.json().then(data => ({ ok: r.ok, data })))
-                .then(({ ok, data }) => {
-                    if (!ok || !data.ok) {
-                        toastr.error(data.error || 'Upload failed.');
-                        return;
-                    }
-                    (data.attachments || []).forEach(appendAttachmentRow);
-                    toastr.success('File(s) uploaded.');
-                    fileInput.value = '';
-                })
-                .catch(() => toastr.error('Upload failed.'));
-        });
-    }
-})();
-</script>
+<div class="modal fade" id="returnPrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'purchase:pr_return' pr.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Return {{ pr.pr_number }} for revision</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Revision feedback <span class="text-danger">*</span></label>
+                    <textarea name="comment" class="form-control" rows="3" required placeholder="Enter revision feedback..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning"><i class="fas fa-undo me-2"></i>Return</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endif %}
 {% endblock %}

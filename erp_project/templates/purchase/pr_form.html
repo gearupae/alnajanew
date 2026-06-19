@@ -24,7 +24,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center">
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
     <div>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-2">
@@ -33,11 +33,31 @@
             </ol>
         </nav>
         <h4 class="mb-0 fw-bold">{{ title }}</h4>
+        {% if object and object.pk %}
+        <p class="text-muted small mb-0 mt-1">
+            {{ object.get_status_display }}
+            {% if object.status == 'approved' %} — click <strong>Save</strong> after editing header or items.{% endif %}
+        </p>
+        {% endif %}
     </div>
-    {% if object and object.pk and can_convert and object.status == 'approved' %}
-    <a href="{% url 'purchase:pr_convert' object.pk %}" class="btn btn-primary">
-        <i class="fas fa-exchange-alt me-2"></i>Convert to Purchase Order
-    </a>
+    {% if object and object.pk %}
+    <div class="d-flex flex-wrap gap-2 justify-content-end">
+        {% if object.status == 'approved' and can_convert %}
+        <a href="{% url 'purchase:pr_convert' object.pk %}" class="btn btn-primary">
+            <i class="fas fa-exchange-alt me-2"></i>Convert to PO
+        </a>
+        {% endif %}
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-ellipsis-h me-1"></i>More
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{% url 'purchase:pr_detail' object.pk %}"><i class="fas fa-eye me-2"></i>View PR</a></li>
+                <li><a class="dropdown-item" href="{% url 'purchase:pr_pdf' object.pk %}" target="_blank" rel="noopener"><i class="fas fa-file-pdf me-2"></i>PDF / Print</a></li>
+                <li><a class="dropdown-item" href="{% url 'purchase:pr_pdf' object.pk %}?format=pdf" target="_blank" rel="noopener"><i class="fas fa-download me-2"></i>Download PDF</a></li>
+            </ul>
+        </div>
+    </div>
     {% endif %}
 </div>
 
@@ -83,6 +103,11 @@
                     {% if form.department.errors %}<div class="text-danger small">{{ form.department.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-md-4">
+                    <label class="form-label">Vendor</label>
+                    {{ form.vendor }}
+                    {% if form.vendor.errors %}<div class="text-danger small">{{ form.vendor.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
                     <label class="form-label">Priority</label>
                     {{ form.priority }}
                     {% if form.priority.errors %}<div class="text-danger small">{{ form.priority.errors|join:", " }}</div>{% endif %}
@@ -90,6 +115,9 @@
                 <div class="col-md-4">
                     <label class="form-label">Status</label>
                     {{ form.status }}
+                    {% if object and object.pk and object.status != 'draft' and object.status != 'returned' %}
+                    <small class="text-muted d-block">Locked after approval — use workflow actions to change.</small>
+                    {% endif %}
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-12">
@@ -176,7 +204,9 @@
                 <strong>Existing attachments:</strong>
                 <ul class="mb-0 mt-1">
                     {% for att in object.attachments.all %}
+                    {% if att.file %}
                     <li><a href="{{ att.file.url }}" target="_blank">{{ att.filename|default:att.file.name }}</a></li>
+                    {% endif %}
                     {% endfor %}
                 </ul>
             </div>
@@ -185,7 +215,7 @@
     </div>
     
     <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
-    <a href="{% url 'purchase:pr_list' %}" class="btn btn-light">Cancel</a>
+    <a href="{% if object and object.pk %}{% url 'purchase:pr_detail' object.pk %}{% else %}{% url 'purchase:pr_list' %}{% endif %}" class="btn btn-light">Cancel</a>
 </form>
 {% endblock %}
 
@@ -411,6 +441,20 @@ $(function() {
     });
     document.querySelectorAll('.item-row').forEach(function (row) { updateRowTotal(row); });
     ensureTrailingEmptyRow();
+});
+
+$(function() {
+    const vendorSel = document.getElementById('id_vendor');
+    if (vendorSel && typeof $ !== 'undefined' && $.fn.select2) {
+        $(vendorSel).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Search vendor…',
+            allowClear: true,
+            minimumResultsForSearch: 0,
+            dropdownParent: $(document.body),
+        });
+    }
 });
 </script>
 {% endblock %}

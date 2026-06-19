@@ -53,18 +53,24 @@ def apply_after_document_edit(request, *, module: str, obj, amount_accessor):
         'edit_approval_submitted_by',
         'updated_at',
     ]
+    if hasattr(obj, 'edit_approval_rejection_reason'):
+        fields.append('edit_approval_rejection_reason')
     previous_status = obj.edit_approval_status
 
     if should_skip_pending_for_user(request.user, module, amount):
         obj.edit_approval_status = 'none'
         obj.edit_approval_submitted_at = None
         obj.edit_approval_submitted_by_id = None
+        if hasattr(obj, 'edit_approval_rejection_reason'):
+            obj.edit_approval_rejection_reason = ''
         obj.save(update_fields=fields)
         return
 
     obj.edit_approval_status = 'pending'
     obj.edit_approval_submitted_at = timezone.now()
     obj.edit_approval_submitted_by = request.user
+    if hasattr(obj, 'edit_approval_rejection_reason'):
+        obj.edit_approval_rejection_reason = ''
 
     if module == 'estimate' and previous_status == 'rejected':
         from apps.sales.estimate_revision import bump_revision_on_resubmit

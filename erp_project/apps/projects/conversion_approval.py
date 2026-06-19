@@ -40,19 +40,29 @@ def queue_project_conversion_approval(user, project):
 def approve_project_conversion(project):
     project.status = 'planning'
     project.conversion_approval_status = 'none'
+    project.conversion_approval_rejection_reason = ''
     project.save(
         update_fields=[
             'status',
             'conversion_approval_status',
+            'conversion_approval_rejection_reason',
             'updated_at',
         ]
     )
 
 
-def reject_project_conversion(project):
+def reject_project_conversion(project, comment: str = ''):
     from apps.sales.models import Estimate
 
     project.status = 'cancelled'
     project.conversion_approval_status = 'rejected'
-    project.save(update_fields=['status', 'conversion_approval_status', 'updated_at'])
+    project.conversion_approval_rejection_reason = (comment or '').strip()[:2000]
+    project.save(
+        update_fields=[
+            'status',
+            'conversion_approval_status',
+            'conversion_approval_rejection_reason',
+            'updated_at',
+        ]
+    )
     Estimate.objects.filter(project=project).update(project=None)
