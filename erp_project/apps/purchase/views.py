@@ -41,14 +41,18 @@ from apps.core.utils import PermissionChecker
 def _active_inventory_items_data():
     """Active inventory items for PR/PO line dropdowns (embedded in forms)."""
     from apps.inventory.models import Item
+    from apps.inventory.serial_stock import annotate_item_available_stock
 
-    rows = Item.objects.filter(is_active=True, status='active').order_by('name')
+    rows = annotate_item_available_stock(
+        Item.objects.filter(is_active=True, status='active')
+    ).order_by('name')
     return [
         {
             'id': r.pk,
             'label': str(r),
             'unit': (r.unit or 'pcs').strip(),
             'purchase_price': str(r.purchase_price),
+            'current_stock': str(r.total_stock_calc or Decimal('0.00')),
         }
         for r in rows
     ]
@@ -404,6 +408,23 @@ class PurchaseRequestDetailView(PermissionRequiredMixin, DetailView):
             self.request.user.is_superuser or
             PermissionChecker.has_permission(self.request.user, 'purchase', 'create')
         ) and self.object.status == 'approved'
+        from apps.inventory.models import Item
+        from apps.inventory.serial_stock import annotate_item_available_stock
+
+        items = list(self.object.items.select_related('inventory_item').all())
+        inv_ids = [i.inventory_item_id for i in items if i.inventory_item_id]
+        stock_by_id = {}
+        if inv_ids:
+            for row in annotate_item_available_stock(
+                Item.objects.filter(pk__in=inv_ids)
+            ).values('pk', 'total_stock_calc'):
+                stock_by_id[row['pk']] = row['total_stock_calc']
+        for line in items:
+            if line.inventory_item_id:
+                line.current_stock = stock_by_id.get(line.inventory_item_id, Decimal('0.00'))
+            else:
+                line.current_stock = None
+        context['pr_line_items'] = items
         return context
 
 

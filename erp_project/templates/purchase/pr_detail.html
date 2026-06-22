@@ -1,5 +1,27 @@
 {% extends 'base.html' %}
 
+{% block extra_css %}
+<style>
+.pr-current-stock-header {
+    background: #f0f9ff !important;
+    color: #0369a1;
+    font-weight: 600;
+}
+.pr-current-stock-cell {
+    background: #f0f9ff;
+    color: #0c4a6e;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    border-left: 1px solid #e0f2fe;
+    border-right: 1px solid #e0f2fe;
+}
+.pr-current-stock-cell .text-muted {
+    color: #94a3b8 !important;
+    font-weight: 500;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center">
     <div>
@@ -122,6 +144,7 @@
                         <thead>
                             <tr>
                                 <th>Description</th>
+                                <th class="text-center pr-current-stock-header">Current stock</th>
                                 <th class="text-center">Qty</th>
                                 <th>Unit</th>
                                 <th class="text-end">Est. Price (AED)</th>
@@ -129,21 +152,24 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in pr.items.all %}
+                            {% for item in pr_line_items %}
                             <tr>
                                 <td>{{ item.description }}</td>
+                                <td class="text-center pr-current-stock-cell">
+                                    {% if item.current_stock is not None %}{{ item.current_stock|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}
+                                </td>
                                 <td class="text-center">{{ item.quantity }}</td>
                                 <td>{{ item.get_unit_display }}</td>
                                 <td class="text-end">{{ item.estimated_price|floatformat:2 }}</td>
                                 <td class="text-end">{{ item.total|floatformat:2 }}</td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="5" class="text-center py-3 text-muted">No items</td></tr>
+                            <tr><td colspan="6" class="text-center py-3 text-muted">No items</td></tr>
                             {% endfor %}
                         </tbody>
                         <tfoot>
                             <tr class="fw-bold">
-                                <td colspan="4" class="text-end">Total (AED)</td>
+                                <td colspan="5" class="text-end">Total (AED)</td>
                                 <td class="text-end">{{ pr.total_amount|floatformat:2 }}</td>
                             </tr>
                         </tfoot>
