@@ -885,6 +885,7 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         )
         from .operation_access import (
             project_created_from_estimate,
+            project_has_customer_advance,
             project_has_paid_invoice,
             project_operations_locked,
         )
@@ -892,6 +893,7 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         context['project_operations_locked'] = project_operations_locked(self.object)
         context['project_from_estimate'] = project_created_from_estimate(self.object)
         context['project_has_paid_invoice'] = project_has_paid_invoice(self.object)
+        context['project_has_customer_advance'] = project_has_customer_advance(self.object)
         context['can_request_operation_access'] = user_can_request_project_operation_access(
             self.request.user, self.object
         )

@@ -43,6 +43,14 @@ class CustomerAdvance(BaseModel):
         on_delete=models.PROTECT,
         related_name='customer_advances',
     )
+    project = models.ForeignKey(
+        'projects.Project',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='customer_advances',
+        help_text='Optional project this advance relates to.',
+    )
     date = models.DateField()
     reference = models.CharField(max_length=200, blank=True)
     bank_account = models.ForeignKey(

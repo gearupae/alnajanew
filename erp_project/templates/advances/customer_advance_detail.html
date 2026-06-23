@@ -68,6 +68,16 @@
                         </p>
                     </div>
                     <div class="col-md-4">
+                        <label class="form-label text-muted small">Project</label>
+                        <p class="mb-0">
+                            {% if advance.project %}
+                            <a href="{% url 'projects:project_detail' advance.project.pk %}" class="text-decoration-none">
+                                {{ advance.project.project_code }} — {{ advance.project.name }}
+                            </a>
+                            {% else %}—{% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-4">
                         <label class="form-label text-muted small">Bank Account</label>
                         <p class="mb-0">{{ advance.bank_account.name }}</p>
                     </div>

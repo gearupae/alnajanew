@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 
 from apps.settings_app.models import UserRole
+from apps.core.utils import PermissionChecker
 
 User = get_user_model()
 
@@ -102,9 +103,21 @@ def filter_projects_for_user(queryset, user):
     )
 
     own_q = Q(created_by=user) | Q(manager=user) | Q(members=user) | Q(technicians=user)
+    from apps.advances.models import CustomerAdvance
+
+    advance_recorded_q = Q(
+        pk__in=CustomerAdvance.objects.filter(
+            is_active=True,
+            created_by=user,
+            project_id__isnull=False,
+        ).values('project_id')
+    )
     qs = annotate_project_approval_amount(queryset)
     return qs.filter(
-        own_q | project_approver_records_q(user) | project_conversion_approver_records_q(user)
+        own_q
+        | project_approver_records_q(user)
+        | project_conversion_approver_records_q(user)
+        | advance_recorded_q
     ).distinct()
 
 
@@ -122,10 +135,30 @@ def user_can_access_project(user, project):
         user_is_project_conversion_approver_for,
     )
 
-    return (
-        user_is_project_approver_for(user, project)
-        or user_is_project_conversion_approver_for(user, project)
+    if user_is_project_approver_for(user, project):
+        return True
+    if user_is_project_conversion_approver_for(user, project):
+        return True
+
+    from apps.projects.operation_access import (
+        project_access_unlocked,
+        project_created_from_estimate,
+        project_has_customer_advance,
     )
+
+    if project_created_from_estimate(project) and project_access_unlocked(project):
+        if user.is_superuser or PermissionChecker.has_permission(user, 'projects', 'view'):
+            return True
+    if project_has_customer_advance(project):
+        from apps.advances.models import CustomerAdvance
+
+        if CustomerAdvance.objects.filter(
+            project=project,
+            is_active=True,
+            created_by=user,
+        ).exists():
+            return True
+    return False
 
 
 def filter_purchase_requests_for_user(queryset, user):

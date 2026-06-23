@@ -52,14 +52,15 @@ def customer_advance_tab(request, customer_pk):
 
     advances = CustomerAdvance.objects.filter(
         customer=customer, is_active=True
-    ).select_related('bank_account', 'journal_entry').order_by('-date')
+    ).select_related('bank_account', 'journal_entry', 'project').order_by('-date')
 
     if request.method == 'POST':
         if not _can(request.user, 'crm', 'create'):
             messages.error(request, 'Permission denied.')
             return redirect('crm:customer_detail', pk=customer_pk)
 
-        form = CustomerAdvanceForm(request.POST)
+        form = CustomerAdvanceForm(request.POST, customer=customer, user=request.user)
+        form.customer = customer
         if form.is_valid():
             adv = form.save(commit=False)
             adv.customer = customer
@@ -87,7 +88,8 @@ def customer_advance_tab(request, customer_pk):
                     messages.error(request, f'{field}: {e}')
             return redirect('crm:customer_detail', pk=customer_pk)
 
-    form = CustomerAdvanceForm(initial={'date': date.today()})
+    form = CustomerAdvanceForm(initial={'date': date.today()}, customer=customer, user=request.user)
+    form.customer = customer
     return render(request, 'advances/_customer_advance_tab.html', {
         'customer': customer,
         'advances': advances,
@@ -100,7 +102,11 @@ def customer_advance_tab(request, customer_pk):
 
 @login_required
 def customer_advance_detail(request, pk):
-    advance = get_object_or_404(CustomerAdvance, pk=pk, is_active=True)
+    advance = get_object_or_404(
+        CustomerAdvance.objects.select_related('customer', 'bank_account', 'project', 'journal_entry'),
+        pk=pk,
+        is_active=True,
+    )
 
     if not _can(request.user, 'crm', 'view'):
         messages.error(request, 'Permission denied.')

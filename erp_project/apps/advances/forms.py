@@ -33,18 +33,38 @@ class _BootstrapMixin:
 class CustomerAdvanceForm(_BootstrapMixin, forms.ModelForm):
     class Meta:
         model = CustomerAdvance
-        fields = ['date', 'reference', 'bank_account', 'amount', 'vat_amount', 'notes']
+        fields = ['date', 'project', 'reference', 'bank_account', 'amount', 'vat_amount', 'notes']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, customer=None, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         from apps.finance.models import BankAccount
+        from apps.projects.models import Project
+        from apps.core.visibility import filter_projects_for_user
+
         self.fields['bank_account'].queryset = BankAccount.objects.filter(is_active=True)
         self.fields['vat_amount'].help_text = 'Auto-calculated at 5% — you may override.'
         self.fields['amount'].widget.attrs['id'] = 'id_ca_amount'
         self.fields['vat_amount'].widget.attrs['id'] = 'id_ca_vat_amount'
+
+        project_qs = Project.objects.none()
+        if customer:
+            project_qs = Project.objects.filter(
+                is_active=True,
+                customer=customer,
+            ).exclude(status='cancelled')
+            if user:
+                project_qs = filter_projects_for_user(project_qs, user)
+        if self.instance and self.instance.project_id:
+            project_qs = (
+                project_qs | Project.objects.filter(pk=self.instance.project_id)
+            ).distinct()
+        self.fields['project'].queryset = project_qs.order_by('project_code', 'name')
+        self.fields['project'].required = False
+        self.fields['project'].empty_label = '— None —'
+        self.customer = customer
 
     def clean(self):
         cleaned = super().clean()
@@ -54,6 +74,10 @@ class CustomerAdvanceForm(_BootstrapMixin, forms.ModelForm):
             self.add_error('amount', 'Amount must be greater than zero.')
         if vat < 0:
             self.add_error('vat_amount', 'VAT amount cannot be negative.')
+        project = cleaned.get('project')
+        customer = getattr(self, 'customer', None)
+        if project and customer and project.customer_id != customer.pk:
+            self.add_error('project', 'Selected project does not belong to this customer.')
         return cleaned
 
 

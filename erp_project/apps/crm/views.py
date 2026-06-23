@@ -628,8 +628,14 @@ class CustomerDetailView(PermissionRequiredMixin, DetailView):
             from datetime import date
             context['customer_advances'] = CustomerAdvance.objects.filter(
                 customer=self.object, is_active=True
-            ).select_related('bank_account').order_by('-date')
-            context['advance_form'] = CustomerAdvanceForm(initial={'date': date.today()})
+            ).select_related('bank_account', 'project').order_by('-date')
+            advance_form = CustomerAdvanceForm(
+                initial={'date': date.today()},
+                customer=self.object,
+                user=self.request.user,
+            )
+            advance_form.customer = self.object
+            context['advance_form'] = advance_form
         except Exception:
             context['customer_advances'] = []
             context['advance_form'] = None

@@ -161,7 +161,8 @@
     This project was created from a quotation and is <strong>read-only</strong> until either:
     <ul class="mb-2 mt-2">
         <li>A sales invoice linked to this project is <strong>paid</strong>{% if project_has_paid_invoice %} <span class="text-success">(paid invoice found — refresh if actions are still disabled)</span>{% endif %}, or</li>
-        <li>An approver grants <strong>update access</strong>{% if can_request_operation_access %} — use <strong>Request update access</strong> above{% endif %}.</li>
+        <li>An approver grants <strong>update access</strong>{% if can_request_operation_access %} — use <strong>Request update access</strong> above{% endif %}, or</li>
+        <li>A <strong>customer advance</strong> is recorded against this project{% if project_has_customer_advance %} <span class="text-success">(advance found — refresh if actions are still disabled)</span>{% else %} (from the customer profile → Customer Advances){% endif %}.</li>
     </ul>
     Editing, deliveries, tasks, item requests, and other updates are disabled on this page.
 </div>

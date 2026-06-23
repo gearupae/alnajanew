@@ -27,11 +27,40 @@ def project_has_paid_invoice(project) -> bool:
     ).exists()
 
 
+def project_has_customer_advance(project) -> bool:
+    """True when any active customer advance is linked to this project."""
+    if not project:
+        return False
+    from apps.advances.models import CustomerAdvance
+
+    return CustomerAdvance.objects.filter(
+        project_id=project.pk,
+        is_active=True,
+    ).exists()
+
+
+def project_access_unlocked(project) -> bool:
+    """
+    Quotation-sourced projects become fully accessible when:
+    - a linked sales invoice is paid, or
+    - operation update access was approved, or
+    - a customer advance was recorded against the project.
+    """
+    if not project:
+        return False
+    if project_has_paid_invoice(project):
+        return True
+    if getattr(project, 'operation_access_status', 'none') == 'approved':
+        return True
+    if project_has_customer_advance(project):
+        return True
+    return False
+
+
 def project_operations_locked(project) -> bool:
     """
-    Estimate-sourced projects are read-only on the detail page until:
-    - a linked invoice is paid, or
-    - an approver grants operation access.
+    Estimate-sourced projects are read-only on the detail page until unlocked
+    (paid invoice, approved operation access, or customer advance on project).
     """
     if not project or not project_created_from_estimate(project):
         return False
@@ -39,11 +68,7 @@ def project_operations_locked(project) -> bool:
 
     if project_awaiting_conversion_approval(project):
         return True
-    if project_has_paid_invoice(project):
-        return False
-    if getattr(project, 'operation_access_status', 'none') == 'approved':
-        return False
-    return True
+    return not project_access_unlocked(project)
 
 
 def operation_access_approval_configured() -> bool:

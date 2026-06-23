@@ -148,6 +148,7 @@ def enrich_projects_for_list(projects: list[Project]) -> list[Project]:
         project.list_estimated_expense = estimated
         project.list_actual_expense = actual
         project.list_received_amount = received
+        project.list_invoiced_amount = project.invoiced_amount or Decimal('0.00')
         project.list_balance_amount = balance
         project.list_work_percent = work_pct
 
