@@ -1969,172 +1969,74 @@ def bill_make_payment(request, pk):
     """
     Record payment made for a vendor bill.
     SAP/Oracle Standard: Payment creates clearing entry for AP.
-    
+
     Dr Accounts Payable
     Cr Bank
     """
-    from apps.finance.models import (
-        Payment, BankAccount, JournalEntry, JournalEntryLine, 
-        Account, AccountType, AccountMapping
+    from apps.finance.models import BankAccount
+    from .vendor_bill_payment import (
+        record_vendor_bill_payment,
+        resolve_bank_account,
+        parse_payment_date,
     )
-    from decimal import Decimal, InvalidOperation
-    from datetime import date
-    
+
     bill = get_object_or_404(VendorBill, pk=pk)
-    
+
     if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'purchase', 'edit')):
         messages.error(request, 'Permission denied.')
         return redirect('purchase:bill_detail', pk=pk)
-    
-    # Bill must be posted first
+
     if bill.status == 'draft':
         messages.error(request, 'Bill must be posted to accounting before making payment.')
         return redirect('purchase:bill_detail', pk=pk)
-    
-    # Check if already fully paid
+
     if bill.balance <= 0:
         messages.error(request, 'Bill is already fully paid.')
         return redirect('purchase:bill_detail', pk=pk)
-    
+
     if request.method == 'POST':
-        # Get payment details
-        amount = request.POST.get('amount')
         payment_method = request.POST.get('payment_method', 'bank')
         bank_account_id = request.POST.get('bank_account')
-        payment_date = request.POST.get('payment_date')
         reference = request.POST.get('reference', '')
-        
+
         try:
-            amount = Decimal(amount)
+            amount = Decimal(request.POST.get('amount'))
             if amount <= 0:
-                raise ValueError("Amount must be positive")
+                raise ValueError('Amount must be positive')
             if amount > bill.balance:
                 messages.warning(request, f'Amount exceeds balance. Adjusted to {bill.balance}')
                 amount = bill.balance
-        except (ValueError, InvalidOperation) as e:
-            messages.error(request, f'Invalid amount: {e}')
+        except (ValueError, InvalidOperation) as exc:
+            messages.error(request, f'Invalid amount: {exc}')
             return redirect('purchase:bill_detail', pk=pk)
-        
-        # Get bank account
-        bank_account = None
-        if payment_method == 'bank' and bank_account_id:
-            bank_account = BankAccount.objects.filter(pk=bank_account_id, is_active=True).first()
-            if not bank_account:
-                messages.error(request, 'Invalid bank account selected.')
-                return redirect('purchase:bill_detail', pk=pk)
-        elif payment_method == 'bank':
-            # Use default bank account
-            bank_account = BankAccount.objects.filter(is_active=True).first()
-        
-        if payment_method == 'bank' and not bank_account:
-            messages.error(request, 'Bank account is required for bank transfer payments.')
-            return redirect('purchase:bill_detail', pk=pk)
-        
-        # Parse payment date
-        from datetime import datetime
+
         try:
-            if payment_date:
-                payment_date = datetime.strptime(payment_date, '%Y-%m-%d').date()
-            else:
-                payment_date = date.today()
-        except ValueError:
-            payment_date = date.today()
-        
-        # Create Payment record
-        payment = Payment.objects.create(
-            payment_type='made',
-            payment_method=payment_method,
-            payment_date=payment_date,
-            party_type='vendor',
-            party_id=bill.vendor_id,
-            party_name=bill.vendor.name,
-            amount=amount,
-            reference=reference or bill.bill_number,
-            bank_account=bank_account,
-            status='draft',
-        )
-        
-        # Get accounts using Account Mapping
-        ap_account = AccountMapping.get_account_or_default('vendor_payment_ap_clear', '2000')
-        if not ap_account:
-            ap_account = Account.objects.filter(
-                account_type=AccountType.LIABILITY, is_active=True, name__icontains='payable'
-            ).first()
-        
-        if not ap_account:
-            messages.error(request, 'Accounts Payable account not configured.')
+            bank_account = resolve_bank_account(payment_method, bank_account_id)
+        except ValueError as exc:
+            messages.error(request, str(exc))
             return redirect('purchase:bill_detail', pk=pk)
-        
-        # Get bank GL account
-        if payment_method == 'bank' and bank_account and bank_account.gl_account:
-            bank_gl_account = bank_account.gl_account
+
+        payment_date = parse_payment_date(request.POST.get('payment_date'))
+
+        payment, error = record_vendor_bill_payment(
+            bill,
+            amount,
+            payment_method,
+            bank_account,
+            payment_date,
+            reference,
+            request.user,
+        )
+        if error:
+            messages.error(request, error)
         else:
-            # Use cash account for cash payments
-            bank_gl_account = Account.objects.filter(
-                account_type=AccountType.ASSET, is_active=True, name__icontains='cash'
-            ).first()
-            if not bank_gl_account:
-                bank_gl_account = Account.objects.filter(
-                    account_type=AccountType.ASSET, is_active=True
-                ).first()
-        
-        if not bank_gl_account:
-            messages.error(request, 'Bank/Cash account not configured.')
-            return redirect('purchase:bill_detail', pk=pk)
-        
-        # Create journal entry: Dr AP, Cr Bank
-        journal = JournalEntry.objects.create(
-            date=payment_date,
-            reference=payment.payment_number,
-            description=f"Payment Voucher: {bill.bill_number} - {bill.vendor.name}",
-            entry_type='standard',
-            source_module='payment',
-        )
-        
-        # Debit Accounts Payable (clears liability)
-        JournalEntryLine.objects.create(
-            journal_entry=journal,
-            account=ap_account,
-            description=f"AP Clearing - {bill.bill_number}",
-            debit=amount,
-            credit=Decimal('0.00'),
-        )
-        
-        # Credit Bank/Cash
-        JournalEntryLine.objects.create(
-            journal_entry=journal,
-            account=bank_gl_account,
-            description=f"Payment to {bill.vendor.name}",
-            debit=Decimal('0.00'),
-            credit=amount,
-        )
-        
-        journal.calculate_totals()
-        
-        try:
-            journal.post(request.user)
-            payment.journal_entry = journal
-            payment.status = 'confirmed'
-            payment.allocated_amount = amount
-            payment.save()
-            
-            # Update bill
-            bill.paid_amount += amount
-            if bill.paid_amount >= bill.total_amount:
-                bill.status = 'paid'
-            else:
-                bill.status = 'partial'
-            bill.save()
-            
-            messages.success(request, f'Payment of AED {amount:,.2f} recorded. Voucher: {payment.payment_number}')
-        except Exception as e:
-            journal.delete()
-            payment.delete()
-            messages.error(request, f'Error posting payment: {e}')
-        
+            messages.success(
+                request,
+                f'Payment of AED {payment.amount:,.2f} recorded. Voucher: {payment.payment_number}',
+            )
+
         return redirect('purchase:bill_detail', pk=pk)
-    
-    # GET - Show payment form
+
     bank_accounts = BankAccount.objects.filter(is_active=True)
     context = {
         'title': f'Make Payment - {bill.bill_number}',
@@ -2143,3 +2045,175 @@ def bill_make_payment(request, pk):
         'today': date.today().strftime('%Y-%m-%d'),
     }
     return render(request, 'purchase/bill_make_payment.html', context)
+
+
+@login_required
+@require_POST
+def bill_bulk_pay_prepare(request):
+    """Post draft bills and return payment summary for the bulk payment modal."""
+    from apps.core.audit import audit_bill_post
+    from apps.finance.models import BankAccount
+
+    if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'purchase', 'edit')):
+        return JsonResponse({'error': 'Permission denied.'}, status=403)
+
+    bill_ids = request.POST.getlist('bill_ids')
+    if not bill_ids:
+        return JsonResponse({'error': 'Select at least one bill.'}, status=400)
+
+    bills = list(
+        VendorBill.objects.filter(pk__in=bill_ids, is_active=True).select_related('vendor')
+    )
+    if not bills:
+        return JsonResponse({'error': 'No valid bills selected.'}, status=400)
+
+    posting_errors = []
+    for bill in bills:
+        if bill.status != 'draft':
+            continue
+        try:
+            bill.post_to_accounting(user=request.user)
+            try:
+                audit_bill_post(bill, request.user, request=request)
+            except Exception as audit_exc:
+                posting_errors.append(f'{bill.bill_number}: posted but audit log failed — {audit_exc}')
+        except (ValidationError, Exception) as exc:
+            posting_errors.append(f'{bill.bill_number}: {exc}')
+
+    bills = list(
+        VendorBill.objects.filter(pk__in=bill_ids, is_active=True).select_related('vendor')
+    )
+
+    payable_bills = []
+    total_balance = Decimal('0.00')
+    for bill in bills:
+        bill.refresh_from_db()
+        if bill.status == 'draft' or bill.balance <= 0:
+            continue
+        payable_bills.append({
+            'id': bill.pk,
+            'bill_number': bill.bill_number,
+            'vendor': bill.vendor.name,
+            'balance': str(bill.balance),
+        })
+        total_balance += bill.balance
+
+    if not payable_bills:
+        error = 'No bills available for payment.'
+        if posting_errors:
+            error = posting_errors[0]
+        return JsonResponse({'error': error, 'posting_errors': posting_errors}, status=400)
+
+    bank_accounts = [
+        {
+            'id': bank.pk,
+            'name': str(bank),
+        }
+        for bank in BankAccount.objects.filter(is_active=True)
+    ]
+
+    return JsonResponse({
+        'bills': payable_bills,
+        'total_balance': str(total_balance),
+        'bank_accounts': bank_accounts,
+        'today': date.today().strftime('%Y-%m-%d'),
+        'posting_errors': posting_errors,
+    })
+
+
+@login_required
+@require_POST
+def bill_bulk_pay(request):
+    """Record payments for multiple vendor bills from the list bulk payment modal."""
+    from .vendor_bill_payment import (
+        record_vendor_bill_payment,
+        resolve_bank_account,
+        parse_payment_date,
+    )
+
+    if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'purchase', 'edit')):
+        messages.error(request, 'Permission denied.')
+        return redirect('purchase:bill_list')
+
+    bill_ids = request.POST.getlist('bill_ids')
+    if not bill_ids:
+        messages.error(request, 'Select at least one bill.')
+        return redirect('purchase:bill_list')
+
+    payment_method = request.POST.get('payment_method', 'bank')
+    reference = request.POST.get('reference', '')
+
+    try:
+        bank_account = resolve_bank_account(payment_method, request.POST.get('bank_account'))
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect('purchase:bill_list')
+
+    payment_date = parse_payment_date(request.POST.get('payment_date'))
+
+    try:
+        total_payment_amount = Decimal(request.POST.get('amount', '0'))
+        if total_payment_amount <= 0:
+            raise ValueError('Amount must be positive')
+    except (ValueError, InvalidOperation) as exc:
+        messages.error(request, f'Invalid amount: {exc}')
+        return redirect('purchase:bill_list')
+
+    bills = list(
+        VendorBill.objects.filter(pk__in=bill_ids, is_active=True)
+        .select_related('vendor')
+        .order_by('bill_date', 'pk')
+    )
+
+    from apps.core.audit import audit_bill_post
+
+    success_count = 0
+    errors = []
+
+    for bill in bills:
+        if bill.status != 'draft':
+            continue
+        try:
+            bill.post_to_accounting(user=request.user)
+            audit_bill_post(bill, request.user, request=request)
+        except (ValidationError, Exception) as exc:
+            errors.append(f'{bill.bill_number}: could not post — {exc}')
+
+    bills = list(
+        VendorBill.objects.filter(pk__in=bill_ids, is_active=True)
+        .select_related('vendor')
+        .order_by('bill_date', 'pk')
+    )
+
+    remaining = total_payment_amount
+
+    for bill in bills:
+        if bill.status == 'draft' or bill.balance <= 0:
+            continue
+        if remaining <= 0:
+            break
+
+        pay_amount = min(bill.balance, remaining)
+        payment, error = record_vendor_bill_payment(
+            bill,
+            pay_amount,
+            payment_method,
+            bank_account,
+            payment_date,
+            reference,
+            request.user,
+        )
+        if error:
+            errors.append(f'{bill.bill_number}: {error}')
+        else:
+            success_count += 1
+            remaining -= pay_amount
+
+    if success_count:
+        messages.success(request, f'Payment recorded for {success_count} bill(s).')
+    for err in errors:
+        messages.error(request, err)
+    if not success_count and not errors:
+        messages.warning(request, 'No payments were recorded.')
+
+    return redirect('purchase:bill_list')

@@ -61,6 +61,8 @@ urlpatterns = [
     path('bills/<int:pk>/delete/', views.bill_delete, name='bill_delete'),
     path('bills/<int:pk>/post/', views.bill_post, name='bill_post'),
     path('bills/<int:pk>/pay/', views.bill_make_payment, name='bill_pay'),
+    path('bills/bulk-pay/prepare/', views.bill_bulk_pay_prepare, name='bill_bulk_pay_prepare'),
+    path('bills/bulk-pay/', views.bill_bulk_pay, name='bill_bulk_pay'),
     
     # Expense Claims (moved from Finance)
     path('expense-claims/', views.ExpenseClaimListView.as_view(), name='expenseclaim_list'),
