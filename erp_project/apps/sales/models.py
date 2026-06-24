@@ -7,6 +7,8 @@ VAT LOGIC (Tax Code Driven - SAP/Oracle Standard):
 - No Tax Code = No VAT (Out of Scope)
 - Tax Code classification preserved for VAT reporting: Standard, Zero Rated, Exempt, Out of Scope
 """
+import uuid
+
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -199,7 +201,23 @@ class Estimate(BaseModel):
         max_digits=15, decimal_places=2, default=Decimal('0.00'),
         help_text='Last calculated discount amount on subtotal (excl. VAT)',
     )
-    
+    public_view_token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+        help_text='Secret token for the customer-facing quotation URL (no login).',
+    )
+    public_view_count = models.PositiveIntegerField(
+        default=0,
+        help_text='Number of times the public quotation link was opened.',
+    )
+    created_client_ip = models.CharField(
+        max_length=45,
+        blank=True,
+        default='',
+        help_text='Client IP when this quotation was created (public views from same IP are not counted).',
+    )
+
     class Meta:
         ordering = ['-created_at']
     
@@ -219,6 +237,19 @@ class Estimate(BaseModel):
         base = self.estimate_number
         label = self.revision_label
         return f'{base}-{label}' if label else base
+
+    def allows_public_view(self):
+        """Draft quotations are not shared via the public link."""
+        return self.is_active and self.status != 'draft'
+
+    def build_public_view_url(self, request):
+        from django.urls import reverse
+
+        if not self.public_view_token:
+            return ''
+        return request.build_absolute_uri(
+            reverse('estimate_public_view', kwargs={'token': self.public_view_token})
+        )
 
     @property
     def display_proforma_number(self):

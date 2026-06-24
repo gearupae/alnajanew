@@ -105,6 +105,18 @@ class EstimateForm(forms.ModelForm):
         self.fields['show_brand_name_on_pdf'].label = 'Show brand name'
         self.fields['show_brand_name_on_pdf'].required = False
 
+    def clean(self):
+        cleaned_data = super().clean()
+        # Bootstrap switches omit unchecked boxes from POST; force explicit booleans.
+        if self.is_bound:
+            for field_name in (
+                'show_rates_on_pdf',
+                'show_group_totals_on_pdf',
+                'show_brand_name_on_pdf',
+            ):
+                cleaned_data[field_name] = field_name in self.data
+        return cleaned_data
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         if instance.pk:

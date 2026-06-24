@@ -391,6 +391,17 @@ def attach_customer_quotation_lost_counts(estimates):
     return items
 
 
+def attach_estimate_public_links(estimates, request):
+    """Set public_link_url on each estimate for list copy-link actions."""
+    for estimate in estimates:
+        estimate.public_link_url = (
+            estimate.build_public_view_url(request)
+            if estimate.allows_public_view()
+            else ''
+        )
+    return estimates
+
+
 def _scope_estimate_form_fields(form, user):
     from apps.core.visibility import filter_customers_for_user
     from apps.crm.models import Customer
@@ -581,6 +592,8 @@ class EstimateListView(PermissionRequiredMixin, ListView):
 
         estimates = self.get_queryset()
         if context['view_mode'] == 'kanban':
+            estimates = list(estimates)
+            attach_estimate_public_links(estimates, self.request)
             bucket_statuses = frozenset(
                 {
                     'draft',
@@ -616,8 +629,10 @@ class EstimateListView(PermissionRequiredMixin, ListView):
 
         page_estimates = context.get('estimates') or []
         if context['view_mode'] != 'kanban':
+            page_estimates = list(page_estimates)
             attach_customer_quotation_won_counts(page_estimates)
             attach_customer_quotation_lost_counts(page_estimates)
+            attach_estimate_public_links(page_estimates, self.request)
         for est in page_estimates:
             est.allowed_status_choices = allowed_status_choices_for_estimate(
                 est, self.request.user
@@ -694,6 +709,7 @@ class EstimateCreateView(CreatePermissionMixin, CreateView):
                     items_formset = EstimateItemFormSet(request.POST, request.FILES, prefix='items')
                     return self.form_invalid(form, items_formset)
                 self.object = form.save()
+                _stamp_estimate_created_client_ip(self.object, request)
                 apply_company_default_estimate_signatures(self.object, request.FILES)
                 bulk_create_estimate_items(self.object, rows, replace_existing=False)
                 messages.success(request, f'Estimate {self.object.estimate_number} created successfully.')
@@ -720,6 +736,7 @@ class EstimateCreateView(CreatePermissionMixin, CreateView):
     
     def form_valid(self, form, items_formset):
         self.object = form.save()
+        _stamp_estimate_created_client_ip(self.object, self.request)
         apply_company_default_estimate_signatures(self.object, self.request.FILES)
         items_formset.instance = self.object
         items_formset.save()
@@ -1006,6 +1023,12 @@ class EstimateDetailView(PermissionRequiredMixin, DetailView):
             if not user_can_access_estimate(request.user, est):
                 messages.error(request, 'You do not have permission to view this estimate.')
                 return redirect('sales:estimate_list')
+            if (
+                request.method == 'GET'
+                and request.user.is_authenticated
+                and est.created_by_id == request.user.pk
+            ):
+                _stamp_estimate_created_client_ip(est, request)
         if request.method == 'GET' and pk:
             _clear_estimate_revision_session(request, pk)
         return super().dispatch(request, *args, **kwargs)
@@ -1093,10 +1116,28 @@ class EstimateDetailView(PermissionRequiredMixin, DetailView):
         context['estimate_email_default_body'] = (
             f'Dear {who},\n\n'
             f'Please find attached our estimate document ({self.object.estimate_number}) for your reference.\n\n'
-            f'Kind regards,\n{co.company_name}'
         )
+        if self.object.allows_public_view():
+            public_url = self.object.build_public_view_url(self.request)
+            if public_url:
+                context['estimate_email_default_body'] += (
+                    f'You can view the quotation online (no login required):\n{public_url}\n\n'
+                )
+        context['estimate_email_default_body'] += f'Kind regards,\n{co.company_name}'
         context['estimate_email_default_to'] = to_addr
         context['estimate_email_missing_customer_email'] = bool(cust) and not to_addr
+        context['can_copy_public_link'] = (
+            self.request.user.is_superuser
+            or PermissionChecker.has_permission(self.request.user, 'sales', 'view')
+        ) and self.object.is_active
+        context['estimate_public_link'] = (
+            self.object.build_public_view_url(self.request)
+            if self.object.allows_public_view()
+            else ''
+        )
+        context['estimate_public_link_pending'] = (
+            context['can_copy_public_link'] and self.object.status == 'draft'
+        )
         context['can_create_proforma'] = self.object.status == 'quotation_won'
         context['proforma_invoices'] = list(
             self.object.proforma_invoices.select_related('created_by').all()[:20]
@@ -1214,8 +1255,11 @@ def estimate_duplicate(request, pk):
         messages.error(request, 'Permission denied.')
         return redirect('sales:estimate_list')
 
+    from apps.core.utils import get_client_ip
+
     source = get_object_or_404(Estimate.objects.select_related('customer'), pk=pk, is_active=True)
     items_qs = list(source.items.order_by('sort_order', 'id'))
+    creator_ip = (get_client_ip(request) or '').strip()[:45]
 
     with transaction.atomic():
         dest = Estimate(
@@ -1236,6 +1280,7 @@ def estimate_duplicate(request, pk):
             show_rates_on_pdf=source.show_rates_on_pdf,
             show_group_totals_on_pdf=source.show_group_totals_on_pdf,
             show_brand_name_on_pdf=source.show_brand_name_on_pdf,
+            created_client_ip=creator_ip,
             # Fresh draft; avoids two estimates pinned to same project/invoices ambiguity
             project=None,
         )
@@ -1610,6 +1655,126 @@ def estimate_convert_to_project(request, pk):
     return redirect('projects:project_detail', pk=project.pk)
 
 
+def _estimate_pdf_prefetch_queryset():
+    items_qs = EstimateItem.objects.select_related('inventory_item', 'tax_code').order_by('sort_order', 'id')
+    return Estimate.objects.select_related('customer', 'assigned_to', 'project').prefetch_related(
+        Prefetch('items', queryset=items_qs)
+    )
+
+
+def _estimate_public_not_available_html(request, message):
+    return render(
+        request,
+        'sales/estimate_public_unavailable.html',
+        {'message': message},
+        status=404,
+    )
+
+
+def _stamp_estimate_created_client_ip(estimate, request):
+    """Record creator IP so their own public-link previews are not counted as customer views."""
+    from apps.core.utils import get_client_ip
+
+    ip = (get_client_ip(request) or '').strip()
+    if ip and not estimate.created_client_ip:
+        estimate.created_client_ip = ip[:45]
+        estimate.save(update_fields=['created_client_ip'])
+
+
+def _should_count_public_estimate_view(request, estimate):
+    from apps.core.utils import get_client_ip
+
+    user = getattr(request, 'user', None)
+    if user and user.is_authenticated and estimate.created_by_id:
+        if user.pk == estimate.created_by_id:
+            return False
+
+    creator_ip = (estimate.created_client_ip or '').strip()
+    if not creator_ip:
+        return True
+    viewer_ip = (get_client_ip(request) or '').strip()
+    if not viewer_ip:
+        return True
+    return viewer_ip != creator_ip
+
+
+def _record_public_estimate_view(request, estimate):
+    if not _should_count_public_estimate_view(request, estimate):
+        return
+    from django.db.models import F
+
+    Estimate.objects.filter(pk=estimate.pk).update(public_view_count=F('public_view_count') + 1)
+
+
+def estimate_public_view(request, token):
+    """Customer-facing quotation page — no login; views are counted."""
+    estimate = _estimate_pdf_prefetch_queryset().filter(public_view_token=token).first()
+    if not estimate:
+        return _estimate_public_not_available_html(request, 'This quotation link is not valid.')
+    if not estimate.allows_public_view():
+        return _estimate_public_not_available_html(
+            request,
+            'This quotation is not available yet. Please contact us for an updated link.',
+        )
+
+    _record_public_estimate_view(request, estimate)
+
+    context = _build_estimate_pdf_context(request, estimate)
+    context.update({
+        'document_heading': 'QUOTATION',
+        'document_number': estimate.display_estimate_number,
+        'page_title': f'Quotation — {estimate.display_estimate_number}',
+        'print_button_label': 'Print quotation',
+        'show_pdf_status': False,
+        'pdf_variant': 'quotation',
+        'pdf_details_heading': 'Quotation details',
+        'pdf_date_label': 'Quotation date',
+        'is_public_view': True,
+        'public_view_token': token,
+    })
+    return render(request, 'sales/estimate_pdf.html', context)
+
+
+def estimate_public_pdf_download(request, token):
+    """Download quotation PDF via public link — no login."""
+    estimate = _estimate_pdf_prefetch_queryset().filter(public_view_token=token).first()
+    if not estimate:
+        return _estimate_public_not_available_html(request, 'This quotation link is not valid.')
+    if not estimate.allows_public_view():
+        return _estimate_public_not_available_html(
+            request,
+            'This quotation is not available yet. Please contact us for an updated link.',
+        )
+
+    from io import BytesIO
+    from urllib.parse import urlencode
+
+    from django.http import FileResponse
+
+    def _pdf_download_error_redirect(detail: str):
+        base = reverse('estimate_public_view', kwargs={'token': token})
+        return redirect(f'{base}?{urlencode({"pdf_error": detail[:500]})}')
+
+    try:
+        pdf_bytes, err = render_estimate_quotation_pdf_bytes(request, estimate)
+    except Exception as exc:
+        return _pdf_download_error_redirect(f'Could not generate PDF: {exc}')
+
+    if not pdf_bytes:
+        return _pdf_download_error_redirect(err or 'Could not generate PDF.')
+
+    safe_name = ''.join(
+        c for c in estimate.display_estimate_number if c.isalnum() or c in ('-', '_')
+    ) or str(estimate.pk)
+    filename = f'Quotation_{safe_name}.pdf'
+    return FileResponse(
+        BytesIO(pdf_bytes),
+        as_attachment=True,
+        filename=filename,
+        content_type='application/pdf',
+    )
+
+
 def _build_estimate_pdf_context(request, estimate, *, proforma_invoice=None, for_weasyprint=False):
     """
     Shared context for proposal and proforma invoice HTML (print/PDF).
@@ -1705,13 +1870,7 @@ def estimate_pdf(request, pk):
     """
     Customer-facing quotation PDF (HTML for print / WeasyPrint): heading QUOTATION, quotation wording on document.
     """
-    items_qs = EstimateItem.objects.select_related('inventory_item', 'tax_code').order_by('sort_order', 'id')
-    estimate = get_object_or_404(
-        Estimate.objects.select_related('customer', 'assigned_to', 'project').prefetch_related(
-            Prefetch('items', queryset=items_qs)
-        ),
-        pk=pk,
-    )
+    estimate = get_object_or_404(_estimate_pdf_prefetch_queryset(), pk=pk)
 
     if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'sales', 'view')):
         messages.error(request, 'Permission denied.')
@@ -1734,13 +1893,7 @@ def estimate_pdf(request, pk):
 @login_required
 def estimate_pdf_download(request, pk):
     """Download quotation as a PDF file (WeasyPrint)."""
-    items_qs = EstimateItem.objects.select_related('inventory_item', 'tax_code').order_by('sort_order', 'id')
-    estimate = get_object_or_404(
-        Estimate.objects.select_related('customer', 'assigned_to', 'project').prefetch_related(
-            Prefetch('items', queryset=items_qs)
-        ),
-        pk=pk,
-    )
+    estimate = get_object_or_404(_estimate_pdf_prefetch_queryset(), pk=pk)
 
     if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'sales', 'view')):
         messages.error(request, 'Permission denied.')

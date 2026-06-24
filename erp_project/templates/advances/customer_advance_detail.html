@@ -18,6 +18,11 @@
             <span class="text-muted">Customer Advance — {{ advance.customer.name }}</span>
         </div>
         <div class="d-flex gap-2">
+            {% if can_edit %}
+            <a href="{% url 'advances:customer_advance_edit' advance.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-edit me-2"></i>Edit
+            </a>
+            {% endif %}
             <a href="{% url 'advances:customer_advance_receipt_pdf' advance.pk %}"
                class="btn btn-outline-primary" target="_blank" rel="noopener">
                 <i class="fas fa-file-pdf me-2"></i>Receipt voucher (PDF)

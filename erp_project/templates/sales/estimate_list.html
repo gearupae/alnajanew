@@ -551,6 +551,15 @@
                                 <a href="{% url 'sales:estimate_pdf' estimate.pk %}" class="btn btn-action btn-outline-secondary" title="Quotation PDF" target="_blank" rel="noopener">
                                     <i class="fas fa-file-pdf"></i>
                                 </a>
+                                {% if estimate.public_link_url %}
+                                <button type="button" class="btn btn-action btn-outline-secondary estimate-public-link-copy" title="Copy public link" data-public-url="{{ estimate.public_link_url }}">
+                                    <i class="fas fa-link"></i>
+                                </button>
+                                {% else %}
+                                <button type="button" class="btn btn-action btn-outline-secondary" title="Public link available after Sent" disabled>
+                                    <i class="fas fa-link"></i>
+                                </button>
+                                {% endif %}
                                 {% else %}
                                 {% if can_edit %}
                                 {% if user.is_superuser or estimate.status != 'quotation_won' %}
@@ -589,6 +598,15 @@
                                 <a href="{% url 'sales:estimate_pdf' estimate.pk %}" class="btn btn-action btn-outline-secondary" title="Quotation PDF" target="_blank" rel="noopener">
                                     <i class="fas fa-file-pdf"></i>
                                 </a>
+                                {% if estimate.public_link_url %}
+                                <button type="button" class="btn btn-action btn-outline-secondary estimate-public-link-copy" title="Copy public link" data-public-url="{{ estimate.public_link_url }}">
+                                    <i class="fas fa-link"></i>
+                                </button>
+                                {% else %}
+                                <button type="button" class="btn btn-action btn-outline-secondary" title="Public link available after Sent" disabled>
+                                    <i class="fas fa-link"></i>
+                                </button>
+                                {% endif %}
                                 {% if estimate.status == 'quotation_won' and not estimate.has_invoice %}
                                 {% with latest=estimate.proforma_invoices.all|first %}
                                 {% if latest %}
@@ -729,6 +747,43 @@
             pendingSelect = null;
         });
     }
+
+    function copyPublicLink(url) {
+        if (!url) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function () {
+                if (window.toastr) toastr.success('Public link copied.');
+            }).catch(function () {
+                var ta = document.createElement('textarea');
+                ta.value = url;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'absolute';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                if (window.toastr) toastr.success('Public link copied.');
+            });
+        } else {
+            var ta = document.createElement('textarea');
+            ta.value = url;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'absolute';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            if (window.toastr) toastr.success('Public link copied.');
+        }
+    }
+
+    document.querySelectorAll('.estimate-public-link-copy').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            copyPublicLink(btn.getAttribute('data-public-url'));
+        });
+    });
 })();
 </script>
 {% endblock %}

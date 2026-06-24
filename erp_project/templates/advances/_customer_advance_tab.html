@@ -111,9 +111,16 @@
                     {% endif %}
                 </td>
                 <td>
-                    <a href="{% url 'advances:customer_advance_detail' adv.pk %}" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-eye"></i>
-                    </a>
+                    <div class="d-flex gap-1">
+                        <a href="{% url 'advances:customer_advance_detail' adv.pk %}" class="btn btn-sm btn-outline-primary" title="View">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        {% if can_edit %}
+                        <a href="{% url 'advances:customer_advance_edit' adv.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        {% endif %}
+                    </div>
                 </td>
             </tr>
             {% endfor %}

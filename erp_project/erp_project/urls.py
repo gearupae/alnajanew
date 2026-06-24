@@ -8,6 +8,7 @@ from django.conf.urls.static import static
 from django.contrib.auth.views import LogoutView
 
 from apps.core.auth_views import ERPLoginView
+from apps.sales.views import estimate_public_pdf_download, estimate_public_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -15,7 +16,11 @@ urlpatterns = [
     # Authentication
     path('login/', ERPLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
-    
+
+    # Public quotation (no login) — short URL for customers
+    path('q/<uuid:token>/', estimate_public_view, name='estimate_public_view'),
+    path('q/<uuid:token>/pdf/', estimate_public_pdf_download, name='estimate_public_pdf_download'),
+
     # Apps
     path('', include('apps.core.urls')),
     path('settings/', include('apps.settings_app.urls')),

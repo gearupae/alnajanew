@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'crm:customer_list' %}">Customers</a></li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'crm:customer_detail' advance.customer.pk %}">{{ advance.customer.name }}</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'advances:customer_advance_detail' advance.pk %}">{{ advance.advance_number }}</a>
+            </li>
+            <li class="breadcrumb-item active">Edit</li>
+        </ol>
+    </nav>
+    <h4 class="mb-0 fw-bold">Edit Customer Advance</h4>
+</div>
+
+{% if not is_draft %}
+<div class="alert alert-info mb-4">
+    <i class="fas fa-info-circle me-2"></i>
+    This advance is <strong>posted to accounting</strong> (journal
+    {% if advance.journal_entry %}
+    <a href="{% url 'finance:journal_detail' advance.journal_entry.pk %}" class="alert-link">{{ advance.journal_entry.entry_number }}</a>
+    {% else %}entry{% endif %}).
+    Amount, VAT, date, and bank account cannot be changed here — that would disagree with the books.
+    You can still update <strong>project</strong>, <strong>reference / note</strong>, and <strong>internal notes</strong>.
+    To correct amounts, use Finance → Journal entries or record an adjusting entry.
+</div>
+{% endif %}
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {% if is_draft %}
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Date <span class="text-danger">*</span></label>
+                    {{ form.date }}
+                    {% if form.date.errors %}<div class="text-danger small">{{ form.date.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Bank Account <span class="text-danger">*</span></label>
+                    {{ form.bank_account }}
+                    {% if form.bank_account.errors %}<div class="text-danger small">{{ form.bank_account.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Project</label>
+                    {{ form.project }}
+                    <div class="form-text">Optional</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Amount (excl. VAT) <span class="text-danger">*</span></label>
+                    {{ form.amount }}
+                    {% if form.amount.errors %}<div class="text-danger small">{{ form.amount.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">VAT (5%)</label>
+                    {{ form.vat_amount }}
+                    <div class="form-text">Auto-calculated · editable</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted">Total (incl. VAT)</label>
+                    <input type="text" id="ca_total_display" class="form-control bg-light" readonly placeholder="0.00">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Reference / Note</label>
+                    {{ form.reference }}
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Notes</label>
+                    {{ form.notes }}
+                </div>
+            </div>
+            {% else %}
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Amount (excl. VAT)</label>
+                    <p class="fw-semibold mb-0">AED {{ advance.amount|floatformat:2 }}</p>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">VAT</label>
+                    <p class="mb-0">AED {{ advance.vat_amount|floatformat:2 }}</p>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Date</label>
+                    <p class="mb-0">{{ advance.date|date:"d/m/Y" }}</p>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Bank</label>
+                    <p class="mb-0">{{ advance.bank_account.name }}</p>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Project</label>
+                    {{ form.project }}
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Reference / Note</label>
+                    {{ form.reference }}
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Notes</label>
+                    {{ form.notes }}
+                </div>
+            </div>
+            {% endif %}
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>Save Changes
+                </button>
+                <a href="{% url 'advances:customer_advance_detail' advance.pk %}" class="btn btn-light">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if is_draft %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var amtInput = document.getElementById('id_ca_amount');
+    var vatInput = document.getElementById('id_ca_vat_amount');
+    var totalDisplay = document.getElementById('ca_total_display');
+
+    function calcVatTotal() {
+        var amt = parseFloat(amtInput ? amtInput.value : 0) || 0;
+        var vat = parseFloat(vatInput ? vatInput.value : '');
+        if (isNaN(vat)) {
+            vat = parseFloat((amt * 0.05).toFixed(2));
+            if (vatInput) vatInput.value = vat.toFixed(2);
+        }
+        if (totalDisplay) {
+            totalDisplay.value = 'AED ' + (amt + vat).toLocaleString('en-AE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+    }
+
+    if (amtInput) {
+        amtInput.addEventListener('input', function () {
+            var amt = parseFloat(this.value) || 0;
+            if (vatInput) vatInput.value = (amt * 0.05).toFixed(2);
+            calcVatTotal();
+        });
+    }
+    if (vatInput) {
+        vatInput.addEventListener('input', calcVatTotal);
+    }
+    calcVatTotal();
+});
+</script>
+{% endif %}
+{% endblock %}

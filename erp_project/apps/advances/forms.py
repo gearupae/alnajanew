@@ -81,6 +81,44 @@ class CustomerAdvanceForm(_BootstrapMixin, forms.ModelForm):
         return cleaned
 
 
+class CustomerAdvancePostedEditForm(_BootstrapMixin, forms.ModelForm):
+    """Non-financial fields only — advance is already posted to accounting."""
+
+    class Meta:
+        model = CustomerAdvance
+        fields = ['project', 'reference', 'notes']
+
+    def __init__(self, *args, customer=None, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.projects.models import Project
+        from apps.core.visibility import filter_projects_for_user
+
+        project_qs = Project.objects.none()
+        if customer:
+            project_qs = Project.objects.filter(
+                is_active=True,
+                customer=customer,
+            ).exclude(status='cancelled')
+            if user:
+                project_qs = filter_projects_for_user(project_qs, user)
+        if self.instance and self.instance.project_id:
+            project_qs = (
+                project_qs | Project.objects.filter(pk=self.instance.project_id)
+            ).distinct()
+        self.fields['project'].queryset = project_qs.order_by('project_code', 'name')
+        self.fields['project'].required = False
+        self.fields['project'].empty_label = '— None —'
+        self.customer = customer
+
+    def clean(self):
+        cleaned = super().clean()
+        project = cleaned.get('project')
+        customer = getattr(self, 'customer', None)
+        if project and customer and project.customer_id != customer.pk:
+            self.add_error('project', 'Selected project does not belong to this customer.')
+        return cleaned
+
+
 class CustomerAdvanceApplicationForm(_BootstrapMixin, forms.ModelForm):
     class Meta:
         model = CustomerAdvanceApplication

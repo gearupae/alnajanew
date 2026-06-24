@@ -24,4 +24,15 @@
     <div class="kanban-card-amount text-nowrap">
         <i class="fas fa-file-invoice-dollar fa-xs me-1 text-muted"></i>AED {{ estimate.total_amount|default:0|floatformat:2|intcomma }}
     </div>
+    <div class="kanban-card-actions d-flex gap-1 mt-2">
+        {% if estimate.public_link_url %}
+        <button type="button" class="btn btn-sm btn-light py-0 px-2 estimate-public-link-copy" title="Copy public link" data-public-url="{{ estimate.public_link_url }}">
+            <i class="fas fa-link fa-xs"></i>
+        </button>
+        {% else %}
+        <button type="button" class="btn btn-sm btn-light py-0 px-2" title="Public link available after Sent" disabled>
+            <i class="fas fa-link fa-xs text-muted"></i>
+        </button>
+        {% endif %}
+    </div>
 </div>

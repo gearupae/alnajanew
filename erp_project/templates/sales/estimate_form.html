@@ -2,30 +2,59 @@
 
 {% block extra_css %}
 <style>
-/* Line items: fit card width — no horizontal scroll; action column stays visible */
-.line-items-table-wrap {
-    width: 100%;
-    box-sizing: border-box;
-    /* Inset from card edge: space before Group, space after × */
+/* Line items: fixed header + scrollable body (inventory names stay visible) */
+.line-items-scroll-block {
     padding-left: 0.65rem;
     padding-right: 0.65rem;
 }
-#itemsTable {
+.line-items-head-wrap {
+    border-top: 1px solid var(--bs-border-color);
+    background: #fff;
+}
+.line-items-head-wrap .estimate-items-table thead th {
+    font-size: 0.72rem;
+    font-weight: 600;
+    vertical-align: middle;
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+.line-items-table-wrap {
+    width: 100%;
+    box-sizing: border-box;
+    max-height: min(72vh, 42rem);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    border-bottom: 1px solid var(--bs-border-color);
+    background: #fff;
+}
+.estimate-items-table {
     table-layout: fixed;
     width: 100%;
     margin-bottom: 0;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
 }
-#itemsTable th,
-#itemsTable td {
+.line-items-totals-wrap {
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+}
+.line-items-totals {
+    min-width: 14rem;
+    margin-left: auto;
+}
+.estimate-items-table th,
+.estimate-items-table td {
     min-width: 0;
     vertical-align: top;
     /* Tighter horizontal padding = less gap between columns */
     padding-left: 0.2rem;
     padding-right: 0.2rem;
 }
-#itemsTable .form-control,
-#itemsTable .form-select {
+.estimate-items-table .form-control,
+.estimate-items-table .form-select {
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -36,41 +65,46 @@
     padding-right: 0.3rem;
 }
 /* Percent widths sum to 100% — keeps table inside card (no overflow-x scroll) */
-#itemsTable .items-col-group {
+.estimate-items-table .items-col-group {
     width: 11%;
 }
-#itemsTable .items-col-group-mult {
+.estimate-items-table .items-col-group-mult {
     width: 5%;
 }
-#itemsTable .items-col-group-mult .form-control {
+.estimate-items-table .items-col-group-mult .form-control {
     padding-left: 0.2rem;
     padding-right: 0.2rem;
     font-size: 0.75rem;
     text-align: center;
 }
-#itemsTable .items-col-group .form-control,
-#itemsTable .items-col-group .form-select {
+.estimate-items-table .items-col-group .form-control,
+.estimate-items-table .items-col-group .form-select {
     padding-left: 0.25rem;
     padding-right: 0.25rem;
     font-size: 0.72rem;
 }
-#itemsTable .items-col-group .estimate-group-combo .estimate-pick-group {
+.estimate-items-table .items-col-group .estimate-group-combo .estimate-pick-group {
     flex: 0 0 auto;
     width: 38%;
     min-width: 3.25rem;
     max-width: 6.5rem;
     padding-right: 1rem;
 }
-#itemsTable .items-col-group .estimate-group-combo .item-group-name {
+.estimate-items-table .items-col-group .estimate-group-combo .item-group-name {
     min-width: 0;
 }
-#itemsTable .items-col-inventory {
+.estimate-items-table .items-col-inventory {
     width: 12%;
     position: relative;
+    overflow: visible;
+}
+.estimate-items-table tr.item-row:has(.select2-container--open) {
+    position: relative;
+    z-index: 8;
 }
 /* Select2 keeps the native <select> for submit; hide it whenever the Select2 UI is present (avoids a second visible dropdown) */
-#itemsTable .items-col-inventory:has(.select2-container) select.item-inventory,
-#itemsTable .items-col-inventory select.item-inventory.select2-hidden-accessible {
+.estimate-items-table .items-col-inventory:has(.select2-container) select.item-inventory,
+.estimate-items-table .items-col-inventory select.item-inventory.select2-hidden-accessible {
     position: absolute !important;
     width: 1px !important;
     height: 1px !important;
@@ -83,21 +117,21 @@
     opacity: 0 !important;
     pointer-events: none !important;
 }
-#itemsTable .items-col-inventory .select2-container {
+.estimate-items-table .items-col-inventory .select2-container {
     display: block;
     margin: 0;
 }
-#itemsTable .items-col-desc .form-control {
+.estimate-items-table .items-col-desc .form-control {
     font-size: 0.875rem;
     line-height: 1.5;
     min-height: calc(1.5em + 0.5rem + 2px);
     max-height: calc(1.5em + 0.5rem + 2px);
 }
-#itemsTable .items-col-inventory .select2-container {
+.estimate-items-table .items-col-inventory .select2-container {
     width: 100% !important;
 }
-#itemsTable .items-col-inventory .select2-container--bootstrap-5 .select2-selection,
-#itemsTable .items-col-inventory .select2-container--bootstrap-5 .select2-selection--single {
+.estimate-items-table .items-col-inventory .select2-container--bootstrap-5 .select2-selection,
+.estimate-items-table .items-col-inventory .select2-container--bootstrap-5 .select2-selection--single {
     min-height: calc(1.5em + 0.5rem + 2px) !important;
     height: calc(1.5em + 0.5rem + 2px) !important;
     max-height: calc(1.5em + 0.5rem + 2px) !important;
@@ -107,7 +141,7 @@
     display: flex !important;
     align-items: center !important;
 }
-#itemsTable .items-col-inventory .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+.estimate-items-table .items-col-inventory .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
     padding: 0 1.75rem 0 0.3rem !important;
     line-height: 1.5 !important;
     font-size: 0.875rem !important;
@@ -116,74 +150,79 @@
     white-space: nowrap;
     flex: 1 1 auto;
 }
-#itemsTable .items-col-inventory .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+.estimate-items-table .items-col-inventory .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
     height: 100% !important;
     top: 0 !important;
 }
 .estimate-inventory-select2-dropdown {
     min-width: 18rem !important;
-    z-index: 1060;
+    z-index: 2000 !important;
+}
+.estimate-inventory-select2-dropdown .select2-results__options {
+    max-height: min(40vh, 14rem) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
 }
 .estimate-inventory-select2-dropdown .select2-search__field {
     width: 100% !important;
 }
-#itemsTable .items-col-desc {
+.estimate-items-table .items-col-desc {
     width: 17%;
 }
 /* Qty / Base / Profit / Profit # / Rate / Tax — a bit wider; totals 100% with other cols */
-#itemsTable .items-col-qty {
+.estimate-items-table .items-col-qty {
     width: 7%;
 }
-#itemsTable .items-col-base {
+.estimate-items-table .items-col-base {
     width: 9%;
 }
-#itemsTable .items-col-profit {
+.estimate-items-table .items-col-profit {
     width: 7%;
 }
-#itemsTable .items-col-profit .form-select {
+.estimate-items-table .items-col-profit .form-select {
     font-size: 0.75rem;
     padding-left: 0.2rem;
     padding-right: 1.1rem;
 }
-#itemsTable .items-col-profit-num {
+.estimate-items-table .items-col-profit-num {
     width: 6%;
 }
-#itemsTable .items-col-rate {
+.estimate-items-table .items-col-rate {
     width: 6%;
 }
-#itemsTable .items-col-tax {
+.estimate-items-table .items-col-tax {
     width: 7%;
 }
-#itemsTable .items-col-tax .form-select {
+.estimate-items-table .items-col-tax .form-select {
     font-size: 0.72rem;
     padding-left: 0.2rem;
     padding-right: 1.1rem;
 }
-#itemsTable .items-col-net {
+.estimate-items-table .items-col-net {
     width: 6%;
 }
-#itemsTable .items-col-gross {
+.estimate-items-table .items-col-gross {
     width: 6%;
 }
-#itemsTable .items-col-base,
-#itemsTable .items-col-profit-num {
+.estimate-items-table .items-col-base,
+.estimate-items-table .items-col-profit-num {
     overflow: visible;
 }
-#itemsTable .items-col-actions {
+.estimate-items-table .items-col-actions {
     width: 3%;
     padding-left: 0.15rem !important;
     padding-right: 0.25rem !important;
     vertical-align: middle;
 }
-#itemsTable .items-col-actions .btn {
+.estimate-items-table .items-col-actions .btn {
     padding: 0.15rem 0.25rem;
     line-height: 1;
 }
 /* Base: number spinners stay on the input; eye sits in its own button to the right */
-#itemsTable .estimate-price-input-group .item-base-price {
+.estimate-items-table .estimate-price-input-group .item-base-price {
     min-width: 0;
 }
-#itemsTable .estimate-price-input-group .item-bounds-help {
+.estimate-items-table .estimate-price-input-group .item-bounds-help {
     padding: 0.2rem 0.4rem;
     flex-shrink: 0;
     line-height: 1;
@@ -191,11 +230,11 @@
     position: relative;
     z-index: 2;
 }
-#itemsTable .estimate-price-input-group .item-bounds-help:not(.d-none) {
+.estimate-items-table .estimate-price-input-group .item-bounds-help:not(.d-none) {
     animation: bounds-help-pulse 1.5s ease-in-out 2;
 }
-#itemsTable .item-base-price.estimate-price-out-of-bounds,
-#itemsTable .item-profit-value.estimate-price-out-of-bounds {
+.estimate-items-table .item-base-price.estimate-price-out-of-bounds,
+.estimate-items-table .item-profit-value.estimate-price-out-of-bounds {
     border-color: var(--bs-danger) !important;
 }
 @keyframes bounds-help-pulse {
@@ -244,14 +283,22 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb mb-2">
-            <li class="breadcrumb-item"><a href="{% url 'sales:estimate_list' %}">Estimates</a></li>
-            <li class="breadcrumb-item active">{{ title }}</li>
-        </ol>
-    </nav>
-    <h4 class="mb-0 fw-bold">{{ title }}</h4>
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-2">
+                <li class="breadcrumb-item"><a href="{% url 'sales:estimate_list' %}">Estimates</a></li>
+                <li class="breadcrumb-item active">{{ title }}</li>
+            </ol>
+        </nav>
+        <h4 class="mb-0 fw-bold">{{ title }}</h4>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" form="estimateForm" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i>Save Estimate
+        </button>
+        <a href="{% url 'sales:estimate_list' %}" class="btn btn-light">Cancel</a>
+    </div>
 </div>
 
 {% if revision_hint %}
@@ -409,7 +456,7 @@
                     <i class="fas fa-folder-open me-1"></i><span id="itemsCsvLabel">Choose file</span>
                     <input type="file" name="items_csv" id="itemsCsvInput" class="d-none" accept=".csv,text/csv,application/vnd.ms-excel">
                 </label>
-                <button type="button" class="btn btn-sm btn-primary" onclick="addItemRow()">
+                <button type="button" class="btn btn-sm btn-primary" onclick="addItemRow({ scroll: true })">
                     <i class="fas fa-plus me-1"></i>Add line
                 </button>
             </div>
@@ -424,26 +471,31 @@
                 <strong>Gross</strong> includes VAT from the tax code (not shown per line).
             </p>
             {{ items_formset.management_form }}
-            <div class="line-items-table-wrap">
-                <table class="table mb-0 table-sm align-middle" id="itemsTable">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="items-col-group" title="Choose a group on the left to load items; edit the PDF section title on the right (screen layout only—does not change inventory).">Group</th>
-                            <th class="items-col-group-mult" title="Multiplied with qty for all lines in this group">Group ×</th>
-                            <th class="items-col-inventory">Inventory</th>
-                            <th class="items-col-desc">Description</th>
-                            <th class="items-col-qty">Qty</th>
-                            <th class="items-col-base" title="Base price per unit">Base</th>
-                            <th class="items-col-profit">Profit</th>
-                            <th class="items-col-profit-num" title="% or AED per unit">Profit value</th>
-                            <th class="items-col-rate" title="Selling price per unit after profit">Rate</th>
-                            <th class="items-col-tax">Tax</th>
-                            <th class="items-col-net text-end" title="Quantity × rate (before VAT)">Net (excl.)</th>
-                            <th class="items-col-gross text-end" title="Net + VAT for this line">Gross (incl.)</th>
-                            <th class="items-col-actions"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="itemsBody">
+            <div class="line-items-scroll-block">
+                <div class="line-items-head-wrap">
+                    <table class="table mb-0 table-sm align-middle estimate-items-table" id="itemsTableHead">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="items-col-group" title="Choose a group on the left to load items; edit the PDF section title on the right (screen layout only—does not change inventory).">Group</th>
+                                <th class="items-col-group-mult" title="Multiplied with qty for all lines in this group">Group ×</th>
+                                <th class="items-col-inventory">Inventory</th>
+                                <th class="items-col-desc">Description</th>
+                                <th class="items-col-qty">Qty</th>
+                                <th class="items-col-base" title="Base price per unit">Base</th>
+                                <th class="items-col-profit">Profit</th>
+                                <th class="items-col-profit-num" title="% or AED per unit">Profit value</th>
+                                <th class="items-col-rate" title="Selling price per unit after profit">Rate</th>
+                                <th class="items-col-tax">Tax</th>
+                                <th class="items-col-net text-end" title="Quantity × rate (before VAT)">Net (excl.)</th>
+                                <th class="items-col-gross text-end" title="Net + VAT for this line">Gross (incl.)</th>
+                                <th class="items-col-actions"></th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+                <div class="line-items-table-wrap">
+                    <table class="table mb-0 table-sm align-middle estimate-items-table" id="itemsTable">
+                        <tbody id="itemsBody">
                         {% for item_form in items_formset %}
                         <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %}>
                             <td class="items-col-group">
@@ -475,33 +527,16 @@
                         </tr>
                         {% endfor %}
                     </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="10" class="text-end fw-medium">Subtotal (excl. VAT):</td>
-                            <td class="text-end fw-medium" id="subtotal">0.00</td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                        <tr id="discountRow" class="d-none">
-                            <td colspan="10" class="text-end fw-medium text-danger">Discount:</td>
-                            <td class="text-end fw-medium text-danger" id="discountDisplay">0.00</td>
-                            <td></td>
-                            <td></td>
-                        </tr>
-                        <tr>
-                            <td colspan="10" class="text-end fw-medium">VAT:</td>
-                            <td></td>
-                            <td class="text-end fw-medium" id="vatTotal">0.00</td>
-                            <td></td>
-                        </tr>
-                        <tr>
-                            <td colspan="10" class="text-end fw-bold">Total (incl. VAT):</td>
-                            <td></td>
-                            <td class="text-end fw-bold" id="grandTotal">0.00</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
+                    </table>
+                </div>
+            </div>
+            <div class="line-items-totals-wrap px-3 py-2 border-top bg-white">
+                <div class="line-items-totals text-end small">
+                    <div class="fw-medium py-1">Subtotal (excl. VAT): <span id="subtotal">0.00</span></div>
+                    <div id="discountRow" class="d-none fw-medium text-danger py-1">Discount: <span id="discountDisplay">0.00</span></div>
+                    <div class="fw-medium py-1">VAT: <span id="vatTotal">0.00</span></div>
+                    <div class="fw-bold py-1">Total (incl. VAT): <span id="grandTotal">0.00</span></div>
+                </div>
             </div>
         </div>
     </div>
@@ -1003,10 +1038,25 @@ function initInventorySelect2(selectEl) {
         onInventoryChange(this);
     });
     syncInventoryFieldHeight(selectEl.closest('tr'));
+    syncInventorySelectTitle(selectEl);
+}
+
+function syncInventorySelectTitle(selectEl) {
+    if (!selectEl) return;
+    const row = selectEl.closest('tr');
+    const rendered = row?.querySelector('.items-col-inventory .select2-selection__rendered');
+    const meta = getInventoryMeta(selectEl.value);
+    const label = meta ? `${meta.item_code || ''} — ${meta.name || ''}`.trim() : '';
+    if (rendered) rendered.title = label;
+    const container = row?.querySelector('.items-col-inventory .select2-container');
+    if (container) container.title = label;
 }
 
 function initAllInventorySelect2() {
-    document.querySelectorAll('#itemsBody .item-inventory').forEach(initInventorySelect2);
+    document.querySelectorAll('#itemsBody .item-inventory').forEach(function(sel) {
+        initInventorySelect2(sel);
+        syncInventorySelectTitle(sel);
+    });
     syncAllInventoryFieldHeights();
 }
 
@@ -1021,6 +1071,7 @@ function syncInventorySelectUi(selectEl, invId) {
     } else {
         selectEl.value = val;
     }
+    syncInventorySelectTitle(selectEl);
 }
 
 function setInventorySelectValue(selectEl, invId, triggerChange) {
@@ -1436,6 +1487,7 @@ function appendGroupItemsToEstimate(g, startRow, options) {
     } finally {
         suppressTrailingEmptyRow = false;
         if (!deferTrailing) ensureTrailingEmptyRow();
+        scrollLineItemsToLastRow();
     }
 }
 
@@ -1500,7 +1552,74 @@ function addLinesFromInventoryGroupSelect(sel) {
     appendGroupItemsToEstimate(g, row);
 }
 
-function addItemRow() {
+function scrollLineItemsToLastRow() {
+    const wrap = document.querySelector('.line-items-table-wrap');
+    const tbody = document.getElementById('itemsBody');
+    if (!wrap || !tbody) return;
+
+    closeOpenInventorySelect2();
+
+    const scrollToEnd = function() {
+        wrap.scrollTop = wrap.scrollHeight;
+    };
+
+    requestAnimationFrame(function() {
+        scrollToEnd();
+        requestAnimationFrame(scrollToEnd);
+        setTimeout(scrollToEnd, 80);
+    });
+}
+
+function closeOpenInventorySelect2() {
+    if (typeof $ === 'undefined') return;
+    document.querySelectorAll('#itemsBody .item-inventory').forEach(function(sel) {
+        const inst = $(sel).data('select2');
+        if (inst && inst.isOpen()) {
+            $(sel).select2('close');
+        }
+    });
+}
+
+function repositionOpenInventorySelect2() {
+    if (typeof $ === 'undefined') return;
+    document.querySelectorAll('#itemsBody .item-inventory').forEach(function(sel) {
+        const inst = $(sel).data('select2');
+        if (inst && inst.isOpen() && inst.dropdown && typeof inst.dropdown._positionDropdown === 'function') {
+            inst.dropdown._positionDropdown();
+        }
+    });
+}
+
+function setupLineItemsInventoryScrollFix() {
+    const wrap = document.querySelector('.line-items-table-wrap');
+    if (!wrap) return;
+
+    wrap.addEventListener('scroll', repositionOpenInventorySelect2, { passive: true });
+    window.addEventListener('scroll', repositionOpenInventorySelect2, { passive: true });
+
+    document.addEventListener('wheel', function(e) {
+        if (e.target.closest('.estimate-inventory-select2-dropdown')) {
+            e.stopPropagation();
+        }
+    }, { passive: false, capture: true });
+
+    if (typeof $ !== 'undefined') {
+        $(document).on('select2:open', '.item-inventory', function() {
+            requestAnimationFrame(function() {
+                const results = document.querySelector(
+                    '.estimate-inventory-select2-dropdown .select2-results__options'
+                );
+                if (!results) return;
+                results.addEventListener('wheel', function(ev) {
+                    ev.stopPropagation();
+                }, { passive: false });
+            });
+        });
+    }
+}
+
+function addItemRow(options) {
+    const scrollToRow = options && options.scroll;
     const tbody = document.getElementById('itemsBody');
     const rows = getVisibleEstimateRows();
     const inheritGroup = rows.length ? getRowGroupName(rows[rows.length - 1]) : '';
@@ -1551,6 +1670,9 @@ function addItemRow() {
     if (!suppressTrailingEmptyRow) {
         calculateRowTotal(tr.querySelector('.item-qty'));
     }
+    if (scrollToRow) {
+        scrollLineItemsToLastRow();
+    }
 }
 
 function getVisibleEstimateRows() {
@@ -1594,12 +1716,12 @@ function ensureTrailingEmptyRow() {
     if (suppressTrailingEmptyRow) return;
     const rows = getVisibleEstimateRows();
     if (!rows.length) {
-        addItemRow();
+        addItemRow({ scroll: true });
         return;
     }
     const last = rows[rows.length - 1];
     if (isEstimateRowFilled(last)) {
-        addItemRow();
+        addItemRow({ scroll: true });
     }
 }
 
@@ -1915,6 +2037,7 @@ function setupEstimateTextTemplateSelect(selectId, templates, textareaName, auto
 
 document.addEventListener('DOMContentLoaded', function() {
     bindLineItemsTableEvents();
+    setupLineItemsInventoryScrollFix();
     setupEstimateItemsCsvLabel();
     applyDefaultTaxToRows();
     if (document.getElementById('clientNoteTemplateSelect')) {

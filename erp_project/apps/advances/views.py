@@ -15,6 +15,7 @@ from apps.core.utils import PermissionChecker
 from .forms import (
     CustomerAdvanceApplicationForm,
     CustomerAdvanceForm,
+    CustomerAdvancePostedEditForm,
     SecurityChequeEncashForm,
     SecurityChequeOutwardForm,
     SecurityChequeReturnForm,
@@ -237,6 +238,60 @@ def customer_advance_post(request, pk):
         except (ValidationError, Exception) as exc:
             messages.error(request, f'Error posting: {exc}')
     return redirect('advances:customer_advance_detail', pk=pk)
+
+
+@login_required
+def customer_advance_edit(request, pk):
+    advance = get_object_or_404(
+        CustomerAdvance.objects.select_related('customer', 'bank_account', 'project'),
+        pk=pk,
+        is_active=True,
+    )
+
+    if not _can(request.user, 'crm', 'edit'):
+        messages.error(request, 'Permission denied.')
+        return redirect('advances:customer_advance_detail', pk=pk)
+
+    is_draft = advance.status == 'draft'
+    form_class = CustomerAdvanceForm if is_draft else CustomerAdvancePostedEditForm
+
+    if request.method == 'POST':
+        form = form_class(
+            request.POST,
+            instance=advance,
+            customer=advance.customer,
+            user=request.user,
+        )
+        if is_draft:
+            form.customer = advance.customer
+        if form.is_valid():
+            adv = form.save(commit=False)
+            if is_draft:
+                adv.save()
+                messages.success(request, f'Advance {adv.advance_number} updated.')
+            else:
+                adv.save(update_fields=['project', 'reference', 'notes', 'updated_at'])
+                messages.success(
+                    request,
+                    f'Advance {adv.advance_number} updated (reference, project, and notes only).',
+                )
+            return redirect('advances:customer_advance_detail', pk=pk)
+    else:
+        form = form_class(
+            instance=advance,
+            customer=advance.customer,
+            user=request.user,
+        )
+        if is_draft:
+            form.customer = advance.customer
+
+    return render(request, 'advances/customer_advance_edit.html', {
+        'title': f'Edit — {advance.advance_number}',
+        'advance': advance,
+        'form': form,
+        'is_draft': is_draft,
+        'today': date.today().isoformat(),
+    })
 
 
 @login_required

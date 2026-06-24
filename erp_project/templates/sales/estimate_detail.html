@@ -297,7 +297,7 @@
                             </tr>
                             {% endwith %}
                             {% endfor %}
-                            {% if group.name and estimate.show_group_totals_on_pdf %}
+                            {% if group.name %}
                             <tr class="table-light">
                                 <td colspan="6" class="text-end fw-semibold small">{{ group.name }} total</td>
                                 <td class="text-end fw-semibold">AED {{ group.line_total|floatformat:2 }}</td>
@@ -578,6 +578,38 @@
             </div>
         </div>
 
+        {% if can_copy_public_link %}
+        <div class="card mb-4">
+            <div class="card-header bg-transparent py-3">
+                <h6 class="mb-0 fw-semibold"><i class="fas fa-link me-2 text-dark"></i>Public quotation link</h6>
+            </div>
+            <div class="card-body pt-0">
+                {% if estimate_public_link %}
+                <p class="small text-muted mb-2">
+                    Share this link with your customer. They can view the quotation online without logging in.
+                </p>
+                <div class="input-group input-group-sm mb-2">
+                    <input type="text" class="form-control font-monospace small" id="estimate-public-link" readonly value="{{ estimate_public_link }}">
+                    <button type="button" class="btn btn-outline-primary" id="estimate-public-link-copy" title="Copy link">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                    <a href="{{ estimate_public_link }}" class="btn btn-outline-secondary" target="_blank" rel="noopener" title="Open link">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </div>
+                <p class="small text-muted mb-0">
+                    <i class="fas fa-eye me-1"></i>
+                    Customer views: <strong>{{ estimate.public_view_count }}</strong>
+                </p>
+                {% elif estimate_public_link_pending %}
+                <p class="small text-muted mb-0">
+                    Public link becomes available after this quotation is marked <strong>Sent</strong> (or any status other than Draft).
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         {% if can_send_estimate_email %}
         <div class="card mb-4">
             <div class="card-header bg-transparent py-3">
@@ -726,6 +758,31 @@
 
 {% block extra_js %}
 {{ block.super }}
+{% if can_copy_public_link and estimate_public_link %}
+<script>
+(function() {
+    var copyBtn = document.getElementById('estimate-public-link-copy');
+    var input = document.getElementById('estimate-public-link');
+    if (!copyBtn || !input) return;
+    copyBtn.addEventListener('click', function() {
+        var text = input.value;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() {
+                if (window.toastr) toastr.success('Link copied.');
+            }).catch(function() {
+                input.select();
+                document.execCommand('copy');
+                if (window.toastr) toastr.success('Link copied.');
+            });
+        } else {
+            input.select();
+            document.execCommand('copy');
+            if (window.toastr) toastr.success('Link copied.');
+        }
+    });
+})();
+</script>
+{% endif %}
 {% if can_send_estimate_email %}
 <script>
 (function() {

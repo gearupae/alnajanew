@@ -19,6 +19,11 @@ urlpatterns = [
         name='customer_advance_detail',
     ),
     path(
+        'customer-advances/<int:pk>/edit/',
+        views.customer_advance_edit,
+        name='customer_advance_edit',
+    ),
+    path(
         'customer-advances/<int:pk>/post/',
         views.customer_advance_post,
         name='customer_advance_post',
