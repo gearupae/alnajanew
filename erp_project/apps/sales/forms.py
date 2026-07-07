@@ -350,6 +350,8 @@ class InvoiceForm(forms.ModelForm):
         self.fields['notes'].required = False
         self.fields['prices_include_vat'].label = 'Prices include VAT'
         self.fields['prices_include_vat'].required = False
+        self.fields['invoice_date'].input_formats = ['%Y-%m-%d']
+        self.fields['due_date'].input_formats = ['%Y-%m-%d']
 
         self.fields['project'].queryset = (
             Project.objects.filter(is_active=True)

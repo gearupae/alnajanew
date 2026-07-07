@@ -2505,6 +2505,7 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
 
     def get_initial(self):
         initial = super().get_initial()
+        initial['invoice_date'] = date.today()
         project_pk = self.request.GET.get('project')
         if project_pk:
             initial['project'] = project_pk
@@ -2523,7 +2524,8 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
         customer_pk = self.request.GET.get('customer')
         if customer_pk and 'customer' not in initial:
             initial['customer'] = customer_pk
-        initial['prices_include_vat'] = default_prices_include_vat()
+        if 'prices_include_vat' not in initial:
+            initial['prices_include_vat'] = default_prices_include_vat()
         return initial
     
     def get_context_data(self, **kwargs):
