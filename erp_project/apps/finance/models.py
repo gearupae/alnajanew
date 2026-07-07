@@ -3702,6 +3702,7 @@ class AccountMapping(models.Model):
         ('sales_invoice_discount', 'Sales Invoice - Sales Discount'),
         ('customer_receipt', 'Customer Receipt - Bank'),
         ('customer_receipt_ar_clear', 'Customer Receipt - AR Clearing'),
+        ('sales_return', 'Sales Return / Credit Note'),
         
         # Purchase
         ('vendor_bill_payable', 'Vendor Bill - Accounts Payable'),
@@ -3709,6 +3710,7 @@ class AccountMapping(models.Model):
         ('vendor_bill_vat', 'Vendor Bill - VAT Recoverable'),
         ('vendor_payment', 'Vendor Payment - Bank'),
         ('vendor_payment_ap_clear', 'Vendor Payment - AP Clearing'),
+        ('purchase_return', 'Purchase Return / Debit Note'),
         
         # Expense Claims
         ('expense_claim_expense', 'Expense Claim - Default Expense'),
@@ -4001,7 +4003,11 @@ class AccountingSettings(models.Model):
         help_text="Default VAT rate for transactions"
     )
     vat_registration_number = models.CharField(max_length=50, blank=True)
-    
+    default_prices_include_vat = models.BooleanField(
+        default=False,
+        help_text='Default for new sales estimates and invoices: prices include VAT',
+    )
+
     # Rounding
     round_to_fils = models.BooleanField(
         default=True,

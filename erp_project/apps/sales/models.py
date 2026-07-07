@@ -192,6 +192,10 @@ class Estimate(BaseModel):
         default=False,
         help_text='If on, PDF shows the inventory item brand name on each line.',
     )
+    prices_include_vat = models.BooleanField(
+        default=False,
+        help_text='If true, entered line rates are VAT-inclusive; VAT is back-calculated.',
+    )
 
     # Calculated fields
     subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
@@ -650,25 +654,19 @@ class EstimateItem(models.Model):
         return base.quantize(Decimal('0.01'))
     
     def save(self, *args, **kwargs):
+        from .vat_pricing import line_uses_inclusive_pricing, split_line_amounts
+
         self.rate = self.compute_rate()
         # Derive VAT rate from Tax Code (No Tax Code = 0%)
         if self.tax_code:
             self.vat_rate = self.tax_code.rate
         else:
             self.vat_rate = Decimal('0.00')
-        
+
         gross = self.quantity * self.rate
-        
-        if self.is_vat_inclusive and self.vat_rate > 0:
-            # VAT-inclusive: Back-calculate net amount and VAT
-            divisor = 1 + (self.vat_rate / 100)
-            self.total = (gross / divisor).quantize(Decimal('0.01'))
-            self.vat_amount = (gross - self.total).quantize(Decimal('0.01'))
-        else:
-            # VAT-exclusive: Standard calculation
-            self.total = gross
-            self.vat_amount = (self.total * (self.vat_rate / 100)).quantize(Decimal('0.01'))
-        
+        inclusive = line_uses_inclusive_pricing(self)
+        self.total, self.vat_amount = split_line_amounts(gross, self.vat_rate, inclusive)
+
         super().save(*args, **kwargs)
 
 
@@ -704,7 +702,11 @@ class Invoice(BaseModel):
     due_date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     notes = models.TextField(blank=True)
-    
+    prices_include_vat = models.BooleanField(
+        default=False,
+        help_text='If true, entered unit prices are VAT-inclusive; VAT is back-calculated.',
+    )
+
     # Amounts
     subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     vat_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
@@ -903,27 +905,18 @@ class InvoiceItem(models.Model):
         return f"{self.description} - {self.quantity}"
     
     def save(self, *args, **kwargs):
+        from .vat_pricing import line_uses_inclusive_pricing, split_line_amounts
+
         # Derive VAT rate from Tax Code (No Tax Code = 0%)
         if self.tax_code:
             self.vat_rate = self.tax_code.rate
         else:
             self.vat_rate = Decimal('0.00')
-        
+
         gross = self.quantity * self.unit_price
-        
-        if self.is_vat_inclusive and self.vat_rate > 0:
-            # VAT-inclusive: Back-calculate net amount and VAT
-            # Gross = Net + (Net * VAT_Rate/100) = Net * (1 + VAT_Rate/100)
-            # Net = Gross / (1 + VAT_Rate/100)
-            divisor = 1 + (self.vat_rate / 100)
-            self.total = (gross / divisor).quantize(Decimal('0.01'))
-            self.vat_amount = (gross - self.total).quantize(Decimal('0.01'))
-        else:
-            # VAT-exclusive: Standard calculation
-            # VAT = Net * VAT_Rate/100
-            self.total = gross
-            self.vat_amount = (self.total * (self.vat_rate / 100)).quantize(Decimal('0.01'))
-        
+        inclusive = line_uses_inclusive_pricing(self)
+        self.total, self.vat_amount = split_line_amounts(gross, self.vat_rate, inclusive)
+
         super().save(*args, **kwargs)
 
 
@@ -1134,5 +1127,289 @@ class SalesCreditNoteItem(models.Model):
         
         self.total = self.quantity * self.unit_price
         self.vat_amount = self.total * (self.vat_rate / 100)
+        super().save(*args, **kwargs)
+
+
+# ============ TAX CREDIT NOTES (FTA) ============
+
+class CreditNote(BaseModel):
+    """
+    UAE FTA Tax Credit Note — reduces/cancels part or all of a sales invoice.
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('approved', 'Approved'),
+        ('posted', 'Posted'),
+    ]
+
+    REASON_CHOICES = [
+        ('goods_returned', 'Goods Returned'),
+        ('post_sale_discount', 'Post-Sale Discount'),
+        ('pricing_error', 'Pricing Error'),
+        ('vat_error', 'VAT Error'),
+        ('supply_cancelled', 'Supply Cancelled'),
+        ('other', 'Other'),
+    ]
+
+    CREDIT_TYPE_CHOICES = [
+        ('full', 'Full'),
+        ('partial', 'Partial'),
+    ]
+
+    CREDITABLE_INVOICE_STATUSES = ('posted', 'sent', 'paid', 'partial', 'overdue')
+
+    number = models.CharField(max_length=50, unique=True, editable=False)
+    original_invoice = models.ForeignKey(
+        Invoice,
+        on_delete=models.PROTECT,
+        related_name='tax_credit_notes',
+    )
+    issue_date = models.DateField()
+    trigger_event_date = models.DateField()
+    reason = models.CharField(max_length=30, choices=REASON_CHOICES, default='goods_returned')
+    reason_description = models.TextField(blank=True)
+    credit_type = models.CharField(max_length=10, choices=CREDIT_TYPE_CHOICES, default='partial')
+    customer = models.ForeignKey(
+        'crm.Customer',
+        on_delete=models.PROTECT,
+        related_name='credit_notes',
+    )
+    customer_trn = models.CharField(max_length=20, blank=True)
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    vat_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    remaining_invoice_value = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
+    late_issuance = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    journal_entry = models.ForeignKey(
+        'finance.JournalEntry',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sales_tax_credit_notes',
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_credit_notes',
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.number} - {self.customer.name}"
+
+    def save(self, *args, **kwargs):
+        if not self.number:
+            self.number = generate_number(
+                'CREDIT_NOTE',
+                CreditNote,
+                'number',
+                year=self.issue_date.year if self.issue_date else None,
+            )
+        if self.original_invoice_id and not self.customer_id:
+            self.customer = self.original_invoice.customer
+        if self.original_invoice_id and not self.customer_trn:
+            self.customer_trn = (self.original_invoice.customer.trn or '')[:20]
+        self._update_late_issuance()
+        super().save(*args, **kwargs)
+
+    def _update_late_issuance(self):
+        if self.issue_date and self.trigger_event_date:
+            self.late_issuance = (self.issue_date - self.trigger_event_date).days > 14
+
+    @classmethod
+    def posted_total_for_invoice(cls, invoice, exclude_pk=None):
+        qs = cls.objects.filter(original_invoice=invoice, status='posted')
+        if exclude_pk:
+            qs = qs.exclude(pk=exclude_pk)
+        return qs.aggregate(total=models.Sum('total'))['total'] or Decimal('0.00')
+
+    def calculate_totals(self):
+        lines = self.lines.all()
+        self.subtotal = sum(line.line_total for line in lines)
+        self.vat_amount = sum(line.line_vat for line in lines)
+        self.total = self.subtotal + self.vat_amount
+        self._update_credit_type()
+        self._update_remaining_invoice_value()
+        self._update_late_issuance()
+        self.save(update_fields=[
+            'subtotal', 'vat_amount', 'total', 'credit_type',
+            'remaining_invoice_value', 'late_issuance',
+        ])
+
+    def _update_credit_type(self):
+        prior_posted = self.posted_total_for_invoice(
+            self.original_invoice,
+            exclude_pk=self.pk if self.pk else None,
+        )
+        remaining_creditable = self.original_invoice.total_amount - prior_posted
+        if self.total >= remaining_creditable and remaining_creditable > 0:
+            self.credit_type = 'full'
+        else:
+            self.credit_type = 'partial'
+
+    def _update_remaining_invoice_value(self):
+        prior_posted = self.posted_total_for_invoice(
+            self.original_invoice,
+            exclude_pk=self.pk if self.pk else None,
+        )
+        self.remaining_invoice_value = self.original_invoice.total_amount - prior_posted - self.total
+
+    def clean_invoice_eligibility(self):
+        invoice = self.original_invoice
+        if invoice.status not in self.CREDITABLE_INVOICE_STATUSES:
+            raise ValidationError('Credit notes can only be created against posted invoices.')
+        if not invoice.is_active:
+            raise ValidationError('Cannot credit an inactive invoice.')
+
+    def validate_totals(self):
+        self.clean_invoice_eligibility()
+        if self.reason == 'other' and not (self.reason_description or '').strip():
+            raise ValidationError('Reason description is required when reason is Other.')
+        if self.total <= 0:
+            raise ValidationError('Credit note amount must be greater than zero.')
+        prior_posted = self.posted_total_for_invoice(self.original_invoice, exclude_pk=self.pk)
+        if prior_posted + self.total > self.original_invoice.total_amount:
+            raise ValidationError(
+                f'Total credited amount (AED {prior_posted + self.total:,.2f}) cannot exceed '
+                f'original invoice total (AED {self.original_invoice.total_amount:,.2f}).'
+            )
+
+    def post_to_accounting(self, user=None):
+        from apps.finance.models import JournalEntry, JournalEntryLine, AccountMapping, FiscalYear
+
+        if self.status != 'approved':
+            raise ValidationError('Only approved credit notes can be posted.')
+
+        self.validate_totals()
+        FiscalYear.validate_posting_allowed(self.issue_date)
+
+        sales_return = AccountMapping.get_account_or_default('sales_return', None)
+        if not sales_return:
+            sales_return = AccountMapping.get_account_or_default('sales_invoice_revenue', '4000')
+        ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
+        vat_account = AccountMapping.get_account_or_default('sales_invoice_vat', '2100')
+
+        if not sales_return:
+            raise ValidationError('Sales return / revenue account not configured.')
+        if not ar_account:
+            raise ValidationError('Accounts Receivable account not configured.')
+        if self.vat_amount > 0 and not vat_account:
+            raise ValidationError('VAT Payable account not configured.')
+
+        narration = (
+            f"Tax Credit Note {self.number} — Invoice {self.original_invoice.invoice_number} "
+            f"({self.customer.name})"
+        )
+
+        journal = JournalEntry.objects.create(
+            date=self.issue_date,
+            reference=self.number,
+            description=narration,
+            entry_type='standard',
+            source_module='sales_credit_note',
+        )
+
+        JournalEntryLine.objects.create(
+            journal_entry=journal,
+            account=sales_return,
+            description=f"Sales Return — {self.number}",
+            debit=self.subtotal,
+            credit=Decimal('0.00'),
+        )
+        if self.vat_amount > 0 and vat_account:
+            JournalEntryLine.objects.create(
+                journal_entry=journal,
+                account=vat_account,
+                description=f"Output VAT Reversal — {self.number}",
+                debit=self.vat_amount,
+                credit=Decimal('0.00'),
+            )
+        JournalEntryLine.objects.create(
+            journal_entry=journal,
+            account=ar_account,
+            description=f"AR Reduction — {self.customer.name}",
+            debit=Decimal('0.00'),
+            credit=self.total,
+        )
+
+        journal.calculate_totals()
+        journal.post(user)
+
+        self.journal_entry = journal
+        self.status = 'posted'
+        self._update_remaining_invoice_value()
+        self.save()
+
+        invoice = self.original_invoice
+        invoice.paid_amount += self.total
+        if invoice.paid_amount >= invoice.total_amount:
+            invoice.status = 'paid'
+        elif invoice.paid_amount > 0:
+            invoice.status = 'partial'
+        invoice.save(update_fields=['paid_amount', 'status'])
+
+        return journal
+
+
+class CreditNoteLine(models.Model):
+    """Line items for FTA tax credit notes."""
+
+    credit_note = models.ForeignKey(
+        CreditNote,
+        on_delete=models.CASCADE,
+        related_name='lines',
+    )
+    invoice_line = models.ForeignKey(
+        InvoiceItem,
+        on_delete=models.PROTECT,
+        related_name='credit_note_lines',
+    )
+    description = models.CharField(max_length=500)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1.00'))
+    unit_price = models.DecimalField(max_digits=15, decimal_places=2)
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    line_vat = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    line_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+
+    class Meta:
+        ordering = ['id']
+
+    @classmethod
+    def posted_quantity_for_invoice_line(cls, invoice_line, exclude_credit_note_pk=None):
+        qs = cls.objects.filter(
+            invoice_line=invoice_line,
+            credit_note__status='posted',
+        )
+        if exclude_credit_note_pk:
+            qs = qs.exclude(credit_note_id=exclude_credit_note_pk)
+        return qs.aggregate(total=models.Sum('quantity'))['total'] or Decimal('0.00')
+
+    @classmethod
+    def remaining_quantity(cls, invoice_line, exclude_credit_note_pk=None):
+        credited = cls.posted_quantity_for_invoice_line(invoice_line, exclude_credit_note_pk)
+        return invoice_line.quantity - credited
+
+    def save(self, *args, **kwargs):
+        self.description = self.description or self.invoice_line.description
+        self.unit_price = self.invoice_line.unit_price
+        self.vat_rate = self.invoice_line.vat_rate
+        gross = self.quantity * self.unit_price
+        if self.invoice_line.is_vat_inclusive and self.vat_rate > 0:
+            divisor = 1 + (self.vat_rate / Decimal('100'))
+            self.line_total = (gross / divisor).quantize(Decimal('0.01'))
+            self.line_vat = (gross - self.line_total).quantize(Decimal('0.01'))
+        else:
+            self.line_total = gross
+            self.line_vat = (self.line_total * (self.vat_rate / Decimal('100'))).quantize(Decimal('0.01'))
         super().save(*args, **kwargs)
 

@@ -5,6 +5,7 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from . import views
+from . import credit_note_views
 
 app_name = 'sales'
 
@@ -73,4 +74,14 @@ urlpatterns = [
     path('invoices/<int:pk>/status/<str:status>/', views.invoice_update_status, name='invoice_status'),
     path('invoices/<int:pk>/pdf/', views.invoice_pdf, name='invoice_pdf'),
     path('invoices/<int:pk>/receive-payment/', views.invoice_receive_payment, name='invoice_receive_payment'),
+
+    # Tax Credit Notes
+    path('credit-notes/', credit_note_views.CreditNoteListView.as_view(), name='credit_note_list'),
+    path('credit-notes/create/', credit_note_views.CreditNoteCreateView.as_view(), name='credit_note_create'),
+    path('credit-notes/<int:pk>/', credit_note_views.CreditNoteDetailView.as_view(), name='credit_note_detail'),
+    path('credit-notes/<int:pk>/edit/', credit_note_views.CreditNoteUpdateView.as_view(), name='credit_note_edit'),
+    path('credit-notes/<int:pk>/approve/', credit_note_views.credit_note_approve, name='credit_note_approve'),
+    path('credit-notes/<int:pk>/post/', credit_note_views.credit_note_post, name='credit_note_post'),
+    path('credit-notes/<int:pk>/pdf/', credit_note_views.credit_note_pdf, name='credit_note_pdf'),
+    path('invoices/<int:pk>/credit-note-lines/', credit_note_views.invoice_credit_note_lines_json, name='invoice_credit_note_lines_json'),
 ]

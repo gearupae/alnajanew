@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'purchase:debit_note_list' %}">Debit Notes</a></li>
+            <li class="breadcrumb-item active">{{ debit_note.number }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-1 fw-bold">{{ debit_note.number }}</h4>
+            <span class="text-muted">{{ debit_note.vendor.name }}</span>
+        </div>
+        <div>
+            {% if can_approve %}
+            <form action="{% url 'purchase:debit_note_approve' debit_note.pk %}" method="post" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-info text-dark" onclick="return confirm('Approve this debit note?');">
+                    <i class="fas fa-check me-2"></i>Approve
+                </button>
+            </form>
+            {% endif %}
+            {% if can_post %}
+            <form action="{% url 'purchase:debit_note_post' debit_note.pk %}" method="post" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success" onclick="return confirm('Post this debit note to the general ledger?');">
+                    <i class="fas fa-book me-2"></i>Post
+                </button>
+            </form>
+            {% endif %}
+            {% if can_edit %}
+            <a href="{% url 'purchase:debit_note_edit' debit_note.pk %}" class="btn btn-primary"><i class="fas fa-edit me-2"></i>Edit</a>
+            {% endif %}
+            <a href="{% url 'purchase:debit_note_pdf' debit_note.pk %}" class="btn btn-outline-secondary" target="_blank"><i class="fas fa-print me-2"></i>Print</a>
+            <a href="{% url 'purchase:debit_note_list' %}" class="btn btn-light">Back</a>
+        </div>
+    </div>
+</div>
+
+{% if debit_note.stock_return_pending %}
+<div class="alert alert-warning">
+    <i class="fas fa-boxes me-2"></i><strong>Stock return pending</strong> — Process the physical stock return in the Inventory module. Inventory movements are not posted automatically.
+</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-1">Original Bill</h6>
+                        <a href="{% url 'purchase:bill_detail' debit_note.original_bill.pk %}" class="fw-medium">{{ debit_note.original_bill.bill_number }}</a>
+                        <div class="small text-muted">{{ debit_note.original_bill.bill_date|date:"d/m/Y" }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-1">Vendor Credit Note</h6>
+                        <p class="mb-0 fw-medium">{{ debit_note.vendor_credit_note_ref }}</p>
+                        <div class="small text-muted">{{ debit_note.vendor_credit_note_date|date:"d/m/Y" }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-1">Issue Date</h6>
+                        <p class="mb-0">{{ debit_note.issue_date|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-1">Reason</h6>
+                        <p class="mb-0">{{ debit_note.get_reason_display }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-1">Vendor TRN</h6>
+                        <p class="mb-0">{{ debit_note.vendor_trn|default:"—" }}</p>
+                    </div>
+                    {% if debit_note.reason == 'other' and debit_note.reason_description %}
+                    <div class="col-12">
+                        <h6 class="text-muted mb-1">Reason Description</h6>
+                        <p class="mb-0">{{ debit_note.reason_description }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header"><h6 class="mb-0 fw-semibold">Line Items</h6></div>
+            <div class="card-body p-0">
+                <table class="table mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Description</th>
+                            <th class="text-center">Qty</th>
+                            <th class="text-end">Unit Price</th>
+                            <th class="text-center">VAT</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line in debit_note.lines.all %}
+                        <tr>
+                            <td>{{ line.description }}</td>
+                            <td class="text-center">{{ line.quantity }}</td>
+                            <td class="text-end">{{ line.unit_price|floatformat:2 }}</td>
+                            <td class="text-center">{{ line.vat_rate }}%</td>
+                            <td class="text-end">{{ line.line_total|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr><td colspan="4" class="text-end">Subtotal</td><td class="text-end fw-medium">AED {{ debit_note.subtotal|floatformat:2 }}</td></tr>
+                        <tr><td colspan="4" class="text-end">VAT</td><td class="text-end fw-medium">AED {{ debit_note.vat_amount|floatformat:2 }}</td></tr>
+                        <tr><td colspan="4" class="text-end fw-bold">Total</td><td class="text-end fw-bold">AED {{ debit_note.total|floatformat:2 }}</td></tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        {% if debit_note.journal_entry %}
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0 fw-semibold">Journal Entry</h6></div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr><th>Account</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for line in debit_note.journal_entry.lines.all %}
+                        <tr>
+                            <td>{{ line.account.code }} - {{ line.account.name }}</td>
+                            <td class="text-end">{% if line.debit %}AED {{ line.debit|floatformat:2 }}{% endif %}</td>
+                            <td class="text-end">{% if line.credit %}AED {{ line.credit|floatformat:2 }}{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="p-3 bg-light">
+                    <a href="{% url 'finance:journal_detail' debit_note.journal_entry.pk %}">{{ debit_note.journal_entry.entry_number }}</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Status</h6>
+                {% if debit_note.status == 'draft' %}
+                <span class="badge bg-secondary fs-6">Draft</span>
+                {% elif debit_note.status == 'approved' %}
+                <span class="badge bg-info text-dark fs-6">Approved</span>
+                {% elif debit_note.status == 'posted' %}
+                <span class="badge badge-active fs-6">Posted</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Bill Value Summary</h6>
+                <div class="d-flex justify-content-between mb-2"><span class="text-muted">Original bill</span><span>AED {{ original_bill_total|floatformat:2 }}</span></div>
+                <div class="d-flex justify-content-between mb-2"><span class="text-muted">Prior debited</span><span>AED {{ prior_debited|floatformat:2 }}</span></div>
+                <div class="d-flex justify-content-between mb-2"><span class="text-muted">This debit note</span><span>AED {{ debit_note.total|floatformat:2 }}</span></div>
+                <hr>
+                <div class="d-flex justify-content-between fw-bold"><span>Remaining value</span><span>AED {{ debit_note.remaining_bill_value|floatformat:2 }}</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body small">
+                <div class="mb-2"><span class="text-muted">Created</span><br>{{ debit_note.created_at|date:"d/m/Y H:i" }}</div>
+                {% if debit_note.approved_at %}
+                <div><span class="text-muted">Approved</span><br>{{ debit_note.approved_at|date:"d/m/Y H:i" }}{% if debit_note.approved_by %} by {{ debit_note.approved_by.get_full_name|default:debit_note.approved_by.username }}{% endif %}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

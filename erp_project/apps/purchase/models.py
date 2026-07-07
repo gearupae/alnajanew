@@ -992,14 +992,305 @@ class PurchaseCreditNoteItem(models.Model):
         ordering = ['id']
     
     def save(self, *args, **kwargs):
-        # Derive VAT rate from Tax Code (No Tax Code = 0%)
         if self.tax_code:
             self.vat_rate = self.tax_code.rate
         else:
             self.vat_rate = Decimal('0.00')
-        
+
         self.total = self.quantity * self.unit_price
         self.vat_amount = self.total * (self.vat_rate / 100)
+        super().save(*args, **kwargs)
+
+
+# ============ DEBIT NOTES (Vendor Bill reduction) ============
+
+class DebitNote(BaseModel):
+    """
+    Debit Note — records vendor Tax Credit Note against an original Vendor Bill.
+    Reverses AP and input VAT per FTA Art. 63 (period = vendor credit note date).
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('approved', 'Approved'),
+        ('posted', 'Posted'),
+    ]
+
+    REASON_CHOICES = [
+        ('goods_returned', 'Goods Returned'),
+        ('overbilled', 'Overbilled'),
+        ('pricing_error', 'Pricing Error'),
+        ('vat_error', 'VAT Error'),
+        ('supply_cancelled', 'Supply Cancelled'),
+        ('other', 'Other'),
+    ]
+
+    DEBITABLE_BILL_STATUSES = ('posted', 'paid', 'partial', 'overdue', 'pending')
+
+    number = models.CharField(max_length=50, unique=True, editable=False)
+    original_bill = models.ForeignKey(
+        VendorBill,
+        on_delete=models.PROTECT,
+        related_name='debit_notes',
+    )
+    issue_date = models.DateField()
+    vendor_credit_note_ref = models.CharField(max_length=100)
+    vendor_credit_note_date = models.DateField()
+    reason = models.CharField(max_length=30, choices=REASON_CHOICES, default='goods_returned')
+    reason_description = models.TextField(blank=True)
+    vendor = models.ForeignKey(
+        Vendor,
+        on_delete=models.PROTECT,
+        related_name='debit_notes',
+    )
+    vendor_trn = models.CharField(max_length=20, blank=True)
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    vat_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    remaining_bill_value = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Bill balance remaining after this debit note is posted.',
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    journal_entry = models.ForeignKey(
+        'finance.JournalEntry',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='debit_notes',
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_debit_notes',
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.number} - {self.vendor.name}"
+
+    def save(self, *args, **kwargs):
+        if not self.number:
+            self.number = generate_number(
+                'DEBIT_NOTE',
+                DebitNote,
+                'number',
+                year=self.issue_date.year if self.issue_date else None,
+            )
+        if self.original_bill_id and not self.vendor_id:
+            self.vendor = self.original_bill.vendor
+        if self.original_bill_id and not self.vendor_trn:
+            self.vendor_trn = (self.original_bill.vendor.trn or '')[:20]
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def posted_total_for_bill(cls, bill, exclude_pk=None):
+        qs = cls.objects.filter(original_bill=bill, status='posted')
+        if exclude_pk:
+            qs = qs.exclude(pk=exclude_pk)
+        return qs.aggregate(total=models.Sum('total'))['total'] or Decimal('0.00')
+
+    def calculate_totals(self):
+        lines = self.lines.all()
+        self.subtotal = sum(line.line_total for line in lines)
+        self.vat_amount = sum(line.line_vat for line in lines)
+        self.total = self.subtotal + self.vat_amount
+        self._update_remaining_bill_value()
+        self.save(update_fields=['subtotal', 'vat_amount', 'total', 'remaining_bill_value'])
+
+    def _update_remaining_bill_value(self):
+        prior_posted = self.posted_total_for_bill(self.original_bill, exclude_pk=self.pk if self.pk else None)
+        if self.status == 'posted':
+            self.remaining_bill_value = self.original_bill.total_amount - prior_posted - self.total
+        else:
+            self.remaining_bill_value = self.original_bill.total_amount - prior_posted - self.total
+
+    def clean_bill_eligibility(self):
+        bill = self.original_bill
+        if bill.status not in self.DEBITABLE_BILL_STATUSES:
+            raise ValidationError('Debit notes can only be created against posted vendor bills.')
+        if not bill.is_active:
+            raise ValidationError('Cannot debit an inactive vendor bill.')
+
+    def validate_totals(self):
+        self.clean_bill_eligibility()
+        if self.total <= 0:
+            raise ValidationError('Debit note amount must be greater than zero.')
+        prior_posted = self.posted_total_for_bill(self.original_bill, exclude_pk=self.pk)
+        if prior_posted + self.total > self.original_bill.total_amount:
+            raise ValidationError(
+                f'Total debited amount (AED {prior_posted + self.total:,.2f}) cannot exceed '
+                f'original bill total (AED {self.original_bill.total_amount:,.2f}).'
+            )
+
+    @property
+    def stock_return_pending(self):
+        return (
+            self.status == 'posted'
+            and self.reason == 'goods_returned'
+            and self.original_bill.goods_received
+        )
+
+    def _get_credit_account(self):
+        from apps.finance.models import AccountMapping, AccountType
+
+        purchase_return = AccountMapping.get_account_or_default('purchase_return', None)
+        if purchase_return:
+            return purchase_return
+
+        bill = self.original_bill
+        if bill.goods_received:
+            inventory_account = AccountMapping.get_account_or_default('inventory_asset', None)
+            if inventory_account:
+                return inventory_account
+
+        if bill.journal_entry_id:
+            vat_account = AccountMapping.get_account_or_default('vendor_bill_vat', '1300')
+            debit_lines = bill.journal_entry.lines.filter(debit__gt=0)
+            if vat_account:
+                debit_lines = debit_lines.exclude(account=vat_account)
+            debit_line = debit_lines.first()
+            if debit_line:
+                return debit_line.account
+
+        return AccountMapping.get_account_or_default('vendor_bill_expense', '5000')
+
+    def post_to_accounting(self, user=None):
+        from apps.finance.models import JournalEntry, JournalEntryLine, AccountMapping, FiscalYear
+
+        if self.status != 'approved':
+            raise ValidationError('Only approved debit notes can be posted.')
+        if self.reason == 'other' and not (self.reason_description or '').strip():
+            raise ValidationError('Reason description is required when reason is Other.')
+
+        self.validate_totals()
+        FiscalYear.validate_posting_allowed(self.vendor_credit_note_date)
+
+        ap_account = AccountMapping.get_account_or_default('vendor_bill_payable', '2000')
+        vat_account = AccountMapping.get_account_or_default('vendor_bill_vat', '1300')
+        credit_account = self._get_credit_account()
+
+        if not ap_account:
+            raise ValidationError('Accounts Payable account not configured.')
+        if not credit_account:
+            raise ValidationError('Purchase return / expense account not configured.')
+        if self.vat_amount > 0 and not vat_account:
+            raise ValidationError('VAT Recoverable account not configured.')
+
+        narration = (
+            f"Debit Note {self.number} — Vendor CN {self.vendor_credit_note_ref} "
+            f"(Bill {self.original_bill.bill_number})"
+        )
+
+        journal = JournalEntry.objects.create(
+            date=self.vendor_credit_note_date,
+            reference=self.number,
+            description=narration,
+            entry_type='standard',
+            source_module='purchase_debit_note',
+        )
+
+        JournalEntryLine.objects.create(
+            journal_entry=journal,
+            account=ap_account,
+            description=f"AP Reduction — {self.vendor.name}",
+            debit=self.total,
+            credit=Decimal('0.00'),
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=journal,
+            account=credit_account,
+            description=f"Purchase Return — {self.number}",
+            debit=Decimal('0.00'),
+            credit=self.subtotal,
+        )
+        if self.vat_amount > 0 and vat_account:
+            JournalEntryLine.objects.create(
+                journal_entry=journal,
+                account=vat_account,
+                description=f"Input VAT Reversal — {self.number}",
+                debit=Decimal('0.00'),
+                credit=self.vat_amount,
+            )
+
+        journal.calculate_totals()
+        journal.post(user)
+
+        self.journal_entry = journal
+        self.status = 'posted'
+        self._update_remaining_bill_value()
+        self.save()
+
+        bill = self.original_bill
+        bill.paid_amount += self.total
+        if bill.paid_amount >= bill.total_amount:
+            bill.status = 'paid'
+        elif bill.paid_amount > 0:
+            bill.status = 'partial'
+        bill.save(update_fields=['paid_amount', 'status'])
+
+        return journal
+
+
+class DebitNoteLine(models.Model):
+    """Line items for purchase debit notes."""
+
+    debit_note = models.ForeignKey(
+        DebitNote,
+        on_delete=models.CASCADE,
+        related_name='lines',
+    )
+    bill_line = models.ForeignKey(
+        VendorBillItem,
+        on_delete=models.PROTECT,
+        related_name='debit_note_lines',
+    )
+    description = models.CharField(max_length=500)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1.00'))
+    unit_price = models.DecimalField(max_digits=15, decimal_places=2)
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    line_vat = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    line_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+
+    class Meta:
+        ordering = ['id']
+
+    @classmethod
+    def posted_quantity_for_bill_line(cls, bill_line, exclude_debit_note_pk=None):
+        qs = cls.objects.filter(
+            bill_line=bill_line,
+            debit_note__status='posted',
+        )
+        if exclude_debit_note_pk:
+            qs = qs.exclude(debit_note_id=exclude_debit_note_pk)
+        return qs.aggregate(total=models.Sum('quantity'))['total'] or Decimal('0.00')
+
+    @classmethod
+    def remaining_quantity(cls, bill_line, exclude_debit_note_pk=None):
+        debited = cls.posted_quantity_for_bill_line(bill_line, exclude_debit_note_pk)
+        return bill_line.quantity - debited
+
+    def clean(self):
+        remaining = self.remaining_quantity(self.bill_line, exclude_debit_note_pk=self.debit_note_id)
+        if self.quantity > remaining:
+            raise ValidationError(
+                f'Quantity cannot exceed remaining debitable quantity ({remaining}) for this bill line.'
+            )
+        if self.quantity <= 0:
+            raise ValidationError('Quantity must be greater than zero.')
+
+    def save(self, *args, **kwargs):
+        self.description = self.description or self.bill_line.description
+        self.unit_price = self.bill_line.unit_price
+        self.vat_rate = self.bill_line.vat_rate
+        self.line_total = self.quantity * self.unit_price
+        self.line_vat = self.line_total * (self.vat_rate / Decimal('100'))
         super().save(*args, **kwargs)
 
 

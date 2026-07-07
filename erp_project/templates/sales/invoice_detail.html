@@ -27,6 +27,11 @@
                 <i class="fas fa-money-bill-wave me-2"></i>Receive Payment
             </a>
             {% endif %}
+            {% if can_create_credit_note %}
+            <a href="{% url 'sales:credit_note_create' %}?invoice={{ invoice.pk }}" class="btn btn-outline-primary">
+                <i class="fas fa-file-invoice me-2"></i>Create Credit Note
+            </a>
+            {% endif %}
             {% if can_edit %}
             <a href="{% url 'sales:invoice_edit' invoice.pk %}" class="btn btn-primary">
                 <i class="fas fa-edit me-2"></i>Edit
@@ -82,9 +87,11 @@
                             <tr>
                                 <th>Description</th>
                                 <th class="text-center">Qty</th>
-                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">{% if invoice.prices_include_vat %}Unit Price (Incl. VAT){% else %}Unit Price{% endif %}</th>
+                                <th class="text-end">Taxable</th>
                                 <th class="text-center">VAT %</th>
-                                <th class="text-end">Total</th>
+                                <th class="text-end">VAT</th>
+                                <th class="text-end">Line Total</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -93,33 +100,77 @@
                                 <td>{{ item.description }}</td>
                                 <td class="text-center">{{ item.quantity }}</td>
                                 <td class="text-end">{{ item.unit_price|floatformat:2 }}</td>
-                                <td class="text-center">{{ item.vat_rate }}%</td>
                                 <td class="text-end">{{ item.total|floatformat:2 }}</td>
+                                <td class="text-center">{{ item.vat_rate }}%</td>
+                                <td class="text-end">{{ item.vat_amount|floatformat:2 }}</td>
+                                <td class="text-end">{{ item.total|add:item.vat_amount|floatformat:2 }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">No items</td>
+                                <td colspan="7" class="text-center text-muted py-4">No items</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                         <tfoot>
+                            {% if invoice.prices_include_vat %}
                             <tr>
-                                <td colspan="4" class="text-end">Subtotal:</td>
-                                <td class="text-end fw-medium">AED {{ invoice.subtotal|floatformat:2 }}</td>
+                                <td colspan="6" class="text-end">Gross Total:</td>
+                                <td class="text-end fw-medium">AED {{ invoice.total_amount|floatformat:2 }}</td>
                             </tr>
                             <tr>
-                                <td colspan="4" class="text-end">VAT:</td>
+                                <td colspan="6" class="text-end">Included VAT:</td>
                                 <td class="text-end fw-medium">AED {{ invoice.vat_amount|floatformat:2 }}</td>
                             </tr>
                             <tr>
-                                <td colspan="4" class="text-end fw-bold">Total:</td>
+                                <td colspan="6" class="text-end fw-bold">Taxable Amount:</td>
+                                <td class="text-end fw-bold">AED {{ invoice.subtotal|floatformat:2 }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-end">Taxable Subtotal:</td>
+                                <td class="text-end fw-medium">AED {{ invoice.subtotal|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="6" class="text-end">Total VAT (AED):</td>
+                                <td class="text-end fw-medium">AED {{ invoice.vat_amount|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="6" class="text-end fw-bold">Grand Total:</td>
                                 <td class="text-end fw-bold">AED {{ invoice.total_amount|floatformat:2 }}</td>
                             </tr>
+                            {% endif %}
                         </tfoot>
                     </table>
                 </div>
             </div>
         </div>
+
+        {% if tax_credit_notes %}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between">
+                <h6 class="mb-0 fw-semibold">Related Credit Notes</h6>
+                <span class="small text-muted">Posted total: AED {{ tax_credit_notes_total|floatformat:2 }}</span>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr><th>CN #</th><th>Issue Date</th><th>Reason</th><th class="text-end">Amount</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for cn in tax_credit_notes %}
+                        <tr>
+                            <td><a href="{% url 'sales:credit_note_detail' cn.pk %}">{{ cn.number }}</a>{% if cn.late_issuance %} <span class="badge bg-warning text-dark">Late</span>{% endif %}</td>
+                            <td>{{ cn.issue_date|date:"d/m/Y" }}</td>
+                            <td>{{ cn.get_reason_display }}</td>
+                            <td class="text-end">AED {{ cn.total|floatformat:2 }}</td>
+                            <td>{{ cn.get_status_display }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
         
         {% if invoice.notes %}
         <div class="card">

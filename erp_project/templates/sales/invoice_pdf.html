@@ -111,10 +111,11 @@
                     <th style="width: 30px;">#</th>
                     <th>Description</th>
                     <th class="text-center" style="width: 60px;">Qty</th>
-                    <th class="text-right" style="width: 100px;">Unit Price</th>
+                    <th class="text-right" style="width: 90px;">{% if invoice.prices_include_vat %}Unit Price (Incl.){% else %}Unit Price{% endif %}</th>
+                    <th class="text-right" style="width: 90px;">Taxable</th>
                     <th class="text-center" style="width: 60px;">VAT %</th>
-                    <th class="text-right" style="width: 90px;">VAT Amt</th>
-                    <th class="text-right" style="width: 110px;">Total (AED)</th>
+                    <th class="text-right" style="width: 80px;">VAT Amt</th>
+                    <th class="text-right" style="width: 90px;">Line Total</th>
                 </tr>
             </thead>
             <tbody>
@@ -124,22 +125,27 @@
                     <td class="item-description">{{ item.description }}</td>
                     <td class="text-center">{{ item.quantity|floatformat:2 }}</td>
                     <td class="text-right">{{ item.unit_price|floatformat:2 }}</td>
+                    <td class="text-right">{{ item.total|floatformat:2 }}</td>
                     <td class="text-center">{{ item.vat_rate|floatformat:0 }}%</td>
                     <td class="text-right">{{ item.vat_amount|floatformat:2 }}</td>
-                    <td class="text-right">{{ item.total|floatformat:2 }}</td>
+                    <td class="text-right">{{ item.total|add:item.vat_amount|floatformat:2 }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" style="text-align: center; padding: 20px; color: #737373;">No items</td>
+                    <td colspan="8" style="text-align: center; padding: 20px; color: #737373;">No items</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
+        {% if invoice.prices_include_vat %}
+        <p style="font-size:9px;color:#525252;margin:8px 0 0;">Prices shown are inclusive of VAT.</p>
+        {% endif %}
+
         <div class="totals-section">
             <div class="totals-table">
                 <div class="totals-row subtotal">
-                    <span class="totals-label">Subtotal (excl. VAT)</span>
+                    <span class="totals-label">Taxable subtotal</span>
                     <span class="totals-value">AED {{ invoice.subtotal|floatformat:2 }}</span>
                 </div>
                 {% for rate, amounts in vat_summary.items %}
@@ -149,7 +155,7 @@
                 </div>
                 {% endfor %}
                 <div class="totals-row">
-                    <span class="totals-label">Total VAT</span>
+                    <span class="totals-label">Total VAT (AED)</span>
                     <span class="totals-value">AED {{ invoice.vat_amount|floatformat:2 }}</span>
                 </div>
                 <div class="totals-row total">

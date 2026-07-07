@@ -1757,6 +1757,8 @@ def vat_report(request):
         # Adjustments
         adjustments = submitted_vat_return.adjustments
         adjustment_reason = submitted_vat_return.adjustment_reason
+        debit_note_audit = []
+        credit_note_audit = []
         
     else:
         # ========================================
@@ -1831,6 +1833,10 @@ def vat_report(request):
         current_output_vat = output_vat_lines.aggregate(
             total=Sum('credit')
         )['total'] or Decimal('0.00')
+        output_vat_debits = output_vat_lines.aggregate(
+            total=Sum('debit')
+        )['total'] or Decimal('0.00')
+        current_output_vat = current_output_vat - output_vat_debits
     
         # Calculate Input VAT from ALL VAT Recoverable accounts
         # Input VAT = Debit entries to VAT Recoverable (when purchases are made)
@@ -1848,6 +1854,10 @@ def vat_report(request):
         current_input_vat = input_vat_lines.aggregate(
             total=Sum('debit')
         )['total'] or Decimal('0.00')
+        input_vat_credits = input_vat_lines.aggregate(
+            total=Sum('credit')
+        )['total'] or Decimal('0.00')
+        current_input_vat = current_input_vat - input_vat_credits
     
         # Calculate Sales from Income account journal lines (Credits = Sales)
         sales_lines = JournalEntryLine.objects.filter(
@@ -1894,6 +1904,13 @@ def vat_report(request):
             tax_code__tax_type='standard',
         ).aggregate(total=Coalesce(Sum('vat_amount'), Decimal('0.00')))['total']
 
+        from apps.sales.credit_note_vat import credit_note_period_adjustments
+        cn_supplies_reduction, cn_vat_reduction, credit_note_audit = credit_note_period_adjustments(
+            start_date, end_date
+        )
+        standard_rated_supplies = max(standard_rated_supplies - cn_supplies_reduction, Decimal('0.00'))
+        standard_rated_vat = max(standard_rated_vat - cn_vat_reduction, Decimal('0.00'))
+
         zero_rated_supplies = period_invoice_items.filter(
             tax_code__tax_type='zero',
         ).aggregate(total=Coalesce(Sum('total'), Decimal('0.00')))['total']
@@ -1922,7 +1939,13 @@ def vat_report(request):
             tax_code__tax_type='standard',
         ).aggregate(total=Coalesce(Sum('total'), Decimal('0.00')))['total']
 
-        # Net VAT
+        from apps.purchase.debit_note_vat import debit_note_period_adjustments
+        dn_expense_reduction, dn_vat_reduction, debit_note_audit = debit_note_period_adjustments(
+            start_date, end_date
+        )
+        standard_rated_expenses = max(standard_rated_expenses - dn_expense_reduction, Decimal('0.00'))
+
+        # Net VAT (GL input VAT already nets debit note VAT reversals)
         current_net_vat = current_output_vat - current_input_vat
 
         adjustments = Decimal('0.00')
@@ -1995,6 +2018,8 @@ def vat_report(request):
         # Date range
         'start_date': start_date_str,
         'end_date': end_date_str,
+        'debit_note_audit': debit_note_audit,
+        'credit_note_audit': credit_note_audit,
     })
 
 
@@ -3603,6 +3628,11 @@ def vatreturn_create_from_preview(request):
         tax_code__tax_type='standard',
     ).aggregate(total=Coalesce(Sum('vat_amount'), Decimal('0.00')))['total']
 
+    from apps.sales.credit_note_vat import credit_note_period_adjustments
+    cn_supplies_reduction, cn_vat_reduction, _cn_audit = credit_note_period_adjustments(period_start, period_end)
+    std_supplies = max(std_supplies - cn_supplies_reduction, Decimal('0.00'))
+    std_vat = max(std_vat - cn_vat_reduction, Decimal('0.00'))
+
     zero_supplies = inv_items.filter(
         tax_code__tax_type='zero',
     ).aggregate(total=Coalesce(Sum('total'), Decimal('0.00')))['total']
@@ -3622,9 +3652,9 @@ def vatreturn_create_from_preview(request):
         tax_code__tax_type='standard',
     ).aggregate(total=Coalesce(Sum('total'), Decimal('0.00')))['total']
 
-    input_vat = bill_items.filter(
-        tax_code__tax_type='standard',
-    ).aggregate(total=Coalesce(Sum('vat_amount'), Decimal('0.00')))['total']
+    from apps.purchase.debit_note_vat import debit_note_period_adjustments
+    dn_expense_reduction, dn_vat_reduction, _dn_audit = debit_note_period_adjustments(period_start, period_end)
+    std_expenses = max(std_expenses - dn_expense_reduction, Decimal('0.00'))
 
     # --- GL-based output/input VAT (authoritative for the journal) ---
     vat_payable_accounts = Account.objects.filter(
@@ -3642,7 +3672,8 @@ def vatreturn_create_from_preview(request):
         journal_entry__date__lte=period_end,
     ).exclude(
         journal_entry__source_module__in=['vat', 'vat_return']
-    ).aggregate(total=Coalesce(Sum('credit'), Decimal('0.00')))['total']
+    ).aggregate(dr=Coalesce(Sum('debit'), Decimal('0.00')), cr=Coalesce(Sum('credit'), Decimal('0.00')))
+    gl_output_vat = gl_output_vat['cr'] - gl_output_vat['dr']
 
     gl_input_vat = JournalEntryLine.objects.filter(
         account__in=vat_recoverable_accounts,
@@ -3651,7 +3682,8 @@ def vatreturn_create_from_preview(request):
         journal_entry__date__lte=period_end,
     ).exclude(
         journal_entry__source_module__in=['vat', 'vat_return']
-    ).aggregate(total=Coalesce(Sum('debit'), Decimal('0.00')))['total']
+    ).aggregate(dr=Coalesce(Sum('debit'), Decimal('0.00')), cr=Coalesce(Sum('credit'), Decimal('0.00')))
+    gl_input_vat = gl_input_vat['dr'] - gl_input_vat['cr']
 
     total_sales = std_supplies + zero_supplies + exempt_supplies
     total_purchases = std_expenses
@@ -3708,6 +3740,8 @@ def tax_reconciliation(request):
 
     from apps.sales.models import InvoiceItem
     from apps.purchase.models import VendorBillItem
+    from apps.purchase.debit_note_vat import debit_note_period_adjustments
+    from apps.sales.credit_note_vat import credit_note_period_adjustments
 
     # ── Inputs ──────────────────────────────────────────────
     fiscal_years = FiscalYear.objects.filter(is_active=True).order_by('-start_date')
@@ -3781,6 +3815,8 @@ def tax_reconciliation(request):
     # ── PART 2 & 3: VAT Bridges ────────────────────────────
     vat_revenue_bridge = None
     vat_liability_bridge = None
+    debit_note_audit = []
+    credit_note_audit = []
 
     if selected_vr:
         ps = selected_vr.period_start
@@ -3890,6 +3926,9 @@ def tax_reconciliation(request):
             'payable_match': payable_match,
         }
 
+        _, _, debit_note_audit = debit_note_period_adjustments(ps, pe)
+        _, _, credit_note_audit = credit_note_period_adjustments(ps, pe)
+
     # ── Excel export ────────────────────────────────────────
     if request.GET.get('format') == 'excel':
         from .excel_exports import export_tax_reconciliation
@@ -3905,6 +3944,8 @@ def tax_reconciliation(request):
         'ct_bridge': ct_bridge,
         'vat_revenue_bridge': vat_revenue_bridge,
         'vat_liability_bridge': vat_liability_bridge,
+        'debit_note_audit': debit_note_audit,
+        'credit_note_audit': credit_note_audit,
     })
 
 
@@ -7516,11 +7557,12 @@ ACCOUNT_MAPPING_MODULE_TYPE_MAP = {
         'sales_invoice_receivable', 'sales_invoice_revenue',
         'sales_invoice_vat', 'sales_invoice_discount',
         'customer_receipt', 'customer_receipt_ar_clear',
+        'sales_return',
     ],
     'purchase': [
         'vendor_bill_payable', 'vendor_bill_expense',
         'vendor_bill_vat', 'vendor_payment',
-        'vendor_payment_ap_clear',
+        'vendor_payment_ap_clear', 'purchase_return',
     ],
     'expense_claim': [
         'expense_claim_expense', 'expense_claim_vat',
@@ -7725,6 +7767,7 @@ def accounting_settings(request):
             pass
         
         settings_obj.vat_registration_number = request.POST.get('vat_registration_number', '')
+        settings_obj.default_prices_include_vat = request.POST.get('default_prices_include_vat') == 'on'
         
         settings_obj.save()
         messages.success(request, 'Accounting settings updated successfully.')

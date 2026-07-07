@@ -3,6 +3,7 @@ Purchase URL configuration - Including Expense Claims and Recurring Expenses
 """
 from django.urls import path
 from . import views
+from . import debit_note_views
 
 app_name = 'purchase'
 
@@ -63,6 +64,16 @@ urlpatterns = [
     path('bills/<int:pk>/pay/', views.bill_make_payment, name='bill_pay'),
     path('bills/bulk-pay/prepare/', views.bill_bulk_pay_prepare, name='bill_bulk_pay_prepare'),
     path('bills/bulk-pay/', views.bill_bulk_pay, name='bill_bulk_pay'),
+
+    # Debit Notes
+    path('debit-notes/', debit_note_views.DebitNoteListView.as_view(), name='debit_note_list'),
+    path('debit-notes/create/', debit_note_views.DebitNoteCreateView.as_view(), name='debit_note_create'),
+    path('debit-notes/<int:pk>/', debit_note_views.DebitNoteDetailView.as_view(), name='debit_note_detail'),
+    path('debit-notes/<int:pk>/edit/', debit_note_views.DebitNoteUpdateView.as_view(), name='debit_note_edit'),
+    path('debit-notes/<int:pk>/approve/', debit_note_views.debit_note_approve, name='debit_note_approve'),
+    path('debit-notes/<int:pk>/post/', debit_note_views.debit_note_post, name='debit_note_post'),
+    path('debit-notes/<int:pk>/pdf/', debit_note_views.debit_note_pdf, name='debit_note_pdf'),
+    path('bills/<int:pk>/debit-note-lines/', debit_note_views.bill_debit_note_lines_json, name='bill_debit_note_lines_json'),
     
     # Expense Claims (moved from Finance)
     path('expense-claims/', views.ExpenseClaimListView.as_view(), name='expenseclaim_list'),

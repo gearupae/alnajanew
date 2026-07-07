@@ -22,6 +22,11 @@ import json
 from .models import Estimate, EstimateItem, EstimateProformaInvoice, EstimateRevisionSnapshot, Invoice, InvoiceItem
 from .forms import EstimateForm, EstimateItemFormSet, InvoiceForm, InvoiceItemFormSet
 from .estimate_csv import get_default_estimate_csv_tax_code
+from .vat_pricing import (
+    default_prices_include_vat,
+    estimate_vat_toggle_editable,
+    sync_document_line_vat_flags,
+)
 from apps.crm.models import Customer
 from apps.core.mixins import PermissionRequiredMixin, CreatePermissionMixin, UpdatePermissionMixin
 from apps.core.notification_utils import notify_if_new_assignee
@@ -662,6 +667,7 @@ class EstimateCreateView(CreatePermissionMixin, CreateView):
         terms = EstimateTextTemplate.get_default_body(EstimateTextTemplate.TERMS)
         if terms:
             initial['terms_and_conditions'] = terms
+        initial['prices_include_vat'] = default_prices_include_vat()
         return initial
 
     def get_form(self, form_class=None):
@@ -692,8 +698,9 @@ class EstimateCreateView(CreatePermissionMixin, CreateView):
                 context['items_formset'] = EstimateItemFormSet(prefix='items')
         else:
             context['items_formset'] = kwargs['items_formset']
+        context['prices_include_vat_editable'] = True
         return context
-    
+
     def post(self, request, *args, **kwargs):
         self.object = None
         csv_file = request.FILES.get('items_csv')
@@ -712,6 +719,8 @@ class EstimateCreateView(CreatePermissionMixin, CreateView):
                 _stamp_estimate_created_client_ip(self.object, request)
                 apply_company_default_estimate_signatures(self.object, request.FILES)
                 bulk_create_estimate_items(self.object, rows, replace_existing=False)
+                sync_document_line_vat_flags(self.object)
+                self.object.calculate_totals()
                 messages.success(request, f'Estimate {self.object.estimate_number} created successfully.')
                 est = self.object
                 link = reverse('sales:estimate_detail', kwargs={'pk': est.pk})
@@ -740,6 +749,7 @@ class EstimateCreateView(CreatePermissionMixin, CreateView):
         apply_company_default_estimate_signatures(self.object, self.request.FILES)
         items_formset.instance = self.object
         items_formset.save()
+        sync_document_line_vat_flags(self.object)
         self.object.calculate_totals()
         messages.success(self.request, f'Estimate {self.object.estimate_number} created successfully.')
         est = self.object
@@ -818,6 +828,10 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
         )
         if context['revision_hint']:
             context['next_revision_label'] = f'R{(self.object.revision_count or 0) + 1}'
+        context['prices_include_vat_editable'] = estimate_vat_toggle_editable(
+            self.object,
+            revision_hint=context['revision_hint'],
+        )
         return context
     
     def post(self, request, *args, **kwargs):
@@ -931,6 +945,7 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
         self.object = form.save()
         items_formset.instance = self.object
         items_formset.save()
+        sync_document_line_vat_flags(self.object)
         self.object.calculate_totals()
         self.object.refresh_from_db()
 
@@ -1517,6 +1532,7 @@ def estimate_convert_to_invoice(request, pk):
         due_date=date.today(),
         status='draft',
         notes=estimate.notes,
+        prices_include_vat=estimate.prices_include_vat,
     )
     
     # Copy items (use final rate as invoice unit price)
@@ -1531,6 +1547,7 @@ def estimate_convert_to_invoice(request, pk):
             is_vat_inclusive=item.is_vat_inclusive,
         )
     
+    sync_document_line_vat_flags(invoice)
     invoice.calculate_totals()
     if estimate.project_id:
         from .invoice_project_link import save_invoice_project_link
@@ -2494,15 +2511,19 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
         estimate_pk = self.request.GET.get('estimate')
         if estimate_pk:
             initial['estimate'] = estimate_pk
-            est = Estimate.objects.filter(pk=estimate_pk).only('customer_id', 'project_id').first()
+            est = Estimate.objects.filter(pk=estimate_pk).only(
+                'customer_id', 'project_id', 'prices_include_vat',
+            ).first()
             if est:
                 if est.customer_id:
                     initial['customer'] = est.customer_id
                 if est.project_id:
                     initial['project'] = est.project_id
+                initial['prices_include_vat'] = est.prices_include_vat
         customer_pk = self.request.GET.get('customer')
         if customer_pk and 'customer' not in initial:
             initial['customer'] = customer_pk
+        initial['prices_include_vat'] = default_prices_include_vat()
         return initial
     
     def get_context_data(self, **kwargs):
@@ -2522,6 +2543,7 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
         else:
             context['items_formset'] = kwargs['items_formset']
         context.update(_invoice_form_project_context())
+        context['prices_include_vat_editable'] = True
         return context
     
     def post(self, request, *args, **kwargs):
@@ -2538,6 +2560,7 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
         self.object = form.save()
         items_formset.instance = self.object
         items_formset.save()
+        sync_document_line_vat_flags(self.object)
         self.object.calculate_totals()
         messages.success(self.request, f'Invoice {self.object.invoice_number} created successfully.')
         inv = self.object
@@ -2596,33 +2619,31 @@ class InvoiceUpdateView(UpdatePermissionMixin, UpdateView):
         else:
             context['items_formset'] = kwargs['items_formset']
         context.update(_invoice_form_project_context())
+        context['prices_include_vat_editable'] = self.object.status == 'draft'
         return context
-    
+
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         if self.object is None:
             return redirect('sales:invoice_list')
         form = self.get_form()
         items_formset = InvoiceItemFormSet(request.POST, instance=self.object)
-        
+
         if form.is_valid() and items_formset.is_valid():
             return self.form_valid(form, items_formset)
         else:
             return self.form_invalid(form, items_formset)
-    
+
     def form_valid(self, form, items_formset):
-        # Save the main form first
         self.object = form.save()
-        # Then save the formset with the instance
         items_formset.instance = self.object
         items_formset.save()
-        # Recalculate totals
+        sync_document_line_vat_flags(self.object)
         self.object.calculate_totals()
-        # Refresh from database to ensure we have latest data
         self.object.refresh_from_db()
         messages.success(self.request, f'Invoice {self.object.invoice_number} updated successfully.')
         return redirect('sales:invoice_detail', pk=self.object.pk)
-    
+
     def form_invalid(self, form, items_formset):
         return self.render_to_response(
             self.get_context_data(form=form, items_formset=items_formset)
@@ -2666,6 +2687,13 @@ class InvoiceDetailView(PermissionRequiredMixin, DetailView):
         context['can_edit'] = has_permission and self.object.status == 'draft'
         # Allow posting draft invoices
         context['can_post'] = has_permission and self.object.status == 'draft' and self.object.total_amount > 0
+        from .models import CreditNote
+        context['can_create_credit_note'] = (
+            has_permission
+            and self.object.status in CreditNote.CREDITABLE_INVOICE_STATUSES
+        )
+        context['tax_credit_notes'] = self.object.tax_credit_notes.filter(is_active=True).order_by('-created_at')
+        context['tax_credit_notes_total'] = CreditNote.posted_total_for_invoice(self.object)
         
         # Audit History
         context['audit_history'] = get_entity_audit_history('Invoice', self.object.pk)

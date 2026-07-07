@@ -203,6 +203,8 @@ NUMBER_SERIES = {
     'SERVICE_ORDER': {'prefix': 'SO', 'padding': 4},
     'PURCHASE_ORDER': {'prefix': 'PO', 'padding': 4},
     'BILL': {'prefix': 'BILL', 'padding': 4},
+    'DEBIT_NOTE': {'prefix': 'DN', 'padding': 4},
+    'CREDIT_NOTE': {'prefix': 'CN', 'padding': 4},
     'EMPLOYEE': {'prefix': 'EMP', 'padding': 4},
     'PROJECT': {'prefix': 'PROJ', 'padding': 4},
     'CONTRACT': {'prefix': 'CNT', 'padding': 4},

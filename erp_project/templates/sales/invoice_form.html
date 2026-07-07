@@ -83,6 +83,12 @@
             </button>
         </div>
         <div class="card-body p-0">
+            <div class="px-3 pt-3 pb-2 border-bottom bg-light">
+                <div class="form-check form-switch mb-0">
+                    {{ form.prices_include_vat }}
+                    <label class="form-check-label" for="id_prices_include_vat">Prices include VAT</label>
+                </div>
+            </div>
             {{ items_formset.management_form }}
             <div class="table-responsive">
                 <table class="table mb-0" id="itemsTable">
@@ -90,7 +96,7 @@
                         <tr>
                             <th style="width: 35%">Description</th>
                             <th style="width: 10%">Qty</th>
-                            <th style="width: 12%">Unit Price</th>
+                            <th style="width: 12%" id="unitPriceColHeader">Unit Price</th>
                             <th style="width: 18%">Tax Code</th>
                             <th style="width: 10%">VAT</th>
                             <th style="width: 10%" class="text-end">Total</th>
@@ -131,6 +137,7 @@
                                 <span class="row-total fw-medium">0.00</span>
                             </td>
                             <td class="text-center">
+                                {{ item_form.is_vat_inclusive }}
                                 {% if item_form.instance.pk %}
                                 <input type="checkbox" name="{{ item_form.prefix }}-DELETE" class="d-none delete-check"
                                        {% if item_form.DELETE.value %}checked{% endif %}>
@@ -144,17 +151,17 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="4" class="text-end fw-medium">Subtotal:</td>
+                            <td colspan="4" class="text-end fw-medium"><span id="subtotalLabel">Subtotal (excl. VAT)</span>:</td>
                             <td class="text-end fw-medium" id="subtotal">0.00</td>
                             <td></td>
                         </tr>
                         <tr>
-                            <td colspan="4" class="text-end fw-medium">VAT:</td>
+                            <td colspan="4" class="text-end fw-medium"><span id="vatLabel">VAT</span>:</td>
                             <td class="text-end fw-medium" id="vatTotal">0.00</td>
                             <td></td>
                         </tr>
                         <tr>
-                            <td colspan="4" class="text-end fw-bold">Total:</td>
+                            <td colspan="4" class="text-end fw-bold"><span id="grandLabel">Grand Total</span>:</td>
                             <td class="text-end fw-bold" id="grandTotal">0.00</td>
                             <td></td>
                         </tr>
@@ -183,6 +190,52 @@ const taxCodes = [
 const defaultTaxCodeId = {% if default_tax_code %}{{ default_tax_code.id }}{% else %}null{% endif %};
 
 let formCount = {{ items_formset.total_form_count }};
+
+function pricesIncludeVatEnabled() {
+    const el = document.getElementById('id_prices_include_vat');
+    return !!(el && el.checked);
+}
+
+function splitLineAmounts(gross, vatRate, inclusive) {
+    gross = Math.round(gross * 100) / 100;
+    if (inclusive && vatRate > 0) {
+        const divisor = 1 + vatRate / 100;
+        let taxable = Math.round((gross / divisor) * 100) / 100;
+        let vat = Math.round((gross - taxable) * 100) / 100;
+        if (Math.round((taxable + vat) * 100) / 100 !== gross) {
+            taxable = Math.round((gross - vat) * 100) / 100;
+        }
+        return { taxable, vat, gross };
+    }
+    const taxable = gross;
+    const vat = vatRate > 0 ? Math.round(taxable * vatRate) / 100 : 0;
+    return { taxable, vat, gross: Math.round((taxable + vat) * 100) / 100 };
+}
+
+function syncLineVatInclusiveFlags() {
+    const on = pricesIncludeVatEnabled();
+    document.querySelectorAll('[name$="-is_vat_inclusive"]').forEach(inp => {
+        inp.value = on ? 'true' : 'false';
+    });
+}
+
+function updateVatPricingLabels() {
+    const inclusive = pricesIncludeVatEnabled();
+    const unitHdr = document.getElementById('unitPriceColHeader');
+    if (unitHdr) unitHdr.textContent = inclusive ? 'Unit Price (Incl. VAT)' : 'Unit Price';
+    const subLbl = document.getElementById('subtotalLabel');
+    const vatLbl = document.getElementById('vatLabel');
+    const grandLbl = document.getElementById('grandLabel');
+    if (inclusive) {
+        if (subLbl) subLbl.textContent = 'Taxable Amount';
+        if (vatLbl) vatLbl.textContent = 'Included VAT';
+        if (grandLbl) grandLbl.textContent = 'Gross Total';
+    } else {
+        if (subLbl) subLbl.textContent = 'Subtotal (excl. VAT)';
+        if (vatLbl) vatLbl.textContent = 'VAT';
+        if (grandLbl) grandLbl.textContent = 'Grand Total';
+    }
+}
 
 function getTaxCodeOptions(selectedId) {
     let options = '<option value="">-- No Tax (Out of Scope) --</option>';
@@ -219,6 +272,7 @@ function addItemRow() {
             <span class="row-total fw-medium">0.00</span>
         </td>
         <td class="text-center">
+            <input type="hidden" name="items-${formCount}-is_vat_inclusive" value="${pricesIncludeVatEnabled() ? 'true' : 'false'}">
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow(this)">
                 <i class="fas fa-times"></i>
             </button>
@@ -248,17 +302,14 @@ function calculateRowTotal(input) {
     const price = parseFloat(row.querySelector('.item-price').value) || 0;
     const taxCodeSelect = row.querySelector('.item-tax-code');
     
-    // Get VAT rate from selected Tax Code
     let vatRate = 0;
     if (taxCodeSelect && taxCodeSelect.selectedOptions[0]) {
         vatRate = parseFloat(taxCodeSelect.selectedOptions[0].dataset.rate) || 0;
     }
     
-    const net = qty * price;
-    const vat = net * (vatRate / 100);
-    
-    row.querySelector('.row-vat').textContent = vat.toFixed(2);
-    row.querySelector('.row-total').textContent = net.toFixed(2);
+    const splits = splitLineAmounts(qty * price, vatRate, pricesIncludeVatEnabled());
+    row.querySelector('.row-vat').textContent = splits.vat.toFixed(2);
+    row.querySelector('.row-total').textContent = splits.gross.toFixed(2);
     calculateTotals();
 }
 
@@ -277,15 +328,15 @@ function calculateTotals() {
             vatRate = parseFloat(taxCodeSelect.selectedOptions[0].dataset.rate) || 0;
         }
         
-        const net = qty * price;
-        const vat = net * (vatRate / 100);
-        subtotal += net;
-        vatTotal += vat;
+        const splits = splitLineAmounts(qty * price, vatRate, pricesIncludeVatEnabled());
+        subtotal += splits.taxable;
+        vatTotal += splits.vat;
     });
     
     document.getElementById('subtotal').textContent = subtotal.toFixed(2);
     document.getElementById('vatTotal').textContent = vatTotal.toFixed(2);
     document.getElementById('grandTotal').textContent = (subtotal + vatTotal).toFixed(2);
+    updateVatPricingLabels();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -293,6 +344,36 @@ document.addEventListener('DOMContentLoaded', function() {
         const qty = row.querySelector('.item-qty');
         if (qty) calculateRowTotal(qty);
     });
+    syncLineVatInclusiveFlags();
+    updateVatPricingLabels();
+
+    const vatToggle = document.getElementById('id_prices_include_vat');
+    if (vatToggle) {
+        let prevVatToggle = vatToggle.checked;
+        vatToggle.addEventListener('change', function() {
+            const hasLines = Array.from(document.querySelectorAll('.item-row')).some(row => {
+                if (row.style.display === 'none') return false;
+                const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
+                const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
+                return qty > 0 && price > 0;
+            });
+            if (hasLines) {
+                const ok = confirm(
+                    'Switching changes how entered prices are interpreted. Totals will recalculate. Continue?'
+                );
+                if (!ok) {
+                    vatToggle.checked = prevVatToggle;
+                    return;
+                }
+            }
+            prevVatToggle = vatToggle.checked;
+            syncLineVatInclusiveFlags();
+            document.querySelectorAll('.item-row').forEach(row => {
+                const q = row.querySelector('.item-qty');
+                if (q) calculateRowTotal(q);
+            });
+        });
+    }
 
     const projectOptions = {{ invoice_project_options_json|safe }};
     const estimateProjectMap = {{ invoice_estimate_project_map_json|safe }};

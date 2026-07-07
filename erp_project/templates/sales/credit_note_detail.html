@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'sales:credit_note_list' %}">Credit Notes</a></li>
+            <li class="breadcrumb-item active">{{ credit_note.number }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-1 fw-bold">{{ credit_note.number }}</h4>
+            <span class="text-muted">{{ credit_note.customer.name }}</span>
+            {% if credit_note.late_issuance %}<span class="badge bg-warning text-dark ms-2">Late Issuance</span>{% endif %}
+        </div>
+        <div>
+            {% if can_approve %}
+            <form action="{% url 'sales:credit_note_approve' credit_note.pk %}" method="post" class="d-inline">{% csrf_token %}
+                <button type="submit" class="btn btn-info text-dark">Approve</button>
+            </form>
+            {% endif %}
+            {% if can_post %}
+            <form action="{% url 'sales:credit_note_post' credit_note.pk %}" method="post" class="d-inline">{% csrf_token %}
+                <button type="submit" class="btn btn-success" onclick="return confirm('Post this tax credit note?');">Post</button>
+            </form>
+            {% endif %}
+            {% if can_edit %}<a href="{% url 'sales:credit_note_edit' credit_note.pk %}" class="btn btn-primary">Edit</a>{% endif %}
+            <a href="{% url 'sales:credit_note_pdf' credit_note.pk %}" class="btn btn-outline-secondary" target="_blank">Print</a>
+            <a href="{% url 'sales:credit_note_list' %}" class="btn btn-light">Back</a>
+        </div>
+    </div>
+</div>
+
+{% if credit_note.late_issuance %}
+<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>{{ fta_late_warning }}</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-body row g-3">
+                <div class="col-md-6">
+                    <h6 class="text-muted mb-1">Original Invoice</h6>
+                    <a href="{% url 'sales:invoice_detail' credit_note.original_invoice.pk %}" class="fw-medium">{{ credit_note.original_invoice.invoice_number }}</a>
+                    <div class="small text-muted">{{ credit_note.original_invoice.invoice_date|date:"d/m/Y" }}</div>
+                </div>
+                <div class="col-md-3">
+                    <h6 class="text-muted mb-1">Issue Date</h6>
+                    {{ credit_note.issue_date|date:"d/m/Y" }}
+                </div>
+                <div class="col-md-3">
+                    <h6 class="text-muted mb-1">Trigger Event</h6>
+                    {{ credit_note.trigger_event_date|date:"d/m/Y" }}
+                </div>
+                <div class="col-md-4">
+                    <h6 class="text-muted mb-1">Reason</h6>
+                    {{ credit_note.get_reason_display }} ({{ credit_note.get_credit_type_display }})
+                </div>
+                <div class="col-md-4">
+                    <h6 class="text-muted mb-1">Customer TRN</h6>
+                    {{ credit_note.customer_trn|default:"—" }}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header"><h6 class="mb-0">Line Items</h6></div>
+            <div class="card-body p-0">
+                <table class="table mb-0">
+                    <thead class="table-light"><tr><th>Description</th><th class="text-center">Qty</th><th class="text-end">Price</th><th class="text-center">VAT</th><th class="text-end">Total</th></tr></thead>
+                    <tbody>
+                        {% for line in credit_note.lines.all %}
+                        <tr>
+                            <td>{{ line.description }}</td>
+                            <td class="text-center">{{ line.quantity }}</td>
+                            <td class="text-end">{{ line.unit_price|floatformat:2 }}</td>
+                            <td class="text-center">{{ line.vat_rate }}%</td>
+                            <td class="text-end">{{ line.line_total|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr><td colspan="4" class="text-end">Subtotal</td><td class="text-end">AED {{ credit_note.subtotal|floatformat:2 }}</td></tr>
+                        <tr><td colspan="4" class="text-end">VAT</td><td class="text-end">AED {{ credit_note.vat_amount|floatformat:2 }}</td></tr>
+                        <tr><td colspan="4" class="text-end fw-bold">Total</td><td class="text-end fw-bold">AED {{ credit_note.total|floatformat:2 }}</td></tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        {% if credit_note.journal_entry %}
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0">Journal Entry</h6></div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    {% for line in credit_note.journal_entry.lines.all %}
+                    <tr>
+                        <td>{{ line.account.code }} - {{ line.account.name }}</td>
+                        <td class="text-end">{% if line.debit %}AED {{ line.debit|floatformat:2 }}{% endif %}</td>
+                        <td class="text-end">{% if line.credit %}AED {{ line.credit|floatformat:2 }}{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                <div class="p-3 bg-light"><a href="{% url 'finance:journal_detail' credit_note.journal_entry.pk %}">{{ credit_note.journal_entry.entry_number }}</a></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Status</h6>
+                {% if credit_note.status == 'draft' %}<span class="badge bg-secondary">Draft</span>
+                {% elif credit_note.status == 'approved' %}<span class="badge bg-info text-dark">Approved</span>
+                {% elif credit_note.status == 'posted' %}<span class="badge badge-active">Posted</span>{% endif %}
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Invoice Value Summary</h6>
+                <div class="d-flex justify-content-between mb-2"><span class="text-muted">Original</span><span>AED {{ original_invoice_total|floatformat:2 }}</span></div>
+                <div class="d-flex justify-content-between mb-2"><span class="text-muted">Prior credited</span><span>AED {{ prior_credited|floatformat:2 }}</span></div>
+                <div class="d-flex justify-content-between mb-2"><span class="text-muted">This credit note</span><span>AED {{ credit_note.total|floatformat:2 }}</span></div>
+                <hr>
+                <div class="d-flex justify-content-between fw-bold"><span>Remaining value</span><span>AED {{ credit_note.remaining_invoice_value|floatformat:2 }}</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

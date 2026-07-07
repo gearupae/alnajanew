@@ -24,7 +24,8 @@ from .models import (
     Vendor, PurchaseRequest, PurchaseRequestItem, PurchaseRequestAttachment,
     PurchaseOrder, PurchaseOrderItem, PurchaseOrderReceipt, PurchaseOrderReceiptLine,
     VendorBill, VendorBillItem, VendorBillAttachment,
-    ExpenseClaim, ExpenseClaimItem, RecurringExpense, RecurringExpenseLog
+    ExpenseClaim, ExpenseClaimItem, RecurringExpense, RecurringExpenseLog,
+    DebitNote,
 )
 from .forms import (
     VendorForm, PurchaseRequestForm, PurchaseRequestItemFormSet,
@@ -1479,8 +1480,12 @@ class VendorBillDetailView(PermissionRequiredMixin, DetailView):
         context['can_edit'] = has_permission and self.object.status == 'draft'
         # Allow posting draft bills
         context['can_post'] = has_permission and self.object.status == 'draft' and self.object.total_amount > 0
-        
-        # Audit History
+        context['can_create_debit_note'] = (
+            has_permission
+            and self.object.status in DebitNote.DEBITABLE_BILL_STATUSES
+        )
+        context['debit_notes'] = self.object.debit_notes.filter(is_active=True).order_by('-created_at')
+        context['debit_notes_total'] = DebitNote.posted_total_for_bill(self.object)
         context['audit_history'] = get_entity_audit_history('Bill', self.object.pk)
         
         return context

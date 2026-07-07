@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-1 fw-bold">{{ title }}</h4>
+        <p class="text-muted mb-0">UAE FTA Tax Credit Notes</p>
+    </div>
+    {% if can_create %}
+    <a href="{% url 'sales:credit_note_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>Create Credit Note
+    </a>
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <input type="text" name="search" class="form-control" placeholder="Search CN#, customer, invoice..." value="{{ request.GET.search }}">
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary me-2">Filter</button>
+                <a href="{% url 'sales:credit_note_list' %}" class="btn btn-light">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>CN #</th>
+                    <th>Issue Date</th>
+                    <th>Customer</th>
+                    <th>Original Invoice</th>
+                    <th>Reason</th>
+                    <th class="text-end">Amount</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cn in credit_notes %}
+                <tr>
+                    <td class="fw-medium">
+                        {{ cn.number }}
+                        {% if cn.late_issuance %}<span class="badge bg-warning text-dark ms-1" title="Late issuance">Late</span>{% endif %}
+                    </td>
+                    <td>{{ cn.issue_date|date:"d/m/Y" }}</td>
+                    <td>{{ cn.customer.name }}</td>
+                    <td><a href="{% url 'sales:invoice_detail' cn.original_invoice.pk %}">{{ cn.original_invoice.invoice_number }}</a></td>
+                    <td>{{ cn.get_reason_display }}</td>
+                    <td class="text-end fw-medium">AED {{ cn.total|floatformat:2 }}</td>
+                    <td>
+                        {% if cn.status == 'draft' %}<span class="badge bg-secondary">Draft</span>
+                        {% elif cn.status == 'approved' %}<span class="badge bg-info text-dark">Approved</span>
+                        {% elif cn.status == 'posted' %}<span class="badge badge-active">Posted</span>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        <a href="{% url 'sales:credit_note_detail' cn.pk %}" class="btn btn-action btn-outline-secondary"><i class="fas fa-eye"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center py-5 text-muted">No credit notes found</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

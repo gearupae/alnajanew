@@ -9,7 +9,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.forms.models import BaseInlineFormSet
 from decimal import Decimal
-from .models import Estimate, EstimateItem, Invoice, InvoiceItem
+from .models import Estimate, EstimateItem, Invoice, InvoiceItem, CreditNote, CreditNoteLine
 from apps.crm.models import Customer
 from apps.finance.models import TaxCode
 from apps.inventory.models import ItemBaseGroup
@@ -36,7 +36,8 @@ class EstimateForm(forms.ModelForm):
             'customer', 'assigned_to', 'prepared_by',
             'type_of_occupancy', 'type_of_work', 'scope_of_work',
             'date', 'valid_until',
-            'discount_type', 'discount_value', 'show_rates_on_pdf', 'show_group_totals_on_pdf',
+            'discount_type', 'discount_value', 'prices_include_vat',
+            'show_rates_on_pdf', 'show_group_totals_on_pdf',
             'show_brand_name_on_pdf',
             'notes', 'client_note', 'terms_and_conditions',
             'authorized_signature', 'customer_signature',
@@ -55,6 +56,9 @@ class EstimateForm(forms.ModelForm):
             'terms_and_conditions': forms.Textarea(attrs={'rows': 5, 'class': 'form-control'}),
             'prepared_by': forms.TextInput(attrs={'class': 'form-control'}),
             'discount_value': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'prices_include_vat': forms.CheckboxInput(
+                attrs={'class': 'form-check-input', 'role': 'switch', 'id': 'id_prices_include_vat'},
+            ),
             'authorized_signature': forms.FileInput(attrs={'class': 'form-control'}),
             'customer_signature': forms.FileInput(attrs={'class': 'form-control'}),
             'show_rates_on_pdf': forms.CheckboxInput(
@@ -104,6 +108,8 @@ class EstimateForm(forms.ModelForm):
         self.fields['show_group_totals_on_pdf'].required = False
         self.fields['show_brand_name_on_pdf'].label = 'Show brand name'
         self.fields['show_brand_name_on_pdf'].required = False
+        self.fields['prices_include_vat'].label = 'Prices include VAT'
+        self.fields['prices_include_vat'].required = False
 
     def clean(self):
         cleaned_data = super().clean()
@@ -113,6 +119,7 @@ class EstimateForm(forms.ModelForm):
                 'show_rates_on_pdf',
                 'show_group_totals_on_pdf',
                 'show_brand_name_on_pdf',
+                'prices_include_vat',
             ):
                 cleaned_data[field_name] = field_name in self.data
         return cleaned_data
@@ -318,11 +325,14 @@ class InvoiceForm(forms.ModelForm):
     
     class Meta:
         model = Invoice
-        fields = ['customer', 'estimate', 'invoice_date', 'due_date', 'status', 'notes']
+        fields = ['customer', 'estimate', 'invoice_date', 'due_date', 'status', 'notes', 'prices_include_vat']
         widgets = {
             'invoice_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'due_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'prices_include_vat': forms.CheckboxInput(
+                attrs={'class': 'form-check-input', 'role': 'switch', 'id': 'id_prices_include_vat'},
+            ),
         }
     
     def __init__(self, *args, **kwargs):
@@ -338,6 +348,8 @@ class InvoiceForm(forms.ModelForm):
         self.fields['estimate'].required = False
         self.fields['status'].widget.attrs['class'] = 'form-select'
         self.fields['notes'].required = False
+        self.fields['prices_include_vat'].label = 'Prices include VAT'
+        self.fields['prices_include_vat'].required = False
 
         self.fields['project'].queryset = (
             Project.objects.filter(is_active=True)
@@ -352,6 +364,8 @@ class InvoiceForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        if self.is_bound:
+            cleaned['prices_include_vat'] = 'prices_include_vat' in self.data
         customer = cleaned.get('customer')
         project = cleaned.get('project')
         if project and customer and project.customer_id and project.customer_id != customer.pk:
@@ -377,6 +391,9 @@ class InvoiceItemForm(forms.ModelForm):
     class Meta:
         model = InvoiceItem
         fields = ['description', 'quantity', 'unit_price', 'tax_code', 'is_vat_inclusive']
+        widgets = {
+            'is_vat_inclusive': forms.HiddenInput(),
+        }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -385,8 +402,6 @@ class InvoiceItemForm(forms.ModelForm):
         for field_name, field in self.fields.items():
             if field_name in ['tax_code']:
                 field.widget.attrs['class'] = 'form-select'
-            elif field_name == 'is_vat_inclusive':
-                field.widget.attrs['class'] = 'form-check-input'
             else:
                 field.widget.attrs['class'] = 'form-control'
         
@@ -421,3 +436,48 @@ InvoiceItemFormSet = forms.inlineformset_factory(
     validate_min=False,
     min_num=0
 )
+
+
+# ============ TAX CREDIT NOTES ============
+
+class CreditNoteForm(forms.ModelForm):
+    class Meta:
+        model = CreditNote
+        fields = [
+            'original_invoice', 'issue_date', 'trigger_event_date',
+            'reason', 'reason_description',
+        ]
+        widgets = {
+            'issue_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'trigger_event_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'reason_description': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['original_invoice'].queryset = Invoice.objects.filter(
+            is_active=True,
+            status__in=CreditNote.CREDITABLE_INVOICE_STATUSES,
+        ).select_related('customer').order_by('-invoice_date')
+        self.fields['original_invoice'].widget.attrs['class'] = 'form-select'
+        self.fields['reason'].widget.attrs['class'] = 'form-select'
+        self.fields['reason_description'].widget.attrs['class'] = 'form-control'
+        if self.instance.pk and self.instance.status != 'draft':
+            for field in self.fields.values():
+                field.disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        invoice = cleaned.get('original_invoice')
+        issue_date = cleaned.get('issue_date')
+        trigger_date = cleaned.get('trigger_event_date')
+        reason = cleaned.get('reason')
+        reason_desc = (cleaned.get('reason_description') or '').strip()
+        if reason == 'other' and not reason_desc:
+            self.add_error('reason_description', 'Required when reason is Other.')
+        if invoice and invoice.status not in CreditNote.CREDITABLE_INVOICE_STATUSES:
+            self.add_error('original_invoice', 'Only posted invoices can be credited.')
+        if issue_date and trigger_date and issue_date < trigger_date:
+            self.add_error('issue_date', 'Issue date cannot be before the trigger event date.')
+        return cleaned
+

@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-1 fw-bold">{{ title }}</h4>
+        <p class="text-muted mb-0">Vendor bill reductions (Tax Credit Notes)</p>
+    </div>
+    {% if can_create %}
+    <a href="{% url 'purchase:debit_note_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>Create Debit Note
+    </a>
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <input type="text" name="search" class="form-control" placeholder="Search DN#, vendor, vendor CN ref, bill..." value="{{ request.GET.search }}">
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary me-2"><i class="fas fa-filter me-1"></i>Filter</button>
+                <a href="{% url 'purchase:debit_note_list' %}" class="btn btn-light">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>DN #</th>
+                        <th>Issue Date</th>
+                        <th>Vendor</th>
+                        <th>Vendor CN Ref</th>
+                        <th>Original Bill</th>
+                        <th class="text-end">Amount</th>
+                        <th>Status</th>
+                        <th class="text-center" width="80">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dn in debit_notes %}
+                    <tr>
+                        <td class="fw-medium">{{ dn.number }}</td>
+                        <td>{{ dn.issue_date|date:"d/m/Y" }}</td>
+                        <td>{{ dn.vendor.name }}</td>
+                        <td>{{ dn.vendor_credit_note_ref }}</td>
+                        <td>
+                            <a href="{% url 'purchase:bill_detail' dn.original_bill.pk %}">{{ dn.original_bill.bill_number }}</a>
+                        </td>
+                        <td class="text-end fw-medium">AED {{ dn.total|floatformat:2 }}</td>
+                        <td>
+                            {% if dn.status == 'draft' %}
+                            <span class="badge bg-secondary">Draft</span>
+                            {% elif dn.status == 'approved' %}
+                            <span class="badge bg-info text-dark">Approved</span>
+                            {% elif dn.status == 'posted' %}
+                            <span class="badge badge-active">Posted</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'purchase:debit_note_detail' dn.pk %}" class="btn btn-action btn-outline-secondary" title="View">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">No debit notes found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

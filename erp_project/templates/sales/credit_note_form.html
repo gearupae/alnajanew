@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'sales:credit_note_list' %}">Credit Notes</a></li>
+            <li class="breadcrumb-item active">{{ title }}</li>
+        </ol>
+    </nav>
+    <h4 class="mb-0 fw-bold">{{ title }}</h4>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" id="creditNoteForm">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            {% if show_late_warning %}
+            <div class="alert alert-warning py-2 small mb-4">
+                <i class="fas fa-exclamation-triangle me-1"></i>{{ fta_late_warning }}
+            </div>
+            {% endif %}
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Original Invoice <span class="text-danger">*</span></label>
+                    {{ form.original_invoice }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Customer</label>
+                    <input type="text" class="form-control" id="customerDisplay" readonly value="{{ customer_name|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Customer TRN</label>
+                    <input type="text" class="form-control" id="customerTrnDisplay" readonly value="{{ customer_trn|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Issue Date <span class="text-danger">*</span></label>
+                    {{ form.issue_date }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Trigger Event Date <span class="text-danger">*</span></label>
+                    {{ form.trigger_event_date }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Reason <span class="text-danger">*</span></label>
+                    {{ form.reason }}
+                </div>
+                <div class="col-md-12" id="reasonOtherWrap">
+                    <label class="form-label">Reason Description</label>
+                    {{ form.reason_description }}
+                </div>
+            </div>
+
+            <div class="mt-4 mb-2 d-flex justify-content-between">
+                <h6 class="mb-0 fw-semibold">Line Items</h6>
+                <div class="small text-muted" id="invoiceSummary">
+                    {% if invoice_total %}Invoice: AED {{ invoice_total|floatformat:2 }} · Prior credited: AED {{ prior_credited|floatformat:2 }} · Max: AED {{ max_credit|floatformat:2 }}{% endif %}
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Description</th>
+                            <th class="text-center">Qty</th>
+                            <th class="text-end">Unit Price</th>
+                            <th class="text-center">VAT %</th>
+                            <th class="text-end">Line Total</th>
+                            <th class="text-end">VAT</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="linesBody">
+                        <input type="hidden" name="lines-TOTAL_FORMS" id="linesTotalForms" value="{{ invoice_line_rows|length }}">
+                        <input type="hidden" name="lines-INITIAL_FORMS" value="0">
+                        <input type="hidden" name="lines-MIN_NUM_FORMS" value="1">
+                        <input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">
+                        {% for row in invoice_line_rows %}
+                        <tr class="line-row">
+                            <td>
+                                <input type="hidden" name="lines-{{ forloop.counter0 }}-invoice_line" value="{{ row.invoice_line_id }}">
+                                <input type="text" name="lines-{{ forloop.counter0 }}-description" class="form-control form-control-sm" value="{{ row.description }}">
+                            </td>
+                            <td><input type="number" name="lines-{{ forloop.counter0 }}-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0.01" max="{{ row.max_quantity }}" value="{{ row.quantity }}" data-max="{{ row.max_quantity }}" data-price="{{ row.unit_price }}" data-vat="{{ row.vat_rate }}" data-inclusive="{% if row.is_vat_inclusive %}1{% else %}0{% endif %}"></td>
+                            <td class="text-end line-price">{{ row.unit_price|floatformat:2 }}</td>
+                            <td class="text-center line-vat-rate">{{ row.vat_rate }}%</td>
+                            <td class="text-end line-total">{{ row.line_total|floatformat:2 }}</td>
+                            <td class="text-end line-vat">{{ row.line_vat|floatformat:2 }}</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7" class="text-muted text-center py-3">Select a posted invoice to load lines.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr><td colspan="4" class="text-end">Subtotal</td><td class="text-end" id="subtotalDisplay">0.00</td><td class="text-end" id="vatDisplay">0.00</td><td></td></tr>
+                        <tr><td colspan="4" class="text-end fw-bold">Total</td><td colspan="2" class="text-end fw-bold" id="grandTotalDisplay">0.00</td><td></td></tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div id="lateWarningBox" class="alert alert-warning py-2 small d-none">{{ fta_late_warning }}</div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save Credit Note</button>
+                <a href="{% url 'sales:credit_note_list' %}" class="btn btn-light">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    const invoiceSelect = document.getElementById('id_original_invoice');
+    const issueInput = document.getElementById('id_issue_date');
+    const triggerInput = document.getElementById('id_trigger_event_date');
+    const reasonSelect = document.getElementById('id_reason');
+    const linesBody = document.getElementById('linesBody');
+    const lateBox = document.getElementById('lateWarningBox');
+    const linesUrlTemplate = "{% url 'sales:invoice_credit_note_lines_json' 0 %}".replace('/0/', '/{id}/');
+
+    function toggleReasonOther() {
+        const wrap = document.getElementById('reasonOtherWrap');
+        if (wrap && reasonSelect) wrap.style.display = reasonSelect.value === 'other' ? '' : 'none';
+    }
+
+    function checkLate() {
+        if (!issueInput || !triggerInput || !lateBox) return;
+        const i = new Date(issueInput.value);
+        const t = new Date(triggerInput.value);
+        if (!issueInput.value || !triggerInput.value || isNaN(i) || isNaN(t)) {
+            lateBox.classList.add('d-none');
+            return;
+        }
+        const days = Math.floor((i - t) / (1000 * 60 * 60 * 24));
+        lateBox.classList.toggle('d-none', days <= 14);
+    }
+
+    function calcLineTotal(qty, price, vat, inclusive) {
+        const gross = qty * price;
+        if (inclusive && vat > 0) {
+            const net = gross / (1 + vat / 100);
+            return { total: net, vat: gross - net };
+        }
+        return { total: gross, vat: gross * (vat / 100) };
+    }
+
+    function recalcRow(row) {
+        const qtyInput = row.querySelector('.line-qty');
+        if (!qtyInput) return;
+        const qty = parseFloat(qtyInput.value) || 0;
+        const price = parseFloat(qtyInput.dataset.price) || 0;
+        const vat = parseFloat(qtyInput.dataset.vat) || 0;
+        const inclusive = qtyInput.dataset.inclusive === '1';
+        const r = calcLineTotal(qty, price, vat, inclusive);
+        row.querySelector('.line-total').textContent = r.total.toFixed(2);
+        row.querySelector('.line-vat').textContent = r.vat.toFixed(2);
+    }
+
+    function recalcTotals() {
+        let sub = 0, vat = 0;
+        document.querySelectorAll('.line-row').forEach(row => {
+            sub += parseFloat(row.querySelector('.line-total')?.textContent) || 0;
+            vat += parseFloat(row.querySelector('.line-vat')?.textContent) || 0;
+        });
+        document.getElementById('subtotalDisplay').textContent = sub.toFixed(2);
+        document.getElementById('vatDisplay').textContent = vat.toFixed(2);
+        document.getElementById('grandTotalDisplay').textContent = (sub + vat).toFixed(2);
+    }
+
+    function bindRow(row) {
+        const qtyInput = row.querySelector('.line-qty');
+        if (qtyInput) qtyInput.addEventListener('input', () => { recalcRow(row); recalcTotals(); });
+        const btn = row.querySelector('.remove-line');
+        if (btn) btn.addEventListener('click', () => { row.remove(); document.getElementById('linesTotalForms').value = document.querySelectorAll('.line-row').length; recalcTotals(); });
+    }
+
+    function renderLines(data) {
+        linesBody.innerHTML = '';
+        document.getElementById('customerDisplay').value = data.customer_name || '';
+        document.getElementById('customerTrnDisplay').value = data.customer_trn || '';
+        document.getElementById('invoiceSummary').textContent =
+            'Invoice: AED ' + parseFloat(data.invoice_total).toFixed(2) +
+            ' · Prior credited: AED ' + parseFloat(data.prior_credited).toFixed(2) +
+            ' · Max: AED ' + parseFloat(data.max_credit).toFixed(2);
+        if (!data.lines.length) {
+            linesBody.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">No creditable lines remaining.</td></tr>';
+            recalcTotals();
+            return;
+        }
+        const hidden = '<input type="hidden" name="lines-TOTAL_FORMS" id="linesTotalForms" value="' + data.lines.length + '">' +
+            '<input type="hidden" name="lines-INITIAL_FORMS" value="0"><input type="hidden" name="lines-MIN_NUM_FORMS" value="1"><input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">';
+        linesBody.insertAdjacentHTML('afterbegin', hidden);
+        data.lines.forEach((line, i) => {
+            const tr = document.createElement('tr');
+            tr.className = 'line-row';
+            tr.innerHTML = '<td><input type="hidden" name="lines-' + i + '-invoice_line" value="' + line.invoice_line_id + '"><input type="text" name="lines-' + i + '-description" class="form-control form-control-sm" value="' + line.description.replace(/"/g, '&quot;') + '"></td>' +
+                '<td><input type="number" name="lines-' + i + '-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0.01" max="' + line.max_quantity + '" value="' + line.quantity + '" data-price="' + line.unit_price + '" data-vat="' + line.vat_rate + '" data-inclusive="0"></td>' +
+                '<td class="text-end line-price">' + parseFloat(line.unit_price).toFixed(2) + '</td>' +
+                '<td class="text-center line-vat-rate">' + line.vat_rate + '%</td>' +
+                '<td class="text-end line-total">' + parseFloat(line.line_total).toFixed(2) + '</td>' +
+                '<td class="text-end line-vat">' + parseFloat(line.line_vat).toFixed(2) + '</td>' +
+                '<td><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>';
+            linesBody.appendChild(tr);
+            bindRow(tr);
+        });
+        recalcTotals();
+    }
+
+    if (invoiceSelect && !invoiceSelect.disabled) {
+        invoiceSelect.addEventListener('change', function () {
+            if (!this.value) return;
+            fetch(linesUrlTemplate.replace('{id}', this.value)).then(r => r.json()).then(renderLines);
+        });
+    }
+    [issueInput, triggerInput].forEach(el => el && el.addEventListener('change', checkLate));
+    if (reasonSelect) { reasonSelect.addEventListener('change', toggleReasonOther); toggleReasonOther(); }
+    document.querySelectorAll('.line-row').forEach(bindRow);
+    checkLate();
+    recalcTotals();
+})();
+</script>
+{% endblock %}

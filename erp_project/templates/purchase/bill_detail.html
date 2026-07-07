@@ -27,6 +27,11 @@
                 <i class="fas fa-money-bill-wave me-2"></i>Make Payment
             </a>
             {% endif %}
+            {% if can_create_debit_note %}
+            <a href="{% url 'purchase:debit_note_create' %}?bill={{ bill.pk }}" class="btn btn-outline-primary">
+                <i class="fas fa-file-invoice me-2"></i>Create Debit Note
+            </a>
+            {% endif %}
             {% if can_edit %}
             <a href="{% url 'purchase:bill_edit' bill.pk %}" class="btn btn-primary">
                 <i class="fas fa-edit me-2"></i>Edit
@@ -110,6 +115,39 @@
                 </div>
             </div>
         </div>
+
+        {% if debit_notes %}
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">Related Debit Notes</h6>
+                <span class="small text-muted">Posted total: AED {{ debit_notes_total|floatformat:2 }}</span>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>DN #</th>
+                            <th>Vendor CN Ref</th>
+                            <th>Date</th>
+                            <th class="text-end">Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dn in debit_notes %}
+                        <tr>
+                            <td><a href="{% url 'purchase:debit_note_detail' dn.pk %}">{{ dn.number }}</a></td>
+                            <td>{{ dn.vendor_credit_note_ref }}</td>
+                            <td>{{ dn.vendor_credit_note_date|date:"d/m/Y" }}</td>
+                            <td class="text-end">AED {{ dn.total|floatformat:2 }}</td>
+                            <td><span class="badge {% if dn.status == 'posted' %}badge-active{% else %}bg-secondary{% endif %}">{{ dn.get_status_display }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
     </div>
     
     <div class="col-lg-4">

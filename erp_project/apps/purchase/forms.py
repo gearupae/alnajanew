@@ -11,10 +11,12 @@ from decimal import Decimal
 from django import forms
 from django.db.models import Q
 from django.core.exceptions import ValidationError
+from django.forms import inlineformset_factory
 from .models import (
     Vendor, PurchaseRequest, PurchaseRequestItem,
     PurchaseOrder, PurchaseOrderItem, VendorBill, VendorBillItem,
-    ExpenseClaim, ExpenseClaimItem, RecurringExpense
+    ExpenseClaim, ExpenseClaimItem, RecurringExpense,
+    DebitNote, DebitNoteLine,
 )
 from apps.finance.models import TaxCode
 from apps.projects.models import Project
@@ -601,3 +603,92 @@ class RecurringExpenseForm(forms.ModelForm):
         
         return cleaned_data
 
+
+# ============ DEBIT NOTES ============
+
+class DebitNoteForm(forms.ModelForm):
+    class Meta:
+        model = DebitNote
+        fields = [
+            'original_bill', 'issue_date', 'vendor_credit_note_ref',
+            'vendor_credit_note_date', 'reason', 'reason_description',
+        ]
+        widgets = {
+            'issue_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'vendor_credit_note_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'reason_description': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['original_bill'].queryset = VendorBill.objects.filter(
+            is_active=True,
+            status__in=DebitNote.DEBITABLE_BILL_STATUSES,
+        ).select_related('vendor').order_by('-bill_date')
+        self.fields['original_bill'].widget.attrs['class'] = 'form-select'
+        self.fields['reason'].widget.attrs['class'] = 'form-select'
+        self.fields['vendor_credit_note_ref'].widget.attrs['class'] = 'form-control'
+        if self.instance.pk and self.instance.status != 'draft':
+            for field in self.fields.values():
+                field.disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        bill = cleaned.get('original_bill')
+        reason = cleaned.get('reason')
+        reason_desc = (cleaned.get('reason_description') or '').strip()
+        if reason == 'other' and not reason_desc:
+            self.add_error('reason_description', 'Required when reason is Other.')
+        if bill and bill.status not in DebitNote.DEBITABLE_BILL_STATUSES:
+            self.add_error('original_bill', 'Only posted vendor bills can be debited.')
+        return cleaned
+
+
+class DebitNoteLineForm(forms.ModelForm):
+    DELETE = forms.BooleanField(required=False, widget=forms.HiddenInput())
+
+    class Meta:
+        model = DebitNoteLine
+        fields = ['bill_line', 'description', 'quantity', 'DELETE']
+        widgets = {
+            'bill_line': forms.HiddenInput(),
+            'description': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+            'quantity': forms.NumberInput(attrs={
+                'class': 'form-control form-control-sm text-end line-qty',
+                'step': '0.01',
+                'min': '0.01',
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.debit_note_pk = kwargs.pop('debit_note_pk', None)
+        super().__init__(*args, **kwargs)
+        self.fields['description'].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('DELETE'):
+            return cleaned
+        bill_line = cleaned.get('bill_line')
+        quantity = cleaned.get('quantity')
+        if bill_line and quantity is not None:
+            remaining = DebitNoteLine.remaining_quantity(
+                bill_line,
+                exclude_debit_note_pk=self.debit_note_pk,
+            )
+            if quantity > remaining:
+                raise ValidationError(
+                    f'Quantity exceeds remaining debitable quantity ({remaining}).'
+                )
+        return cleaned
+
+
+DebitNoteLineFormSet = inlineformset_factory(
+    DebitNote,
+    DebitNoteLine,
+    form=DebitNoteLineForm,
+    extra=0,
+    can_delete=True,
+    min_num=1,
+    validate_min=True,
+)

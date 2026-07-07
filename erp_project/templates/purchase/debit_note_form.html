@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'purchase:debit_note_list' %}">Debit Notes</a></li>
+            <li class="breadcrumb-item active">{{ title }}</li>
+        </ol>
+    </nav>
+    <h4 class="mb-0 fw-bold">{{ title }}</h4>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" id="debitNoteForm">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+            <div class="alert alert-info py-2 small mb-4">
+                <i class="fas fa-info-circle me-1"></i>
+                Input VAT will be reversed in the VAT period of the vendor credit note date (FTA Art. 63).
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Original Bill <span class="text-danger">*</span></label>
+                    {{ form.original_bill }}
+                    {% if form.original_bill.errors %}<div class="text-danger small">{{ form.original_bill.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Vendor</label>
+                    <input type="text" class="form-control" id="vendorDisplay" readonly value="{{ vendor_name|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Vendor TRN</label>
+                    <input type="text" class="form-control" id="vendorTrnDisplay" readonly value="{{ vendor_trn|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Issue Date <span class="text-danger">*</span></label>
+                    {{ form.issue_date }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Vendor Credit Note Ref <span class="text-danger">*</span></label>
+                    {{ form.vendor_credit_note_ref }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Vendor Credit Note Date <span class="text-danger">*</span></label>
+                    {{ form.vendor_credit_note_date }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Reason <span class="text-danger">*</span></label>
+                    {{ form.reason }}
+                </div>
+                <div class="col-md-12" id="reasonOtherWrap">
+                    <label class="form-label">Reason Description</label>
+                    {{ form.reason_description }}
+                    {% if form.reason_description.errors %}<div class="text-danger small">{{ form.reason_description.errors }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="mt-4 mb-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">Line Items</h6>
+                <div class="small text-muted" id="billSummary">
+                    {% if bill_total %}Bill: AED {{ bill_total|floatformat:2 }} · Prior debited: AED {{ prior_debited|floatformat:2 }} · Max: AED {{ max_debit|floatformat:2 }}{% endif %}
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm" id="linesTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Description</th>
+                            <th class="text-center" width="100">Qty</th>
+                            <th class="text-end" width="110">Unit Price</th>
+                            <th class="text-center" width="70">VAT %</th>
+                            <th class="text-end" width="110">Line Total</th>
+                            <th class="text-end" width="100">VAT</th>
+                            <th width="40"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="linesBody">
+                        {% if lines_formset %}
+                        {{ lines_formset.management_form }}
+                        {% for line_form in lines_formset %}
+                        <tr class="line-row">
+                            <td>{{ line_form.description }}{{ line_form.bill_line }}</td>
+                            <td>{{ line_form.quantity }}</td>
+                            <td class="text-end line-price">—</td>
+                            <td class="text-center line-vat-rate">—</td>
+                            <td class="text-end line-total">—</td>
+                            <td class="text-end line-vat">—</td>
+                            <td>{{ line_form.DELETE }}<button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <input type="hidden" name="lines-TOTAL_FORMS" id="linesTotalForms" value="{{ bill_line_rows|length }}">
+                        <input type="hidden" name="lines-INITIAL_FORMS" value="0">
+                        <input type="hidden" name="lines-MIN_NUM_FORMS" value="1">
+                        <input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">
+                        {% for row in bill_line_rows %}
+                        <tr class="line-row">
+                            <td>
+                                <input type="hidden" name="lines-{{ forloop.counter0 }}-bill_line" value="{{ row.bill_line_id }}">
+                                <input type="text" name="lines-{{ forloop.counter0 }}-description" class="form-control form-control-sm" value="{{ row.description }}">
+                            </td>
+                            <td>
+                                <input type="number" name="lines-{{ forloop.counter0 }}-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0.01" max="{{ row.max_quantity }}" value="{{ row.quantity }}" data-max="{{ row.max_quantity }}" data-price="{{ row.unit_price }}" data-vat="{{ row.vat_rate }}">
+                            </td>
+                            <td class="text-end line-price">{{ row.unit_price|floatformat:2 }}</td>
+                            <td class="text-center line-vat-rate">{{ row.vat_rate }}%</td>
+                            <td class="text-end line-total">{{ row.line_total|floatformat:2 }}</td>
+                            <td class="text-end line-vat">{{ row.line_vat|floatformat:2 }}</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>
+                        </tr>
+                        {% empty %}
+                        <tr id="noLinesRow"><td colspan="7" class="text-muted text-center py-3">Select a posted vendor bill to load lines.</td></tr>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4" class="text-end fw-medium">Subtotal</td>
+                            <td class="text-end fw-medium" id="subtotalDisplay">0.00</td>
+                            <td class="text-end fw-medium" id="vatDisplay">0.00</td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td colspan="4" class="text-end fw-bold">Total</td>
+                            <td colspan="2" class="text-end fw-bold" id="grandTotalDisplay">0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save Debit Note</button>
+                <a href="{% url 'purchase:debit_note_list' %}" class="btn btn-light">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    const billSelect = document.getElementById('id_original_bill');
+    const reasonSelect = document.getElementById('id_reason');
+    const linesBody = document.getElementById('linesBody');
+    const linesUrlTemplate = "{% url 'purchase:bill_debit_note_lines_json' 0 %}".replace('/0/', '/{id}/');
+
+    function toggleReasonOther() {
+        const wrap = document.getElementById('reasonOtherWrap');
+        if (wrap && reasonSelect) {
+            wrap.style.display = reasonSelect.value === 'other' ? '' : 'none';
+        }
+    }
+
+    function recalcRow(row) {
+        const qtyInput = row.querySelector('.line-qty');
+        if (!qtyInput) return;
+        const qty = parseFloat(qtyInput.value) || 0;
+        const price = parseFloat(qtyInput.dataset.price) || 0;
+        const vat = parseFloat(qtyInput.dataset.vat) || 0;
+        const total = qty * price;
+        const lineVat = total * (vat / 100);
+        const totalCell = row.querySelector('.line-total');
+        const vatCell = row.querySelector('.line-vat');
+        if (totalCell) totalCell.textContent = total.toFixed(2);
+        if (vatCell) vatCell.textContent = lineVat.toFixed(2);
+    }
+
+    function recalcTotals() {
+        let sub = 0, vat = 0;
+        document.querySelectorAll('.line-row').forEach(function (row) {
+            const t = parseFloat(row.querySelector('.line-total')?.textContent) || 0;
+            const v = parseFloat(row.querySelector('.line-vat')?.textContent) || 0;
+            sub += t;
+            vat += v;
+        });
+        document.getElementById('subtotalDisplay').textContent = sub.toFixed(2);
+        document.getElementById('vatDisplay').textContent = vat.toFixed(2);
+        document.getElementById('grandTotalDisplay').textContent = (sub + vat).toFixed(2);
+    }
+
+    function bindRowEvents(row) {
+        const qtyInput = row.querySelector('.line-qty');
+        if (qtyInput) {
+            qtyInput.addEventListener('input', function () {
+                recalcRow(row);
+                recalcTotals();
+            });
+        }
+        const removeBtn = row.querySelector('.remove-line');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function () {
+                row.remove();
+                updateFormCount();
+                recalcTotals();
+            });
+        }
+    }
+
+    function updateFormCount() {
+        const total = document.getElementById('linesTotalForms') || document.getElementById('id_lines-TOTAL_FORMS');
+        if (total) total.value = document.querySelectorAll('.line-row').length;
+    }
+
+    function renderLines(data) {
+        linesBody.innerHTML = '';
+        document.getElementById('vendorDisplay').value = data.vendor_name || '';
+        document.getElementById('vendorTrnDisplay').value = data.vendor_trn || '';
+        document.getElementById('billSummary').textContent =
+            'Bill: AED ' + parseFloat(data.bill_total).toFixed(2) +
+            ' · Prior debited: AED ' + parseFloat(data.prior_debited).toFixed(2) +
+            ' · Max: AED ' + parseFloat(data.max_debit).toFixed(2);
+
+        if (!data.lines.length) {
+            linesBody.innerHTML = '<tr id="noLinesRow"><td colspan="7" class="text-muted text-center py-3">No debitable lines remaining on this bill.</td></tr>';
+            recalcTotals();
+            return;
+        }
+
+        const hidden = [
+            '<input type="hidden" name="lines-TOTAL_FORMS" id="linesTotalForms" value="' + data.lines.length + '">',
+            '<input type="hidden" name="lines-INITIAL_FORMS" value="0">',
+            '<input type="hidden" name="lines-MIN_NUM_FORMS" value="1">',
+            '<input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">',
+        ].join('');
+        linesBody.insertAdjacentHTML('afterbegin', hidden);
+
+        data.lines.forEach(function (line, i) {
+            const tr = document.createElement('tr');
+            tr.className = 'line-row';
+            tr.innerHTML =
+                '<td><input type="hidden" name="lines-' + i + '-bill_line" value="' + line.bill_line_id + '">' +
+                '<input type="text" name="lines-' + i + '-description" class="form-control form-control-sm" value="' + line.description.replace(/"/g, '&quot;') + '"></td>' +
+                '<td><input type="number" name="lines-' + i + '-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0.01" max="' + line.max_quantity + '" value="' + line.quantity + '" data-max="' + line.max_quantity + '" data-price="' + line.unit_price + '" data-vat="' + line.vat_rate + '"></td>' +
+                '<td class="text-end line-price">' + parseFloat(line.unit_price).toFixed(2) + '</td>' +
+                '<td class="text-center line-vat-rate">' + line.vat_rate + '%</td>' +
+                '<td class="text-end line-total">' + parseFloat(line.line_total).toFixed(2) + '</td>' +
+                '<td class="text-end line-vat">' + parseFloat(line.line_vat).toFixed(2) + '</td>' +
+                '<td><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>';
+            linesBody.appendChild(tr);
+            bindRowEvents(tr);
+        });
+        recalcTotals();
+    }
+
+    if (billSelect) {
+        billSelect.addEventListener('change', function () {
+            const id = this.value;
+            if (!id) return;
+            fetch(linesUrlTemplate.replace('{id}', id))
+                .then(r => r.json())
+                .then(renderLines)
+                .catch(() => alert('Could not load bill lines.'));
+        });
+    }
+
+    document.querySelectorAll('.line-row').forEach(bindRowEvents);
+    if (reasonSelect) {
+        reasonSelect.addEventListener('change', toggleReasonOther);
+        toggleReasonOther();
+    }
+    recalcTotals();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DEBIT NOTE — {{ debit_note.number }}</title>
+    <style>
+        @page { size: A4; margin: 14mm; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; color: #1a1a1a; margin: 0; }
+        .doc { max-width: 210mm; margin: 0 auto; padding: 16px; }
+        .title-strip { background: #153a5c; color: #fff; padding: 16px 18px; margin-bottom: 16px; }
+        .title-strip h1 { font-size: 22px; letter-spacing: 0.08em; margin: 0 0 6px; }
+        .meta-grid { display: flex; border: 1px solid #e5e5e5; margin-bottom: 16px; }
+        .meta-block { flex: 1; padding: 12px 14px; }
+        .meta-block + .meta-block { border-left: 1px solid #e5e5e5; }
+        .label { font-size: 9px; text-transform: uppercase; color: #888; letter-spacing: 0.1em; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background: #f5f5f5; text-align: left; }
+        .text-end { text-align: right; }
+        .text-center { text-align: center; }
+        .summary { width: 50%; margin-left: auto; }
+        .summary td { border: none; padding: 4px 8px; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body>
+<div class="doc">
+    <div class="no-print" style="margin-bottom:12px;">
+        <button onclick="window.print()">Print</button>
+        <a href="?format=pdf">Download PDF</a>
+    </div>
+
+    <div class="title-strip">
+        <h1>DEBIT NOTE</h1>
+        <div style="font-size:17px;font-weight:700;">{{ debit_note.number }}</div>
+    </div>
+
+    <div class="meta-grid">
+        <div class="meta-block">
+            <div class="label">Our Company</div>
+            <strong>{{ company.name }}</strong><br>
+            {% if company.trn %}TRN: {{ company.trn }}{% endif %}
+        </div>
+        <div class="meta-block">
+            <div class="label">Vendor</div>
+            <strong>{{ debit_note.vendor.name }}</strong><br>
+            {% if debit_note.vendor_trn %}TRN: {{ debit_note.vendor_trn }}{% endif %}
+        </div>
+    </div>
+
+    <div class="meta-grid">
+        <div class="meta-block">
+            <div class="label">Issue Date</div>{{ debit_note.issue_date|date:"d/m/Y" }}
+        </div>
+        <div class="meta-block">
+            <div class="label">Original Bill</div>{{ debit_note.original_bill.bill_number }} ({{ debit_note.original_bill.bill_date|date:"d/m/Y" }})
+        </div>
+        <div class="meta-block">
+            <div class="label">Vendor Credit Note</div>{{ debit_note.vendor_credit_note_ref }} ({{ debit_note.vendor_credit_note_date|date:"d/m/Y" }})
+        </div>
+        <div class="meta-block">
+            <div class="label">Reason</div>{{ debit_note.get_reason_display }}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th class="text-center">Qty</th>
+                <th class="text-end">Unit Price (AED)</th>
+                <th class="text-center">VAT %</th>
+                <th class="text-end">Line Total (AED)</th>
+                <th class="text-end">VAT (AED)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in debit_note.lines.all %}
+            <tr>
+                <td>{{ line.description }}</td>
+                <td class="text-center">{{ line.quantity }}</td>
+                <td class="text-end">{{ line.unit_price|floatformat:2 }}</td>
+                <td class="text-center">{{ line.vat_rate }}</td>
+                <td class="text-end">{{ line.line_total|floatformat:2 }}</td>
+                <td class="text-end">{{ line.line_vat|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table class="summary">
+        <tr><td>Original bill amount</td><td class="text-end">AED {{ original_bill_total|floatformat:2 }}</td></tr>
+        <tr><td>Previously debited</td><td class="text-end">AED {{ prior_debited|floatformat:2 }}</td></tr>
+        <tr><td>Debited this note</td><td class="text-end">AED {{ debit_note.total|floatformat:2 }}</td></tr>
+        <tr><td>VAT adjusted</td><td class="text-end">AED {{ debit_note.vat_amount|floatformat:2 }}</td></tr>
+        <tr><td><strong>Remaining bill value</strong></td><td class="text-end"><strong>AED {{ debit_note.remaining_bill_value|floatformat:2 }}</strong></td></tr>
+        <tr><td colspan="2"><hr></td></tr>
+        <tr><td>Subtotal</td><td class="text-end">AED {{ debit_note.subtotal|floatformat:2 }}</td></tr>
+        <tr><td>VAT</td><td class="text-end">AED {{ debit_note.vat_amount|floatformat:2 }}</td></tr>
+        <tr><td><strong>Total (AED)</strong></td><td class="text-end"><strong>AED {{ debit_note.total|floatformat:2 }}</strong></td></tr>
+    </table>
+</div>
+</body>
+</html>

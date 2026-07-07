@@ -267,8 +267,10 @@
                                 <th class="text-center">Qty</th>
                                 <th class="text-end">Base</th>
                                 <th class="text-center">Profit</th>
-                                <th class="text-end">Rate</th>
-                                <th class="text-end">Net</th>
+                                <th class="text-end">{% if estimate.prices_include_vat %}Rate (Incl. VAT){% else %}Rate{% endif %}</th>
+                                <th class="text-end">Taxable</th>
+                                <th class="text-center">VAT %</th>
+                                <th class="text-end">VAT</th>
                                 <th class="text-end">Line</th>
                             </tr>
                         </thead>
@@ -276,7 +278,7 @@
                             {% for group in item_groups %}
                             {% if group.name %}
                             <tr class="table-secondary">
-                                <td colspan="7" class="fw-semibold small text-uppercase">{{ group.name }}</td>
+                                <td colspan="9" class="fw-semibold small text-uppercase">{{ group.name }}</td>
                             </tr>
                             {% endif %}
                             {% for row in group.items %}
@@ -293,19 +295,21 @@
                                 </td>
                                 <td class="text-end">{{ item.rate|floatformat:2 }}</td>
                                 <td class="text-end">{{ item.total|floatformat:2 }}</td>
+                                <td class="text-center">{{ item.vat_rate|floatformat:0 }}%</td>
+                                <td class="text-end">{{ item.vat_amount|floatformat:2 }}</td>
                                 <td class="text-end fw-medium">{{ item.total|add:item.vat_amount|floatformat:2 }}</td>
                             </tr>
                             {% endwith %}
                             {% endfor %}
                             {% if group.name %}
                             <tr class="table-light">
-                                <td colspan="6" class="text-end fw-semibold small">{{ group.name }} total</td>
+                                <td colspan="8" class="text-end fw-semibold small">{{ group.name }} total</td>
                                 <td class="text-end fw-semibold">AED {{ group.line_total|floatformat:2 }}</td>
                             </tr>
                             {% endif %}
                             {% empty %}
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">No items</td>
+                                <td colspan="9" class="text-center text-muted py-4">No items</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -462,6 +466,27 @@
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-calculator me-2 text-dark"></i>Summary</h6>
             </div>
             <div class="card-body pt-0">
+                {% if estimate.prices_include_vat %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Gross Total</span>
+                    <span>AED {{ estimate.total_amount|floatformat:2 }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Included VAT</span>
+                    <span>AED {{ estimate.vat_amount|floatformat:2 }}</span>
+                </div>
+                {% if estimate.discount_applied and estimate.discount_applied > 0 %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Discount</span>
+                    <span class="text-danger">− AED {{ estimate.discount_applied|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <span class="fw-bold">Taxable Amount</span>
+                    <span class="fw-bold">AED {{ estimate.subtotal|floatformat:2 }}</span>
+                </div>
+                {% else %}
                 <div class="d-flex justify-content-between mb-2">
                     <span>Subtotal (excl. VAT)</span>
                     <span>AED {{ estimate.subtotal|floatformat:2 }}</span>
@@ -481,6 +506,7 @@
                     <span class="fw-bold">Total</span>
                     <span class="fw-bold">AED {{ estimate.total_amount|floatformat:2 }}</span>
                 </div>
+                {% endif %}
             </div>
         </div>
 

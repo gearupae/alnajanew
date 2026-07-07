@@ -462,6 +462,19 @@
             </div>
         </div>
         <div class="card-body p-0">
+            <div class="px-3 pt-3 pb-2 border-bottom bg-light">
+                <div class="form-check form-switch mb-0">
+                    {% if prices_include_vat_editable %}
+                    {{ form.prices_include_vat }}
+                    <label class="form-check-label" for="id_prices_include_vat">Prices include VAT</label>
+                    {% else %}
+                    {% if object.prices_include_vat %}<input type="hidden" name="prices_include_vat" value="on">{% endif %}
+                    <input class="form-check-input" type="checkbox" id="id_prices_include_vat" disabled
+                           {% if object.prices_include_vat %}checked{% endif %}>
+                    <label class="form-check-label text-muted" for="id_prices_include_vat">Prices include VAT</label>
+                    {% endif %}
+                </div>
+            </div>
             <p class="text-muted small px-3 pt-3 mb-2 mb-md-3">
                 <strong>Scope of work:</strong> choosing a main group loads all of its sub-groups and items below (group name = sub-group on each line).
                 <strong>How each line is calculated:</strong>
@@ -484,7 +497,7 @@
                                 <th class="items-col-base" title="Base price per unit">Base</th>
                                 <th class="items-col-profit">Profit</th>
                                 <th class="items-col-profit-num" title="% or AED per unit">Profit value</th>
-                                <th class="items-col-rate" title="Selling price per unit after profit">Rate</th>
+                                <th class="items-col-rate" id="rateColHeader" title="Selling price per unit after profit">Rate</th>
                                 <th class="items-col-tax">Tax</th>
                                 <th class="items-col-net text-end" title="Quantity × rate (before VAT)">Net (excl.)</th>
                                 <th class="items-col-gross text-end" title="Net + VAT for this line">Gross (incl.)</th>
@@ -532,10 +545,10 @@
             </div>
             <div class="line-items-totals-wrap px-3 py-2 border-top bg-white">
                 <div class="line-items-totals text-end small">
-                    <div class="fw-medium py-1">Subtotal (excl. VAT): <span id="subtotal">0.00</span></div>
+                    <div class="fw-medium py-1" id="subtotalRow"><span id="subtotalLabel">Subtotal (excl. VAT)</span>: <span id="subtotal">0.00</span></div>
                     <div id="discountRow" class="d-none fw-medium text-danger py-1">Discount: <span id="discountDisplay">0.00</span></div>
-                    <div class="fw-medium py-1">VAT: <span id="vatTotal">0.00</span></div>
-                    <div class="fw-bold py-1">Total (incl. VAT): <span id="grandTotal">0.00</span></div>
+                    <div class="fw-medium py-1" id="vatRow"><span id="vatLabel">VAT</span>: <span id="vatTotal">0.00</span></div>
+                    <div class="fw-bold py-1" id="grandRow"><span id="grandLabel">Total (incl. VAT)</span>: <span id="grandTotal">0.00</span></div>
                 </div>
             </div>
         </div>
@@ -1315,6 +1328,52 @@ function getVatRatePercent(taxSel) {
     return tc ? parseFloat(tc.rate) || 0 : 0;
 }
 
+function pricesIncludeVatEnabled() {
+    const el = document.getElementById('id_prices_include_vat');
+    return !!(el && el.checked);
+}
+
+function splitLineAmounts(gross, vatRate, inclusive) {
+    gross = Math.round(gross * 100) / 100;
+    if (inclusive && vatRate > 0) {
+        const divisor = 1 + vatRate / 100;
+        let taxable = Math.round((gross / divisor) * 100) / 100;
+        let vat = Math.round((gross - taxable) * 100) / 100;
+        if (Math.round((taxable + vat) * 100) / 100 !== gross) {
+            taxable = Math.round((gross - vat) * 100) / 100;
+        }
+        return { taxable, vat, gross };
+    }
+    const taxable = gross;
+    const vat = vatRate > 0 ? Math.round(taxable * vatRate) / 100 : 0;
+    return { taxable, vat, gross: Math.round((taxable + vat) * 100) / 100 };
+}
+
+function syncLineVatInclusiveFlags() {
+    const on = pricesIncludeVatEnabled();
+    document.querySelectorAll('[name$="-is_vat_inclusive"]').forEach(inp => {
+        inp.value = on ? 'true' : 'false';
+    });
+}
+
+function updateVatPricingLabels() {
+    const inclusive = pricesIncludeVatEnabled();
+    const rateHdr = document.getElementById('rateColHeader');
+    if (rateHdr) rateHdr.textContent = inclusive ? 'Rate (Incl. VAT)' : 'Rate';
+    const subLbl = document.getElementById('subtotalLabel');
+    const vatLbl = document.getElementById('vatLabel');
+    const grandLbl = document.getElementById('grandLabel');
+    if (inclusive) {
+        if (subLbl) subLbl.textContent = 'Taxable Amount';
+        if (vatLbl) vatLbl.textContent = 'Included VAT';
+        if (grandLbl) grandLbl.textContent = 'Gross Total';
+    } else {
+        if (subLbl) subLbl.textContent = 'Subtotal (excl. VAT)';
+        if (vatLbl) vatLbl.textContent = 'VAT';
+        if (grandLbl) grandLbl.textContent = 'Total (incl. VAT)';
+    }
+}
+
 function populateRowFromInventory(row, invId, groupName, defaultQuantity) {
     const meta = getInventoryMeta(invId);
     if (!meta || !row) return;
@@ -1760,13 +1819,12 @@ function calculateRowTotal(input) {
     const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
     const taxSel = row.querySelector('.item-tax-code');
     const vatRate = getVatRatePercent(taxSel);
-    const net = qty * rate;
-    const vat = net * (vatRate / 100);
-    const gross = net + vat;
+    const gross = qty * rate;
+    const splits = splitLineAmounts(gross, vatRate, pricesIncludeVatEnabled());
     const netEl = row.querySelector('.row-net');
     const grossEl = row.querySelector('.row-gross');
-    if (netEl) netEl.textContent = net.toFixed(2);
-    if (grossEl) grossEl.textContent = gross.toFixed(2);
+    if (netEl) netEl.textContent = splits.taxable.toFixed(2);
+    if (grossEl) grossEl.textContent = splits.gross.toFixed(2);
     calculateTotals();
     if (!suppressTrailingEmptyRow) {
         ensureTrailingEmptyRow();
@@ -1869,9 +1927,9 @@ function calculateTotals() {
         const rate = computeRate(row);
         const taxSel = row.querySelector('.item-tax-code');
         const vatRate = getVatRatePercent(taxSel);
-        const net = qty * rate;
-        rows.push({ net, vatRate });
-        subtotal += net;
+        const splits = splitLineAmounts(qty * rate, vatRate, pricesIncludeVatEnabled());
+        rows.push({ net: splits.taxable, vatRate, lineVat: splits.vat });
+        subtotal += splits.taxable;
     });
     const dt = document.querySelector('[name="discount_type"]')?.value || 'none';
     const dv = parseFloat(document.querySelector('[name="discount_value"]')?.value) || 0;
@@ -1893,7 +1951,13 @@ function calculateTotals() {
             }
         }
         const lineNet = row.net - lineDisc;
-        vatTotal += Math.round(lineNet * (row.vatRate / 100) * 100) / 100;
+        if (pricesIncludeVatEnabled() && row.vatRate > 0) {
+            const grossAfterDisc = Math.round((lineNet * (1 + row.vatRate / 100)) * 100) / 100;
+            const split = splitLineAmounts(grossAfterDisc, row.vatRate, true);
+            vatTotal += split.vat;
+        } else {
+            vatTotal += Math.round(lineNet * (row.vatRate / 100) * 100) / 100;
+        }
     });
 
     const grand = subtotal - disc + vatTotal;
@@ -1905,6 +1969,7 @@ function calculateTotals() {
     }
     document.getElementById('vatTotal').textContent = vatTotal.toFixed(2);
     document.getElementById('grandTotal').textContent = grand.toFixed(2);
+    updateVatPricingLabels();
     updateExpenseTypeTotals();
 }
 
@@ -2072,6 +2137,35 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
     document.querySelector('[name="discount_type"]')?.addEventListener('change', calculateTotals);
     document.querySelector('[name="discount_value"]')?.addEventListener('input', calculateTotals);
+    const vatToggle = document.getElementById('id_prices_include_vat');
+    if (vatToggle && !vatToggle.disabled) {
+        let prevVatToggle = vatToggle.checked;
+        vatToggle.addEventListener('change', function() {
+            const hasLines = Array.from(document.querySelectorAll('#itemsBody .item-row')).some(row => {
+                if (row.style.display === 'none') return false;
+                const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
+                const rate = computeRate(row);
+                return qty > 0 && rate > 0;
+            });
+            if (hasLines) {
+                const ok = confirm(
+                    'Switching changes how entered prices are interpreted. Totals will recalculate. Continue?'
+                );
+                if (!ok) {
+                    vatToggle.checked = prevVatToggle;
+                    return;
+                }
+            }
+            prevVatToggle = vatToggle.checked;
+            syncLineVatInclusiveFlags();
+            document.querySelectorAll('#itemsBody .item-row').forEach(row => {
+                const q = row.querySelector('.item-qty');
+                if (q) calculateRowTotal(q);
+            });
+        });
+    }
+    syncLineVatInclusiveFlags();
+    updateVatPricingLabels();
     const scopeSelect = document.getElementById('id_scope_of_work');
     if (scopeSelect) {
         let lastScopeOfWork = scopeSelect.value || '';
