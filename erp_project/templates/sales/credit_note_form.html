@@ -56,7 +56,7 @@
             </div>
 
             <div class="mt-4 mb-2 d-flex justify-content-between flex-wrap gap-2">
-                <h6 class="mb-0 fw-semibold">Line Items</h6>
+                <h6 class="mb-0 fw-semibold">Credit</h6>
                 <div class="small text-muted" id="invoiceSummary">
                     {% if invoice_total %}
                     Original: AED {{ invoice_total|floatformat:2 }} ·
@@ -68,23 +68,54 @@
                 </div>
             </div>
 
+            <input type="hidden" name="credit_mode" id="creditModeInput" value="items">
+            <div class="mb-3 d-flex flex-wrap gap-3 align-items-center" id="creditModeToggle">
+                <div class="form-check form-check-inline mb-0">
+                    <input class="form-check-input" type="radio" name="credit_mode_ui" id="creditModeItems" value="items" checked>
+                    <label class="form-check-label" for="creditModeItems">Credit by items</label>
+                </div>
+                <div class="form-check form-check-inline mb-0">
+                    <input class="form-check-input" type="radio" name="credit_mode_ui" id="creditModeAmount" value="amount">
+                    <label class="form-check-label" for="creditModeAmount">Credit by amount</label>
+                </div>
+            </div>
+
+            <div id="amountCreditPanel" class="row g-3 mb-3 d-none">
+                <div class="col-md-4">
+                    <label class="form-label" for="amountCreditSubtotal">Credit amount (excl. VAT)</label>
+                    <input type="number" class="form-control" name="amount_credit_subtotal" id="amountCreditSubtotal" step="0.01" min="0" value="0">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="amountCreditVatRate">VAT rate</label>
+                    <select class="form-select" name="amount_credit_vat_rate" id="amountCreditVatRate">
+                        {% for tc in tax_codes %}
+                        <option value="{{ tc.rate }}">{{ tc.code }} ({{ tc.rate }}%)</option>
+                        {% empty %}
+                        <option value="5">5%</option>
+                        <option value="0">0%</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div id="itemsCreditPanel">
             <div class="table-responsive">
                 <table class="table table-sm">
                     <thead class="table-light">
                         <tr>
                             <th>Description</th>
-                            <th class="text-center">Qty</th>
-                            <th class="text-end">Unit Price</th>
-                            <th class="text-center">VAT %</th>
-                            <th class="text-end">Line Total</th>
-                            <th class="text-end">VAT</th>
-                            <th></th>
+                            <th class="text-center" style="width:100px">Qty</th>
+                            <th class="text-end" style="width:110px">Unit Price</th>
+                            <th class="text-center" style="width:70px">VAT %</th>
+                            <th class="text-end" style="width:110px">Line Total</th>
+                            <th class="text-end" style="width:100px">VAT</th>
+                            <th style="width:40px"></th>
                         </tr>
                     </thead>
                     <tbody id="linesBody">
                         <input type="hidden" name="lines-TOTAL_FORMS" id="linesTotalForms" value="{{ invoice_line_rows|length }}">
                         <input type="hidden" name="lines-INITIAL_FORMS" value="0">
-                        <input type="hidden" name="lines-MIN_NUM_FORMS" value="1">
+                        <input type="hidden" name="lines-MIN_NUM_FORMS" value="0">
                         <input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">
                         {% for row in invoice_line_rows %}
                         <tr class="line-row">
@@ -92,28 +123,38 @@
                                 <input type="hidden" name="lines-{{ forloop.counter0 }}-invoice_line" value="{{ row.invoice_line_id }}">
                                 <input type="text" name="lines-{{ forloop.counter0 }}-description" class="form-control form-control-sm" value="{{ row.description }}">
                             </td>
-                            <td><input type="number" name="lines-{{ forloop.counter0 }}-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0.01" max="{{ row.max_quantity }}" value="{{ row.quantity }}" data-max="{{ row.max_quantity }}" data-price="{{ row.unit_price }}" data-vat="{{ row.vat_rate }}" data-inclusive="{% if row.is_vat_inclusive %}1{% else %}0{% endif %}"></td>
+                            <td><input type="number" name="lines-{{ forloop.counter0 }}-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0" max="{{ row.max_quantity }}" value="{{ row.quantity }}" data-max="{{ row.max_quantity }}" data-price="{{ row.unit_price }}" data-vat="{{ row.vat_rate }}" data-inclusive="{% if row.is_vat_inclusive %}1{% else %}0{% endif %}"></td>
                             <td class="text-end line-price">{{ row.unit_price|floatformat:2 }}</td>
                             <td class="text-center line-vat-rate">{{ row.vat_rate }}%</td>
                             <td class="text-end line-total">{{ row.line_total|floatformat:2 }}</td>
                             <td class="text-end line-vat">{{ row.line_vat|floatformat:2 }}</td>
-                            <td><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger remove-line" title="Remove line"><i class="fas fa-times"></i></button></td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="7" class="text-muted text-center py-3">Select a posted invoice to load lines.</td></tr>
+                        <tr id="linesPlaceholder"><td colspan="7" class="text-muted text-center py-3">Select a posted invoice to load lines.</td></tr>
                         {% endfor %}
                     </tbody>
-                    <tfoot>
-                        <tr><td colspan="4" class="text-end">Subtotal</td><td class="text-end" id="subtotalDisplay">0.00</td><td class="text-end" id="vatDisplay">0.00</td><td></td></tr>
-                        <tr><td colspan="4" class="text-end fw-bold">Total</td><td colspan="2" class="text-end fw-bold" id="grandTotalDisplay">0.00</td><td></td></tr>
-                    </tfoot>
                 </table>
+            </div>
+            </div>
+
+            <div class="border rounded p-3 bg-light">
+                <div class="row text-end small gy-1">
+                    <div class="col-8 col-md-10">Subtotal (excl. VAT)</div>
+                    <div class="col-4 col-md-2 fw-medium" id="subtotalDisplay">0.00</div>
+                    <div class="col-8 col-md-10">VAT</div>
+                    <div class="col-4 col-md-2 fw-medium" id="vatDisplay">0.00</div>
+                    <div class="col-8 col-md-10 fw-bold">Total</div>
+                    <div class="col-4 col-md-2 fw-bold" id="grandTotalDisplay">0.00</div>
+                    <div class="col-8 col-md-10 border-top pt-2 mt-1">Remaining after this CN</div>
+                    <div class="col-4 col-md-2 border-top pt-2 mt-1 fw-bold" id="remainingAfterDisplay">—</div>
+                </div>
             </div>
 
             <div id="lateWarningBox" class="alert alert-warning py-2 small d-none">{{ fta_late_warning }}</div>
 
             <div class="mt-4">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save Credit Note</button>
+                <button type="submit" class="btn btn-primary" id="saveBtn"><i class="fas fa-save me-2"></i>Save Credit Note</button>
                 <a href="{% url 'sales:credit_note_list' %}" class="btn btn-light">Cancel</a>
             </div>
         </form>
@@ -132,6 +173,14 @@
     const invoiceSummary = document.getElementById('invoiceSummary');
     const linesUrlTemplate = form?.dataset.invoiceDataUrl || '';
     const excludeCreditNotePk = form?.dataset.excludeCreditNote || '';
+    const creditModeInput = document.getElementById('creditModeInput');
+    const itemsPanel = document.getElementById('itemsCreditPanel');
+    const amountPanel = document.getElementById('amountCreditPanel');
+    const amountSubtotalInput = document.getElementById('amountCreditSubtotal');
+    const amountVatRateSelect = document.getElementById('amountCreditVatRate');
+    const saveBtn = document.getElementById('saveBtn');
+    let remainingCap = null;
+    let defaultVatRate = 5;
 
     function invoiceDataUrl(invoiceId) {
         if (!linesUrlTemplate || !invoiceId) return '';
@@ -144,6 +193,17 @@
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    }
+
+    function isAmountMode() {
+        return creditModeInput && creditModeInput.value === 'amount';
+    }
+
+    function setCreditMode(mode) {
+        if (creditModeInput) creditModeInput.value = mode;
+        itemsPanel?.classList.toggle('d-none', mode === 'amount');
+        amountPanel?.classList.toggle('d-none', mode !== 'amount');
+        recalcTotals();
     }
 
     function toggleReasonOther() {
@@ -164,6 +224,7 @@
     }
 
     function calcLineTotal(qty, price, vat, inclusive) {
+        if (qty <= 0) return { total: 0, vat: 0 };
         const gross = qty * price;
         if (inclusive && vat > 0) {
             const net = gross / (1 + vat / 100);
@@ -186,13 +247,32 @@
 
     function recalcTotals() {
         let sub = 0, vat = 0;
-        document.querySelectorAll('.line-row').forEach(row => {
-            sub += parseFloat(row.querySelector('.line-total')?.textContent) || 0;
-            vat += parseFloat(row.querySelector('.line-vat')?.textContent) || 0;
-        });
+        if (isAmountMode()) {
+            sub = parseFloat(amountSubtotalInput?.value) || 0;
+            const rate = parseFloat(amountVatRateSelect?.value) || 0;
+            vat = Math.round(sub * rate) / 100;
+        } else {
+            document.querySelectorAll('.line-row').forEach(row => {
+                const qty = parseFloat(row.querySelector('.line-qty')?.value) || 0;
+                if (qty <= 0) return;
+                sub += parseFloat(row.querySelector('.line-total')?.textContent) || 0;
+                vat += parseFloat(row.querySelector('.line-vat')?.textContent) || 0;
+            });
+        }
+        const grand = sub + vat;
         document.getElementById('subtotalDisplay').textContent = sub.toFixed(2);
         document.getElementById('vatDisplay').textContent = vat.toFixed(2);
-        document.getElementById('grandTotalDisplay').textContent = (sub + vat).toFixed(2);
+        document.getElementById('grandTotalDisplay').textContent = grand.toFixed(2);
+        const afterEl = document.getElementById('remainingAfterDisplay');
+        if (remainingCap == null || Number.isNaN(remainingCap)) {
+            afterEl.textContent = '—';
+            if (saveBtn) saveBtn.disabled = false;
+            return;
+        }
+        const after = remainingCap - grand;
+        afterEl.textContent = after.toFixed(2);
+        afterEl.classList.toggle('text-danger', after < -0.001);
+        if (saveBtn) saveBtn.disabled = after < -0.001 || grand <= 0;
     }
 
     function bindRow(row) {
@@ -200,7 +280,8 @@
         if (qtyInput) {
             qtyInput.addEventListener('input', () => {
                 const max = parseFloat(qtyInput.dataset.max) || parseFloat(qtyInput.max) || 0;
-                let qty = parseFloat(qtyInput.value) || 0;
+                let qty = parseFloat(qtyInput.value);
+                if (Number.isNaN(qty) || qty < 0) qty = 0;
                 if (max > 0 && qty > max) {
                     qty = max;
                     qtyInput.value = max;
@@ -233,7 +314,7 @@
     function managementFormHtml(count) {
         return '<input type="hidden" name="lines-TOTAL_FORMS" id="linesTotalForms" value="' + count + '">' +
             '<input type="hidden" name="lines-INITIAL_FORMS" value="0">' +
-            '<input type="hidden" name="lines-MIN_NUM_FORMS" value="1">' +
+            '<input type="hidden" name="lines-MIN_NUM_FORMS" value="0">' +
             '<input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">';
     }
 
@@ -241,12 +322,19 @@
         if (!invoiceSummary) return;
         if (!data) {
             invoiceSummary.textContent = 'Original: — · Credited: — · Remaining: —';
+            remainingCap = null;
             return;
+        }
+        remainingCap = parseFloat(data.remaining_invoice_value || data.max_credit);
+        defaultVatRate = parseFloat(data.default_vat_rate) || 5;
+        if (amountVatRateSelect) {
+            const opt = Array.from(amountVatRateSelect.options).find(o => parseFloat(o.value) === defaultVatRate);
+            if (opt) amountVatRateSelect.value = opt.value;
         }
         invoiceSummary.textContent =
             'Original: AED ' + parseFloat(data.invoice_total).toFixed(2) +
             ' · Credited: AED ' + parseFloat(data.prior_credited).toFixed(2) +
-            ' · Remaining: AED ' + parseFloat(data.remaining_invoice_value || data.max_credit).toFixed(2);
+            ' · Remaining: AED ' + remainingCap.toFixed(2);
     }
 
     function clearLines(message) {
@@ -269,12 +357,12 @@
                 '<input type="hidden" name="lines-' + index + '-invoice_line" value="' + line.invoice_line_id + '">' +
                 '<input type="text" name="lines-' + index + '-description" class="form-control form-control-sm" value="' + escapeHtml(line.description) + '">' +
             '</td>' +
-            '<td><input type="number" name="lines-' + index + '-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0.01" max="' + line.max_quantity + '" value="' + line.quantity + '" data-max="' + line.max_quantity + '" data-price="' + line.unit_price + '" data-vat="' + line.vat_rate + '" data-inclusive="' + inclusive + '"></td>' +
+            '<td><input type="number" name="lines-' + index + '-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0" max="' + line.max_quantity + '" value="' + line.quantity + '" data-max="' + line.max_quantity + '" data-price="' + line.unit_price + '" data-vat="' + line.vat_rate + '" data-inclusive="' + inclusive + '"></td>' +
             '<td class="text-end line-price">' + parseFloat(line.unit_price).toFixed(2) + '</td>' +
             '<td class="text-center line-vat-rate">' + parseFloat(line.vat_rate) + '%</td>' +
             '<td class="text-end line-total">' + parseFloat(line.line_total).toFixed(2) + '</td>' +
             '<td class="text-end line-vat">' + parseFloat(line.line_vat).toFixed(2) + '</td>' +
-            '<td><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>';
+            '<td><button type="button" class="btn btn-sm btn-outline-danger remove-line" title="Remove line"><i class="fas fa-times"></i></button></td>';
         return tr;
     }
 
@@ -313,18 +401,22 @@
         fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
             .then(response => response.json().then(data => ({ ok: response.ok, data })))
             .then(({ ok, data }) => {
-                if (!ok || data.error) {
-                    throw new Error(data.error || 'Could not load invoice data.');
-                }
+                if (!ok || data.error) throw new Error(data.error || 'Could not load invoice data.');
                 renderLines(data);
             })
             .catch(err => {
                 clearLines(err.message || 'Could not load invoice lines.');
-                if (window.showToast) {
-                    showToast('error', err.message || 'Could not load invoice lines.');
-                }
+                if (window.showToast) showToast('error', err.message || 'Could not load invoice lines.');
             });
     }
+
+    document.querySelectorAll('input[name="credit_mode_ui"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            if (radio.checked) setCreditMode(radio.value);
+        });
+    });
+    amountSubtotalInput?.addEventListener('input', recalcTotals);
+    amountVatRateSelect?.addEventListener('change', recalcTotals);
 
     if (invoiceSelect && !invoiceSelect.disabled) {
         invoiceSelect.addEventListener('change', function () {
@@ -339,10 +431,12 @@
     }
 
     document.querySelectorAll('.line-row').forEach(bindRow);
+    {% if invoice_total %}
+    remainingCap = {{ max_credit }};
+    {% endif %}
     checkLate();
     recalcTotals();
 
-    // Direct create: if invoice pre-selected via URL but lines not server-rendered, fetch now.
     if (invoiceSelect && invoiceSelect.value && !document.querySelector('.line-row')) {
         loadInvoiceData(invoiceSelect.value);
     }

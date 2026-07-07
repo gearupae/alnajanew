@@ -61,6 +61,20 @@ class DebitNoteListView(PermissionRequiredMixin, ListView):
         return context
 
 
+def _default_vat_rate_for_bill(bill):
+    for item in bill.items.all():
+        if item.vat_rate > 0:
+            return item.vat_rate
+    return Decimal('5.00')
+
+
+def _debit_reason_display_label(reason, reason_description=''):
+    labels = dict(DebitNote.REASON_CHOICES)
+    if reason == 'other' and reason_description:
+        return reason_description
+    return labels.get(reason, reason)
+
+
 def _debit_note_bill_payload(bill, exclude_debit_note_pk=None):
     """Shared bill + line data for debit note create (server template and AJAX)."""
     prior = DebitNote.posted_total_for_bill(
@@ -87,6 +101,7 @@ def _debit_note_bill_payload(bill, exclude_debit_note_pk=None):
         'prior_debited': str(prior),
         'remaining_bill_value': str(bill.total_amount - prior),
         'max_debit': str(bill.total_amount - prior),
+        'default_vat_rate': str(_default_vat_rate_for_bill(bill)),
         'lines': lines,
     }
 
@@ -128,8 +143,54 @@ def _bill_line_rows(bill, exclude_debit_note_pk=None):
     return rows
 
 
+def _save_amount_debit_line(debit_note, post_data, exclude_debit_note_pk=None):
+    bill = debit_note.original_bill
+    anchor = bill.items.first()
+    if not anchor:
+        raise ValidationError('Bill has no line items to attach a partial debit.')
+
+    amount_excl = Decimal(post_data.get('amount_debit_subtotal', '0') or '0')
+    vat_rate = Decimal(post_data.get('amount_debit_vat_rate', '0') or '0')
+    if amount_excl <= 0:
+        raise ValidationError('Debit amount (excl. VAT) must be greater than zero.')
+
+    vat_amt = (amount_excl * vat_rate / Decimal('100')).quantize(Decimal('0.01'))
+    total = amount_excl + vat_amt
+    prior = DebitNote.posted_total_for_bill(
+        bill,
+        exclude_pk=exclude_debit_note_pk or (debit_note.pk if debit_note.pk else None),
+    )
+    remaining = bill.total_amount - prior
+    if total > remaining:
+        raise ValidationError(
+            f'Debit amount AED {total:,.2f} exceeds remaining bill value AED {remaining:,.2f}.'
+        )
+
+    desc = f"Partial debit - {_debit_reason_display_label(debit_note.reason, debit_note.reason_description)}"
+    line = DebitNoteLine.objects.create(
+        debit_note=debit_note,
+        bill_line=anchor,
+        description=desc,
+        quantity=Decimal('0.01'),
+        unit_price=amount_excl,
+        vat_rate=vat_rate,
+    )
+    DebitNoteLine.objects.filter(pk=line.pk).update(
+        line_total=amount_excl,
+        line_vat=vat_amt,
+        unit_price=amount_excl,
+        description=desc,
+        vat_rate=vat_rate,
+    )
+    return 1
+
+
 def _save_debit_note_lines(debit_note, post_data, exclude_debit_note_pk=None):
     debit_note.lines.all().delete()
+    mode = post_data.get('debit_mode', 'items')
+    if mode == 'amount':
+        return _save_amount_debit_line(debit_note, post_data, exclude_debit_note_pk)
+
     total_forms = int(post_data.get('lines-TOTAL_FORMS', 0))
     saved = 0
     for i in range(total_forms):
@@ -137,12 +198,14 @@ def _save_debit_note_lines(debit_note, post_data, exclude_debit_note_pk=None):
             continue
         bill_line_id = post_data.get(f'lines-{i}-bill_line')
         quantity = post_data.get(f'lines-{i}-quantity')
-        if not bill_line_id or not quantity:
+        if not bill_line_id or quantity in (None, ''):
             continue
         bill_line = get_object_or_404(VendorBillItem, pk=bill_line_id)
         qty = Decimal(quantity)
+        if qty <= 0:
+            continue
         remaining = DebitNoteLine.remaining_quantity(bill_line, exclude_debit_note_pk)
-        if qty <= 0 or qty > remaining:
+        if qty > remaining:
             raise ValidationError(
                 f'Invalid quantity for line "{bill_line.description}" (max {remaining}).'
             )
@@ -156,8 +219,29 @@ def _save_debit_note_lines(debit_note, post_data, exclude_debit_note_pk=None):
         )
         saved += 1
     if saved == 0:
-        raise ValidationError('At least one line item is required.')
+        raise ValidationError('At least one line with quantity greater than zero is required.')
     return saved
+
+
+def _debit_note_edit_rows(debit_note):
+    rows = []
+    for line in debit_note.lines.select_related('bill_line'):
+        item = line.bill_line
+        posted_other = DebitNoteLine.posted_quantity_for_bill_line(
+            item, exclude_debit_note_pk=debit_note.pk
+        )
+        max_qty = item.quantity - posted_other + line.quantity
+        rows.append({
+            'bill_line_id': item.pk,
+            'description': line.description,
+            'quantity': line.quantity,
+            'max_quantity': max_qty,
+            'unit_price': line.unit_price,
+            'vat_rate': line.vat_rate,
+            'line_total': line.line_total,
+            'line_vat': line.line_vat,
+        })
+    return rows
 
 
 class DebitNoteCreateView(CreatePermissionMixin, CreateView):
@@ -182,9 +266,12 @@ class DebitNoteCreateView(CreatePermissionMixin, CreateView):
         return initial
 
     def get_context_data(self, **kwargs):
+        from apps.finance.models import TaxCode
+
         context = super().get_context_data(**kwargs)
         context['title'] = 'Create Debit Note'
         context['today'] = date.today().isoformat()
+        context['tax_codes'] = TaxCode.objects.filter(is_active=True).order_by('code')
         bill = None
         if self.request.POST.get('original_bill'):
             bill = VendorBill.objects.filter(pk=self.request.POST.get('original_bill')).first()
@@ -193,15 +280,6 @@ class DebitNoteCreateView(CreatePermissionMixin, CreateView):
         elif self.object and self.object.original_bill_id:
             bill = self.object.original_bill
 
-        if 'lines_formset' not in context:
-            if self.object and self.object.pk:
-                context['lines_formset'] = DebitNoteLineFormSet(
-                    self.request.POST or None,
-                    instance=self.object,
-                    prefix='lines',
-                )
-            else:
-                context['lines_formset'] = None
         if bill:
             context.update(_debit_note_bill_context(bill))
         else:
@@ -242,16 +320,14 @@ class DebitNoteUpdateView(UpdatePermissionMixin, UpdateView):
         return DebitNote.objects.filter(is_active=True, status='draft')
 
     def get_context_data(self, **kwargs):
+        from apps.finance.models import TaxCode
+
         context = super().get_context_data(**kwargs)
         context['title'] = f'Edit Debit Note: {self.object.number}'
+        context['tax_codes'] = TaxCode.objects.filter(is_active=True).order_by('code')
         bill = self.object.original_bill
         context.update(_debit_note_bill_context(bill, exclude_debit_note_pk=self.object.pk))
-        if 'lines_formset' not in context:
-            context['lines_formset'] = DebitNoteLineFormSet(
-                self.request.POST or None,
-                instance=self.object,
-                prefix='lines',
-            )
+        context['bill_line_rows'] = _debit_note_edit_rows(self.object)
         return context
 
     def post(self, request, *args, **kwargs):

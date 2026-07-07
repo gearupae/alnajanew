@@ -60,6 +60,20 @@ class CreditNoteListView(PermissionRequiredMixin, ListView):
         return context
 
 
+def _default_vat_rate_for_invoice(invoice):
+    for item in invoice.items.all():
+        if item.vat_rate > 0:
+            return item.vat_rate
+    return Decimal('5.00')
+
+
+def _reason_display_label(reason, reason_description=''):
+    labels = dict(CreditNote.REASON_CHOICES)
+    if reason == 'other' and reason_description:
+        return reason_description
+    return labels.get(reason, reason)
+
+
 def _credit_note_invoice_payload(invoice, exclude_credit_note_pk=None):
     """Shared invoice + line data for credit note create (server template and AJAX)."""
     prior = CreditNote.posted_total_for_invoice(
@@ -87,6 +101,7 @@ def _credit_note_invoice_payload(invoice, exclude_credit_note_pk=None):
         'prior_credited': str(prior),
         'remaining_invoice_value': str(invoice.total_amount - prior),
         'max_credit': str(invoice.total_amount - prior),
+        'default_vat_rate': str(_default_vat_rate_for_invoice(invoice)),
         'lines': lines,
     }
 
@@ -143,8 +158,54 @@ def _is_late(issue_date, trigger_event_date):
     return False
 
 
+def _save_amount_credit_line(credit_note, post_data, exclude_credit_note_pk=None):
+    invoice = credit_note.original_invoice
+    anchor = invoice.items.first()
+    if not anchor:
+        raise ValidationError('Invoice has no line items to attach a partial credit.')
+
+    amount_excl = Decimal(post_data.get('amount_credit_subtotal', '0') or '0')
+    vat_rate = Decimal(post_data.get('amount_credit_vat_rate', '0') or '0')
+    if amount_excl <= 0:
+        raise ValidationError('Credit amount (excl. VAT) must be greater than zero.')
+
+    vat_amt = (amount_excl * vat_rate / Decimal('100')).quantize(Decimal('0.01'))
+    total = amount_excl + vat_amt
+    prior = CreditNote.posted_total_for_invoice(
+        invoice,
+        exclude_pk=exclude_credit_note_pk or (credit_note.pk if credit_note.pk else None),
+    )
+    remaining = invoice.total_amount - prior
+    if total > remaining:
+        raise ValidationError(
+            f'Credit amount AED {total:,.2f} exceeds remaining invoice value AED {remaining:,.2f}.'
+        )
+
+    desc = f"Partial credit - {_reason_display_label(credit_note.reason, credit_note.reason_description)}"
+    line = CreditNoteLine.objects.create(
+        credit_note=credit_note,
+        invoice_line=anchor,
+        description=desc,
+        quantity=Decimal('0.01'),
+        unit_price=amount_excl,
+        vat_rate=vat_rate,
+    )
+    CreditNoteLine.objects.filter(pk=line.pk).update(
+        line_total=amount_excl,
+        line_vat=vat_amt,
+        unit_price=amount_excl,
+        description=desc,
+        vat_rate=vat_rate,
+    )
+    return 1
+
+
 def _save_credit_note_lines(credit_note, post_data, exclude_credit_note_pk=None):
     credit_note.lines.all().delete()
+    mode = post_data.get('credit_mode', 'items')
+    if mode == 'amount':
+        return _save_amount_credit_line(credit_note, post_data, exclude_credit_note_pk)
+
     total_forms = int(post_data.get('lines-TOTAL_FORMS', 0))
     saved = 0
     for i in range(total_forms):
@@ -152,12 +213,14 @@ def _save_credit_note_lines(credit_note, post_data, exclude_credit_note_pk=None)
             continue
         invoice_line_id = post_data.get(f'lines-{i}-invoice_line')
         quantity = post_data.get(f'lines-{i}-quantity')
-        if not invoice_line_id or not quantity:
+        if not invoice_line_id or quantity in (None, ''):
             continue
         invoice_line = get_object_or_404(InvoiceItem, pk=invoice_line_id)
         qty = Decimal(quantity)
+        if qty <= 0:
+            continue
         remaining = CreditNoteLine.remaining_quantity(invoice_line, exclude_credit_note_pk)
-        if qty <= 0 or qty > remaining:
+        if qty > remaining:
             raise ValidationError(
                 f'Invalid quantity for line "{invoice_line.description}" (max {remaining}).'
             )
@@ -171,7 +234,7 @@ def _save_credit_note_lines(credit_note, post_data, exclude_credit_note_pk=None)
         )
         saved += 1
     if saved == 0:
-        raise ValidationError('At least one line item is required.')
+        raise ValidationError('At least one line with quantity greater than zero is required.')
     return saved
 
 
@@ -219,9 +282,12 @@ class CreditNoteCreateView(CreatePermissionMixin, CreateView):
         return initial
 
     def get_context_data(self, **kwargs):
+        from apps.finance.models import TaxCode
+
         context = super().get_context_data(**kwargs)
         context['title'] = 'Create Tax Credit Note'
         context['fta_late_warning'] = FTA_LATE_WARNING
+        context['tax_codes'] = TaxCode.objects.filter(is_active=True).order_by('code')
         invoice = None
         if self.request.POST.get('original_invoice'):
             invoice = Invoice.objects.filter(pk=self.request.POST.get('original_invoice')).first()
@@ -284,9 +350,12 @@ class CreditNoteUpdateView(UpdatePermissionMixin, UpdateView):
         return CreditNote.objects.filter(is_active=True, status='draft')
 
     def get_context_data(self, **kwargs):
+        from apps.finance.models import TaxCode
+
         context = super().get_context_data(**kwargs)
         context['title'] = f'Edit Credit Note: {self.object.number}'
         context['fta_late_warning'] = FTA_LATE_WARNING
+        context['tax_codes'] = TaxCode.objects.filter(is_active=True).order_by('code')
         invoice = self.object.original_invoice
         context.update(_credit_note_invoice_context(invoice, exclude_credit_note_pk=self.object.pk))
         context['invoice_line_rows'] = _credit_note_edit_rows(self.object)

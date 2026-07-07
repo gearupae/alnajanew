@@ -61,8 +61,8 @@
                 </div>
             </div>
 
-            <div class="mt-4 mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h6 class="mb-0 fw-semibold">Line Items</h6>
+            <div class="mt-4 mb-2 d-flex justify-content-between flex-wrap gap-2">
+                <h6 class="mb-0 fw-semibold">Debit</h6>
                 <div class="small text-muted" id="billSummary">
                     {% if bill_total %}
                     Original: AED {{ bill_total|floatformat:2 }} ·
@@ -74,6 +74,37 @@
                 </div>
             </div>
 
+            <input type="hidden" name="debit_mode" id="debitModeInput" value="items">
+            <div class="mb-3 d-flex flex-wrap gap-3 align-items-center" id="debitModeToggle">
+                <div class="form-check form-check-inline mb-0">
+                    <input class="form-check-input" type="radio" name="debit_mode_ui" id="debitModeItems" value="items" checked>
+                    <label class="form-check-label" for="debitModeItems">Debit by items</label>
+                </div>
+                <div class="form-check form-check-inline mb-0">
+                    <input class="form-check-input" type="radio" name="debit_mode_ui" id="debitModeAmount" value="amount">
+                    <label class="form-check-label" for="debitModeAmount">Debit by amount</label>
+                </div>
+            </div>
+
+            <div id="amountDebitPanel" class="row g-3 mb-3 d-none">
+                <div class="col-md-4">
+                    <label class="form-label" for="amountDebitSubtotal">Debit amount (excl. VAT)</label>
+                    <input type="number" class="form-control" name="amount_debit_subtotal" id="amountDebitSubtotal" step="0.01" min="0" value="0">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="amountDebitVatRate">VAT rate</label>
+                    <select class="form-select" name="amount_debit_vat_rate" id="amountDebitVatRate">
+                        {% for tc in tax_codes %}
+                        <option value="{{ tc.rate }}">{{ tc.code }} ({{ tc.rate }}%)</option>
+                        {% empty %}
+                        <option value="5">5%</option>
+                        <option value="0">0%</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div id="itemsDebitPanel">
             <div class="table-responsive">
                 <table class="table table-sm" id="linesTable">
                     <thead class="table-light">
@@ -88,23 +119,9 @@
                         </tr>
                     </thead>
                     <tbody id="linesBody">
-                        {% if lines_formset %}
-                        {{ lines_formset.management_form }}
-                        {% for line_form in lines_formset %}
-                        <tr class="line-row">
-                            <td>{{ line_form.description }}{{ line_form.bill_line }}</td>
-                            <td>{{ line_form.quantity }}</td>
-                            <td class="text-end line-price">—</td>
-                            <td class="text-center line-vat-rate">—</td>
-                            <td class="text-end line-total">—</td>
-                            <td class="text-end line-vat">—</td>
-                            <td>{{ line_form.DELETE }}<button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
                         <input type="hidden" name="lines-TOTAL_FORMS" id="linesTotalForms" value="{{ bill_line_rows|length }}">
                         <input type="hidden" name="lines-INITIAL_FORMS" value="0">
-                        <input type="hidden" name="lines-MIN_NUM_FORMS" value="1">
+                        <input type="hidden" name="lines-MIN_NUM_FORMS" value="0">
                         <input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">
                         {% for row in bill_line_rows %}
                         <tr class="line-row">
@@ -113,37 +130,37 @@
                                 <input type="text" name="lines-{{ forloop.counter0 }}-description" class="form-control form-control-sm" value="{{ row.description }}">
                             </td>
                             <td>
-                                <input type="number" name="lines-{{ forloop.counter0 }}-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0.01" max="{{ row.max_quantity }}" value="{{ row.quantity }}" data-max="{{ row.max_quantity }}" data-price="{{ row.unit_price }}" data-vat="{{ row.vat_rate }}">
+                                <input type="number" name="lines-{{ forloop.counter0 }}-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0" max="{{ row.max_quantity }}" value="{{ row.quantity }}" data-max="{{ row.max_quantity }}" data-price="{{ row.unit_price }}" data-vat="{{ row.vat_rate }}">
                             </td>
                             <td class="text-end line-price">{{ row.unit_price|floatformat:2 }}</td>
                             <td class="text-center line-vat-rate">{{ row.vat_rate }}%</td>
                             <td class="text-end line-total">{{ row.line_total|floatformat:2 }}</td>
                             <td class="text-end line-vat">{{ row.line_vat|floatformat:2 }}</td>
-                            <td><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger remove-line" title="Remove line"><i class="fas fa-times"></i></button></td>
                         </tr>
                         {% empty %}
                         <tr id="noLinesRow"><td colspan="7" class="text-muted text-center py-3">Select a posted vendor bill to load lines.</td></tr>
                         {% endfor %}
-                        {% endif %}
                     </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="4" class="text-end fw-medium">Subtotal</td>
-                            <td class="text-end fw-medium" id="subtotalDisplay">0.00</td>
-                            <td class="text-end fw-medium" id="vatDisplay">0.00</td>
-                            <td></td>
-                        </tr>
-                        <tr>
-                            <td colspan="4" class="text-end fw-bold">Total</td>
-                            <td colspan="2" class="text-end fw-bold" id="grandTotalDisplay">0.00</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
                 </table>
+            </div>
+            </div>
+
+            <div class="border rounded p-3 bg-light">
+                <div class="row text-end small gy-1">
+                    <div class="col-8 col-md-10">Subtotal (excl. VAT)</div>
+                    <div class="col-4 col-md-2 fw-medium" id="subtotalDisplay">0.00</div>
+                    <div class="col-8 col-md-10">VAT</div>
+                    <div class="col-4 col-md-2 fw-medium" id="vatDisplay">0.00</div>
+                    <div class="col-8 col-md-10 fw-bold">Total</div>
+                    <div class="col-4 col-md-2 fw-bold" id="grandTotalDisplay">0.00</div>
+                    <div class="col-8 col-md-10 border-top pt-2 mt-1">Remaining after this DN</div>
+                    <div class="col-4 col-md-2 border-top pt-2 mt-1 fw-bold" id="remainingAfterDisplay">—</div>
+                </div>
             </div>
 
             <div class="mt-4">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save Debit Note</button>
+                <button type="submit" class="btn btn-primary" id="saveBtn"><i class="fas fa-save me-2"></i>Save Debit Note</button>
                 <a href="{% url 'purchase:debit_note_list' %}" class="btn btn-light">Cancel</a>
             </div>
         </form>
@@ -159,7 +176,13 @@
     const billSummary = document.getElementById('billSummary');
     const billUrlTemplate = form?.dataset.billDataUrl || '';
     const excludeDebitNotePk = form?.dataset.excludeDebitNote || '';
-    const usesFormset = !!document.getElementById('id_lines-TOTAL_FORMS');
+    const debitModeInput = document.getElementById('debitModeInput');
+    const itemsPanel = document.getElementById('itemsDebitPanel');
+    const amountPanel = document.getElementById('amountDebitPanel');
+    const amountSubtotalInput = document.getElementById('amountDebitSubtotal');
+    const amountVatRateSelect = document.getElementById('amountDebitVatRate');
+    const saveBtn = document.getElementById('saveBtn');
+    let remainingCap = null;
 
     function billDataUrl(billId) {
         if (!billUrlTemplate || !billId) return '';
@@ -174,11 +197,26 @@
             .replace(/"/g, '&quot;');
     }
 
+    function isAmountMode() {
+        return debitModeInput && debitModeInput.value === 'amount';
+    }
+
+    function setDebitMode(mode) {
+        if (debitModeInput) debitModeInput.value = mode;
+        itemsPanel?.classList.toggle('d-none', mode === 'amount');
+        amountPanel?.classList.toggle('d-none', mode !== 'amount');
+        recalcTotals();
+    }
+
     function toggleReasonOther() {
         const wrap = document.getElementById('reasonOtherWrap');
-        if (wrap && reasonSelect) {
-            wrap.style.display = reasonSelect.value === 'other' ? '' : 'none';
-        }
+        if (wrap && reasonSelect) wrap.style.display = reasonSelect.value === 'other' ? '' : 'none';
+    }
+
+    function calcLineTotal(qty, price, vat) {
+        if (qty <= 0) return { total: 0, vat: 0 };
+        const total = qty * price;
+        return { total: total, vat: total * (vat / 100) };
     }
 
     function recalcRow(row) {
@@ -187,29 +225,45 @@
         const qty = parseFloat(qtyInput.value) || 0;
         const price = parseFloat(qtyInput.dataset.price) || 0;
         const vat = parseFloat(qtyInput.dataset.vat) || 0;
-        const total = qty * price;
-        const lineVat = total * (vat / 100);
-        const totalCell = row.querySelector('.line-total');
-        const vatCell = row.querySelector('.line-vat');
-        if (totalCell) totalCell.textContent = total.toFixed(2);
-        if (vatCell) vatCell.textContent = lineVat.toFixed(2);
+        const r = calcLineTotal(qty, price, vat);
+        row.querySelector('.line-total').textContent = r.total.toFixed(2);
+        row.querySelector('.line-vat').textContent = r.vat.toFixed(2);
     }
 
     function recalcTotals() {
         let sub = 0, vat = 0;
-        document.querySelectorAll('.line-row').forEach(function (row) {
-            sub += parseFloat(row.querySelector('.line-total')?.textContent) || 0;
-            vat += parseFloat(row.querySelector('.line-vat')?.textContent) || 0;
-        });
+        if (isAmountMode()) {
+            sub = parseFloat(amountSubtotalInput?.value) || 0;
+            const rate = parseFloat(amountVatRateSelect?.value) || 0;
+            vat = Math.round(sub * rate) / 100;
+        } else {
+            document.querySelectorAll('.line-row').forEach(row => {
+                const qty = parseFloat(row.querySelector('.line-qty')?.value) || 0;
+                if (qty <= 0) return;
+                sub += parseFloat(row.querySelector('.line-total')?.textContent) || 0;
+                vat += parseFloat(row.querySelector('.line-vat')?.textContent) || 0;
+            });
+        }
+        const grand = sub + vat;
         document.getElementById('subtotalDisplay').textContent = sub.toFixed(2);
         document.getElementById('vatDisplay').textContent = vat.toFixed(2);
-        document.getElementById('grandTotalDisplay').textContent = (sub + vat).toFixed(2);
+        document.getElementById('grandTotalDisplay').textContent = grand.toFixed(2);
+        const afterEl = document.getElementById('remainingAfterDisplay');
+        if (remainingCap == null || Number.isNaN(remainingCap)) {
+            afterEl.textContent = '—';
+            if (saveBtn) saveBtn.disabled = false;
+            return;
+        }
+        const after = remainingCap - grand;
+        afterEl.textContent = after.toFixed(2);
+        afterEl.classList.toggle('text-danger', after < -0.001);
+        if (saveBtn) saveBtn.disabled = after < -0.001 || grand <= 0;
     }
 
     function reindexLineRows() {
         const rows = document.querySelectorAll('.line-row');
-        rows.forEach(function (row, i) {
-            row.querySelectorAll('[name^="lines-"]').forEach(function (input) {
+        rows.forEach((row, i) => {
+            row.querySelectorAll('[name^="lines-"]').forEach(input => {
                 input.name = input.name.replace(/^lines-\d+-/, 'lines-' + i + '-');
             });
         });
@@ -220,9 +274,10 @@
     function bindRowEvents(row) {
         const qtyInput = row.querySelector('.line-qty');
         if (qtyInput) {
-            qtyInput.addEventListener('input', function () {
+            qtyInput.addEventListener('input', () => {
                 const max = parseFloat(qtyInput.dataset.max) || parseFloat(qtyInput.max) || 0;
-                let qty = parseFloat(qtyInput.value) || 0;
+                let qty = parseFloat(qtyInput.value);
+                if (Number.isNaN(qty) || qty < 0) qty = 0;
                 if (max > 0 && qty > max) {
                     qty = max;
                     qtyInput.value = max;
@@ -233,7 +288,7 @@
         }
         const removeBtn = row.querySelector('.remove-line');
         if (removeBtn) {
-            removeBtn.addEventListener('click', function () {
+            removeBtn.addEventListener('click', () => {
                 row.remove();
                 reindexLineRows();
                 recalcTotals();
@@ -244,7 +299,7 @@
     function managementFormHtml(count) {
         return '<input type="hidden" name="lines-TOTAL_FORMS" id="linesTotalForms" value="' + count + '">' +
             '<input type="hidden" name="lines-INITIAL_FORMS" value="0">' +
-            '<input type="hidden" name="lines-MIN_NUM_FORMS" value="1">' +
+            '<input type="hidden" name="lines-MIN_NUM_FORMS" value="0">' +
             '<input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">';
     }
 
@@ -252,12 +307,19 @@
         if (!billSummary) return;
         if (!data) {
             billSummary.textContent = 'Original: — · Debited: — · Remaining: —';
+            remainingCap = null;
             return;
+        }
+        remainingCap = parseFloat(data.remaining_bill_value || data.max_debit);
+        const defaultVatRate = parseFloat(data.default_vat_rate) || 5;
+        if (amountVatRateSelect) {
+            const opt = Array.from(amountVatRateSelect.options).find(o => parseFloat(o.value) === defaultVatRate);
+            if (opt) amountVatRateSelect.value = opt.value;
         }
         billSummary.textContent =
             'Original: AED ' + parseFloat(data.bill_total).toFixed(2) +
             ' · Debited: AED ' + parseFloat(data.prior_debited).toFixed(2) +
-            ' · Remaining: AED ' + parseFloat(data.remaining_bill_value || data.max_debit).toFixed(2);
+            ' · Remaining: AED ' + remainingCap.toFixed(2);
     }
 
     function clearLines(message) {
@@ -279,12 +341,12 @@
                 '<input type="hidden" name="lines-' + index + '-bill_line" value="' + line.bill_line_id + '">' +
                 '<input type="text" name="lines-' + index + '-description" class="form-control form-control-sm" value="' + escapeHtml(line.description) + '">' +
             '</td>' +
-            '<td><input type="number" name="lines-' + index + '-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0.01" max="' + line.max_quantity + '" value="' + line.quantity + '" data-max="' + line.max_quantity + '" data-price="' + line.unit_price + '" data-vat="' + line.vat_rate + '"></td>' +
+            '<td><input type="number" name="lines-' + index + '-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0" max="' + line.max_quantity + '" value="' + line.quantity + '" data-max="' + line.max_quantity + '" data-price="' + line.unit_price + '" data-vat="' + line.vat_rate + '"></td>' +
             '<td class="text-end line-price">' + parseFloat(line.unit_price).toFixed(2) + '</td>' +
             '<td class="text-center line-vat-rate">' + parseFloat(line.vat_rate) + '%</td>' +
             '<td class="text-end line-total">' + parseFloat(line.line_total).toFixed(2) + '</td>' +
             '<td class="text-end line-vat">' + parseFloat(line.line_vat).toFixed(2) + '</td>' +
-            '<td><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>';
+            '<td><button type="button" class="btn btn-sm btn-outline-danger remove-line" title="Remove line"><i class="fas fa-times"></i></button></td>';
         return tr;
     }
 
@@ -302,7 +364,7 @@
             return;
         }
 
-        data.lines.forEach(function (line, i) {
+        data.lines.forEach((line, i) => {
             const tr = buildLineRow(line, i);
             linesBody.appendChild(tr);
             bindRowEvents(tr);
@@ -321,26 +383,26 @@
         }
         clearLines('Loading bill lines…');
         fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
-            .then(function (response) {
-                return response.json().then(function (data) {
-                    return { ok: response.ok, data: data };
-                });
+            .then(response => response.json().then(data => ({ ok: response.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok || data.error) throw new Error(data.error || 'Could not load bill data.');
+                renderLines(data);
             })
-            .then(function (result) {
-                if (!result.ok || result.data.error) {
-                    throw new Error(result.data.error || 'Could not load bill data.');
-                }
-                renderLines(result.data);
-            })
-            .catch(function (err) {
+            .catch(err => {
                 clearLines(err.message || 'Could not load bill lines.');
-                if (window.showToast) {
-                    showToast('error', err.message || 'Could not load bill lines.');
-                }
+                if (window.showToast) showToast('error', err.message || 'Could not load bill lines.');
             });
     }
 
-    if (!usesFormset && billSelect && !billSelect.disabled) {
+    document.querySelectorAll('input[name="debit_mode_ui"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            if (radio.checked) setDebitMode(radio.value);
+        });
+    });
+    amountSubtotalInput?.addEventListener('input', recalcTotals);
+    amountVatRateSelect?.addEventListener('change', recalcTotals);
+
+    if (billSelect && !billSelect.disabled) {
         billSelect.addEventListener('change', function () {
             loadBillData(this.value);
         });
@@ -351,9 +413,12 @@
         reasonSelect.addEventListener('change', toggleReasonOther);
         toggleReasonOther();
     }
+    {% if bill_total %}
+    remainingCap = {{ max_debit }};
+    {% endif %}
     recalcTotals();
 
-    if (!usesFormset && billSelect && billSelect.value && !document.querySelector('.line-row')) {
+    if (billSelect && billSelect.value && !document.querySelector('.line-row')) {
         loadBillData(billSelect.value);
     }
 })();

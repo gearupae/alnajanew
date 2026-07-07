@@ -1283,6 +1283,8 @@ class CreditNote(BaseModel):
                 f'Total credited amount (AED {prior_posted + self.total:,.2f}) cannot exceed '
                 f'original invoice total (AED {self.original_invoice.total_amount:,.2f}).'
             )
+        if self.remaining_invoice_value < 0:
+            raise ValidationError('Credit note exceeds the remaining invoice value.')
 
     def post_to_accounting(self, user=None):
         from apps.finance.models import JournalEntry, JournalEntryLine, AccountMapping, FiscalYear

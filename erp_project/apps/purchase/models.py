@@ -1128,6 +1128,8 @@ class DebitNote(BaseModel):
                 f'Total debited amount (AED {prior_posted + self.total:,.2f}) cannot exceed '
                 f'original bill total (AED {self.original_bill.total_amount:,.2f}).'
             )
+        if self.remaining_bill_value < 0:
+            raise ValidationError('Debit note exceeds the remaining bill value.')
 
     @property
     def stock_return_pending(self):
