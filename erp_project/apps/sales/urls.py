@@ -83,5 +83,6 @@ urlpatterns = [
     path('credit-notes/<int:pk>/approve/', credit_note_views.credit_note_approve, name='credit_note_approve'),
     path('credit-notes/<int:pk>/post/', credit_note_views.credit_note_post, name='credit_note_post'),
     path('credit-notes/<int:pk>/pdf/', credit_note_views.credit_note_pdf, name='credit_note_pdf'),
+    path('invoices/<int:pk>/credit-note-data/', credit_note_views.invoice_credit_note_data_json, name='invoice_credit_note_data_json'),
     path('invoices/<int:pk>/credit-note-lines/', credit_note_views.invoice_credit_note_lines_json, name='invoice_credit_note_lines_json'),
 ]

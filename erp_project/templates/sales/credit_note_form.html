@@ -13,7 +13,9 @@
 
 <div class="card">
     <div class="card-body">
-        <form method="post" id="creditNoteForm">
+        <form method="post" id="creditNoteForm"
+              data-invoice-data-url="{% url 'sales:invoice_credit_note_data_json' 0 %}"
+              {% if object %}data-exclude-credit-note="{{ object.pk }}"{% endif %}>
             {% csrf_token %}
             {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
             {% if show_late_warning %}
@@ -53,10 +55,16 @@
                 </div>
             </div>
 
-            <div class="mt-4 mb-2 d-flex justify-content-between">
+            <div class="mt-4 mb-2 d-flex justify-content-between flex-wrap gap-2">
                 <h6 class="mb-0 fw-semibold">Line Items</h6>
                 <div class="small text-muted" id="invoiceSummary">
-                    {% if invoice_total %}Invoice: AED {{ invoice_total|floatformat:2 }} · Prior credited: AED {{ prior_credited|floatformat:2 }} · Max: AED {{ max_credit|floatformat:2 }}{% endif %}
+                    {% if invoice_total %}
+                    Original: AED {{ invoice_total|floatformat:2 }} ·
+                    Credited: AED {{ prior_credited|floatformat:2 }} ·
+                    Remaining: AED {{ max_credit|floatformat:2 }}
+                    {% else %}
+                    Original: — · Credited: — · Remaining: —
+                    {% endif %}
                 </div>
             </div>
 
@@ -114,13 +122,29 @@
 
 <script>
 (function () {
+    const form = document.getElementById('creditNoteForm');
     const invoiceSelect = document.getElementById('id_original_invoice');
     const issueInput = document.getElementById('id_issue_date');
     const triggerInput = document.getElementById('id_trigger_event_date');
     const reasonSelect = document.getElementById('id_reason');
     const linesBody = document.getElementById('linesBody');
     const lateBox = document.getElementById('lateWarningBox');
-    const linesUrlTemplate = "{% url 'sales:invoice_credit_note_lines_json' 0 %}".replace('/0/', '/{id}/');
+    const invoiceSummary = document.getElementById('invoiceSummary');
+    const linesUrlTemplate = form?.dataset.invoiceDataUrl || '';
+    const excludeCreditNotePk = form?.dataset.excludeCreditNote || '';
+
+    function invoiceDataUrl(invoiceId) {
+        if (!linesUrlTemplate || !invoiceId) return '';
+        return linesUrlTemplate.replace('/0/', '/' + invoiceId + '/');
+    }
+
+    function escapeHtml(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
 
     function toggleReasonOther() {
         const wrap = document.getElementById('reasonOtherWrap');
@@ -173,54 +197,155 @@
 
     function bindRow(row) {
         const qtyInput = row.querySelector('.line-qty');
-        if (qtyInput) qtyInput.addEventListener('input', () => { recalcRow(row); recalcTotals(); });
+        if (qtyInput) {
+            qtyInput.addEventListener('input', () => {
+                const max = parseFloat(qtyInput.dataset.max) || parseFloat(qtyInput.max) || 0;
+                let qty = parseFloat(qtyInput.value) || 0;
+                if (max > 0 && qty > max) {
+                    qty = max;
+                    qtyInput.value = max;
+                }
+                recalcRow(row);
+                recalcTotals();
+            });
+        }
         const btn = row.querySelector('.remove-line');
-        if (btn) btn.addEventListener('click', () => { row.remove(); document.getElementById('linesTotalForms').value = document.querySelectorAll('.line-row').length; recalcTotals(); });
+        if (btn) {
+            btn.addEventListener('click', () => {
+                row.remove();
+                reindexLineRows();
+                recalcTotals();
+            });
+        }
+    }
+
+    function reindexLineRows() {
+        const rows = document.querySelectorAll('.line-row');
+        rows.forEach((row, i) => {
+            row.querySelectorAll('[name^="lines-"]').forEach(input => {
+                input.name = input.name.replace(/^lines-\d+-/, 'lines-' + i + '-');
+            });
+        });
+        const totalForms = document.getElementById('linesTotalForms');
+        if (totalForms) totalForms.value = rows.length;
+    }
+
+    function managementFormHtml(count) {
+        return '<input type="hidden" name="lines-TOTAL_FORMS" id="linesTotalForms" value="' + count + '">' +
+            '<input type="hidden" name="lines-INITIAL_FORMS" value="0">' +
+            '<input type="hidden" name="lines-MIN_NUM_FORMS" value="1">' +
+            '<input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">';
+    }
+
+    function updateInvoiceSummary(data) {
+        if (!invoiceSummary) return;
+        if (!data) {
+            invoiceSummary.textContent = 'Original: — · Credited: — · Remaining: —';
+            return;
+        }
+        invoiceSummary.textContent =
+            'Original: AED ' + parseFloat(data.invoice_total).toFixed(2) +
+            ' · Credited: AED ' + parseFloat(data.prior_credited).toFixed(2) +
+            ' · Remaining: AED ' + parseFloat(data.remaining_invoice_value || data.max_credit).toFixed(2);
+    }
+
+    function clearLines(message) {
+        linesBody.innerHTML = managementFormHtml(0) +
+            '<tr id="linesPlaceholder"><td colspan="7" class="text-muted text-center py-3">' +
+            escapeHtml(message || 'Select a posted invoice to load lines.') +
+            '</td></tr>';
+        document.getElementById('customerDisplay').value = '';
+        document.getElementById('customerTrnDisplay').value = '';
+        updateInvoiceSummary(null);
+        recalcTotals();
+    }
+
+    function buildLineRow(line, index) {
+        const inclusive = line.is_vat_inclusive ? '1' : '0';
+        const tr = document.createElement('tr');
+        tr.className = 'line-row';
+        tr.innerHTML =
+            '<td>' +
+                '<input type="hidden" name="lines-' + index + '-invoice_line" value="' + line.invoice_line_id + '">' +
+                '<input type="text" name="lines-' + index + '-description" class="form-control form-control-sm" value="' + escapeHtml(line.description) + '">' +
+            '</td>' +
+            '<td><input type="number" name="lines-' + index + '-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0.01" max="' + line.max_quantity + '" value="' + line.quantity + '" data-max="' + line.max_quantity + '" data-price="' + line.unit_price + '" data-vat="' + line.vat_rate + '" data-inclusive="' + inclusive + '"></td>' +
+            '<td class="text-end line-price">' + parseFloat(line.unit_price).toFixed(2) + '</td>' +
+            '<td class="text-center line-vat-rate">' + parseFloat(line.vat_rate) + '%</td>' +
+            '<td class="text-end line-total">' + parseFloat(line.line_total).toFixed(2) + '</td>' +
+            '<td class="text-end line-vat">' + parseFloat(line.line_vat).toFixed(2) + '</td>' +
+            '<td><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>';
+        return tr;
     }
 
     function renderLines(data) {
-        linesBody.innerHTML = '';
         document.getElementById('customerDisplay').value = data.customer_name || '';
         document.getElementById('customerTrnDisplay').value = data.customer_trn || '';
-        document.getElementById('invoiceSummary').textContent =
-            'Invoice: AED ' + parseFloat(data.invoice_total).toFixed(2) +
-            ' · Prior credited: AED ' + parseFloat(data.prior_credited).toFixed(2) +
-            ' · Max: AED ' + parseFloat(data.max_credit).toFixed(2);
+        updateInvoiceSummary(data);
+
+        linesBody.innerHTML = managementFormHtml(data.lines.length);
         if (!data.lines.length) {
-            linesBody.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">No creditable lines remaining.</td></tr>';
+            linesBody.insertAdjacentHTML('beforeend',
+                '<tr id="linesPlaceholder"><td colspan="7" class="text-muted text-center py-3">No creditable lines remaining on this invoice.</td></tr>'
+            );
             recalcTotals();
             return;
         }
-        const hidden = '<input type="hidden" name="lines-TOTAL_FORMS" id="linesTotalForms" value="' + data.lines.length + '">' +
-            '<input type="hidden" name="lines-INITIAL_FORMS" value="0"><input type="hidden" name="lines-MIN_NUM_FORMS" value="1"><input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">';
-        linesBody.insertAdjacentHTML('afterbegin', hidden);
+
         data.lines.forEach((line, i) => {
-            const tr = document.createElement('tr');
-            tr.className = 'line-row';
-            tr.innerHTML = '<td><input type="hidden" name="lines-' + i + '-invoice_line" value="' + line.invoice_line_id + '"><input type="text" name="lines-' + i + '-description" class="form-control form-control-sm" value="' + line.description.replace(/"/g, '&quot;') + '"></td>' +
-                '<td><input type="number" name="lines-' + i + '-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0.01" max="' + line.max_quantity + '" value="' + line.quantity + '" data-price="' + line.unit_price + '" data-vat="' + line.vat_rate + '" data-inclusive="0"></td>' +
-                '<td class="text-end line-price">' + parseFloat(line.unit_price).toFixed(2) + '</td>' +
-                '<td class="text-center line-vat-rate">' + line.vat_rate + '%</td>' +
-                '<td class="text-end line-total">' + parseFloat(line.line_total).toFixed(2) + '</td>' +
-                '<td class="text-end line-vat">' + parseFloat(line.line_vat).toFixed(2) + '</td>' +
-                '<td><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>';
+            const tr = buildLineRow(line, i);
             linesBody.appendChild(tr);
             bindRow(tr);
         });
         recalcTotals();
     }
 
+    function loadInvoiceData(invoiceId) {
+        if (!invoiceId) {
+            clearLines();
+            return;
+        }
+        let url = invoiceDataUrl(invoiceId);
+        if (excludeCreditNotePk) {
+            url += (url.includes('?') ? '&' : '?') + 'exclude_credit_note=' + encodeURIComponent(excludeCreditNotePk);
+        }
+        clearLines('Loading invoice lines…');
+        fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(response => response.json().then(data => ({ ok: response.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok || data.error) {
+                    throw new Error(data.error || 'Could not load invoice data.');
+                }
+                renderLines(data);
+            })
+            .catch(err => {
+                clearLines(err.message || 'Could not load invoice lines.');
+                if (window.showToast) {
+                    showToast('error', err.message || 'Could not load invoice lines.');
+                }
+            });
+    }
+
     if (invoiceSelect && !invoiceSelect.disabled) {
         invoiceSelect.addEventListener('change', function () {
-            if (!this.value) return;
-            fetch(linesUrlTemplate.replace('{id}', this.value)).then(r => r.json()).then(renderLines);
+            loadInvoiceData(this.value);
         });
     }
+
     [issueInput, triggerInput].forEach(el => el && el.addEventListener('change', checkLate));
-    if (reasonSelect) { reasonSelect.addEventListener('change', toggleReasonOther); toggleReasonOther(); }
+    if (reasonSelect) {
+        reasonSelect.addEventListener('change', toggleReasonOther);
+        toggleReasonOther();
+    }
+
     document.querySelectorAll('.line-row').forEach(bindRow);
     checkLate();
     recalcTotals();
+
+    // Direct create: if invoice pre-selected via URL but lines not server-rendered, fetch now.
+    if (invoiceSelect && invoiceSelect.value && !document.querySelector('.line-row')) {
+        loadInvoiceData(invoiceSelect.value);
+    }
 })();
 </script>
 {% endblock %}

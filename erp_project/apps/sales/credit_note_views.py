@@ -60,6 +60,55 @@ class CreditNoteListView(PermissionRequiredMixin, ListView):
         return context
 
 
+def _credit_note_invoice_payload(invoice, exclude_credit_note_pk=None):
+    """Shared invoice + line data for credit note create (server template and AJAX)."""
+    prior = CreditNote.posted_total_for_invoice(
+        invoice,
+        exclude_pk=exclude_credit_note_pk,
+    )
+    lines = []
+    for row in _invoice_line_rows(invoice, exclude_credit_note_pk):
+        lines.append({
+            'invoice_line_id': row['invoice_line_id'],
+            'description': row['description'],
+            'quantity': str(row['quantity']),
+            'max_quantity': str(row['max_quantity']),
+            'unit_price': str(row['unit_price']),
+            'vat_rate': str(row['vat_rate']),
+            'is_vat_inclusive': bool(row['is_vat_inclusive']),
+            'line_total': str(row['line_total']),
+            'line_vat': str(row['line_vat']),
+        })
+    return {
+        'invoice_number': invoice.invoice_number,
+        'customer_name': invoice.customer.name,
+        'customer_trn': invoice.customer.trn or '',
+        'invoice_total': str(invoice.total_amount),
+        'prior_credited': str(prior),
+        'remaining_invoice_value': str(invoice.total_amount - prior),
+        'max_credit': str(invoice.total_amount - prior),
+        'lines': lines,
+    }
+
+
+def _credit_note_invoice_context(invoice, exclude_credit_note_pk=None):
+    """Template context fragment for a selected invoice."""
+    payload = _credit_note_invoice_payload(invoice, exclude_credit_note_pk)
+    line_rows = []
+    for row in _invoice_line_rows(invoice, exclude_credit_note_pk):
+        line_rows.append(row)
+    return {
+        'selected_invoice': invoice,
+        'customer_name': payload['customer_name'],
+        'customer_trn': payload['customer_trn'],
+        'invoice_total': invoice.total_amount,
+        'prior_credited': Decimal(payload['prior_credited']),
+        'max_credit': Decimal(payload['max_credit']),
+        'remaining_invoice_value': Decimal(payload['remaining_invoice_value']),
+        'invoice_line_rows': line_rows,
+    }
+
+
 def _invoice_line_rows(invoice, exclude_credit_note_pk=None):
     rows = []
     for item in invoice.items.all():
@@ -180,14 +229,7 @@ class CreditNoteCreateView(CreatePermissionMixin, CreateView):
             invoice = Invoice.objects.filter(pk=self.request.GET.get('invoice')).first()
 
         if invoice:
-            context['selected_invoice'] = invoice
-            context['customer_name'] = invoice.customer.name
-            context['customer_trn'] = invoice.customer.trn
-            context['invoice_total'] = invoice.total_amount
-            prior = CreditNote.posted_total_for_invoice(invoice)
-            context['prior_credited'] = prior
-            context['max_credit'] = invoice.total_amount - prior
-            context['invoice_line_rows'] = _invoice_line_rows(invoice)
+            context.update(_credit_note_invoice_context(invoice))
         else:
             context['invoice_line_rows'] = []
 
@@ -246,13 +288,7 @@ class CreditNoteUpdateView(UpdatePermissionMixin, UpdateView):
         context['title'] = f'Edit Credit Note: {self.object.number}'
         context['fta_late_warning'] = FTA_LATE_WARNING
         invoice = self.object.original_invoice
-        context['selected_invoice'] = invoice
-        context['customer_name'] = invoice.customer.name
-        context['customer_trn'] = invoice.customer.trn
-        context['invoice_total'] = invoice.total_amount
-        prior = CreditNote.posted_total_for_invoice(invoice, exclude_pk=self.object.pk)
-        context['prior_credited'] = prior
-        context['max_credit'] = invoice.total_amount - prior
+        context.update(_credit_note_invoice_context(invoice, exclude_credit_note_pk=self.object.pk))
         context['invoice_line_rows'] = _credit_note_edit_rows(self.object)
         context['show_late_warning'] = self.object.late_issuance
         return context
@@ -313,34 +349,27 @@ class CreditNoteDetailView(PermissionRequiredMixin, DetailView):
 
 
 @login_required
-def invoice_credit_note_lines_json(request, pk):
+def invoice_credit_note_data_json(request, pk):
+    """JSON payload for credit note line population (direct create + invoice detail)."""
+    if not (
+        request.user.is_superuser
+        or PermissionChecker.has_permission(request.user, 'sales', 'view')
+    ):
+        return JsonResponse({'error': 'Permission denied.'}, status=403)
+
     invoice = get_object_or_404(Invoice, pk=pk, is_active=True)
     if invoice.status not in CreditNote.CREDITABLE_INVOICE_STATUSES:
         return JsonResponse({'error': 'Invoice is not eligible for credit notes.'}, status=400)
 
-    lines = []
-    for row in _invoice_line_rows(invoice):
-        lines.append({
-            'invoice_line_id': row['invoice_line_id'],
-            'description': row['description'],
-            'quantity': str(row['quantity']),
-            'max_quantity': str(row['max_quantity']),
-            'unit_price': str(row['unit_price']),
-            'vat_rate': str(row['vat_rate']),
-            'line_total': str(row['line_total']),
-            'line_vat': str(row['line_vat']),
-        })
+    exclude_pk = request.GET.get('exclude_credit_note')
+    exclude_credit_note_pk = int(exclude_pk) if exclude_pk and exclude_pk.isdigit() else None
+    return JsonResponse(_credit_note_invoice_payload(invoice, exclude_credit_note_pk))
 
-    prior = CreditNote.posted_total_for_invoice(invoice)
-    return JsonResponse({
-        'invoice_number': invoice.invoice_number,
-        'customer_name': invoice.customer.name,
-        'customer_trn': invoice.customer.trn or '',
-        'invoice_total': str(invoice.total_amount),
-        'prior_credited': str(prior),
-        'max_credit': str(invoice.total_amount - prior),
-        'lines': lines,
-    })
+
+@login_required
+def invoice_credit_note_lines_json(request, pk):
+    """Backward-compatible alias for invoice_credit_note_data_json."""
+    return invoice_credit_note_data_json(request, pk)
 
 
 @login_required
