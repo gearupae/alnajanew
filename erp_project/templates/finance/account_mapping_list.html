@@ -28,16 +28,17 @@
 </div>
 {% endif %}
 
-{% for module_code, module_data in mappings_by_module.items %}
+{% for section in mapping_sections %}
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
         <div>
             <h6 class="mb-0 fw-bold">
-                <i class="fas fa-folder-open me-2 text-primary"></i>{{ module_data.name }}
+                <i class="fas fa-folder-open me-2 text-primary"></i>{{ section.name }}
             </h6>
         </div>
-        <div>
-            {% if module_data.is_configured %}
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-dark border">{{ section.mapped_count }} of {{ section.total_count }} mapped</span>
+            {% if section.is_configured %}
             <span class="badge bg-success"><i class="fas fa-check me-1"></i>Configured</span>
             {% else %}
             <span class="badge bg-warning"><i class="fas fa-exclamation-triangle me-1"></i>Incomplete</span>
@@ -55,7 +56,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in module_data.items %}
+                    {% for item in section.items %}
                     <tr>
                         <td>
                             <span class="fw-medium">{{ item.label }}</span>

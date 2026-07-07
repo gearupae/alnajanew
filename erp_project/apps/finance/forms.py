@@ -175,29 +175,74 @@ JournalEntryLineFormSet = forms.inlineformset_factory(
 class PaymentForm(forms.ModelForm):
     class Meta:
         model = Payment
-        fields = ['payment_type', 'payment_method', 'payment_date', 'party_name', 'amount', 
-                  'reference', 'notes', 'bank_account']
+        fields = [
+            'payment_type', 'payment_method', 'payment_date', 'party_name', 'amount',
+            'reference', 'notes', 'bank_account', 'cash_account', 'account', 'attachment',
+        ]
         widgets = {
             'payment_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'attachment': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.jpg,.jpeg,.png,.xlsx,.docx',
+            }),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
-            if field_name in ['payment_type', 'payment_method', 'bank_account']:
+            if field_name in ['payment_type', 'payment_method', 'bank_account', 'cash_account', 'account']:
                 field.widget.attrs['class'] = 'form-select'
-            elif field_name not in ['notes', 'payment_date']:
+            elif field_name not in ['notes', 'payment_date', 'attachment']:
                 field.widget.attrs['class'] = 'form-control'
+
         self.fields['bank_account'].queryset = BankAccount.objects.filter(is_active=True)
-    
+        self.fields['bank_account'].required = False
+        self.fields['cash_account'].queryset = Account.objects.filter(
+            is_active=True, is_cash_account=True
+        ).order_by('code')
+        self.fields['cash_account'].required = False
+        self.fields['cash_account'].label = 'Cash Account'
+        self.fields['cash_account'].label_from_instance = lambda obj: f'{obj.code} - {obj.name}'
+
+        post_to_qs = self._get_post_to_account_queryset()
+        self.fields['account'].queryset = post_to_qs
+        self.fields['account'].label = 'Post to Account'
+        self.fields['account'].help_text = (
+            'Received → this account is credited (e.g. Other Income, Customer Advance). '
+            'Made → this account is debited (e.g. Rent, DEWA, License Fees).'
+        )
+        self.fields['account'].required = True
+        self.fields['account'].label_from_instance = lambda obj: f'{obj.code} - {obj.name}'
+
+    @staticmethod
+    def _get_post_to_account_queryset():
+        bank_gl_ids = BankAccount.objects.filter(is_active=True).values_list('gl_account_id', flat=True)
+        return Account.objects.filter(is_active=True).exclude(
+            is_cash_account=True
+        ).exclude(
+            pk__in=bank_gl_ids
+        ).order_by('code')
+
     def clean(self):
         cleaned_data = super().clean()
-        
-        # Check if payment is being edited and is already confirmed
+
         if self.instance.pk and self.instance.status in ['confirmed', 'cancelled']:
-            raise ValidationError("Confirmed or cancelled payments cannot be edited.")
-        
+            raise ValidationError('Confirmed or cancelled payments cannot be edited.')
+
+        payment_method = cleaned_data.get('payment_method')
+        bank_account = cleaned_data.get('bank_account')
+        cash_account = cleaned_data.get('cash_account')
+
+        if payment_method in ('bank', 'cheque', 'card') and not bank_account:
+            self.add_error('bank_account', 'Bank account is required for this payment method.')
+        if payment_method == 'cash' and not cash_account:
+            self.add_error('cash_account', 'Cash account is required for cash payments.')
+        if payment_method == 'cash' and bank_account:
+            cleaned_data['bank_account'] = None
+        if payment_method != 'cash' and cash_account:
+            cleaned_data['cash_account'] = None
+
         return cleaned_data
 
 

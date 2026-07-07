@@ -13,8 +13,11 @@
 
 <div class="card">
     <div class="card-body">
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Payment Type <span class="text-danger">*</span></label>
@@ -36,9 +39,35 @@
                     <label class="form-label">Amount <span class="text-danger">*</span></label>
                     {{ form.amount }}
                 </div>
+                <div class="col-md-6" id="bank-account-field">
+                    <label class="form-label">Bank Account <span class="text-danger bank-required">*</span></label>
+                    {{ form.bank_account }}
+                    {% if form.bank_account.errors %}<div class="text-danger small">{{ form.bank_account.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-6 d-none" id="cash-account-field">
+                    <label class="form-label">Cash Account <span class="text-danger cash-required">*</span></label>
+                    {{ form.cash_account }}
+                    {% if form.cash_account.errors %}<div class="text-danger small">{{ form.cash_account.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Post to Account <span class="text-danger">*</span></label>
+                    {{ form.account }}
+                    {% if form.account.help_text %}
+                    <div class="form-text">{{ form.account.help_text }}</div>
+                    {% endif %}
+                    {% if form.account.errors %}<div class="text-danger small">{{ form.account.errors }}</div>{% endif %}
+                </div>
                 <div class="col-md-6">
                     <label class="form-label">Reference</label>
                     {{ form.reference }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Attachment</label>
+                    {{ form.attachment }}
+                    <div class="form-text">PDF, JPG, PNG, XLSX, or DOCX — max 5 MB</div>
+                    {% if form.instance.attachment %}
+                    <div class="form-text">Current: {{ form.instance.attachment.name|cut:"payments/attachments/" }}</div>
+                    {% endif %}
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Notes</label>
@@ -52,9 +81,24 @@
         </form>
     </div>
 </div>
+
+<script>
+(function () {
+    const methodField = document.getElementById('id_payment_method');
+    const bankField = document.getElementById('bank-account-field');
+    const cashField = document.getElementById('cash-account-field');
+
+    function toggleFundsAccount() {
+        const method = methodField ? methodField.value : 'bank';
+        const isCash = method === 'cash';
+        if (bankField) bankField.classList.toggle('d-none', isCash);
+        if (cashField) cashField.classList.toggle('d-none', !isCash);
+    }
+
+    if (methodField) {
+        methodField.addEventListener('change', toggleFundsAccount);
+        toggleFundsAccount();
+    }
+})();
+</script>
 {% endblock %}
-
-
-
-
-

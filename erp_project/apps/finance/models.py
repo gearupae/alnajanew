@@ -12,6 +12,7 @@ from django.db import models
 from django.db.models import Sum
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from decimal import Decimal
 from datetime import date
 from apps.core.models import BaseModel
@@ -1194,6 +1195,13 @@ class PettyCashReplenishment(BaseModel):
         return journal
 
 
+def validate_payment_attachment_size(value):
+    """Payment attachments are limited to 5 MB."""
+    limit = 5 * 1024 * 1024
+    if value.size > limit:
+        raise ValidationError('File size must not exceed 5 MB.')
+
+
 class Payment(BaseModel):
     """
     Payment records (both received and made).
@@ -1234,13 +1242,44 @@ class Payment(BaseModel):
     notes = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     
-    # Bank account
+    # Bank account (bank transfer / cheque / card)
     bank_account = models.ForeignKey(
         BankAccount,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name='payments'
+    )
+
+    # Cash GL account (cash payment method only)
+    cash_account = models.ForeignKey(
+        Account,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='cash_payments',
+        limit_choices_to={'is_cash_account': True},
+    )
+
+    # Post to GL account for direct/on-account payments
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='direct_payments',
+    )
+
+    attachment = models.FileField(
+        upload_to='payments/attachments/%Y/%m/',
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['pdf', 'jpg', 'jpeg', 'png', 'xlsx', 'docx']
+            ),
+            validate_payment_attachment_size,
+        ],
     )
     
     # Linked journal entry
@@ -1279,6 +1318,19 @@ class Payment(BaseModel):
     def unallocated_amount(self):
         """Get unallocated (advance) amount."""
         return self.amount - self.allocated_amount
+
+    @property
+    def is_direct_payment(self):
+        """Finance module direct payment (no invoice/bill link)."""
+        return self.party_id == 0
+
+    def get_funds_gl_account(self):
+        """Bank or cash GL account for the funds side of the journal entry."""
+        if self.payment_method == 'cash':
+            return self.cash_account
+        if self.bank_account_id:
+            return self.bank_account.gl_account
+        return None
     
     @property
     def is_overpayment(self):
@@ -3736,6 +3788,16 @@ class AccountMapping(models.Model):
         ('security_deposit_forfeit', 'Property - Security Deposit Forfeit Income'),
         ('maintenance_income', 'Property - Maintenance Income'),
         ('service_charge_income', 'Property - Service Charge Income'),
+
+        # Advances
+        ('customer_advance_liability', 'Customer Advance Liability'),
+        ('vendor_advance_asset', 'Vendor Advance (Asset)'),
+        ('vendor_security_deposit', 'Vendor Security Deposit'),
+        ('security_cheques_payable', 'Security Cheques Payable'),
+
+        # Inter-company
+        ('intercompany_receivable', 'Inter-company Receivable'),
+        ('intercompany_payable', 'Inter-company Payable'),
     ]
     
     module = models.CharField(max_length=50, choices=MODULE_CHOICES)

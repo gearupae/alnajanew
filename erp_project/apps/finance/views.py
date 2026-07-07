@@ -416,7 +416,9 @@ class PaymentListView(PermissionRequiredMixin, ListView):
     paginate_by = 25
     
     def get_queryset(self):
-        queryset = Payment.objects.filter(is_active=True)
+        queryset = Payment.objects.filter(is_active=True).select_related(
+            'bank_account', 'account', 'cash_account', 'journal_entry'
+        )
         
         search = self.request.GET.get('search')
         if search:
@@ -452,20 +454,22 @@ class PaymentCreateView(CreatePermissionMixin, CreateView):
     model = Payment
     form_class = PaymentForm
     template_name = 'finance/payment_form.html'
-    success_url = reverse_lazy('finance:payment_list')
     module_name = 'finance'
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Create Payment'
         context['today'] = date.today().isoformat()
         return context
-    
+
     def form_valid(self, form):
         form.instance.party_type = 'customer' if form.instance.payment_type == 'received' else 'vendor'
         form.instance.party_id = 0
         messages.success(self.request, 'Payment created.')
         return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('finance:payment_detail', kwargs={'pk': self.object.pk})
 
 
 class PaymentDetailView(PermissionRequiredMixin, DetailView):
@@ -475,6 +479,11 @@ class PaymentDetailView(PermissionRequiredMixin, DetailView):
     context_object_name = 'payment'
     module_name = 'finance'
     permission_type = 'view'
+
+    def get_queryset(self):
+        return Payment.objects.select_related(
+            'bank_account', 'account', 'cash_account', 'journal_entry'
+        ).prefetch_related('journal_entry__lines__account')
     
     def get_context_data(self, **kwargs):
         from apps.core.audit import get_entity_audit_history
@@ -487,7 +496,8 @@ class PaymentDetailView(PermissionRequiredMixin, DetailView):
             PermissionChecker.has_permission(self.request.user, 'finance', 'edit')
         )
         context['can_edit'] = has_permission and self.object.status == 'draft'
-        context['can_cancel'] = has_permission and self.object.status == 'posted'
+        context['can_cancel'] = has_permission and self.object.status == 'confirmed'
+        context['can_post'] = has_permission and self.object.status == 'draft'
         
         # Audit History
         context['audit_history'] = get_entity_audit_history('Payment', self.object.pk)
@@ -5021,26 +5031,102 @@ def budget_vs_actual(request):
 def payment_post(request, pk):
     """
     Post a payment and create journal entry.
-    Uses Account Mapping (SAP/Oracle-style Account Determination) for account selection.
-    
-    Payment Received: Dr Bank, Cr AR (clearing entry)
-    Payment Made: Dr AP, Cr Bank (clearing entry)
+
+    Direct payments (party_id=0): Dr/Cr bank or cash vs chosen GL account.
+    Document-linked payments: AR/AP clearing (unchanged).
     """
     payment = get_object_or_404(Payment, pk=pk)
-    
+
     if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'finance', 'edit')):
         messages.error(request, 'Permission denied.')
         return redirect('finance:payment_list')
-    
+
     if payment.status != 'draft':
         messages.error(request, 'Only draft payments can be posted.')
-        return redirect('finance:payment_list')
-    
-    if not payment.bank_account:
-        messages.error(request, 'Bank account is required to post payment.')
-        return redirect('finance:payment_list')
-    
-    # Create journal entry
+        return redirect('finance:payment_detail', pk=pk)
+
+    if payment.is_direct_payment:
+        return _post_direct_payment(request, payment)
+    return _post_document_linked_payment(request, payment)
+
+
+def _post_direct_payment(request, payment):
+    """Post direct/on-account finance payment to bank/cash and chosen GL account."""
+    gl_account = payment.account
+    if not gl_account:
+        gl_account = AccountMapping.get_account_or_default('suspense', '1900')
+    if not gl_account:
+        messages.error(
+            request,
+            'Cannot post: Post to Account is missing and no suspense account (1900) is configured.',
+        )
+        return redirect('finance:payment_detail', pk=payment.pk)
+
+    funds_account = payment.get_funds_gl_account()
+    if not funds_account:
+        if payment.payment_method == 'cash':
+            messages.error(request, 'Cash account is required to post payment.')
+        else:
+            messages.error(request, 'Bank account is required to post payment.')
+        return redirect('finance:payment_detail', pk=payment.pk)
+
+    narration = f"{payment.get_payment_type_display()} - {payment.party_name} - {payment.reference}"
+
+    journal = JournalEntry.objects.create(
+        date=payment.payment_date,
+        reference=payment.payment_number,
+        description=narration,
+        entry_type='standard',
+        source_module='finance_payment',
+    )
+
+    if payment.payment_type == 'received':
+        JournalEntryLine.objects.create(
+            journal_entry=journal,
+            account=funds_account,
+            description=narration,
+            debit=payment.amount,
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=journal,
+            account=gl_account,
+            description=narration,
+            credit=payment.amount,
+        )
+    else:
+        JournalEntryLine.objects.create(
+            journal_entry=journal,
+            account=gl_account,
+            description=narration,
+            debit=payment.amount,
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=journal,
+            account=funds_account,
+            description=narration,
+            credit=payment.amount,
+        )
+
+    return _finalize_payment_post(request, payment, journal)
+
+
+def _post_document_linked_payment(request, payment):
+    """Post document-linked payment using AR/AP clearing accounts."""
+    funds_account = payment.get_funds_gl_account()
+    if not funds_account and payment.bank_account:
+        funds_account = payment.bank_account.gl_account
+    if not funds_account:
+        if payment.payment_method == 'cash':
+            funds_account = Account.objects.filter(
+                is_active=True, is_cash_account=True
+            ).first()
+        elif payment.bank_account:
+            funds_account = payment.bank_account.gl_account
+
+    if not funds_account:
+        messages.error(request, 'Bank or cash account is required to post payment.')
+        return redirect('finance:payment_detail', pk=payment.pk)
+
     journal = JournalEntry.objects.create(
         date=payment.payment_date,
         reference=payment.payment_number,
@@ -5048,28 +5134,30 @@ def payment_post(request, pk):
         entry_type='standard',
         source_module='payment',
     )
-    
-    # Account determination: Account Mapping first, then hard-coded default code.
-    # NO generic fallback — posting to the wrong account is worse than failing.
+
     ar_account = AccountMapping.get_account_or_default('customer_receipt_ar_clear', '1200')
     ap_account = AccountMapping.get_account_or_default('vendor_payment_ap_clear', '2000')
-    
-    bank_account = payment.bank_account.gl_account
-    
+
     if payment.payment_type == 'received':
         if not ar_account:
             journal.delete()
-            messages.error(request, 'Cannot post: Accounts Receivable account not configured. '
-                           'Set up "customer_receipt_ar_clear" in Account Mapping.')
-            return redirect('finance:payment_list')
+            messages.error(
+                request,
+                'Cannot post: Accounts Receivable account not configured. '
+                'Set up "customer_receipt_ar_clear" in Account Mapping.',
+            )
+            return redirect('finance:payment_detail', pk=payment.pk)
         if ar_account.account_type == AccountType.INCOME:
             journal.delete()
-            messages.error(request, 'Cannot post: AR clearing account is mapped to a Revenue account. '
-                           'Payments must credit Accounts Receivable, not Revenue.')
-            return redirect('finance:payment_list')
+            messages.error(
+                request,
+                'Cannot post: AR clearing account is mapped to a Revenue account. '
+                'Payments must credit Accounts Receivable, not Revenue.',
+            )
+            return redirect('finance:payment_detail', pk=payment.pk)
         JournalEntryLine.objects.create(
             journal_entry=journal,
-            account=bank_account,
+            account=funds_account,
             description=f"Payment from {payment.party_name}",
             debit=payment.amount,
         )
@@ -5080,7 +5168,6 @@ def payment_post(request, pk):
             credit=payment.amount,
         )
     else:
-        # Debit AP (clears payable), Credit Bank
         if ap_account:
             JournalEntryLine.objects.create(
                 journal_entry=journal,
@@ -5092,29 +5179,32 @@ def payment_post(request, pk):
             messages.warning(request, 'Accounts Payable account not configured in Account Mapping.')
         JournalEntryLine.objects.create(
             journal_entry=journal,
-            account=bank_account,
+            account=funds_account,
             description=f"Payment to {payment.party_name}",
             credit=payment.amount,
         )
-    
+
+    return _finalize_payment_post(request, payment, journal)
+
+
+def _finalize_payment_post(request, payment, journal):
     journal.calculate_totals()
-    
+
     try:
         journal.post(request.user)
         payment.journal_entry = journal
         payment.status = 'confirmed'
         payment.save()
-        
-        # Audit log with IP address
+
         from apps.core.audit import audit_payment_post
         audit_payment_post(payment, request.user, request=request)
-        
+
         messages.success(request, f'Payment {payment.payment_number} posted successfully.')
     except Exception as e:
         journal.delete()
         messages.error(request, f'Failed to post payment: {e}')
-    
-    return redirect('finance:payment_list')
+
+    return redirect('finance:payment_detail', pk=payment.pk)
 
 
 # ============ BANK STATEMENT VIEWS ============
@@ -7406,6 +7496,87 @@ def vat_audit_report(request):
 # ============ ACCOUNT MAPPING VIEWS ============
 # SAP/Oracle-style Account Determination / Posting Profiles
 
+ACCOUNT_MAPPING_MODULE_SECTIONS = [
+    ('sales', 'Sales'),
+    ('purchase', 'Purchase'),
+    ('expense_claim', 'Expense Claims'),
+    ('payroll', 'Payroll'),
+    ('banking', 'Banking'),
+    ('inventory', 'Inventory'),
+    ('fixed_assets', 'Fixed Assets'),
+    ('projects', 'Projects'),
+    ('property', 'Property / PDC'),
+    ('uae_tax', 'UAE Tax (VAT & Corporate Tax)'),
+    ('advances', 'Advances'),
+    ('general', 'General'),
+]
+
+ACCOUNT_MAPPING_MODULE_TYPE_MAP = {
+    'sales': [
+        'sales_invoice_receivable', 'sales_invoice_revenue',
+        'sales_invoice_vat', 'sales_invoice_discount',
+        'customer_receipt', 'customer_receipt_ar_clear',
+    ],
+    'purchase': [
+        'vendor_bill_payable', 'vendor_bill_expense',
+        'vendor_bill_vat', 'vendor_payment',
+        'vendor_payment_ap_clear',
+    ],
+    'expense_claim': [
+        'expense_claim_expense', 'expense_claim_vat',
+        'expense_claim_payable', 'expense_claim_payment',
+        'expense_claim_clear',
+    ],
+    'payroll': [
+        'payroll_salary_expense', 'payroll_salary_payable',
+        'payroll_gratuity_expense', 'payroll_gratuity_payable',
+        'payroll_pension_expense', 'payroll_pension_payable',
+        'payroll_wps_deduction', 'payroll_payment',
+        'payroll_payment_clear',
+    ],
+    'banking': [
+        'bank_charges', 'bank_interest_income',
+        'bank_interest_expense', 'bank_transfer',
+    ],
+    'inventory': [
+        'inventory_asset', 'inventory_cogs',
+        'inventory_grn_clearing', 'inventory_variance',
+        'inventory_damage_expense', 'inventory_revaluation',
+    ],
+    'fixed_assets': [
+        'fixed_asset', 'fixed_asset_clearing',
+        'depreciation_expense', 'accumulated_depreciation',
+        'gain_on_disposal', 'loss_on_disposal',
+        'disposal_proceeds',
+    ],
+    'projects': [
+        'project_expense', 'project_revenue',
+        'project_expense_clearing', 'project_wip',
+    ],
+    'property': [
+        'pdc_control', 'cheques_in_hand',
+        'pdc_bounce_charges', 'pdc_bounce_income',
+        'trade_debtors_property', 'rental_income',
+        'rental_income_commercial', 'security_deposit_liability',
+        'security_deposit_forfeit', 'maintenance_income',
+        'service_charge_income',
+    ],
+    'uae_tax': [
+        'vat_output', 'vat_input', 'vat_payable',
+        'corporate_tax_expense', 'corporate_tax_payable',
+    ],
+    'advances': [
+        'customer_advance_liability', 'vendor_advance_asset',
+        'vendor_security_deposit', 'security_cheques_payable',
+    ],
+    'general': [
+        'fx_gain', 'fx_loss', 'retained_earnings',
+        'opening_balance_equity', 'suspense', 'rounding',
+        'intercompany_receivable', 'intercompany_payable',
+    ],
+}
+
+
 @login_required
 def account_mapping_list(request):
     """
@@ -7417,40 +7588,35 @@ def account_mapping_list(request):
         return redirect('dashboard')
     
     can_edit = request.user.is_superuser or PermissionChecker.has_permission(request.user, 'finance', 'edit')
-    
-    # Group mappings by module
-    modules = AccountMapping.MODULE_CHOICES
-    mappings_by_module = {}
-    
-    for module_code, module_name in modules:
-        mappings = AccountMapping.objects.filter(module=module_code).select_related('account')
-        
-        # Get all transaction types for this module
-        module_types = [
-            (code, label) for code, label in AccountMapping.TRANSACTION_TYPE_CHOICES
-            if code.startswith(module_code) or 
-               (module_code == 'general' and code in ['fx_gain', 'fx_loss', 'retained_earnings', 'opening_balance_equity', 'suspense', 'rounding']) or
-               (module_code == 'banking' and code.startswith('bank_'))
-        ]
-        
-        configured_types = {m.transaction_type: m for m in mappings}
-        
+
+    type_labels = dict(AccountMapping.TRANSACTION_TYPE_CHOICES)
+    configured_types = {
+        m.transaction_type: m
+        for m in AccountMapping.objects.select_related('account').all()
+    }
+
+    mapping_sections = []
+    for module_code, module_name in ACCOUNT_MAPPING_MODULE_SECTIONS:
+        type_codes = ACCOUNT_MAPPING_MODULE_TYPE_MAP.get(module_code, [])
         module_data = []
-        for type_code, type_label in module_types:
+        for type_code in type_codes:
             mapping = configured_types.get(type_code)
             module_data.append({
                 'transaction_type': type_code,
-                'label': type_label,
+                'label': type_labels.get(type_code, type_code.replace('_', ' ').title()),
                 'mapping': mapping,
                 'account': mapping.account if mapping else None,
             })
-        
-        if module_data:
-            mappings_by_module[module_code] = {
-                'name': module_name,
-                'items': module_data,
-                'is_configured': AccountMapping.is_fully_configured(module_code),
-            }
+
+        mapped_count = sum(1 for item in module_data if item['mapping'])
+        mapping_sections.append({
+            'code': module_code,
+            'name': module_name,
+            'items': module_data,
+            'mapped_count': mapped_count,
+            'total_count': len(module_data),
+            'is_configured': AccountMapping.is_fully_configured(module_code),
+        })
     
     # Get all active accounts for the dropdown
     accounts = Account.objects.filter(is_active=True).order_by('code')
@@ -7464,7 +7630,7 @@ def account_mapping_list(request):
     
     return render(request, 'finance/account_mapping_list.html', {
         'title': 'Account Mapping',
-        'mappings_by_module': mappings_by_module,
+        'mapping_sections': mapping_sections,
         'accounts': accounts,
         'can_edit': can_edit,
         'missing_core_mappings': missing_core,
