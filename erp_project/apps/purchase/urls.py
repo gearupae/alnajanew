@@ -73,6 +73,7 @@ urlpatterns = [
     path('debit-notes/<int:pk>/approve/', debit_note_views.debit_note_approve, name='debit_note_approve'),
     path('debit-notes/<int:pk>/post/', debit_note_views.debit_note_post, name='debit_note_post'),
     path('debit-notes/<int:pk>/pdf/', debit_note_views.debit_note_pdf, name='debit_note_pdf'),
+    path('bills/<int:pk>/debit-note-data/', debit_note_views.bill_debit_note_data_json, name='bill_debit_note_data_json'),
     path('bills/<int:pk>/debit-note-lines/', debit_note_views.bill_debit_note_lines_json, name='bill_debit_note_lines_json'),
     
     # Expense Claims (moved from Finance)

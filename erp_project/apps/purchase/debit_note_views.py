@@ -61,6 +61,51 @@ class DebitNoteListView(PermissionRequiredMixin, ListView):
         return context
 
 
+def _debit_note_bill_payload(bill, exclude_debit_note_pk=None):
+    """Shared bill + line data for debit note create (server template and AJAX)."""
+    prior = DebitNote.posted_total_for_bill(
+        bill,
+        exclude_pk=exclude_debit_note_pk,
+    )
+    lines = []
+    for row in _bill_line_rows(bill, exclude_debit_note_pk):
+        lines.append({
+            'bill_line_id': row['bill_line_id'],
+            'description': row['description'],
+            'quantity': str(row['quantity']),
+            'max_quantity': str(row['max_quantity']),
+            'unit_price': str(row['unit_price']),
+            'vat_rate': str(row['vat_rate']),
+            'line_total': str(row['line_total']),
+            'line_vat': str(row['line_vat']),
+        })
+    return {
+        'bill_number': bill.bill_number,
+        'vendor_name': bill.vendor.name,
+        'vendor_trn': bill.vendor.trn or '',
+        'bill_total': str(bill.total_amount),
+        'prior_debited': str(prior),
+        'remaining_bill_value': str(bill.total_amount - prior),
+        'max_debit': str(bill.total_amount - prior),
+        'lines': lines,
+    }
+
+
+def _debit_note_bill_context(bill, exclude_debit_note_pk=None):
+    """Template context fragment for a selected bill."""
+    payload = _debit_note_bill_payload(bill, exclude_debit_note_pk)
+    return {
+        'selected_bill': bill,
+        'vendor_name': payload['vendor_name'],
+        'vendor_trn': payload['vendor_trn'],
+        'bill_total': bill.total_amount,
+        'prior_debited': Decimal(payload['prior_debited']),
+        'max_debit': Decimal(payload['max_debit']),
+        'remaining_bill_value': Decimal(payload['remaining_bill_value']),
+        'bill_line_rows': _bill_line_rows(bill, exclude_debit_note_pk),
+    }
+
+
 def _bill_line_rows(bill, exclude_debit_note_pk=None):
     rows = []
     for item in bill.items.all():
@@ -158,14 +203,7 @@ class DebitNoteCreateView(CreatePermissionMixin, CreateView):
             else:
                 context['lines_formset'] = None
         if bill:
-            context['selected_bill'] = bill
-            context['vendor_name'] = bill.vendor.name
-            context['vendor_trn'] = bill.vendor.trn
-            context['bill_total'] = bill.total_amount
-            prior = DebitNote.posted_total_for_bill(bill)
-            context['prior_debited'] = prior
-            context['max_debit'] = bill.total_amount - prior
-            context['bill_line_rows'] = _bill_line_rows(bill)
+            context.update(_debit_note_bill_context(bill))
         else:
             context['bill_line_rows'] = []
         return context
@@ -207,14 +245,7 @@ class DebitNoteUpdateView(UpdatePermissionMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context['title'] = f'Edit Debit Note: {self.object.number}'
         bill = self.object.original_bill
-        context['selected_bill'] = bill
-        context['vendor_name'] = bill.vendor.name
-        context['vendor_trn'] = bill.vendor.trn
-        context['bill_total'] = bill.total_amount
-        prior = DebitNote.posted_total_for_bill(bill, exclude_pk=self.object.pk)
-        context['prior_debited'] = prior
-        context['max_debit'] = bill.total_amount - prior
-        context['bill_line_rows'] = _bill_line_rows(bill, exclude_debit_note_pk=self.object.pk)
+        context.update(_debit_note_bill_context(bill, exclude_debit_note_pk=self.object.pk))
         if 'lines_formset' not in context:
             context['lines_formset'] = DebitNoteLineFormSet(
                 self.request.POST or None,
@@ -273,40 +304,27 @@ class DebitNoteDetailView(PermissionRequiredMixin, DetailView):
 
 
 @login_required
-def bill_debit_note_lines_json(request, pk):
-    """Return bill lines with remaining debitable quantities for DN create form."""
+def bill_debit_note_data_json(request, pk):
+    """JSON payload for debit note line population (direct create + bill detail)."""
+    if not (
+        request.user.is_superuser
+        or PermissionChecker.has_permission(request.user, 'purchase', 'view')
+    ):
+        return JsonResponse({'error': 'Permission denied.'}, status=403)
+
     bill = get_object_or_404(VendorBill, pk=pk, is_active=True)
     if bill.status not in DebitNote.DEBITABLE_BILL_STATUSES:
         return JsonResponse({'error': 'Bill is not eligible for debit notes.'}, status=400)
 
-    lines = []
-    for item in bill.items.all():
-        remaining = DebitNoteLine.remaining_quantity(item)
-        if remaining <= 0:
-            continue
-        line_total = remaining * item.unit_price
-        line_vat = line_total * (item.vat_rate / Decimal('100'))
-        lines.append({
-            'bill_line_id': item.pk,
-            'description': item.description,
-            'quantity': str(remaining),
-            'max_quantity': str(remaining),
-            'unit_price': str(item.unit_price),
-            'vat_rate': str(item.vat_rate),
-            'line_total': str(line_total.quantize(Decimal('0.01'))),
-            'line_vat': str(line_vat.quantize(Decimal('0.01'))),
-        })
+    exclude_pk = request.GET.get('exclude_debit_note')
+    exclude_debit_note_pk = int(exclude_pk) if exclude_pk and exclude_pk.isdigit() else None
+    return JsonResponse(_debit_note_bill_payload(bill, exclude_debit_note_pk))
 
-    prior = DebitNote.posted_total_for_bill(bill)
-    return JsonResponse({
-        'bill_number': bill.bill_number,
-        'vendor_name': bill.vendor.name,
-        'vendor_trn': bill.vendor.trn or '',
-        'bill_total': str(bill.total_amount),
-        'prior_debited': str(prior),
-        'max_debit': str(bill.total_amount - prior),
-        'lines': lines,
-    })
+
+@login_required
+def bill_debit_note_lines_json(request, pk):
+    """Backward-compatible alias for bill_debit_note_data_json."""
+    return bill_debit_note_data_json(request, pk)
 
 
 @login_required

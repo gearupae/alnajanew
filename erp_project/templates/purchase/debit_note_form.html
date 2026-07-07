@@ -13,7 +13,9 @@
 
 <div class="card">
     <div class="card-body">
-        <form method="post" id="debitNoteForm">
+        <form method="post" id="debitNoteForm"
+              data-bill-data-url="{% url 'purchase:bill_debit_note_data_json' 0 %}"
+              {% if object %}data-exclude-debit-note="{{ object.pk }}"{% endif %}>
             {% csrf_token %}
             {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -59,10 +61,16 @@
                 </div>
             </div>
 
-            <div class="mt-4 mb-2 d-flex justify-content-between align-items-center">
+            <div class="mt-4 mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h6 class="mb-0 fw-semibold">Line Items</h6>
                 <div class="small text-muted" id="billSummary">
-                    {% if bill_total %}Bill: AED {{ bill_total|floatformat:2 }} · Prior debited: AED {{ prior_debited|floatformat:2 }} · Max: AED {{ max_debit|floatformat:2 }}{% endif %}
+                    {% if bill_total %}
+                    Original: AED {{ bill_total|floatformat:2 }} ·
+                    Debited: AED {{ prior_debited|floatformat:2 }} ·
+                    Remaining: AED {{ max_debit|floatformat:2 }}
+                    {% else %}
+                    Original: — · Debited: — · Remaining: —
+                    {% endif %}
                 </div>
             </div>
 
@@ -144,10 +152,27 @@
 
 <script>
 (function () {
+    const form = document.getElementById('debitNoteForm');
     const billSelect = document.getElementById('id_original_bill');
     const reasonSelect = document.getElementById('id_reason');
     const linesBody = document.getElementById('linesBody');
-    const linesUrlTemplate = "{% url 'purchase:bill_debit_note_lines_json' 0 %}".replace('/0/', '/{id}/');
+    const billSummary = document.getElementById('billSummary');
+    const billUrlTemplate = form?.dataset.billDataUrl || '';
+    const excludeDebitNotePk = form?.dataset.excludeDebitNote || '';
+    const usesFormset = !!document.getElementById('id_lines-TOTAL_FORMS');
+
+    function billDataUrl(billId) {
+        if (!billUrlTemplate || !billId) return '';
+        return billUrlTemplate.replace('/0/', '/' + billId + '/');
+    }
+
+    function escapeHtml(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
 
     function toggleReasonOther() {
         const wrap = document.getElementById('reasonOtherWrap');
@@ -173,20 +198,35 @@
     function recalcTotals() {
         let sub = 0, vat = 0;
         document.querySelectorAll('.line-row').forEach(function (row) {
-            const t = parseFloat(row.querySelector('.line-total')?.textContent) || 0;
-            const v = parseFloat(row.querySelector('.line-vat')?.textContent) || 0;
-            sub += t;
-            vat += v;
+            sub += parseFloat(row.querySelector('.line-total')?.textContent) || 0;
+            vat += parseFloat(row.querySelector('.line-vat')?.textContent) || 0;
         });
         document.getElementById('subtotalDisplay').textContent = sub.toFixed(2);
         document.getElementById('vatDisplay').textContent = vat.toFixed(2);
         document.getElementById('grandTotalDisplay').textContent = (sub + vat).toFixed(2);
     }
 
+    function reindexLineRows() {
+        const rows = document.querySelectorAll('.line-row');
+        rows.forEach(function (row, i) {
+            row.querySelectorAll('[name^="lines-"]').forEach(function (input) {
+                input.name = input.name.replace(/^lines-\d+-/, 'lines-' + i + '-');
+            });
+        });
+        const totalForms = document.getElementById('linesTotalForms');
+        if (totalForms) totalForms.value = rows.length;
+    }
+
     function bindRowEvents(row) {
         const qtyInput = row.querySelector('.line-qty');
         if (qtyInput) {
             qtyInput.addEventListener('input', function () {
+                const max = parseFloat(qtyInput.dataset.max) || parseFloat(qtyInput.max) || 0;
+                let qty = parseFloat(qtyInput.value) || 0;
+                if (max > 0 && qty > max) {
+                    qty = max;
+                    qtyInput.value = max;
+                }
                 recalcRow(row);
                 recalcTotals();
             });
@@ -195,66 +235,114 @@
         if (removeBtn) {
             removeBtn.addEventListener('click', function () {
                 row.remove();
-                updateFormCount();
+                reindexLineRows();
                 recalcTotals();
             });
         }
     }
 
-    function updateFormCount() {
-        const total = document.getElementById('linesTotalForms') || document.getElementById('id_lines-TOTAL_FORMS');
-        if (total) total.value = document.querySelectorAll('.line-row').length;
+    function managementFormHtml(count) {
+        return '<input type="hidden" name="lines-TOTAL_FORMS" id="linesTotalForms" value="' + count + '">' +
+            '<input type="hidden" name="lines-INITIAL_FORMS" value="0">' +
+            '<input type="hidden" name="lines-MIN_NUM_FORMS" value="1">' +
+            '<input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">';
+    }
+
+    function updateBillSummary(data) {
+        if (!billSummary) return;
+        if (!data) {
+            billSummary.textContent = 'Original: — · Debited: — · Remaining: —';
+            return;
+        }
+        billSummary.textContent =
+            'Original: AED ' + parseFloat(data.bill_total).toFixed(2) +
+            ' · Debited: AED ' + parseFloat(data.prior_debited).toFixed(2) +
+            ' · Remaining: AED ' + parseFloat(data.remaining_bill_value || data.max_debit).toFixed(2);
+    }
+
+    function clearLines(message) {
+        linesBody.innerHTML = managementFormHtml(0) +
+            '<tr id="noLinesRow"><td colspan="7" class="text-muted text-center py-3">' +
+            escapeHtml(message || 'Select a posted vendor bill to load lines.') +
+            '</td></tr>';
+        document.getElementById('vendorDisplay').value = '';
+        document.getElementById('vendorTrnDisplay').value = '';
+        updateBillSummary(null);
+        recalcTotals();
+    }
+
+    function buildLineRow(line, index) {
+        const tr = document.createElement('tr');
+        tr.className = 'line-row';
+        tr.innerHTML =
+            '<td>' +
+                '<input type="hidden" name="lines-' + index + '-bill_line" value="' + line.bill_line_id + '">' +
+                '<input type="text" name="lines-' + index + '-description" class="form-control form-control-sm" value="' + escapeHtml(line.description) + '">' +
+            '</td>' +
+            '<td><input type="number" name="lines-' + index + '-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0.01" max="' + line.max_quantity + '" value="' + line.quantity + '" data-max="' + line.max_quantity + '" data-price="' + line.unit_price + '" data-vat="' + line.vat_rate + '"></td>' +
+            '<td class="text-end line-price">' + parseFloat(line.unit_price).toFixed(2) + '</td>' +
+            '<td class="text-center line-vat-rate">' + parseFloat(line.vat_rate) + '%</td>' +
+            '<td class="text-end line-total">' + parseFloat(line.line_total).toFixed(2) + '</td>' +
+            '<td class="text-end line-vat">' + parseFloat(line.line_vat).toFixed(2) + '</td>' +
+            '<td><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>';
+        return tr;
     }
 
     function renderLines(data) {
-        linesBody.innerHTML = '';
         document.getElementById('vendorDisplay').value = data.vendor_name || '';
         document.getElementById('vendorTrnDisplay').value = data.vendor_trn || '';
-        document.getElementById('billSummary').textContent =
-            'Bill: AED ' + parseFloat(data.bill_total).toFixed(2) +
-            ' · Prior debited: AED ' + parseFloat(data.prior_debited).toFixed(2) +
-            ' · Max: AED ' + parseFloat(data.max_debit).toFixed(2);
+        updateBillSummary(data);
 
+        linesBody.innerHTML = managementFormHtml(data.lines.length);
         if (!data.lines.length) {
-            linesBody.innerHTML = '<tr id="noLinesRow"><td colspan="7" class="text-muted text-center py-3">No debitable lines remaining on this bill.</td></tr>';
+            linesBody.insertAdjacentHTML('beforeend',
+                '<tr id="noLinesRow"><td colspan="7" class="text-muted text-center py-3">No debitable lines remaining on this bill.</td></tr>'
+            );
             recalcTotals();
             return;
         }
 
-        const hidden = [
-            '<input type="hidden" name="lines-TOTAL_FORMS" id="linesTotalForms" value="' + data.lines.length + '">',
-            '<input type="hidden" name="lines-INITIAL_FORMS" value="0">',
-            '<input type="hidden" name="lines-MIN_NUM_FORMS" value="1">',
-            '<input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">',
-        ].join('');
-        linesBody.insertAdjacentHTML('afterbegin', hidden);
-
         data.lines.forEach(function (line, i) {
-            const tr = document.createElement('tr');
-            tr.className = 'line-row';
-            tr.innerHTML =
-                '<td><input type="hidden" name="lines-' + i + '-bill_line" value="' + line.bill_line_id + '">' +
-                '<input type="text" name="lines-' + i + '-description" class="form-control form-control-sm" value="' + line.description.replace(/"/g, '&quot;') + '"></td>' +
-                '<td><input type="number" name="lines-' + i + '-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0.01" max="' + line.max_quantity + '" value="' + line.quantity + '" data-max="' + line.max_quantity + '" data-price="' + line.unit_price + '" data-vat="' + line.vat_rate + '"></td>' +
-                '<td class="text-end line-price">' + parseFloat(line.unit_price).toFixed(2) + '</td>' +
-                '<td class="text-center line-vat-rate">' + line.vat_rate + '%</td>' +
-                '<td class="text-end line-total">' + parseFloat(line.line_total).toFixed(2) + '</td>' +
-                '<td class="text-end line-vat">' + parseFloat(line.line_vat).toFixed(2) + '</td>' +
-                '<td><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-times"></i></button></td>';
+            const tr = buildLineRow(line, i);
             linesBody.appendChild(tr);
             bindRowEvents(tr);
         });
         recalcTotals();
     }
 
-    if (billSelect) {
+    function loadBillData(billId) {
+        if (!billId) {
+            clearLines();
+            return;
+        }
+        let url = billDataUrl(billId);
+        if (excludeDebitNotePk) {
+            url += (url.includes('?') ? '&' : '?') + 'exclude_debit_note=' + encodeURIComponent(excludeDebitNotePk);
+        }
+        clearLines('Loading bill lines…');
+        fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data };
+                });
+            })
+            .then(function (result) {
+                if (!result.ok || result.data.error) {
+                    throw new Error(result.data.error || 'Could not load bill data.');
+                }
+                renderLines(result.data);
+            })
+            .catch(function (err) {
+                clearLines(err.message || 'Could not load bill lines.');
+                if (window.showToast) {
+                    showToast('error', err.message || 'Could not load bill lines.');
+                }
+            });
+    }
+
+    if (!usesFormset && billSelect && !billSelect.disabled) {
         billSelect.addEventListener('change', function () {
-            const id = this.value;
-            if (!id) return;
-            fetch(linesUrlTemplate.replace('{id}', id))
-                .then(r => r.json())
-                .then(renderLines)
-                .catch(() => alert('Could not load bill lines.'));
+            loadBillData(this.value);
         });
     }
 
@@ -264,6 +352,10 @@
         toggleReasonOther();
     }
     recalcTotals();
+
+    if (!usesFormset && billSelect && billSelect.value && !document.querySelector('.line-row')) {
+        loadBillData(billSelect.value);
+    }
 })();
 </script>
 {% endblock %}
