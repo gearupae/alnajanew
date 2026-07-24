@@ -28,6 +28,9 @@ CHART_OF_ACCOUNTS = [
     ('2100', 'Accounts Payable', AccountType.LIABILITY, AccountCategory.TRADE_PAYABLES, {}),
     ('2200', 'VAT Payable', AccountType.LIABILITY, AccountCategory.TAX_PAYABLES, {}),
     ('2300', 'Accrued Expenses', AccountType.LIABILITY, AccountCategory.ACCRUED_LIABILITIES, {}),
+    ('2320', 'Expense Claims Payable', AccountType.LIABILITY, AccountCategory.OTHER_CURRENT_LIABILITIES, {}),
+    ('2330', 'Payroll Payable', AccountType.LIABILITY, AccountCategory.OTHER_CURRENT_LIABILITIES, {}),
+    ('2340', 'Gratuity Payable', AccountType.LIABILITY, AccountCategory.OTHER_CURRENT_LIABILITIES, {}),
     ('2400', 'Short-Term Loans', AccountType.LIABILITY, AccountCategory.OTHER_CURRENT_LIABILITIES, {}),
     ('2500', 'Long-Term Loans', AccountType.LIABILITY, AccountCategory.LONG_TERM_LIABILITIES, {}),
     # EQUITY
@@ -38,6 +41,9 @@ CHART_OF_ACCOUNTS = [
     ('4100', 'Sales Revenue', AccountType.INCOME, AccountCategory.OPERATING_REVENUE, {}),
     ('4200', 'Service Revenue', AccountType.INCOME, AccountCategory.OPERATING_REVENUE, {}),
     ('4900', 'Other Income', AccountType.INCOME, AccountCategory.OTHER_INCOME, {}),
+    ('4910', 'Bounce Charges Income', AccountType.INCOME, AccountCategory.OTHER_INCOME, {}),
+    ('4920', 'Interest Income', AccountType.INCOME, AccountCategory.OTHER_INCOME, {}),
+    ('4930', 'FX Gain', AccountType.INCOME, AccountCategory.OTHER_INCOME, {}),
     # EXPENSES
     ('5100', 'Cost of Goods Sold', AccountType.EXPENSE, AccountCategory.COST_OF_SALES, {}),
     ('5200', 'Salaries & Wages', AccountType.EXPENSE, AccountCategory.SALARY_EXPENSE, {}),
@@ -46,6 +52,8 @@ CHART_OF_ACCOUNTS = [
     ('5500', 'Marketing & Advertising', AccountType.EXPENSE, AccountCategory.MARKETING, {}),
     ('5600', 'Depreciation Expense', AccountType.EXPENSE, AccountCategory.DEPRECIATION_EXPENSE, {}),
     ('5700', 'Bank Charges', AccountType.EXPENSE, AccountCategory.BANKING_EXPENSE, {}),
+    ('5710', 'Interest Expense', AccountType.EXPENSE, AccountCategory.BANKING_EXPENSE, {}),
+    ('5720', 'FX Loss', AccountType.EXPENSE, AccountCategory.BANKING_EXPENSE, {}),
     ('5800', 'General & Administrative Expenses', AccountType.EXPENSE, AccountCategory.ADMIN_EXPENSE, {}),
     ('6800', 'Cheque Bounce Charges', AccountType.EXPENSE, AccountCategory.BANKING_EXPENSE, {}),
 ]
@@ -74,7 +82,17 @@ ACCOUNT_MAPPINGS = [
     ('depreciation_expense', '5600', 'general'),
     ('accumulated_depreciation', '1490', 'general'),
     ('pdc_control', '1210', 'property'),
+    ('pdc_bounce_income', '4910', 'property'),
     ('pdc_bounce_charges', '6800', 'property'),
+    ('expense_claim_payable', '2320', 'expense_claim'),
+    ('payroll_salary_expense', '5200', 'payroll'),
+    ('payroll_salary_payable', '2330', 'payroll'),
+    ('payroll_gratuity_expense', '5800', 'payroll'),
+    ('payroll_gratuity_payable', '2340', 'payroll'),
+    ('bank_interest_income', '4920', 'banking'),
+    ('bank_interest_expense', '5710', 'banking'),
+    ('fx_gain', '4930', 'general'),
+    ('fx_loss', '5720', 'general'),
 ]
 
 

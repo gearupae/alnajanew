@@ -633,27 +633,27 @@ class PDCCheque(BaseModel):
         )
 
         if bounce_charges > 0:
-            bounce_expense = AccountMapping.get_account_or_default('pdc_bounce_charges', '6800')
-            if not bounce_expense:
+            bounce_income = AccountMapping.get_account_or_default('pdc_bounce_income', '4910')
+            if not bounce_income:
                 raise ValidationError(
-                    "Bounce Charges Expense account not found. "
-                    "Expected account 6800 or set up 'pdc_bounce_charges' in Finance → Account Mapping."
+                    "Bounce Charges Income account not found. "
+                    "Expected account 4910 or set up 'pdc_bounce_income' in Finance → Account Mapping."
                 )
 
             JournalEntryLine.objects.create(
                 journal_entry=journal,
-                account=bounce_expense,
+                account=ar_account,
                 debit=bounce_charges,
                 credit=Decimal('0.00'),
-                description=f"Bounce charges for {self.cheque_number}",
+                description=f"Bounce charges receivable — {self.cheque_number}",
             )
 
             JournalEntryLine.objects.create(
                 journal_entry=journal,
-                account=ar_account,
+                account=bounce_income,
                 debit=Decimal('0.00'),
                 credit=bounce_charges,
-                description=f"Bounce charges billed to tenant",
+                description=f"Bounce charges income — {self.cheque_number}",
             )
 
         journal.calculate_totals()
