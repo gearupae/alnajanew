@@ -286,6 +286,10 @@ class AccountingPeriod(BaseModel):
         return f"{self.name} ({self.fiscal_year.name})"
 
 
+# Reversed originals remain part of the GL; their lines are offset by the posted reversal entry.
+GL_REPORT_STATUSES = ('posted', 'reversed')
+
+
 class JournalEntry(BaseModel):
     """
     Journal Entry (Double-entry accounting).
@@ -2474,7 +2478,7 @@ class BankStatement(BaseModel):
             # --- 1) Try GL Journal Entry Lines first ---
             je_qs = JournalEntryLine.objects.filter(
                 account=self.bank_account.gl_account,
-                journal_entry__status='posted',
+                journal_entry__status__in=GL_REPORT_STATUSES,
                 journal_entry__date__gte=date_from,
                 journal_entry__date__lte=date_to,
                 is_bank_reconciled=False,
@@ -2910,7 +2914,7 @@ class BankReconciliation(BaseModel):
         gl_account = self.bank_account.gl_account
         agg = JournalEntryLine.objects.filter(
             account=gl_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__lte=self.period_end,
         ).aggregate(
             total_debit=Sum('debit'),
@@ -2925,7 +2929,7 @@ class BankReconciliation(BaseModel):
         gl_account = self.bank_account.gl_account
         return JournalEntryLine.objects.filter(
             account=gl_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=self.period_start,
             journal_entry__date__lte=self.period_end,
         ).select_related('journal_entry').order_by('journal_entry__date', 'id')

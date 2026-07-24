@@ -25,7 +25,7 @@ from .models import (
     TaxCode, Payment, BankAccount, ExpenseClaim, ExpenseItem, VATReturn, CorporateTaxComputation,
     Budget, BudgetLine, BankTransfer, BankReconciliation, BankStatement, BankStatementLine,
     ReconciliationItem, OpeningBalanceEntry, OpeningBalanceLine, WriteOff, ExchangeRate,
-    AccountMapping, AccountingSettings
+    AccountMapping, AccountingSettings, GL_REPORT_STATUSES
 )
 from .forms import (
     AccountForm, FiscalYearForm, AccountingPeriodForm, JournalEntryForm, JournalEntryLineFormSet, 
@@ -760,7 +760,7 @@ def trial_balance(request):
         # This ensures opening balances are reflected even if opening journal doesn't exist
         totals = JournalEntryLine.objects.filter(
             account=account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__lte=as_of_date
         ).aggregate(
             total_debit=Coalesce(Sum('debit'), Decimal('0.00')),
@@ -980,7 +980,7 @@ def trial_balance_with_movements(request):
         # Opening Balance: Account opening + Sum of all posted journal lines BEFORE start_date
         opening_lines = JournalEntryLine.objects.filter(
             account=account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__lt=start_date
         ).aggregate(
             debit=Coalesce(Sum('debit'), Decimal('0.00')),
@@ -994,7 +994,7 @@ def trial_balance_with_movements(request):
         # Period Movement: Sum of all posted journal lines BETWEEN start_date and end_date
         period_lines = JournalEntryLine.objects.filter(
             account=account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=start_date,
             journal_entry__date__lte=end_date
         ).aggregate(
@@ -1112,7 +1112,7 @@ def _pl_aggregate_direct_balances(account_ids, start_date, end_date, income_side
     rows = (
         JournalEntryLine.objects.filter(
             account_id__in=account_ids,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=start_date,
             journal_entry__date__lte=end_date,
         )
@@ -1307,7 +1307,7 @@ def balance_sheet(request):
         """
         lines = JournalEntryLine.objects.filter(
             account=account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__lte=up_to_date,
         ).aggregate(
             total_debit=Sum('debit'),
@@ -1476,7 +1476,7 @@ def balance_sheet(request):
     
     income_lines = JournalEntryLine.objects.filter(
         account__in=income_accounts,
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         journal_entry__date__lte=end_date,
     ).aggregate(
         total_debit=Sum('debit'),
@@ -1486,7 +1486,7 @@ def balance_sheet(request):
     
     expense_lines = JournalEntryLine.objects.filter(
         account__in=expense_accounts,
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         journal_entry__date__lte=end_date,
     ).aggregate(
         total_debit=Sum('debit'),
@@ -1605,7 +1605,7 @@ def general_ledger(request):
 
         base_filter = dict(
             account=selected_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__reversed_by__isnull=True,
         )
 
@@ -1859,7 +1859,7 @@ def vat_report(request):
         # Output VAT = Credit entries to VAT Payable (when sales are made)
         output_vat_lines = JournalEntryLine.objects.filter(
             account__in=vat_payable_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=start_date,
             journal_entry__date__lte=end_date,
         ).exclude(
@@ -1881,7 +1881,7 @@ def vat_report(request):
         # Input VAT = Debit entries to VAT Recoverable (when purchases are made)
         input_vat_lines = JournalEntryLine.objects.filter(
             account__in=vat_recoverable_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=start_date,
             journal_entry__date__lte=end_date,
         ).exclude(
@@ -1901,7 +1901,7 @@ def vat_report(request):
         # Calculate Sales from Income account journal lines (Credits = Sales)
         sales_lines = JournalEntryLine.objects.filter(
             account__in=sales_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=start_date,
             journal_entry__date__lte=end_date,
         )
@@ -1913,7 +1913,7 @@ def vat_report(request):
         # Calculate Purchases from Expense account journal lines (Debits = Expenses)
         expense_lines = JournalEntryLine.objects.filter(
             account__in=expense_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=start_date,
             journal_entry__date__lte=end_date,
         )
@@ -2116,7 +2116,7 @@ def corporate_tax_report(request):
             # Calculate from GL
             fy_income = JournalEntryLine.objects.filter(
                 account__in=income_accounts,
-                journal_entry__status='posted',
+                journal_entry__status__in=GL_REPORT_STATUSES,
                 journal_entry__date__gte=fy_start,
                 journal_entry__date__lte=fy_end,
             ).aggregate(
@@ -2127,7 +2127,7 @@ def corporate_tax_report(request):
             
             fy_expense = JournalEntryLine.objects.filter(
                 account__in=expense_accounts,
-                journal_entry__status='posted',
+                journal_entry__status__in=GL_REPORT_STATUSES,
                 journal_entry__date__gte=fy_start,
                 journal_entry__date__lte=fy_end,
             ).aggregate(
@@ -2153,7 +2153,7 @@ def corporate_tax_report(request):
     # Revenue from journal lines (Credits to Income accounts)
     income_lines = JournalEntryLine.objects.filter(
         account__in=income_accounts,
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         journal_entry__date__gte=start_date,
         journal_entry__date__lte=end_date,
     ).aggregate(
@@ -2165,7 +2165,7 @@ def corporate_tax_report(request):
     # Expenses from journal lines (Debits to Expense accounts)
     expense_lines = JournalEntryLine.objects.filter(
         account__in=expense_accounts,
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         journal_entry__date__gte=start_date,
         journal_entry__date__lte=end_date,
     ).aggregate(
@@ -2314,7 +2314,7 @@ def corporate_tax_create(request):
         # Revenue from journal lines (Credits to Income accounts)
         income_lines = JournalEntryLine.objects.filter(
             account__in=income_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=start_date,
             journal_entry__date__lte=end_date,
         ).aggregate(
@@ -2326,7 +2326,7 @@ def corporate_tax_create(request):
         # Expenses from journal lines (Debits to Expense accounts)
         expense_lines = JournalEntryLine.objects.filter(
             account__in=expense_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=start_date,
             journal_entry__date__lte=end_date,
         ).aggregate(
@@ -2429,7 +2429,7 @@ def corporate_tax_recalculate(request, pk):
         # Revenue from journal lines
         income_lines = JournalEntryLine.objects.filter(
             account__in=income_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=start_date,
             journal_entry__date__lte=end_date,
         ).aggregate(
@@ -2441,7 +2441,7 @@ def corporate_tax_recalculate(request, pk):
         # Expenses from journal lines
         expense_lines = JournalEntryLine.objects.filter(
             account__in=expense_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=start_date,
             journal_entry__date__lte=end_date,
         ).aggregate(
@@ -3706,7 +3706,7 @@ def vatreturn_create_from_preview(request):
 
     gl_output_vat = JournalEntryLine.objects.filter(
         account__in=vat_payable_accounts,
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         journal_entry__date__gte=period_start,
         journal_entry__date__lte=period_end,
     ).exclude(
@@ -3716,7 +3716,7 @@ def vatreturn_create_from_preview(request):
 
     gl_input_vat = JournalEntryLine.objects.filter(
         account__in=vat_recoverable_accounts,
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         journal_entry__date__gte=period_start,
         journal_entry__date__lte=period_end,
     ).exclude(
@@ -3802,7 +3802,7 @@ def tax_reconciliation(request):
 
         gl_income = JournalEntryLine.objects.filter(
             account__in=income_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=fy_start,
             journal_entry__date__lte=fy_end,
         ).aggregate(dr=Sum('debit'), cr=Sum('credit'))
@@ -3810,7 +3810,7 @@ def tax_reconciliation(request):
 
         gl_exp = JournalEntryLine.objects.filter(
             account__in=expense_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=fy_start,
             journal_entry__date__lte=fy_end,
         ).aggregate(dr=Sum('debit'), cr=Sum('credit'))
@@ -3866,7 +3866,7 @@ def tax_reconciliation(request):
         income_accounts = Account.objects.filter(is_active=True, account_type=AccountType.INCOME)
         gl_rev_agg = JournalEntryLine.objects.filter(
             account__in=income_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=ps,
             journal_entry__date__lte=pe,
         ).aggregate(dr=Sum('debit'), cr=Sum('credit'))
@@ -4216,7 +4216,7 @@ def cash_flow(request):
         # Add all transactions BEFORE start_date
         pre_period = JournalEntryLine.objects.filter(
             account=acc,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__lt=start_date
         ).aggregate(
             total_debit=Coalesce(Sum('debit'), Decimal('0.00')),
@@ -4228,7 +4228,7 @@ def cash_flow(request):
         # These are opening positions, NOT cash flow activities
         opening_entries_on_start = JournalEntryLine.objects.filter(
             account=acc,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date=start_date
         ).filter(
             Q(journal_entry__source_module__in=OPENING_BALANCE_SOURCES) |
@@ -4260,7 +4260,7 @@ def cash_flow(request):
         acc_balance = acc.opening_balance or Decimal('0.00')
         period_totals = JournalEntryLine.objects.filter(
             account=acc,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__lte=end_date
         ).aggregate(
             total_debit=Coalesce(Sum('debit'), Decimal('0.00')),
@@ -4302,7 +4302,7 @@ def cash_flow(request):
     
     cash_journal_lines = JournalEntryLine.objects.filter(
         account_id__in=cash_account_ids,
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         journal_entry__date__gte=start_date,
         journal_entry__date__lte=end_date
     ).exclude(
@@ -4449,7 +4449,7 @@ def cash_flow(request):
     # ========================================
     excluded_adjustment_lines = JournalEntryLine.objects.filter(
         account_id__in=cash_account_ids,
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         journal_entry__date__gte=start_date,
         journal_entry__date__lte=end_date
     ).filter(
@@ -4622,7 +4622,7 @@ def ar_aging(request):
     
     ar_lines = JournalEntryLine.objects.filter(
         account__in=ar_accounts,
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         journal_entry__date__lte=today,
         debit__gt=0,
     ).select_related('journal_entry').order_by('journal_entry__date')
@@ -4659,7 +4659,7 @@ def ar_aging(request):
     # Match AR credits to invoices: first by reference, then FIFO for unmatched
     ar_credits = JournalEntryLine.objects.filter(
         account__in=ar_accounts,
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         journal_entry__date__lte=today,
         credit__gt=0,
     ).select_related('journal_entry')
@@ -4789,7 +4789,7 @@ def ap_aging(request):
 
     ap_lines = JournalEntryLine.objects.filter(
         account__in=ap_accounts,
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         credit__gt=0,
     ).select_related('journal_entry').order_by('journal_entry__date')
 
@@ -4824,7 +4824,7 @@ def ap_aging(request):
 
     ap_debits = JournalEntryLine.objects.filter(
         account__in=ap_accounts,
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         debit__gt=0,
     ).select_related('journal_entry')
 
@@ -4938,7 +4938,7 @@ def bank_ledger(request):
         
         lines = JournalEntryLine.objects.filter(
             account=gl_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__gte=start_date,
             journal_entry__date__lte=end_date,
         ).select_related('journal_entry').order_by('journal_entry__date', 'id')
@@ -5023,7 +5023,7 @@ def budget_vs_actual(request):
         if account_ids:
             rows = (
                 JournalEntryLine.objects.filter(
-                    journal_entry__status='posted',
+                    journal_entry__status__in=GL_REPORT_STATUSES,
                     journal_entry__date__gte=fy.start_date,
                     journal_entry__date__lte=fy.end_date,
                     account_id__in=account_ids,
@@ -5632,7 +5632,7 @@ class BankStatementDetailView(PermissionRequiredMixin, DetailView):
         
         context['unmatched_journals'] = JournalEntryLine.objects.filter(
             account=stmt.bank_account.gl_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             is_bank_reconciled=False,
         ).exclude(
             id__in=BankStatementLine.objects.filter(
@@ -6141,7 +6141,7 @@ def reconciliation_statement_report(request):
         gl_account = selected_bank.gl_account
         gl_lines = JournalEntryLine.objects.filter(
             account=gl_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__lte=as_of_date,
         ).aggregate(
             total_debit=Sum('debit'),
@@ -6363,7 +6363,7 @@ def bank_vs_gl_report(request):
         gl_account = bank.gl_account
         gl_lines = JournalEntryLine.objects.filter(
             account=gl_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__date__lte=as_of_date,
         ).aggregate(
             total_debit=Sum('debit'),
@@ -6721,7 +6721,7 @@ def system_opening_balance_edit(request):
         # Check if this account has other transactions (for informational purposes only)
         other_transactions = JournalEntryLine.objects.filter(
             account=line.account,
-            journal_entry__status='posted'
+            journal_entry__status__in=GL_REPORT_STATUSES
         ).exclude(
             journal_entry=journal
         ).exists()
@@ -6805,7 +6805,7 @@ def system_opening_balance_edit(request):
                         # Balance = Opening Balance (from this journal) + All subsequent transactions
                         account_lines = JournalEntryLine.objects.filter(
                             account=account,
-                            journal_entry__status='posted'
+                            journal_entry__status__in=GL_REPORT_STATUSES
                         ).aggregate(
                             total_debit=Coalesce(Sum('debit'), Decimal('0.00')),
                             total_credit=Coalesce(Sum('credit'), Decimal('0.00'))
@@ -6993,7 +6993,7 @@ def system_opening_balance_delete_line(request, line_id):
         # Check if account has other transactions (informational for audit)
         has_transactions = JournalEntryLine.objects.filter(
             account=account,
-            journal_entry__status='posted'
+            journal_entry__status__in=GL_REPORT_STATUSES
         ).exclude(journal_entry=journal).exists()
         
         # Log before deletion
@@ -7021,7 +7021,7 @@ def system_opening_balance_delete_line(request, line_id):
         # Recalculate account balance
         account_lines = JournalEntryLine.objects.filter(
             account=account,
-            journal_entry__status='posted'
+            journal_entry__status__in=GL_REPORT_STATUSES
         ).aggregate(
             total_debit=Coalesce(Sum('debit'), Decimal('0.00')),
             total_credit=Coalesce(Sum('credit'), Decimal('0.00'))
@@ -7493,7 +7493,7 @@ def vat_audit_report(request):
     
     # Get all journal entries with VAT impact
     journal_lines = JournalEntryLine.objects.filter(
-        journal_entry__status='posted',
+        journal_entry__status__in=GL_REPORT_STATUSES,
         journal_entry__date__gte=start_date,
         journal_entry__date__lte=end_date,
     ).select_related('journal_entry', 'account').order_by('journal_entry__date', 'journal_entry__entry_number')

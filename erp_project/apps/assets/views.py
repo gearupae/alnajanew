@@ -99,7 +99,7 @@ class FixedAssetListView(PermissionRequiredMixin, ListView):
 
     def _export_excel(self):
         from apps.finance.excel_exports import export_asset_register
-        from apps.finance.models import Account, JournalEntryLine
+        from apps.finance.models import Account, JournalEntryLine, GL_REPORT_STATUSES
         from django.db.models.functions import Coalesce
 
         qs = self.get_queryset().order_by('asset_number')
@@ -126,12 +126,12 @@ class FixedAssetListView(PermissionRequiredMixin, ListView):
         ad_gl = Account.objects.filter(account_type='asset', is_active=True, account_category='accum_depreciation')
 
         fa_agg = JournalEntryLine.objects.filter(
-            account__in=fa_gl, journal_entry__status='posted'
+            account__in=fa_gl, journal_entry__status__in=GL_REPORT_STATUSES
         ).exclude(journal_entry__reference__startswith='TEST-CF-').aggregate(
             d=Coalesce(Sum('debit'), Decimal('0')), c=Coalesce(Sum('credit'), Decimal('0'))
         )
         ad_agg = JournalEntryLine.objects.filter(
-            account__in=ad_gl, journal_entry__status='posted'
+            account__in=ad_gl, journal_entry__status__in=GL_REPORT_STATUSES
         ).exclude(journal_entry__reference__startswith='TEST-CF-').aggregate(
             d=Coalesce(Sum('debit'), Decimal('0')), c=Coalesce(Sum('credit'), Decimal('0'))
         )

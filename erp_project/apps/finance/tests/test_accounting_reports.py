@@ -29,7 +29,7 @@ from apps.finance.models import (
     BankAccount, Payment, BankTransfer,
     BankStatement, BankStatementLine, BankReconciliation,
     VATReturn, TaxCode, Budget, BudgetLine,
-    CorporateTaxComputation
+    CorporateTaxComputation, GL_REPORT_STATUSES
 )
 
 
@@ -263,7 +263,7 @@ class ARReportTests(BaseAccountingTestCase):
         # Calculate total AR
         ar_lines = JournalEntryLine.objects.filter(
             account__in=[self.ar_customer_a, self.ar_customer_b],
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         
         total_debits = ar_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
@@ -296,7 +296,7 @@ class ARReportTests(BaseAccountingTestCase):
         # Get GL AR balance
         ar_lines = JournalEntryLine.objects.filter(
             account__in=[self.ar_customer_a, self.ar_customer_b],
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         
         gl_debits = ar_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
@@ -404,7 +404,7 @@ class APReportTests(BaseAccountingTestCase):
         # Vendor A: 8000 + 1500 (manual) - 4000 (payment) = 5500
         vendor_a_lines = JournalEntryLine.objects.filter(
             account=self.ap_vendor_a,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         vendor_a_debits = vendor_a_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
         vendor_a_credits = vendor_a_lines.aggregate(total=Sum('credit'))['total'] or Decimal('0.00')
@@ -415,7 +415,7 @@ class APReportTests(BaseAccountingTestCase):
         # Vendor B: 12000
         vendor_b_lines = JournalEntryLine.objects.filter(
             account=self.ap_vendor_b,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         vendor_b_credits = vendor_b_lines.aggregate(total=Sum('credit'))['total'] or Decimal('0.00')
         vendor_b_debits = vendor_b_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
@@ -441,7 +441,7 @@ class APReportTests(BaseAccountingTestCase):
         """TC-AP-03: AP Aging vs GL - AP Aging total = AP GL balance."""
         ap_lines = JournalEntryLine.objects.filter(
             account__in=[self.ap_vendor_a, self.ap_vendor_b],
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         
         gl_credits = ap_lines.aggregate(total=Sum('credit'))['total'] or Decimal('0.00')
@@ -555,14 +555,14 @@ class VATReportTests(BaseAccountingTestCase):
         # Calculate Output VAT
         output_lines = JournalEntryLine.objects.filter(
             account=self.output_vat,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         output_vat = output_lines.aggregate(total=Sum('credit'))['total'] or Decimal('0.00')
         
         # Calculate Input VAT
         input_lines = JournalEntryLine.objects.filter(
             account=self.input_vat,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         input_vat = input_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
         
@@ -578,7 +578,7 @@ class VATReportTests(BaseAccountingTestCase):
         # Box 1: Standard-rated supplies
         income_lines = JournalEntryLine.objects.filter(
             account=self.income_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__reference='INV-VAT-001',
         )
         standard_supplies = income_lines.aggregate(total=Sum('credit'))['total'] or Decimal('0.00')
@@ -587,7 +587,7 @@ class VATReportTests(BaseAccountingTestCase):
         # Box 2: Zero-rated supplies
         zero_lines = JournalEntryLine.objects.filter(
             account=self.income_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__reference='INV-ZERO-001',
         )
         zero_supplies = zero_lines.aggregate(total=Sum('credit'))['total'] or Decimal('0.00')
@@ -635,7 +635,7 @@ class VATReportTests(BaseAccountingTestCase):
         # Recalculate net VAT
         output_lines = JournalEntryLine.objects.filter(
             account=self.output_vat,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         output_credit = output_lines.aggregate(total=Sum('credit'))['total'] or Decimal('0.00')
         output_debit = output_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
@@ -721,7 +721,7 @@ class BankCashReportTests(BaseAccountingTestCase):
         # Get all bank movements
         bank_lines = JournalEntryLine.objects.filter(
             account=self.bank_account_gl,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         
         total_debits = bank_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
@@ -774,7 +774,7 @@ class BankCashReportTests(BaseAccountingTestCase):
         # Get cash-only entries (exclude bank accounts)
         cash_lines = JournalEntryLine.objects.filter(
             account=self.cash_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         
         # Verify none are bank accounts
@@ -798,7 +798,7 @@ class GLJournalTests(BaseAccountingTestCase):
         # Get lines for expense account
         expense_lines = JournalEntryLine.objects.filter(
             account=self.expense_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         ).order_by('journal_entry__date')
         
         # Calculate running balance
@@ -945,7 +945,7 @@ class BudgetTests(BaseAccountingTestCase):
         # Get actual from the test account
         actual_lines = JournalEntryLine.objects.filter(
             account=budget_test_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         actual = actual_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
         
@@ -1217,7 +1217,7 @@ class EdgeCaseTests(BaseAccountingTestCase):
         # Calculate resulting balance
         cash_lines = JournalEntryLine.objects.filter(
             account=self.cash_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         cash_debits = cash_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
         cash_credits = cash_lines.aggregate(total=Sum('credit'))['total'] or Decimal('0.00')
@@ -1253,7 +1253,7 @@ class EdgeCaseTests(BaseAccountingTestCase):
         # Verify rounding account has the adjustment
         rounding_lines = JournalEntryLine.objects.filter(
             account=self.rounding_account,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         rounding_total = rounding_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
         
@@ -1312,14 +1312,14 @@ class FinancialStatementTests(BaseAccountingTestCase):
         # Calculate P&L
         income_lines = JournalEntryLine.objects.filter(
             account__account_type=AccountType.INCOME,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__period=self.jan_period,
         )
         total_income = income_lines.aggregate(total=Sum('credit'))['total'] or Decimal('0.00')
         
         expense_lines = JournalEntryLine.objects.filter(
             account__account_type=AccountType.EXPENSE,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
             journal_entry__period=self.jan_period,
         )
         total_expenses = expense_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
@@ -1340,7 +1340,7 @@ class FinancialStatementTests(BaseAccountingTestCase):
         # Calculate asset balance
         asset_lines = JournalEntryLine.objects.filter(
             account__in=asset_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         asset_debits = asset_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
         asset_credits = asset_lines.aggregate(total=Sum('credit'))['total'] or Decimal('0.00')
@@ -1352,7 +1352,7 @@ class FinancialStatementTests(BaseAccountingTestCase):
         # Calculate liability balance
         liability_lines = JournalEntryLine.objects.filter(
             account__in=liability_accounts,
-            journal_entry__status='posted',
+            journal_entry__status__in=GL_REPORT_STATUSES,
         )
         liability_credits = liability_lines.aggregate(total=Sum('credit'))['total'] or Decimal('0.00')
         liability_debits = liability_lines.aggregate(total=Sum('debit'))['total'] or Decimal('0.00')

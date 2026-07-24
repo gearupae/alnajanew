@@ -150,12 +150,12 @@ class Tenant(BaseModel):
     @property
     def outstanding_balance(self):
         """Calculate total outstanding balance for this tenant."""
-        from apps.finance.models import JournalEntryLine
+        from apps.finance.models import JournalEntryLine, GL_REPORT_STATUSES
         if not self.ar_account:
             return Decimal('0.00')
         balance = JournalEntryLine.objects.filter(
             account=self.ar_account,
-            journal_entry__status='posted'
+            journal_entry__status__in=GL_REPORT_STATUSES
         ).aggregate(
             total=Sum('debit') - Sum('credit')
         )['total'] or Decimal('0.00')

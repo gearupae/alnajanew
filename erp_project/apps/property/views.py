@@ -1059,10 +1059,10 @@ def tenant_ledger_report(request, tenant_id):
     # Get all journal entries for tenant AR account
     journal_entries = []
     if tenant.ar_account:
-        from apps.finance.models import JournalEntryLine
+        from apps.finance.models import JournalEntryLine, GL_REPORT_STATUSES
         journal_entries = JournalEntryLine.objects.filter(
             account=tenant.ar_account,
-            journal_entry__status='posted'
+            journal_entry__status__in=GL_REPORT_STATUSES
         ).select_related('journal_entry').order_by('journal_entry__date')
     
     # Calculate running balance

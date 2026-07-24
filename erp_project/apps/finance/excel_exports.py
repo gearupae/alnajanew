@@ -673,7 +673,7 @@ def export_ap_aging(vendors, as_of_date):
     style_title_row(ws2, 1, 'AP GL Reconciliation', 4)
     ws2.cell(row=2, column=1, value=f'As of: {as_of_date}')
 
-    from apps.finance.models import Account, JournalEntryLine
+    from apps.finance.models import Account, JournalEntryLine, GL_REPORT_STATUSES
     from django.db.models import Sum
     from django.db.models.functions import Coalesce
     from decimal import Decimal
@@ -681,7 +681,7 @@ def export_ap_aging(vendors, as_of_date):
     ap_account = Account.objects.filter(code='2000', is_active=True).first()
     if ap_account:
         agg = JournalEntryLine.objects.filter(
-            account=ap_account, journal_entry__status='posted',
+            account=ap_account, journal_entry__status__in=GL_REPORT_STATUSES,
         ).aggregate(
             d=Coalesce(Sum('debit'), Decimal('0')),
             c=Coalesce(Sum('credit'), Decimal('0')),
@@ -831,7 +831,7 @@ def export_vat_report(data, start_date, end_date):
         c.fill = PatternFill(start_color='DDDDDD', fill_type='solid')
     r += 1
 
-    from apps.finance.models import Account, JournalEntryLine
+    from apps.finance.models import Account, JournalEntryLine, GL_REPORT_STATUSES
     from django.db.models import Sum, Q
     from django.db.models.functions import Coalesce
     from decimal import Decimal
@@ -842,7 +842,7 @@ def export_vat_report(data, start_date, end_date):
 
     def _gl_bal(accounts, normal='credit'):
         agg = JournalEntryLine.objects.filter(
-            account__in=accounts, journal_entry__status='posted',
+            account__in=accounts, journal_entry__status__in=GL_REPORT_STATUSES,
         ).exclude(
             journal_entry__reference__startswith='TEST-CF-'
         ).aggregate(
@@ -882,7 +882,7 @@ def export_vat_report(data, start_date, end_date):
     ws2.cell(row=r, column=1).font = Font(bold=True)
     r += 1
     settled_dr = JournalEntryLine.objects.filter(
-        account__in=vat_net_accs, journal_entry__status='posted', debit__gt=0
+        account__in=vat_net_accs, journal_entry__status__in=GL_REPORT_STATUSES, debit__gt=0
     ).aggregate(d=Coalesce(Sum('debit'), Decimal('0')))['d']
     remaining = net_gl - settled_dr if net_gl > settled_dr else Decimal('0')
     ws2.cell(row=r, column=1, value='Total Liability')
