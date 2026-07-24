@@ -214,104 +214,116 @@ class CustomerAdvanceApplication(BaseModel):
         return f'{self.advance.advance_number} → {self.invoice.invoice_number}'
 
     def apply(self, user=None):
+        from django.db import transaction
+        from django.db.models import F
         from apps.finance.models import (
             JournalEntry, JournalEntryLine, AccountMapping, FiscalYear,
         )
+        from apps.sales.models import Invoice
 
         if self.journal_entry_id:
             raise ValidationError('Already applied.')
 
-        if self.advance.status != 'posted':
-            raise ValidationError('Advance must be posted before applying.')
-        if self.invoice.status not in ('posted', 'sent', 'partial', 'overdue'):
-            raise ValidationError('Invoice must be posted before applying advance.')
-        if self.amount_applied <= 0:
-            raise ValidationError('Amount to apply must be greater than zero.')
-        if self.amount_applied > self.advance.balance:
-            raise ValidationError(
-                f'Amount exceeds advance balance (AED {self.advance.balance:,.2f}).'
+        with transaction.atomic():
+            app = CustomerAdvanceApplication.objects.select_for_update().get(pk=self.pk)
+            if app.journal_entry_id:
+                raise ValidationError('Already applied.')
+
+            advance = CustomerAdvance.objects.select_for_update().get(pk=app.advance_id)
+            invoice = Invoice.objects.select_for_update().get(pk=app.invoice_id)
+
+            if advance.status != 'posted':
+                raise ValidationError('Advance must be posted before applying.')
+            if invoice.status not in ('posted', 'sent', 'partial', 'overdue'):
+                raise ValidationError('Invoice must be posted before applying advance.')
+            if app.amount_applied <= 0:
+                raise ValidationError('Amount to apply must be greater than zero.')
+
+            advance_balance = (advance.amount - advance.applied_amount).quantize(Decimal('0.01'))
+            if app.amount_applied > advance_balance:
+                raise ValidationError(
+                    f'Amount exceeds advance balance (AED {advance_balance:,.2f}).'
+                )
+
+            net_applied = app.amount_applied.quantize(Decimal('0.01'))
+            if advance.amount > 0 and advance.vat_amount > 0:
+                vat_applied = (
+                    net_applied * advance.vat_amount / advance.amount
+                ).quantize(Decimal('0.01'))
+            else:
+                vat_applied = Decimal('0.00')
+            gross_applied = (net_applied + vat_applied).quantize(Decimal('0.01'))
+
+            inv_balance = (invoice.total_amount - invoice.paid_amount).quantize(Decimal('0.01'))
+            if gross_applied > inv_balance:
+                raise ValidationError(
+                    f'Application total AED {gross_applied:,.2f} (incl. VAT) exceeds '
+                    f'invoice balance due (AED {inv_balance:,.2f}).'
+                )
+
+            FiscalYear.validate_posting_allowed(app.date)
+
+            adv_account = AccountMapping.get_account_or_default('customer_advance_liability', '2310')
+            ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
+            vat_account = AccountMapping.get_account_or_default('sales_invoice_vat', '2200')
+
+            if not adv_account:
+                raise ValidationError('Customer Advance (2310) account not configured.')
+            if not ar_account:
+                raise ValidationError('Accounts Receivable (1200) account not configured.')
+
+            journal = JournalEntry.objects.create(
+                date=app.date,
+                reference=f'CA-APP-{advance.advance_number}',
+                description=(
+                    f'Advance Application: {advance.advance_number} → '
+                    f'{invoice.invoice_number} — {advance.customer.name}'
+                ),
+                entry_type='standard',
+                source_module='sales',
+                source_id=advance.pk,
             )
 
-        net_applied = self.amount_applied.quantize(Decimal('0.01'))
-        if self.advance.amount > 0 and self.advance.vat_amount > 0:
-            vat_applied = (
-                net_applied * self.advance.vat_amount / self.advance.amount
-            ).quantize(Decimal('0.01'))
-        else:
-            vat_applied = Decimal('0.00')
-        gross_applied = (net_applied + vat_applied).quantize(Decimal('0.01'))
-
-        inv_balance = (self.invoice.total_amount - self.invoice.paid_amount).quantize(
-            Decimal('0.01')
-        )
-        if gross_applied > inv_balance:
-            raise ValidationError(
-                f'Application total AED {gross_applied:,.2f} (incl. VAT) exceeds '
-                f'invoice balance due (AED {inv_balance:,.2f}).'
-            )
-
-        FiscalYear.validate_posting_allowed(self.date)
-
-        adv_account = AccountMapping.get_account_or_default('customer_advance_liability', '2310')
-        ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
-        vat_account = AccountMapping.get_account_or_default('sales_invoice_vat', '2200')
-
-        if not adv_account:
-            raise ValidationError('Customer Advance (2310) account not configured.')
-        if not ar_account:
-            raise ValidationError('Accounts Receivable (1200) account not configured.')
-
-        journal = JournalEntry.objects.create(
-            date=self.date,
-            reference=f'CA-APP-{self.advance.advance_number}',
-            description=(
-                f'Advance Application: {self.advance.advance_number} → '
-                f'{self.invoice.invoice_number} — {self.advance.customer.name}'
-            ),
-            entry_type='standard',
-            source_module='sales',
-            source_id=self.advance.pk,
-        )
-
-        JournalEntryLine.objects.create(
-            journal_entry=journal,
-            account=adv_account,
-            description=f'Apply advance {self.advance.advance_number}',
-            debit=net_applied,
-            credit=Decimal('0.00'),
-        )
-        if vat_applied > 0 and vat_account:
             JournalEntryLine.objects.create(
                 journal_entry=journal,
-                account=vat_account,
-                description=f'Reverse advance VAT — {self.advance.advance_number}',
-                debit=vat_applied,
+                account=adv_account,
+                description=f'Apply advance {advance.advance_number}',
+                debit=net_applied,
                 credit=Decimal('0.00'),
             )
-        JournalEntryLine.objects.create(
-            journal_entry=journal,
-            account=ar_account,
-            description=f'AR clearing — {self.invoice.invoice_number}',
-            debit=Decimal('0.00'),
-            credit=gross_applied,
-        )
+            if vat_applied > 0 and vat_account:
+                JournalEntryLine.objects.create(
+                    journal_entry=journal,
+                    account=vat_account,
+                    description=f'Reverse advance VAT — {advance.advance_number}',
+                    debit=vat_applied,
+                    credit=Decimal('0.00'),
+                )
+            JournalEntryLine.objects.create(
+                journal_entry=journal,
+                account=ar_account,
+                description=f'AR clearing — {invoice.invoice_number}',
+                debit=Decimal('0.00'),
+                credit=gross_applied,
+            )
 
-        journal.calculate_totals()
-        journal.post(user)
+            journal.calculate_totals()
+            journal.post(user)
 
-        self.journal_entry = journal
-        self.save(update_fields=['journal_entry'])
+            app.journal_entry = journal
+            app.save(update_fields=['journal_entry'])
 
-        self.advance.applied_amount += net_applied
-        self.advance.save(update_fields=['applied_amount'])
+            CustomerAdvance.objects.filter(pk=advance.pk).update(
+                applied_amount=F('applied_amount') + net_applied,
+            )
+            new_paid = (invoice.paid_amount + gross_applied).quantize(Decimal('0.01'))
+            new_status = 'paid' if new_paid >= invoice.total_amount else 'partial'
+            Invoice.objects.filter(pk=invoice.pk).update(
+                paid_amount=F('paid_amount') + gross_applied,
+                status=new_status,
+            )
 
-        self.invoice.paid_amount += gross_applied
-        if self.invoice.paid_amount >= self.invoice.total_amount:
-            self.invoice.status = 'paid'
-        else:
-            self.invoice.status = 'partial'
-        self.invoice.save(update_fields=['paid_amount', 'status'])
-
+        self.refresh_from_db()
         return journal
 
 
@@ -480,80 +492,99 @@ class VendorAdvanceApplication(BaseModel):
         return f'{self.advance.advance_number} → {self.bill.bill_number}'
 
     def apply(self, user=None):
+        from django.db import transaction
+        from django.db.models import F
         from apps.finance.models import (
             JournalEntry, JournalEntryLine, AccountMapping, FiscalYear,
         )
+        from apps.purchase.models import VendorBill
 
-        if self.advance.status != 'posted':
-            raise ValidationError('Advance must be posted before applying.')
-        if self.bill.status not in ('posted', 'pending', 'partial', 'overdue'):
-            raise ValidationError('Bill must be posted before applying advance.')
-        if self.amount_applied <= 0:
-            raise ValidationError('Amount to apply must be greater than zero.')
-        if self.amount_applied > self.advance.balance:
-            raise ValidationError(
-                f'Amount exceeds advance balance (AED {self.advance.balance:,.2f}).'
+        if self.journal_entry_id:
+            raise ValidationError('Already applied.')
+
+        with transaction.atomic():
+            app = VendorAdvanceApplication.objects.select_for_update().get(pk=self.pk)
+            if app.journal_entry_id:
+                raise ValidationError('Already applied.')
+
+            advance = VendorAdvance.objects.select_for_update().get(pk=app.advance_id)
+            bill = VendorBill.objects.select_for_update().get(pk=app.bill_id)
+
+            if advance.status != 'posted':
+                raise ValidationError('Advance must be posted before applying.')
+            if bill.status not in ('posted', 'pending', 'partial', 'overdue'):
+                raise ValidationError('Bill must be posted before applying advance.')
+            if app.amount_applied <= 0:
+                raise ValidationError('Amount to apply must be greater than zero.')
+
+            advance_balance = (advance.amount - advance.applied_amount).quantize(Decimal('0.01'))
+            if app.amount_applied > advance_balance:
+                raise ValidationError(
+                    f'Amount exceeds advance balance (AED {advance_balance:,.2f}).'
+                )
+
+            bill_balance = (bill.total_amount - bill.paid_amount).quantize(Decimal('0.01'))
+            if app.amount_applied > bill_balance:
+                raise ValidationError(
+                    f'Amount exceeds bill balance due (AED {bill_balance:,.2f}).'
+                )
+
+            FiscalYear.validate_posting_allowed(app.date)
+
+            ap_account = AccountMapping.get_account_or_default('vendor_bill_payable', '2000')
+            adv_account = AccountMapping.get_account_or_default('vendor_advance_asset', '1320')
+
+            if not ap_account:
+                raise ValidationError('Accounts Payable (2000) account not configured.')
+            if not adv_account:
+                raise ValidationError('Advance to Vendor (1320) account not configured.')
+
+            amount_applied = app.amount_applied.quantize(Decimal('0.01'))
+
+            journal = JournalEntry.objects.create(
+                date=app.date,
+                reference=f'VA-APP-{advance.advance_number}',
+                description=(
+                    f'Vendor Advance Application: {advance.advance_number} → '
+                    f'{bill.bill_number} — {advance.vendor.name}'
+                ),
+                entry_type='standard',
+                source_module='purchase',
+                source_id=advance.pk,
             )
 
-        bill_balance = self.bill.total_amount - self.bill.paid_amount
-        if self.amount_applied > bill_balance:
-            raise ValidationError(
-                f'Amount exceeds bill balance due (AED {bill_balance:,.2f}).'
+            JournalEntryLine.objects.create(
+                journal_entry=journal,
+                account=ap_account,
+                description=f'AP clearing — {bill.bill_number}',
+                debit=amount_applied,
+                credit=Decimal('0.00'),
+            )
+            JournalEntryLine.objects.create(
+                journal_entry=journal,
+                account=adv_account,
+                description=f'Apply vendor advance {advance.advance_number}',
+                debit=Decimal('0.00'),
+                credit=amount_applied,
             )
 
-        FiscalYear.validate_posting_allowed(self.date)
+            journal.calculate_totals()
+            journal.post(user)
 
-        ap_account = AccountMapping.get_account_or_default('vendor_bill_payable', '2000')
-        adv_account = AccountMapping.get_account_or_default('vendor_advance_asset', '1320')
+            app.journal_entry = journal
+            app.save(update_fields=['journal_entry'])
 
-        if not ap_account:
-            raise ValidationError('Accounts Payable (2000) account not configured.')
-        if not adv_account:
-            raise ValidationError('Advance to Vendor (1320) account not configured.')
+            VendorAdvance.objects.filter(pk=advance.pk).update(
+                applied_amount=F('applied_amount') + amount_applied,
+            )
+            new_paid = (bill.paid_amount + amount_applied).quantize(Decimal('0.01'))
+            new_status = 'paid' if new_paid >= bill.total_amount else 'partial'
+            VendorBill.objects.filter(pk=bill.pk).update(
+                paid_amount=F('paid_amount') + amount_applied,
+                status=new_status,
+            )
 
-        journal = JournalEntry.objects.create(
-            date=self.date,
-            reference=f'VA-APP-{self.advance.advance_number}',
-            description=(
-                f'Vendor Advance Application: {self.advance.advance_number} → '
-                f'{self.bill.bill_number} — {self.advance.vendor.name}'
-            ),
-            entry_type='standard',
-            source_module='purchase',
-            source_id=self.advance.pk,
-        )
-
-        JournalEntryLine.objects.create(
-            journal_entry=journal,
-            account=ap_account,
-            description=f'AP clearing — {self.bill.bill_number}',
-            debit=self.amount_applied,
-            credit=Decimal('0.00'),
-        )
-        JournalEntryLine.objects.create(
-            journal_entry=journal,
-            account=adv_account,
-            description=f'Apply vendor advance {self.advance.advance_number}',
-            debit=Decimal('0.00'),
-            credit=self.amount_applied,
-        )
-
-        journal.calculate_totals()
-        journal.post(user)
-
-        self.journal_entry = journal
-        self.save(update_fields=['journal_entry'])
-
-        self.advance.applied_amount += self.amount_applied
-        self.advance.save(update_fields=['applied_amount'])
-
-        self.bill.paid_amount += self.amount_applied
-        if self.bill.paid_amount >= self.bill.total_amount:
-            self.bill.status = 'paid'
-        else:
-            self.bill.status = 'partial'
-        self.bill.save(update_fields=['paid_amount', 'status'])
-
+        self.refresh_from_db()
         return journal
 
 
