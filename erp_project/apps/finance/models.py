@@ -325,6 +325,9 @@ class JournalEntry(BaseModel):
         ('year_end', 'Year-End Closing'),
         ('reversal', 'Reversal Entry'),
         ('adjustment', 'Manual Adjustment'),
+        ('sales_credit_note', 'Sales Credit Note'),
+        ('purchase_debit_note', 'Purchase Debit Note'),
+        ('finance_payment', 'Finance Payment'),
     ]
     
     entry_number = models.CharField(max_length=50, unique=True, editable=False)
@@ -638,6 +641,7 @@ class JournalEntry(BaseModel):
         # Manual or payment postings to VAT accounts create FTA compliance risk.
         _VAT_ALLOWED_SOURCES = frozenset({
             'sales', 'purchase', 'vat', 'vat_return', 'opening_balance', 'system',
+            'sales_credit_note', 'purchase_debit_note',
         })
         if self.source_module not in _VAT_ALLOWED_SOURCES:
             _vat_cats = frozenset({'tax_receivables', 'tax_payables'})
@@ -662,7 +666,7 @@ class JournalEntry(BaseModel):
         # cause overstatement, AR distortion, and corporate-tax base errors.
         _REV_ALLOWED_SOURCES = frozenset({
             'sales', 'adjustment', 'credit_note', 'system', 'opening_balance',
-            'property', 'bank_reconciliation',
+            'property', 'bank_reconciliation', 'sales_credit_note',
         })
         if self.source_module not in _REV_ALLOWED_SOURCES:
             lines_list = lines if 'lines' in dir() else list(self.lines.all())
