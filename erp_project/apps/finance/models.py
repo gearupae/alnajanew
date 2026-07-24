@@ -670,7 +670,7 @@ class JournalEntry(BaseModel):
         # cause overstatement, AR distortion, and corporate-tax base errors.
         _REV_ALLOWED_SOURCES = frozenset({
             'sales', 'adjustment', 'credit_note', 'system', 'opening_balance',
-            'property', 'bank_reconciliation', 'sales_credit_note',
+            'property', 'bank_reconciliation', 'sales_credit_note', 'pdc',
         })
         if self.source_module not in _REV_ALLOWED_SOURCES:
             lines_list = lines if 'lines' in dir() else list(self.lines.all())
