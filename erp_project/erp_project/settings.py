@@ -212,6 +212,9 @@ NUMBER_SERIES = {
     'ITEM': {'prefix': 'ITEM', 'padding': 4},
     'CUSTOMER_ADVANCE': {'prefix': 'CADV', 'padding': 4},
     'VENDOR_ADVANCE': {'prefix': 'VADV', 'padding': 4},
+    'PAYMENT_PR': {'prefix': 'RCT', 'padding': 4},
+    'PAYMENT_PM': {'prefix': 'PV', 'padding': 4},
+    'SCN': {'prefix': 'SCN', 'padding': 4},
 }
 
 # ERP login auto-created from HR → Employees (also see sync on Settings → Users).
