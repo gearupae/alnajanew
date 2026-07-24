@@ -726,6 +726,8 @@ class SecurityChequeOutward(BaseModel):
         """
         Dr Security Cheques Payable 2360 → amount
         Cr Bank                          → amount
+        Dr security_cheque_forfeiture    → amount  (P&L loss)
+        Cr Vendor Security Deposit 1360  → amount
         """
         from apps.finance.models import (
             JournalEntry, JournalEntryLine, AccountMapping, FiscalYear,
@@ -741,8 +743,14 @@ class SecurityChequeOutward(BaseModel):
         FiscalYear.validate_posting_allowed(encash_date)
 
         payable_account = AccountMapping.get_account_or_default('security_cheques_payable', '2360')
+        deposit_account = AccountMapping.get_account_or_default('vendor_security_deposit', '1360')
+        forfeiture_account = AccountMapping.get_account_or_default('security_cheque_forfeiture', '5800')
         if not payable_account:
             raise ValidationError('Security Cheques Payable (2360) account not found.')
+        if not deposit_account:
+            raise ValidationError('Vendor Security Deposit (1360) account not found.')
+        if not forfeiture_account:
+            raise ValidationError('Security cheque forfeiture expense account not configured.')
 
         journal = JournalEntry.objects.create(
             date=encash_date,
@@ -763,6 +771,20 @@ class SecurityChequeOutward(BaseModel):
             journal_entry=journal,
             account=bank_account.gl_account,
             description=f'Encash payment — {self.party_name}',
+            debit=Decimal('0.00'),
+            credit=self.amount,
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=journal,
+            account=forfeiture_account,
+            description=f'Security cheque forfeiture — {self.cheque_number}',
+            debit=self.amount,
+            credit=Decimal('0.00'),
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=journal,
+            account=deposit_account,
+            description=f'Clear security deposit — {self.party_name}',
             debit=Decimal('0.00'),
             credit=self.amount,
         )

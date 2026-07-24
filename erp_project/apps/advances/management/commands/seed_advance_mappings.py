@@ -67,6 +67,20 @@ MAPPINGS = [
             'description': 'Security cheques issued to vendors.',
         },
     },
+    {
+        'transaction_type': 'security_cheque_forfeiture',
+        'account_code': '5800',
+        'expected_name': 'General & Administrative Expenses',
+        'forbidden_categories': set(),
+        'module': 'purchase',
+        'description': 'Expense when a vendor security cheque is encashed/forfeited',
+        'account_defaults': {
+            'name': 'General & Administrative Expenses',
+            'account_type': 'expense',
+            'account_category': 'admin_expense',
+            'description': 'General & administrative expenses.',
+        },
+    },
 ]
 
 
