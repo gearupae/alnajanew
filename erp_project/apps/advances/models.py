@@ -181,9 +181,10 @@ class CustomerAdvanceApplication(BaseModel):
     """
     Application of a customer advance against a posted invoice.
 
-    Journal:
-        Dr Customer Advance 2300  → amount_applied
-        Cr Accounts Receivable    → amount_applied
+    Journal (net N, proportional VAT V = N × advance.vat_amount / advance.amount):
+        Dr Customer Advance 2310  → N
+        Dr VAT Payable            → V  (reverses advance VAT; invoice re-charges it)
+        Cr Accounts Receivable    → N + V
     """
     advance = models.ForeignKey(
         CustomerAdvance,
@@ -217,6 +218,9 @@ class CustomerAdvanceApplication(BaseModel):
             JournalEntry, JournalEntryLine, AccountMapping, FiscalYear,
         )
 
+        if self.journal_entry_id:
+            raise ValidationError('Already applied.')
+
         if self.advance.status != 'posted':
             raise ValidationError('Advance must be posted before applying.')
         if self.invoice.status not in ('posted', 'sent', 'partial', 'overdue'):
@@ -228,16 +232,29 @@ class CustomerAdvanceApplication(BaseModel):
                 f'Amount exceeds advance balance (AED {self.advance.balance:,.2f}).'
             )
 
-        inv_balance = self.invoice.total_amount - self.invoice.paid_amount
-        if self.amount_applied > inv_balance:
+        net_applied = self.amount_applied.quantize(Decimal('0.01'))
+        if self.advance.amount > 0 and self.advance.vat_amount > 0:
+            vat_applied = (
+                net_applied * self.advance.vat_amount / self.advance.amount
+            ).quantize(Decimal('0.01'))
+        else:
+            vat_applied = Decimal('0.00')
+        gross_applied = (net_applied + vat_applied).quantize(Decimal('0.01'))
+
+        inv_balance = (self.invoice.total_amount - self.invoice.paid_amount).quantize(
+            Decimal('0.01')
+        )
+        if gross_applied > inv_balance:
             raise ValidationError(
-                f'Amount exceeds invoice balance due (AED {inv_balance:,.2f}).'
+                f'Application total AED {gross_applied:,.2f} (incl. VAT) exceeds '
+                f'invoice balance due (AED {inv_balance:,.2f}).'
             )
 
         FiscalYear.validate_posting_allowed(self.date)
 
         adv_account = AccountMapping.get_account_or_default('customer_advance_liability', '2310')
         ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
+        vat_account = AccountMapping.get_account_or_default('sales_invoice_vat', '2200')
 
         if not adv_account:
             raise ValidationError('Customer Advance (2310) account not configured.')
@@ -260,15 +277,23 @@ class CustomerAdvanceApplication(BaseModel):
             journal_entry=journal,
             account=adv_account,
             description=f'Apply advance {self.advance.advance_number}',
-            debit=self.amount_applied,
+            debit=net_applied,
             credit=Decimal('0.00'),
         )
+        if vat_applied > 0 and vat_account:
+            JournalEntryLine.objects.create(
+                journal_entry=journal,
+                account=vat_account,
+                description=f'Reverse advance VAT — {self.advance.advance_number}',
+                debit=vat_applied,
+                credit=Decimal('0.00'),
+            )
         JournalEntryLine.objects.create(
             journal_entry=journal,
             account=ar_account,
             description=f'AR clearing — {self.invoice.invoice_number}',
             debit=Decimal('0.00'),
-            credit=self.amount_applied,
+            credit=gross_applied,
         )
 
         journal.calculate_totals()
@@ -277,12 +302,10 @@ class CustomerAdvanceApplication(BaseModel):
         self.journal_entry = journal
         self.save(update_fields=['journal_entry'])
 
-        # Update advance applied amount
-        self.advance.applied_amount += self.amount_applied
+        self.advance.applied_amount += net_applied
         self.advance.save(update_fields=['applied_amount'])
 
-        # Update invoice paid amount
-        self.invoice.paid_amount += self.amount_applied
+        self.invoice.paid_amount += gross_applied
         if self.invoice.paid_amount >= self.invoice.total_amount:
             self.invoice.status = 'paid'
         else:
