@@ -1,7 +1,7 @@
 """
 Management command: seed_advance_accounts
 
-Creates the four Chart of Accounts entries required by the Advances module
+Creates the Chart of Accounts entries required by the Advances module
 ONLY IF they do not already exist.
 
 Usage:
@@ -12,12 +12,11 @@ from django.core.management.base import BaseCommand
 
 ACCOUNTS_TO_SEED = [
     {
-        'code': '1310',
+        'code': '1320',
         'name': 'Advance to Vendor',
         'account_type': 'asset',
         'account_category': 'other_current_assets',
         'description': 'Advance payments made to vendors before receiving goods/services.',
-        'note': 'Using 1310 because 1300 is reserved for VAT Recoverable.',
     },
     {
         'code': '1360',
@@ -27,7 +26,7 @@ ACCOUNTS_TO_SEED = [
         'description': 'Security deposits placed with vendors in the form of cheques.',
     },
     {
-        'code': '2300',
+        'code': '2310',
         'name': 'Customer Advance',
         'account_type': 'liability',
         'account_category': 'other_current_liabilities',
@@ -46,7 +45,7 @@ ACCOUNTS_TO_SEED = [
 class Command(BaseCommand):
     help = (
         'Seeds the Chart of Accounts entries required by the Advances module '
-        '(1300, 1360, 2300, 2360). Skips any that already exist.'
+        '(1320, 1360, 2310, 2360). Skips any that already exist.'
     )
 
     def handle(self, *args, **options):

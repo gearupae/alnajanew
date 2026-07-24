@@ -25,10 +25,10 @@ class CustomerAdvance(BaseModel):
     On POST:
         Dr Bank                   (total_amount)
         Cr VAT Payable            (vat_amount)
-        Cr Customer Advance 2300  (amount)
+        Cr Customer Advance 2310  (amount)
 
     On Apply to Invoice:
-        Dr Customer Advance 2300  (amount_applied)
+        Dr Customer Advance 2310  (amount_applied)
         Cr Accounts Receivable    (amount_applied)
     """
 
@@ -97,7 +97,7 @@ class CustomerAdvance(BaseModel):
 
     @property
     def balance(self):
-        """Unapplied amount (on Customer Advance account 2300)."""
+        """Unapplied amount (on Customer Advance account 2310)."""
         return (self.amount - self.applied_amount).quantize(Decimal('0.01'))
 
     def save(self, *args, **kwargs):
@@ -111,7 +111,7 @@ class CustomerAdvance(BaseModel):
         Post receipt journal:
             Dr Bank               → total_amount
             Cr VAT Payable        → vat_amount
-            Cr Customer Advance   → amount  (2300)
+            Cr Customer Advance   → amount  (2310)
         """
         from apps.finance.models import (
             JournalEntry, JournalEntryLine, AccountMapping, FiscalYear,
@@ -127,12 +127,12 @@ class CustomerAdvance(BaseModel):
         FiscalYear.validate_posting_allowed(self.date)
 
         bank_gl = self.bank_account.gl_account
-        adv_account = AccountMapping.get_account_or_default('customer_advance_liability', '2300')
+        adv_account = AccountMapping.get_account_or_default('customer_advance_liability', '2310')
         vat_account = AccountMapping.get_account_or_default('sales_invoice_vat', '2100')
 
         if not adv_account:
             raise ValidationError(
-                'Customer Advance (2300) account not found. '
+                'Customer Advance (2310) account not found. '
                 'Please seed it via management command or Finance → Chart of Accounts.'
             )
 
@@ -236,11 +236,11 @@ class CustomerAdvanceApplication(BaseModel):
 
         FiscalYear.validate_posting_allowed(self.date)
 
-        adv_account = AccountMapping.get_account_or_default('customer_advance_liability', '2300')
+        adv_account = AccountMapping.get_account_or_default('customer_advance_liability', '2310')
         ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
 
         if not adv_account:
-            raise ValidationError('Customer Advance (2300) account not configured.')
+            raise ValidationError('Customer Advance (2310) account not configured.')
         if not ar_account:
             raise ValidationError('Accounts Receivable (1200) account not configured.')
 
@@ -380,11 +380,11 @@ class VendorAdvance(BaseModel):
         FiscalYear.validate_posting_allowed(self.date)
 
         bank_gl = self.bank_account.gl_account
-        adv_account = AccountMapping.get_account_or_default('vendor_advance_asset', '1310')
+        adv_account = AccountMapping.get_account_or_default('vendor_advance_asset', '1320')
 
         if not adv_account:
             raise ValidationError(
-                'Advance to Vendor (1310) account not found. '
+                'Advance to Vendor (1320) account not found. '
                 'Run: python manage.py seed_advance_accounts && seed_advance_mappings'
             )
 
@@ -481,12 +481,12 @@ class VendorAdvanceApplication(BaseModel):
         FiscalYear.validate_posting_allowed(self.date)
 
         ap_account = AccountMapping.get_account_or_default('vendor_bill_payable', '2000')
-        adv_account = AccountMapping.get_account_or_default('vendor_advance_asset', '1310')
+        adv_account = AccountMapping.get_account_or_default('vendor_advance_asset', '1320')
 
         if not ap_account:
             raise ValidationError('Accounts Payable (2000) account not configured.')
         if not adv_account:
-            raise ValidationError('Advance to Vendor (1310) account not configured.')
+            raise ValidationError('Advance to Vendor (1320) account not configured.')
 
         journal = JournalEntry.objects.create(
             date=self.date,
