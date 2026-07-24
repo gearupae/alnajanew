@@ -1243,6 +1243,20 @@ class Payment(BaseModel):
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     allocated_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     reference = models.CharField(max_length=200, blank=True)  # Invoice/Bill reference
+    invoice = models.ForeignKey(
+        'sales.Invoice',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='finance_payments',
+    )
+    bill = models.ForeignKey(
+        'purchase.VendorBill',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='finance_payments',
+    )
     notes = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     

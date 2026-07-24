@@ -2983,6 +2983,7 @@ def invoice_receive_payment(request, pk):
             party_name=invoice.customer.name,
             amount=amount,
             reference=reference or invoice.invoice_number,
+            invoice=invoice,
             bank_account=bank_account,
             status='draft',
         )

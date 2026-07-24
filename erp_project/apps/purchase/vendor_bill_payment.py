@@ -51,6 +51,7 @@ def record_vendor_bill_payment(
         party_name=bill.vendor.name,
         amount=amount,
         reference=reference or bill.bill_number,
+        bill=bill,
         bank_account=bank_account,
         status='draft',
     )

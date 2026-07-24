@@ -2,7 +2,8 @@
 Finance Views - UAE VAT & Corporate Tax Compliant
 Chart of Accounts, Journal Entries, Payments, Reports
 """
-from django.shortcuts import render, redirect, get_object_or_404
+from django.views.decorators.http import require_POST
+from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.contrib import messages
@@ -524,38 +525,76 @@ class PaymentUpdateView(UpdatePermissionMixin, UpdateView):
 
 
 @login_required
+@require_POST
 def payment_cancel(request, pk):
-    """Cancel a payment - creates auto-reversal journal."""
-    payment = get_object_or_404(Payment, pk=pk)
-    
+    """Cancel a payment — reverse GL and roll back linked invoice/bill paid amounts."""
     if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'finance', 'edit')):
         messages.error(request, 'Permission denied.')
         return redirect('finance:payment_list')
-    
-    if payment.status == 'cancelled':
-        messages.error(request, 'Payment is already cancelled.')
-        return redirect('finance:payment_list')
-    
+
     from django.utils import timezone
-    payment.status = 'cancelled'
-    payment.cancelled_date = timezone.now()
-    payment.cancellation_reason = request.POST.get('reason', 'User requested cancellation')
-    payment.save()
-    
-    # If there's a linked journal entry, reverse it
-    if payment.journal_entry and payment.journal_entry.status == 'posted':
-        try:
-            reversal = payment.journal_entry.reverse(user=request.user, reason=f'Payment {payment.payment_number} cancelled')
-            payment.reversal_entry = reversal
+    from apps.sales.models import Invoice
+    from apps.purchase.models import VendorBill
+
+    try:
+        with transaction.atomic():
+            payment = Payment.objects.select_for_update().get(pk=pk)
+
+            if payment.status == 'cancelled':
+                messages.error(request, 'Payment is already cancelled.')
+                return redirect('finance:payment_list')
+
+            reversal = None
+            if payment.journal_entry and payment.journal_entry.status == 'posted':
+                reversal = payment.journal_entry.reverse(
+                    user=request.user,
+                    reason=f'Payment {payment.payment_number} cancelled',
+                )
+
+            amt = (payment.allocated_amount or payment.amount).quantize(Decimal('0.01'))
+            if payment.invoice_id:
+                invoice = Invoice.objects.select_for_update().get(pk=payment.invoice_id)
+                invoice.paid_amount = max(
+                    Decimal('0.00'),
+                    (invoice.paid_amount - amt).quantize(Decimal('0.01')),
+                )
+                if invoice.paid_amount <= 0:
+                    invoice.status = 'posted'
+                elif invoice.paid_amount >= invoice.total_amount:
+                    invoice.status = 'paid'
+                else:
+                    invoice.status = 'partial'
+                invoice.save(update_fields=['paid_amount', 'status'])
+            elif payment.bill_id:
+                bill = VendorBill.objects.select_for_update().get(pk=payment.bill_id)
+                bill.paid_amount = max(
+                    Decimal('0.00'),
+                    (bill.paid_amount - amt).quantize(Decimal('0.01')),
+                )
+                if bill.paid_amount <= 0:
+                    bill.status = 'posted'
+                elif bill.paid_amount >= bill.total_amount:
+                    bill.status = 'paid'
+                else:
+                    bill.status = 'partial'
+                bill.save(update_fields=['paid_amount', 'status'])
+
+            payment.status = 'cancelled'
+            payment.cancelled_date = timezone.now()
+            payment.cancellation_reason = request.POST.get('reason', 'User requested cancellation')
+            if reversal:
+                payment.reversal_entry = reversal
             payment.save()
-        except Exception as e:
-            messages.warning(request, f'Could not reverse journal entry: {e}')
-    
+    except Exception as e:
+        messages.error(request, f'Could not cancel payment: {e}')
+        return redirect('finance:payment_detail', pk=pk)
+
     messages.success(request, f'Payment {payment.payment_number} cancelled.')
     return redirect('finance:payment_list')
 
 
 @login_required
+@require_POST
 def payment_delete(request, pk):
     """Delete a draft payment (soft delete)."""
     payment = get_object_or_404(Payment, pk=pk)
@@ -5069,6 +5108,7 @@ def budget_vs_actual(request):
 
 
 @login_required
+@require_POST
 def payment_post(request, pk):
     """
     Post a payment and create journal entry.
