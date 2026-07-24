@@ -992,6 +992,29 @@ class SalesCreditNote(BaseModel):
         self.vat_amount = sum(item.vat_amount for item in items)
         self.total_amount = self.subtotal + self.vat_amount
         self.save(update_fields=['subtotal', 'vat_amount', 'total_amount'])
+
+    @classmethod
+    def posted_total_for_invoice(cls, invoice, exclude_pk=None):
+        qs = cls.objects.filter(invoice=invoice, status='posted')
+        if exclude_pk:
+            qs = qs.exclude(pk=exclude_pk)
+        return qs.aggregate(total=models.Sum('total_amount'))['total'] or Decimal('0.00')
+
+    def validate_for_posting(self):
+        invoice = self.invoice
+        prior_scn = self.posted_total_for_invoice(invoice, exclude_pk=self.pk)
+        prior_cn = CreditNote.posted_total_for_invoice(invoice, exclude_pk=None)
+        prior_credited = prior_scn + prior_cn
+        if prior_credited + self.total_amount > invoice.total_amount:
+            raise ValidationError(
+                f'Total credited amount (AED {(prior_credited + self.total_amount):,.2f}) '
+                f'cannot exceed original invoice total (AED {invoice.total_amount:,.2f}).'
+            )
+        if invoice.paid_amount + self.total_amount > invoice.total_amount:
+            raise ValidationError(
+                'Credit note amount exceeds the customer\'s outstanding balance on this invoice. '
+                'Issue a refund or on-account credit instead of posting this credit note.'
+            )
     
     def post_to_accounting(self, user=None):
         """
@@ -1009,10 +1032,8 @@ class SalesCreditNote(BaseModel):
 
         if self.total_amount <= 0:
             raise ValidationError("Credit note amount must be greater than zero.")
-        
-        # Validate against original invoice
-        if self.total_amount > self.invoice.total_amount:
-            raise ValidationError("Credit note cannot exceed original invoice amount.")
+
+        self.validate_for_posting()
         
         # Get accounts
         ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
@@ -1277,11 +1298,20 @@ class CreditNote(BaseModel):
             raise ValidationError('Reason description is required when reason is Other.')
         if self.total <= 0:
             raise ValidationError('Credit note amount must be greater than zero.')
+        prior_scn = SalesCreditNote.posted_total_for_invoice(
+            self.original_invoice, exclude_pk=None,
+        )
         prior_posted = self.posted_total_for_invoice(self.original_invoice, exclude_pk=self.pk)
-        if prior_posted + self.total > self.original_invoice.total_amount:
+        prior_credited = prior_scn + prior_posted
+        if prior_credited + self.total > self.original_invoice.total_amount:
             raise ValidationError(
-                f'Total credited amount (AED {prior_posted + self.total:,.2f}) cannot exceed '
+                f'Total credited amount (AED {prior_credited + self.total:,.2f}) cannot exceed '
                 f'original invoice total (AED {self.original_invoice.total_amount:,.2f}).'
+            )
+        if self.original_invoice.paid_amount + self.total > self.original_invoice.total_amount:
+            raise ValidationError(
+                'Credit note amount exceeds the customer\'s outstanding balance on this invoice. '
+                'Issue a refund or on-account credit instead of posting this credit note.'
             )
         if self.remaining_invoice_value < 0:
             raise ValidationError('Credit note exceeds the remaining invoice value.')
