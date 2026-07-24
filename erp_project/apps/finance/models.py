@@ -1353,6 +1353,32 @@ class Payment(BaseModel):
         if self.bank_account_id:
             return self.bank_account.gl_account
         return None
+
+    def resolve_linked_invoice(self):
+        """Return linked invoice via FK or legacy reference match."""
+        if self.invoice_id:
+            return self.invoice
+        if self.payment_type != 'received' or self.party_type != 'customer' or not self.reference:
+            return None
+        from apps.sales.models import Invoice
+        return Invoice.objects.filter(
+            invoice_number=self.reference.strip(),
+            customer_id=self.party_id,
+            is_active=True,
+        ).first()
+
+    def resolve_linked_bill(self):
+        """Return linked vendor bill via FK or legacy reference match."""
+        if self.bill_id:
+            return self.bill
+        if self.payment_type != 'made' or self.party_type != 'vendor' or not self.reference:
+            return None
+        from apps.purchase.models import VendorBill
+        return VendorBill.objects.filter(
+            bill_number=self.reference.strip(),
+            vendor_id=self.party_id,
+            is_active=True,
+        ).first()
     
     @property
     def is_overpayment(self):
@@ -3818,6 +3844,7 @@ class AccountMapping(models.Model):
         ('vendor_advance_asset', 'Vendor Advance (Asset)'),
         ('vendor_security_deposit', 'Vendor Security Deposit'),
         ('security_cheques_payable', 'Security Cheques Payable'),
+        ('security_cheque_forfeiture', 'Security Cheque Forfeiture Expense'),
 
         # Inter-company
         ('intercompany_receivable', 'Inter-company Receivable'),

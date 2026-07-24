@@ -19,6 +19,7 @@ CHART_OF_ACCOUNTS = [
     ('1100', 'Accounts Receivable', AccountType.ASSET, AccountCategory.TRADE_RECEIVABLES, {}),
     ('1200', 'Inventory Asset', AccountType.ASSET, AccountCategory.INVENTORY, {}),
     ('1210', 'PDC Receivable', AccountType.ASSET, AccountCategory.OTHER_CURRENT_ASSETS, {}),
+    ('1900', 'Suspense Account', AccountType.ASSET, AccountCategory.OTHER_CURRENT_ASSETS, {}),
     ('1300', 'Prepaid Expenses', AccountType.ASSET, AccountCategory.PREPAID, {}),
     ('1310', 'VAT Receivable', AccountType.ASSET, AccountCategory.TAX_RECEIVABLES, {}),
     ('1400', 'Fixed Assets', AccountType.ASSET, AccountCategory.FIXED_ASSETS_OTHER, {}),
@@ -55,6 +56,7 @@ CHART_OF_ACCOUNTS = [
     ('5710', 'Interest Expense', AccountType.EXPENSE, AccountCategory.BANKING_EXPENSE, {}),
     ('5720', 'FX Loss', AccountType.EXPENSE, AccountCategory.BANKING_EXPENSE, {}),
     ('5800', 'General & Administrative Expenses', AccountType.EXPENSE, AccountCategory.ADMIN_EXPENSE, {}),
+    ('5910', 'Rounding Difference', AccountType.EXPENSE, AccountCategory.ADMIN_EXPENSE, {}),
     ('6800', 'Cheque Bounce Charges', AccountType.EXPENSE, AccountCategory.BANKING_EXPENSE, {}),
 ]
 
@@ -93,6 +95,9 @@ ACCOUNT_MAPPINGS = [
     ('bank_interest_expense', '5710', 'banking'),
     ('fx_gain', '4930', 'general'),
     ('fx_loss', '5720', 'general'),
+    ('suspense', '1900', 'general'),
+    ('rounding', '5910', 'general'),
+    ('security_cheque_forfeiture', '5800', 'purchase'),
 ]
 
 

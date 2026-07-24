@@ -135,12 +135,12 @@ class Command(BaseCommand):
             self.test(f'{name} account exists', exists, f'No {name} account found')
         
         # Check trial balance
-        from apps.finance.models import JournalEntryLine
+        from apps.finance.models import JournalEntryLine, GL_REPORT_STATUSES
         total_debit = JournalEntryLine.objects.filter(
-            journal_entry__status='posted'
+            journal_entry__status__in=GL_REPORT_STATUSES
         ).aggregate(total=models.Sum('debit'))['total'] or Decimal('0.00')
         total_credit = JournalEntryLine.objects.filter(
-            journal_entry__status='posted'
+            journal_entry__status__in=GL_REPORT_STATUSES
         ).aggregate(total=models.Sum('credit'))['total'] or Decimal('0.00')
         
         balance = total_debit - total_credit
@@ -380,7 +380,7 @@ class Command(BaseCommand):
     
     def verify_financial_reports(self):
         """TC-24 to TC-27: Verify financial reports."""
-        from apps.finance.models import JournalEntryLine, Account
+        from apps.finance.models import JournalEntryLine, Account, GL_REPORT_STATUSES
         from django.db import models
         
         self.stdout.write('\n📋 TC-24 to TC-27: Financial Reports')
@@ -388,10 +388,10 @@ class Command(BaseCommand):
         
         # TC-24: Trial Balance
         total_debit = JournalEntryLine.objects.filter(
-            journal_entry__status='posted'
+            journal_entry__status__in=GL_REPORT_STATUSES
         ).aggregate(total=models.Sum('debit'))['total'] or Decimal('0.00')
         total_credit = JournalEntryLine.objects.filter(
-            journal_entry__status='posted'
+            journal_entry__status__in=GL_REPORT_STATUSES
         ).aggregate(total=models.Sum('credit'))['total'] or Decimal('0.00')
         
         balance = abs(total_debit - total_credit)

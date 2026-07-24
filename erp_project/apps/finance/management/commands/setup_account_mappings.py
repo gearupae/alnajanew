@@ -19,7 +19,7 @@ class Command(BaseCommand):
         '2200': ['sales_invoice_vat'],
         '2100': ['vendor_bill_payable', 'vendor_payment_ap_clear'],
         '2010': ['inventory_grn_clearing'],
-        '5800': ['vendor_bill_expense', 'expense_claim_expense', 'payroll_gratuity_expense'],
+        '5800': ['vendor_bill_expense', 'expense_claim_expense', 'payroll_gratuity_expense', 'security_cheque_forfeiture'],
         '1310': ['vendor_bill_vat', 'expense_claim_vat'],
         '2320': ['expense_claim_payable'],
         '1200': ['inventory_asset'],
@@ -37,6 +37,8 @@ class Command(BaseCommand):
         '1210': ['pdc_control'],
         '4910': ['pdc_bounce_income'],
         '6800': ['pdc_bounce_charges'],
+        '1900': ['suspense'],
+        '5910': ['rounding'],
         '1020': ['customer_receipt', 'vendor_payment', 'expense_claim_payment', 'payroll_payment'],
     }
 
@@ -51,7 +53,7 @@ class Command(BaseCommand):
         ],
         'purchase': [
             'vendor_bill_payable', 'vendor_bill_expense', 'vendor_bill_vat',
-            'vendor_payment', 'vendor_payment_ap_clear',
+            'vendor_payment', 'vendor_payment_ap_clear', 'security_cheque_forfeiture',
         ],
         'inventory': [
             'inventory_asset', 'inventory_cogs', 'inventory_grn_clearing',

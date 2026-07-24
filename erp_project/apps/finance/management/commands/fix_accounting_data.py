@@ -42,7 +42,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        from apps.finance.models import Account, JournalEntry, JournalEntryLine, AccountType
+        from apps.finance.models import Account, JournalEntry, JournalEntryLine, AccountType, GL_REPORT_STATUSES
 
         dry_run = options['dry_run']
         run_all = options['all']
@@ -222,7 +222,7 @@ class Command(BaseCommand):
             bal = acc.opening_balance or Decimal('0')
             lines = JournalEntryLine.objects.filter(
                 account=acc,
-                journal_entry__status='posted',
+                journal_entry__status__in=GL_REPORT_STATUSES,
                 journal_entry__date__lte=end_date
             ).aggregate(debit=Sum('debit'), credit=Sum('credit'))
             bal += (lines['debit'] or Decimal('0')) - (lines['credit'] or Decimal('0'))
@@ -233,7 +233,7 @@ class Command(BaseCommand):
             bal = acc.opening_balance or Decimal('0')
             lines = JournalEntryLine.objects.filter(
                 account=acc,
-                journal_entry__status='posted',
+                journal_entry__status__in=GL_REPORT_STATUSES,
                 journal_entry__date__lte=end_date
             ).aggregate(debit=Sum('debit'), credit=Sum('credit'))
             bal += (lines['credit'] or Decimal('0')) - (lines['debit'] or Decimal('0'))
@@ -244,7 +244,7 @@ class Command(BaseCommand):
             bal = acc.opening_balance or Decimal('0')
             lines = JournalEntryLine.objects.filter(
                 account=acc,
-                journal_entry__status='posted',
+                journal_entry__status__in=GL_REPORT_STATUSES,
                 journal_entry__date__lte=end_date
             ).aggregate(debit=Sum('debit'), credit=Sum('credit'))
             bal += (lines['credit'] or Decimal('0')) - (lines['debit'] or Decimal('0'))
@@ -255,7 +255,7 @@ class Command(BaseCommand):
         for acc in Account.objects.filter(is_active=True, account_type=AccountType.INCOME):
             lines = JournalEntryLine.objects.filter(
                 account=acc,
-                journal_entry__status='posted',
+                journal_entry__status__in=GL_REPORT_STATUSES,
                 journal_entry__date__lte=end_date
             ).aggregate(debit=Sum('debit'), credit=Sum('credit'))
             total_income += (lines['credit'] or Decimal('0')) - (lines['debit'] or Decimal('0'))
@@ -264,7 +264,7 @@ class Command(BaseCommand):
         for acc in Account.objects.filter(is_active=True, account_type=AccountType.EXPENSE):
             lines = JournalEntryLine.objects.filter(
                 account=acc,
-                journal_entry__status='posted',
+                journal_entry__status__in=GL_REPORT_STATUSES,
                 journal_entry__date__lte=end_date
             ).aggregate(debit=Sum('debit'), credit=Sum('credit'))
             total_expenses += (lines['debit'] or Decimal('0')) - (lines['credit'] or Decimal('0'))

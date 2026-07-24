@@ -532,17 +532,18 @@ def payment_cancel(request, pk):
         messages.error(request, 'Permission denied.')
         return redirect('finance:payment_list')
 
+    payment = get_object_or_404(Payment, pk=pk)
+    if payment.status == 'cancelled':
+        messages.error(request, 'Payment is already cancelled.')
+        return redirect('finance:payment_list')
+
     from django.utils import timezone
-    from apps.sales.models import Invoice
-    from apps.purchase.models import VendorBill
 
     try:
         with transaction.atomic():
             payment = Payment.objects.select_for_update().get(pk=pk)
-
             if payment.status == 'cancelled':
-                messages.error(request, 'Payment is already cancelled.')
-                return redirect('finance:payment_list')
+                raise ValidationError('Payment is already cancelled.')
 
             reversal = None
             if payment.journal_entry and payment.journal_entry.status == 'posted':
@@ -552,8 +553,9 @@ def payment_cancel(request, pk):
                 )
 
             amt = (payment.allocated_amount or payment.amount).quantize(Decimal('0.01'))
-            if payment.invoice_id:
-                invoice = Invoice.objects.select_for_update().get(pk=payment.invoice_id)
+            invoice = payment.resolve_linked_invoice()
+            if invoice:
+                invoice = invoice.__class__.objects.select_for_update().get(pk=invoice.pk)
                 invoice.paid_amount = max(
                     Decimal('0.00'),
                     (invoice.paid_amount - amt).quantize(Decimal('0.01')),
@@ -565,19 +567,21 @@ def payment_cancel(request, pk):
                 else:
                     invoice.status = 'partial'
                 invoice.save(update_fields=['paid_amount', 'status'])
-            elif payment.bill_id:
-                bill = VendorBill.objects.select_for_update().get(pk=payment.bill_id)
-                bill.paid_amount = max(
-                    Decimal('0.00'),
-                    (bill.paid_amount - amt).quantize(Decimal('0.01')),
-                )
-                if bill.paid_amount <= 0:
-                    bill.status = 'posted'
-                elif bill.paid_amount >= bill.total_amount:
-                    bill.status = 'paid'
-                else:
-                    bill.status = 'partial'
-                bill.save(update_fields=['paid_amount', 'status'])
+            else:
+                bill = payment.resolve_linked_bill()
+                if bill:
+                    bill = bill.__class__.objects.select_for_update().get(pk=bill.pk)
+                    bill.paid_amount = max(
+                        Decimal('0.00'),
+                        (bill.paid_amount - amt).quantize(Decimal('0.01')),
+                    )
+                    if bill.paid_amount <= 0:
+                        bill.status = 'posted'
+                    elif bill.paid_amount >= bill.total_amount:
+                        bill.status = 'paid'
+                    else:
+                        bill.status = 'partial'
+                    bill.save(update_fields=['paid_amount', 'status'])
 
             payment.status = 'cancelled'
             payment.cancelled_date = timezone.now()
@@ -585,6 +589,9 @@ def payment_cancel(request, pk):
             if reversal:
                 payment.reversal_entry = reversal
             payment.save()
+    except ValidationError as e:
+        messages.error(request, str(e))
+        return redirect('finance:payment_detail', pk=pk)
     except Exception as e:
         messages.error(request, f'Could not cancel payment: {e}')
         return redirect('finance:payment_detail', pk=pk)
