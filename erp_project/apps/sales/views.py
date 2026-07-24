@@ -2948,20 +2948,19 @@ def invoice_receive_payment(request, pk):
             messages.error(request, f'Invalid amount: {e}')
             return redirect('sales:invoice_detail', pk=pk)
         
-        # Get bank account
+        # Get bank account (required for bank transfer and cheque)
         bank_account = None
-        if payment_method == 'bank' and bank_account_id:
-            bank_account = BankAccount.objects.filter(pk=bank_account_id, is_active=True).first()
-            if not bank_account:
-                messages.error(request, 'Invalid bank account selected.')
+        if payment_method in ('bank', 'cheque', 'card'):
+            if bank_account_id:
+                bank_account = BankAccount.objects.filter(pk=bank_account_id, is_active=True).first()
+                if not bank_account:
+                    messages.error(request, 'Invalid bank account selected.')
+                    return redirect('sales:invoice_detail', pk=pk)
+            elif payment_method == 'bank':
+                bank_account = BankAccount.objects.filter(is_active=True).first()
+            if payment_method in ('bank', 'cheque') and not bank_account:
+                messages.error(request, 'Bank account is required for bank transfer and cheque payments.')
                 return redirect('sales:invoice_detail', pk=pk)
-        elif payment_method == 'bank':
-            # Use default bank account
-            bank_account = BankAccount.objects.filter(is_active=True).first()
-        
-        if payment_method == 'bank' and not bank_account:
-            messages.error(request, 'Bank account is required for bank transfer payments.')
-            return redirect('sales:invoice_detail', pk=pk)
         
         # Parse payment date
         from datetime import datetime
@@ -3006,10 +3005,9 @@ def invoice_receive_payment(request, pk):
             return redirect('sales:invoice_detail', pk=pk)
         
         # Get bank GL account
-        if payment_method == 'bank' and bank_account and bank_account.gl_account:
+        if payment_method in ('bank', 'cheque', 'card') and bank_account and bank_account.gl_account:
             bank_gl_account = bank_account.gl_account
-        else:
-            # Use cash account for cash payments
+        elif payment_method == 'cash':
             bank_gl_account = Account.objects.filter(
                 account_type=AccountType.ASSET, is_active=True, name__icontains='cash'
             ).first()
@@ -3017,6 +3015,10 @@ def invoice_receive_payment(request, pk):
                 bank_gl_account = Account.objects.filter(
                     account_type=AccountType.ASSET, is_active=True
                 ).first()
+        else:
+            messages.error(request, 'Bank account GL is required for this payment method.')
+            payment.delete()
+            return redirect('sales:invoice_detail', pk=pk)
         
         if not bank_gl_account:
             messages.error(request, 'Bank/Cash account not configured.')

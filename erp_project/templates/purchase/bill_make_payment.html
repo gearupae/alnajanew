@@ -146,22 +146,27 @@
 </div>
 
 <script>
-document.getElementById('paymentMethod').addEventListener('change', function() {
-    var bankDiv = document.getElementById('bankAccountDiv');
-    if (this.value === 'cash') {
-        bankDiv.style.display = 'none';
-    } else {
-        bankDiv.style.display = 'block';
-    }
-});
-
-// Update journal entry preview when amount changes
+document.getElementById('paymentMethod').addEventListener('change', syncBankRequired);
 document.querySelector('input[name="amount"]').addEventListener('input', function() {
     var amount = parseFloat(this.value) || 0;
     var formatted = 'AED ' + amount.toLocaleString('en-AE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('debitAmount').textContent = formatted;
     document.getElementById('creditAmount').textContent = formatted;
 });
+
+function syncBankRequired() {
+    var bankDiv = document.getElementById('bankAccountDiv');
+    var bankSelect = bankDiv.querySelector('select[name="bank_account"]');
+    var method = document.getElementById('paymentMethod').value;
+    if (method === 'cash') {
+        bankDiv.style.display = 'none';
+        bankSelect.required = false;
+    } else {
+        bankDiv.style.display = 'block';
+        bankSelect.required = (method === 'bank' || method === 'cheque');
+    }
+}
+syncBankRequired();
 </script>
 {% endblock %}
 

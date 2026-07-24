@@ -39,8 +39,8 @@ def record_vendor_bill_payment(
     if amount > bill.balance:
         amount = bill.balance
 
-    if payment_method == 'bank' and not bank_account:
-        return None, 'Bank account is required for bank transfer payments.'
+    if payment_method in ('bank', 'cheque') and not bank_account:
+        return None, 'Bank account is required for bank transfer and cheque payments.'
 
     payment = Payment.objects.create(
         payment_type='made',
@@ -66,9 +66,9 @@ def record_vendor_bill_payment(
         payment.delete()
         return None, 'Accounts Payable account not configured.'
 
-    if payment_method == 'bank' and bank_account and bank_account.gl_account:
+    if payment_method in ('bank', 'cheque', 'card') and bank_account and bank_account.gl_account:
         bank_gl_account = bank_account.gl_account
-    else:
+    elif payment_method == 'cash':
         bank_gl_account = Account.objects.filter(
             account_type=AccountType.ASSET, is_active=True, name__icontains='cash'
         ).first()
@@ -76,6 +76,9 @@ def record_vendor_bill_payment(
             bank_gl_account = Account.objects.filter(
                 account_type=AccountType.ASSET, is_active=True
             ).first()
+    else:
+        payment.delete()
+        return None, 'Bank account GL is required for this payment method.'
 
     if not bank_gl_account:
         payment.delete()
@@ -129,8 +132,11 @@ def record_vendor_bill_payment(
 
 
 def resolve_bank_account(payment_method, bank_account_id):
-    """Return active BankAccount for bank payments, or None for cash."""
-    if payment_method != 'bank':
+    """Return active BankAccount for bank/cheque/card payments, or None for cash."""
+    if payment_method == 'cash':
+        return None
+
+    if payment_method not in ('bank', 'cheque', 'card'):
         return None
 
     if bank_account_id:
@@ -139,10 +145,13 @@ def resolve_bank_account(payment_method, bank_account_id):
             raise ValueError('Invalid bank account selected.')
         return bank_account
 
-    bank_account = BankAccount.objects.filter(is_active=True).first()
-    if not bank_account:
-        raise ValueError('Bank account is required for bank transfer payments.')
-    return bank_account
+    if payment_method == 'bank':
+        bank_account = BankAccount.objects.filter(is_active=True).first()
+        if not bank_account:
+            raise ValueError('Bank account is required for bank transfer payments.')
+        return bank_account
+
+    raise ValueError('Bank account is required for cheque payments.')
 
 
 def parse_payment_date(payment_date_str):
