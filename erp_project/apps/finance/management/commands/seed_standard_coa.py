@@ -18,6 +18,7 @@ CHART_OF_ACCOUNTS = [
     ('1020', 'Cash at Bank', AccountType.ASSET, AccountCategory.CASH_BANK, {'is_cash_account': True, 'overdraft_allowed': True}),
     ('1100', 'Accounts Receivable', AccountType.ASSET, AccountCategory.TRADE_RECEIVABLES, {}),
     ('1200', 'Inventory Asset', AccountType.ASSET, AccountCategory.INVENTORY, {}),
+    ('1210', 'PDC Receivable', AccountType.ASSET, AccountCategory.OTHER_CURRENT_ASSETS, {}),
     ('1300', 'Prepaid Expenses', AccountType.ASSET, AccountCategory.PREPAID, {}),
     ('1310', 'VAT Receivable', AccountType.ASSET, AccountCategory.TAX_RECEIVABLES, {}),
     ('1400', 'Fixed Assets', AccountType.ASSET, AccountCategory.FIXED_ASSETS_OTHER, {}),
@@ -46,6 +47,7 @@ CHART_OF_ACCOUNTS = [
     ('5600', 'Depreciation Expense', AccountType.EXPENSE, AccountCategory.DEPRECIATION_EXPENSE, {}),
     ('5700', 'Bank Charges', AccountType.EXPENSE, AccountCategory.BANKING_EXPENSE, {}),
     ('5800', 'General & Administrative Expenses', AccountType.EXPENSE, AccountCategory.ADMIN_EXPENSE, {}),
+    ('6800', 'Cheque Bounce Charges', AccountType.EXPENSE, AccountCategory.BANKING_EXPENSE, {}),
 ]
 
 # transaction_type -> account code, module
@@ -57,6 +59,7 @@ ACCOUNT_MAPPINGS = [
     ('sales_invoice_receivable', '1100', 'sales'),
     ('customer_receipt_ar_clear', '1100', 'sales'),
     ('vendor_bill_payable', '2100', 'purchase'),
+    ('vendor_bill_expense', '5800', 'purchase'),
     ('vendor_payment_ap_clear', '2100', 'purchase'),
     ('vat_output', '2200', 'general'),
     ('sales_invoice_vat', '2200', 'sales'),
@@ -70,6 +73,8 @@ ACCOUNT_MAPPINGS = [
     ('bank_charges', '5700', 'banking'),
     ('depreciation_expense', '5600', 'general'),
     ('accumulated_depreciation', '1490', 'general'),
+    ('pdc_control', '1210', 'property'),
+    ('pdc_bounce_charges', '6800', 'property'),
 ]
 
 

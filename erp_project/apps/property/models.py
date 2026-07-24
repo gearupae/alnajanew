@@ -633,12 +633,11 @@ class PDCCheque(BaseModel):
         )
 
         if bounce_charges > 0:
-            try:
-                bounce_expense = Account.objects.get(code='6800', account_type='expense')
-            except Account.DoesNotExist:
+            bounce_expense = AccountMapping.get_account_or_default('pdc_bounce_charges', '6800')
+            if not bounce_expense:
                 raise ValidationError(
-                    "Bounce Charges Expense account (6800) not found. "
-                    "Create the account before processing bounced cheques."
+                    "Bounce Charges Expense account not found. "
+                    "Expected account 6800 or set up 'pdc_bounce_charges' in Finance → Account Mapping."
                 )
 
             JournalEntryLine.objects.create(

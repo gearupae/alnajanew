@@ -22,7 +22,9 @@ class Command(BaseCommand):
         # Purchase Mappings
         '2000': ['vendor_bill_payable', 'vendor_payment_ap_clear'],
         '2010': ['inventory_grn_clearing'],
-        '5000': ['vendor_bill_expense', 'expense_claim_expense'],
+        '5800': ['vendor_bill_expense', 'expense_claim_expense'],
+        '1210': ['pdc_control'],
+        '6800': ['pdc_bounce_charges'],
         '1300': ['vendor_bill_vat', 'expense_claim_vat'],
 
         # Inventory Mappings
@@ -78,6 +80,7 @@ class Command(BaseCommand):
                      'vendor_payment', 'vendor_payment_ap_clear'],
         'inventory': ['inventory_asset', 'inventory_cogs', 'inventory_grn_clearing',
                       'inventory_variance', 'inventory_damage_expense'],
+        'property': ['pdc_control', 'pdc_bounce_charges', 'pdc_bounce_income'],
         'expense_claim': ['expense_claim_expense', 'expense_claim_vat', 'expense_claim_payable',
                          'expense_claim_payment', 'expense_claim_clear'],
         'payroll': ['payroll_salary_expense', 'payroll_salary_payable', 'payroll_gratuity_expense',
