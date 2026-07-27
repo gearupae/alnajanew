@@ -14,6 +14,11 @@
             <span class="text-muted">{{ invoice.customer.name }}</span>
         </div>
         <div>
+            {% if can_create_advance %}
+            <button type="button" class="btn btn-outline-primary" onclick="toggleInlineForm('advanceForm')">
+                <i class="fas fa-money-bill-wave me-2"></i>Record Advance
+            </button>
+            {% endif %}
             {% if can_post %}
             <form method="post" action="{% url 'sales:invoice_post' invoice.pk %}" class="d-inline">
                 {% csrf_token %}
@@ -182,6 +187,12 @@
             </div>
         </div>
         {% endif %}
+
+        <div class="card mt-4">
+            <div class="card-body">
+                {% include 'advances/_customer_advance_tab.html' with customer=invoice.customer advances=customer_advances form=advance_form can_create=can_create_advance can_edit=can_edit_advance advance_form_action=advance_form_action %}
+            </div>
+        </div>
     </div>
     
     <div class="col-lg-4">

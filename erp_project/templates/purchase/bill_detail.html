@@ -68,6 +68,18 @@
                         <h6 class="text-muted mb-2">Due Date</h6>
                         <p class="mb-0">{{ bill.due_date|date:"d/m/Y" }}</p>
                     </div>
+                    {% if bill.purchase_order %}
+                    <div class="col-md-4 mt-3">
+                        <h6 class="text-muted mb-2">Purchase Order</h6>
+                        <p class="mb-0"><a href="{% url 'purchase:po_detail' bill.purchase_order.pk %}">{{ bill.purchase_order.po_number }}</a></p>
+                    </div>
+                    {% endif %}
+                    {% if bill.goods_received %}
+                    <div class="col-md-4 mt-3">
+                        <h6 class="text-muted mb-2">Billing type</h6>
+                        <p class="mb-0"><span class="badge bg-info text-dark">GRN-matched (goods received)</span></p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

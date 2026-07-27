@@ -1,0 +1,42 @@
+(function () {
+    function bindScopeOfWork(container) {
+        if (!container || container.dataset.scopeBound === '1') return;
+        container.dataset.scopeBound = '1';
+
+        const rowsWrap = container.querySelector('.scope-of-work-rows');
+        const addBtn = container.querySelector('#btnAddScopeLine, .btn-add-scope-line');
+
+        function addScopeRow(value) {
+            const row = document.createElement('div');
+            row.className = 'input-group mb-2 scope-of-work-row';
+            row.innerHTML =
+                '<span class="input-group-text bg-light text-muted">•</span>' +
+                '<input type="text" name="scope_of_work_line" class="form-control scope-of-work-input" ' +
+                'placeholder="Describe a deliverable or task…" maxlength="500">' +
+                '<button type="button" class="btn btn-outline-secondary btn-remove-scope-line" ' +
+                'title="Remove bullet" aria-label="Remove bullet"><i class="fas fa-times"></i></button>';
+            const input = row.querySelector('input');
+            if (value) input.value = value;
+            rowsWrap.appendChild(row);
+            input.focus();
+        }
+
+        rowsWrap?.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-remove-scope-line');
+            if (!btn) return;
+            const rows = rowsWrap.querySelectorAll('.scope-of-work-row');
+            if (rows.length <= 1) {
+                const input = rows[0]?.querySelector('input');
+                if (input) input.value = '';
+                return;
+            }
+            btn.closest('.scope-of-work-row')?.remove();
+        });
+
+        addBtn?.addEventListener('click', function () {
+            addScopeRow('');
+        });
+    }
+
+    document.querySelectorAll('.contract-scope-of-work-field').forEach(bindScopeOfWork);
+})();

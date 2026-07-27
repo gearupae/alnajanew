@@ -12,7 +12,10 @@ from apps.projects.item_delivery import (
 )
 from apps.projects.labour_utils import project_labour_summary
 from apps.projects.models import Project, ProjectItemDelivery, ProjectItemLine, ProjectItemReturn
-from apps.purchase.models import VendorBill
+from apps.projects.project_vendor_bills import (
+    vendor_bills_queryset_for_project,
+    vendor_bills_total_for_project,
+)
 
 
 def _decimal(value) -> Decimal:
@@ -261,13 +264,8 @@ def _other_expenses(project):
         for row in by_category
     ]
 
-    vendor_bills = (
-        project.vendor_bills.filter(is_active=True)
-        .exclude(status='cancelled')
-        .select_related('vendor')
-        .order_by('-bill_date')
-    )
-    vendor_bills_total = vendor_bills.aggregate(s=Sum('total_amount'))['s'] or Decimal('0.00')
+    vendor_bills = vendor_bills_queryset_for_project(project)
+    vendor_bills_total = vendor_bills_total_for_project(project)
 
     return {
         'manual_expenses': list(manual_qs),

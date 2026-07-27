@@ -668,6 +668,7 @@ class EstimateCreateView(CreatePermissionMixin, CreateView):
         if terms:
             initial['terms_and_conditions'] = terms
         initial['prices_include_vat'] = default_prices_include_vat()
+        initial['show_brand_name_on_pdf'] = True
         return initial
 
     def get_form(self, form_class=None):
@@ -1038,12 +1039,6 @@ class EstimateDetailView(PermissionRequiredMixin, DetailView):
             if not user_can_access_estimate(request.user, est):
                 messages.error(request, 'You do not have permission to view this estimate.')
                 return redirect('sales:estimate_list')
-            if (
-                request.method == 'GET'
-                and request.user.is_authenticated
-                and est.created_by_id == request.user.pk
-            ):
-                _stamp_estimate_created_client_ip(est, request)
         if request.method == 'GET' and pk:
             _clear_estimate_revision_session(request, pk)
         return super().dispatch(request, *args, **kwargs)
@@ -1689,13 +1684,18 @@ def _estimate_public_not_available_html(request, message):
 
 
 def _stamp_estimate_created_client_ip(estimate, request):
-    """Record creator IP so their own public-link previews are not counted as customer views."""
+    """Record creator IP at quotation creation only; never overwrite once saved."""
     from apps.core.utils import get_client_ip
 
     ip = (get_client_ip(request) or '').strip()
-    if ip and not estimate.created_client_ip:
+    if not ip or estimate.created_client_ip:
+        return
+    updated = Estimate.objects.filter(
+        pk=estimate.pk,
+        created_client_ip='',
+    ).update(created_client_ip=ip[:45])
+    if updated:
         estimate.created_client_ip = ip[:45]
-        estimate.save(update_fields=['created_client_ip'])
 
 
 def _should_count_public_estimate_view(request, estimate):
@@ -2412,7 +2412,7 @@ def inventory_item_json(request, pk):
 # ============ INVOICE VIEWS ============
 
 def _invoice_form_project_context():
-    """JSON data for invoice form project / estimate filtering."""
+    """JSON data for invoice form project filtering by customer."""
     from apps.projects.models import Project
 
     projects = list(
@@ -2421,10 +2421,6 @@ def _invoice_form_project_context():
         .select_related('customer')
         .order_by('-created_at')
         .values('id', 'customer_id', 'project_code', 'name')
-    )
-    estimate_projects = dict(
-        Estimate.objects.filter(is_active=True, status='quotation_won', project__isnull=False)
-        .values_list('pk', 'project_id')
     )
     return {
         'invoice_project_options_json': json.dumps(
@@ -2436,10 +2432,6 @@ def _invoice_form_project_context():
                 }
                 for p in projects
             ],
-            cls=DjangoJSONEncoder,
-        ),
-        'invoice_estimate_project_map_json': json.dumps(
-            {str(k): v for k, v in estimate_projects.items()},
             cls=DjangoJSONEncoder,
         ),
     }
@@ -2699,7 +2691,41 @@ class InvoiceDetailView(PermissionRequiredMixin, DetailView):
         
         # Audit History
         context['audit_history'] = get_entity_audit_history('Invoice', self.object.pk)
-        
+
+        from datetime import date
+        from apps.advances.forms import CustomerAdvanceForm
+        from apps.advances.models import CustomerAdvance
+
+        customer = self.object.customer
+        linked_project = context['linked_project']
+        context['customer_advances'] = CustomerAdvance.objects.filter(
+            customer=customer, is_active=True
+        ).select_related('bank_account', 'project', 'journal_entry').order_by('-date')
+        advance_form = CustomerAdvanceForm(
+            initial={
+                'date': date.today(),
+                'reference': f'Re: {self.object.invoice_number}',
+                **({'project': linked_project.pk} if linked_project else {}),
+            },
+            customer=customer,
+            user=self.request.user,
+        )
+        advance_form.customer = customer
+        context['advance_form'] = advance_form
+        context['can_create_advance'] = (
+            self.request.user.is_superuser
+            or PermissionChecker.has_permission(self.request.user, 'crm', 'create')
+            or PermissionChecker.has_permission(self.request.user, 'crm', 'edit')
+            or PermissionChecker.has_permission(self.request.user, 'sales', 'edit')
+        )
+        context['can_edit_advance'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'crm', 'edit'
+        )
+        context['advance_form_action'] = reverse(
+            'advances:customer_advance_invoice_tab',
+            args=[self.object.pk],
+        )
+
         return context
 
 

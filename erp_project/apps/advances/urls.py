@@ -14,6 +14,11 @@ urlpatterns = [
         name='customer_advance_tab',
     ),
     path(
+        'customer-advances/from-invoice/<int:invoice_pk>/',
+        views.customer_advance_invoice_tab,
+        name='customer_advance_invoice_tab',
+    ),
+    path(
         'customer-advances/<int:pk>/',
         views.customer_advance_detail,
         name='customer_advance_detail',

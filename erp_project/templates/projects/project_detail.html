@@ -202,6 +202,25 @@
                     <div class="col-md-4"><h6 class="text-muted mb-2">Budget</h6><p class="mb-0">AED {{ project.budget|floatformat:2 }}</p></div>
                     <div class="col-md-4"><h6 class="text-muted mb-2">Quotation price</h6><p class="mb-0">{% if project_estimate_total > 0 %}AED {{ project_estimate_total|floatformat:2 }}{% else %}—{% endif %}</p></div>
                     <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Invoiced</h6>
+                        <p class="mb-0">{% if project_invoiced_amount > 0 %}AED {{ project_invoiced_amount|floatformat:2 }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Received</h6>
+                        <p class="mb-0 fw-semibold text-success">{% if project_received_amount > 0 %}AED {{ project_received_amount|floatformat:2 }}{% else %}—{% endif %}</p>
+                        {% if project_advance_received > 0 or project_invoice_paid > 0 %}
+                        <p class="small text-muted mb-0">
+                            {% if project_advance_received > 0 %}Advances AED {{ project_advance_received|floatformat:2 }}{% endif %}
+                            {% if project_advance_received > 0 and project_invoice_paid > 0 %} · {% endif %}
+                            {% if project_invoice_paid > 0 %}Invoice payments AED {{ project_invoice_paid|floatformat:2 }}{% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Balance</h6>
+                        <p class="mb-0">{% if project.contract_value > 0 or project_invoiced_amount > 0 or project_received_amount > 0 %}AED {{ project_balance_amount|floatformat:2 }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-4">
                         <h6 class="text-muted mb-2">Total profit <span class="small fw-normal">({{ header_profit_label }})</span></h6>
                         <p class="mb-0 fw-semibold d-flex align-items-center flex-wrap gap-2">
                             AED {{ header_profit_vs_expenses|floatformat:2 }}
@@ -830,7 +849,7 @@
                 {% endif %}
                 <details class="small text-muted mt-3 mb-0">
                     <summary class="user-select-none" style="cursor: pointer;">How is actual spend calculated?</summary>
-                    <p class="mb-0 mt-2 lh-sm">Includes vendor bills, project expenses, and inventory on site (valued at estimate scope base price when items came from the quotation).</p>
+                    <p class="mb-0 mt-2 lh-sm">Includes vendor bills (linked on the bill or via its purchase order), project expenses, labour, and inventory on site.</p>
                 </details>
             </div>
         </div>

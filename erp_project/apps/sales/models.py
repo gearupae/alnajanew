@@ -189,7 +189,7 @@ class Estimate(BaseModel):
         help_text='If on, PDF shows each group heading and a subtotal after its line items.',
     )
     show_brand_name_on_pdf = models.BooleanField(
-        default=False,
+        default=True,
         help_text='If on, PDF shows the inventory item brand name on each line.',
     )
     prices_include_vat = models.BooleanField(

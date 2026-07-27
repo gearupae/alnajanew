@@ -124,7 +124,14 @@ def create_project_from_estimate(*, estimate, include_items: bool, submitted_by=
     estimate.save(update_fields=['project'])
 
     if needs_conversion_approval and submitted_by:
-        queue_project_conversion_approval(submitted_by, project)
+        from apps.projects.operation_access import project_skips_approval_gates
+
+        if not project_skips_approval_gates(project):
+            queue_project_conversion_approval(submitted_by, project)
+        else:
+            from apps.projects.conversion_approval import approve_project_conversion
+
+            approve_project_conversion(project)
 
     if include_items:
         copy_estimate_items_to_project(estimate=estimate, project=project, sort_start=0)

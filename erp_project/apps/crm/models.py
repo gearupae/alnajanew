@@ -150,7 +150,7 @@ class Customer(BaseModel):
         blank=True,
         max_length=500,
         verbose_name='Trade license',
-        help_text='B2B: upload trade license (PDF or image).',
+        help_text='Optional. Trade license (PDF or image) for B2B.',
     )
     notes = models.TextField(blank=True)
     

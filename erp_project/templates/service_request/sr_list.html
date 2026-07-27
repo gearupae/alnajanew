@@ -100,6 +100,11 @@
                                 <i class="fas fa-edit"></i>
                             </a>
                             {% endif %}
+                            {% if can_create_pr and sr.status == 'approved' %}
+                            <a href="{% url 'service_request:sr_convert_pr' sr.pk %}" class="btn btn-action btn-outline-secondary" title="Create Purchase Request" onclick="return confirm('Create a Purchase Request from this service request?');">
+                                <i class="fas fa-clipboard-list"></i>
+                            </a>
+                            {% endif %}
                             {% if can_convert and sr.status == 'approved' %}
                             <a href="{% url 'service_request:sr_convert' sr.pk %}" class="btn btn-action btn-outline-primary" title="Convert to Purchase Order" onclick="return confirm('Convert to Purchase Order?');">
                                 <i class="fas fa-exchange-alt"></i>

@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'crm:customer_list' %}">Customers</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'crm:customer_detail' object.pk %}">{{ object.display_name }}</a></li>
+            <li class="breadcrumb-item active">Delete</li>
+        </ol>
+    </nav>
+    <h4 class="mb-0 fw-bold">Deactivate customer</h4>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <p class="mb-2">
+            Are you sure you want to deactivate
+            <strong>{{ object.display_name }}</strong>?
+        </p>
+        <p class="text-muted small mb-4">
+            This is a soft delete — the record is hidden from lists but kept in the database for history.
+            Estimates, projects, and other linked records are not removed.
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-trash me-1"></i>Deactivate customer
+            </button>
+            <a href="{% url 'crm:customer_detail' object.pk %}" class="btn btn-light">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

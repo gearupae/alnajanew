@@ -39,6 +39,48 @@ def project_has_customer_advance(project) -> bool:
     ).exists()
 
 
+def project_has_linked_invoice(project) -> bool:
+    """True when any active sales invoice is linked to this project."""
+    if not project:
+        return False
+    from apps.sales.models import Invoice
+
+    invoice_ids = project.invoices.filter(is_active=True).values_list('invoice_id', flat=True)
+    if not invoice_ids:
+        return False
+    return Invoice.objects.filter(pk__in=invoice_ids, is_active=True).exists()
+
+
+def project_skips_approval_gates(project) -> bool:
+    """Advance or invoice on the project — conversion/operation approval not required."""
+    return project_has_customer_advance(project) or project_has_linked_invoice(project)
+
+
+def maybe_auto_approve_project_financial_unlock(project) -> bool:
+    """
+    When a customer advance or invoice is linked, auto-approve pending conversion
+    or operation-access requests so the project can proceed without manual approval.
+    """
+    if not project or not project.pk or not project_skips_approval_gates(project):
+        return False
+
+    changed = False
+    if (
+        getattr(project, 'conversion_approval_status', None) == 'pending'
+        and getattr(project, 'status', None) == 'draft'
+    ):
+        from .conversion_approval import approve_project_conversion
+
+        approve_project_conversion(project)
+        changed = True
+
+    if getattr(project, 'operation_access_status', None) == 'pending':
+        approve_project_operation_access(project)
+        changed = True
+
+    return changed
+
+
 def project_access_unlocked(project) -> bool:
     """
     Quotation-sourced projects become fully accessible when:

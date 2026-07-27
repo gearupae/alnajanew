@@ -95,6 +95,16 @@
                         <label class="form-label text-muted small">Vendor</label>
                         <p class="mb-0">{% if pr.vendor %}{{ pr.vendor.name }}{% else %}—{% endif %}</p>
                     </div>
+                    {% if pr.service_request %}
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">From Service Request</label>
+                        <p class="mb-0">
+                            <a href="{% url 'service_request:sr_detail' pr.service_request.pk %}" class="text-decoration-none">
+                                {{ pr.service_request.sr_number }}
+                            </a>
+                        </p>
+                    </div>
+                    {% endif %}
                     <div class="col-md-4">
                         <label class="form-label text-muted small">Requested By</label>
                         <p class="mb-0">{{ pr.requested_by.get_full_name|default:pr.requested_by.username }}</p>
@@ -177,6 +187,8 @@
                 </div>
             </div>
         </div>
+
+        {% include 'purchase/partials/pr_vendor_quotes_card.html' %}
     </div>
 </div>
 
@@ -226,5 +238,12 @@
         </div>
     </div>
 </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if can_manage_vendor_quotes %}
+{% csrf_token %}
+{% include 'purchase/partials/pr_vendor_quotes_js.html' %}
 {% endif %}
 {% endblock %}

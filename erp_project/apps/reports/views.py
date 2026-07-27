@@ -82,7 +82,12 @@ def sales_report(request):
         return redirect('dashboard')
 
     start_date, end_date = _parse_period(request)
-    context = build_sales_report(start_date=start_date, end_date=end_date)
+    salesperson = (request.GET.get('salesperson') or '').strip()
+    context = build_sales_report(
+        start_date=start_date,
+        end_date=end_date,
+        salesperson=salesperson,
+    )
     context['title'] = 'Sales Report'
     return render(request, 'reports/sales_report.html', context)
 

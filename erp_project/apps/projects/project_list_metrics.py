@@ -13,6 +13,7 @@ from apps.sales.models import Estimate
 from .item_delivery import project_inventory_spend_total
 from .labour_utils import project_labour_summary
 from .models import Project
+from .project_receipt_metrics import project_receipt_totals
 
 
 _INVOICE_STATUS_FILTER = Q(
@@ -114,10 +115,13 @@ def enrich_projects_for_list(projects: list[Project]) -> list[Project]:
 
     project_ids = [p.pk for p in projects]
     estimated_by_id = _estimated_expense_by_project_id(project_ids)
+    from .project_vendor_bills import vendor_bills_totals_by_project_id
+
+    bills_by_id = vendor_bills_totals_by_project_id(project_ids)
 
     for project in projects:
         manual = project.manual_expenses_sum or Decimal('0.00')
-        bills = project.vendor_bills_sum or Decimal('0.00')
+        bills = bills_by_id.get(project.pk, Decimal('0.00'))
         inventory = project_inventory_spend_total(project)
         _, _, labour_cost = project_labour_summary(project)
         labour_cost = labour_cost or Decimal('0.00')
@@ -127,13 +131,11 @@ def enrich_projects_for_list(projects: list[Project]) -> list[Project]:
         if estimated <= 0 and project.budget > 0:
             estimated = project.budget
 
-        received = project.received_amount or Decimal('0.00')
+        receipt = project_receipt_totals(project)
+        received = receipt['received_amount']
+        invoiced = receipt['invoiced_amount']
+        balance = receipt['balance_amount']
         contract = project.contract_value or Decimal('0.00')
-        if contract > 0:
-            balance = contract - received
-        else:
-            invoiced = project.invoiced_amount or Decimal('0.00')
-            balance = invoiced - received
 
         total_tasks = project.tasks_total_count or 0
         completed = project.tasks_completed_count or 0
@@ -148,7 +150,7 @@ def enrich_projects_for_list(projects: list[Project]) -> list[Project]:
         project.list_estimated_expense = estimated
         project.list_actual_expense = actual
         project.list_received_amount = received
-        project.list_invoiced_amount = project.invoiced_amount or Decimal('0.00')
+        project.list_invoiced_amount = invoiced
         project.list_balance_amount = balance
         project.list_work_percent = work_pct
 

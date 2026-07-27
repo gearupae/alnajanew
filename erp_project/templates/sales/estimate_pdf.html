@@ -542,7 +542,7 @@
             <div class="title-strip-main">
                 <div class="estimate-title-text">{{ document_heading|default:"QUOTATION" }}</div>
                 <div class="estimate-number">{{ document_number|default:estimate.display_estimate_number }}</div>
-                {% if show_pdf_status|default:True %}
+                {% if show_pdf_status|default:True and pdf_variant != 'quotation' %}
                 <div class="status-badge status-{{ estimate.status }}">{{ estimate.get_status_display }}</div>
                 {% endif %}
             </div>

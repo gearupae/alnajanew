@@ -63,6 +63,9 @@ class ServiceRequestListView(PermissionRequiredMixin, ListView):
         context['can_convert'] = self.request.user.is_superuser or PermissionChecker.has_permission(
             self.request.user, 'service_request', 'edit'
         )
+        context['can_create_pr'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'purchase', 'create'
+        )
         context['today'] = date.today().isoformat()
         return context
 
@@ -197,6 +200,10 @@ class ServiceRequestDetailView(PermissionRequiredMixin, DetailView):
         context['can_convert'] = (
             self.request.user.is_superuser or
             PermissionChecker.has_permission(self.request.user, 'service_request', 'edit')
+        ) and self.object.status == 'approved'
+        context['can_create_pr'] = (
+            self.request.user.is_superuser or
+            PermissionChecker.has_permission(self.request.user, 'purchase', 'create')
         ) and self.object.status == 'approved'
         context['reject_form'] = ServiceRequestRejectForm()
         return context
@@ -371,30 +378,53 @@ def sr_delete(request, pk):
 def sr_convert(request, pk):
     """Redirect to PO create with SR pre-selected. User selects vendor on PO form (like PR conversion)."""
     sr = get_object_or_404(ServiceRequest, pk=pk)
-    
+
     if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'service_request', 'edit')):
         messages.error(request, 'Permission denied.')
         return redirect('service_request:sr_list')
-    
+
     if sr.status != 'approved':
         messages.error(request, 'Only approved requests can be converted.')
         return redirect('service_request:sr_detail', pk=pk)
-    
+
     from django.urls import reverse
     url = reverse('purchase:po_create') + '?sr=' + str(sr.pk)
     return redirect(url)
 
 
 @login_required
+def sr_convert_pr(request, pk):
+    """Redirect to PR create with SR pre-selected."""
+    sr = get_object_or_404(ServiceRequest, pk=pk)
+
+    if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'purchase', 'create')):
+        messages.error(request, 'Permission denied.')
+        return redirect('service_request:sr_list')
+
+    if sr.status != 'approved':
+        messages.error(request, 'Only approved requests can be converted.')
+        return redirect('service_request:sr_detail', pk=pk)
+
+    from django.urls import reverse
+    url = reverse('purchase:pr_create') + '?sr=' + str(sr.pk)
+    return redirect(url)
+
+
+@login_required
 def sr_items_json(request, pk):
-    """Return SR items as JSON for AJAX requests (used when creating PO from SR)."""
+    """Return SR items as JSON for AJAX requests (used when creating PR/PO from SR)."""
     sr = get_object_or_404(ServiceRequest, pk=pk)
     items = []
+    vendor_ids = set()
     for item in sr.items.all():
+        if item.vendor_id:
+            vendor_ids.add(item.vendor_id)
         items.append({
             'description': item.service_description,
             'quantity': str(item.quantity),
             'estimated_price': str(item.estimated_unit_cost),
             'unit_price': str(item.estimated_unit_cost),
+            'unit': item.unit,
         })
-    return JsonResponse({'items': items})
+    vendor_id = next(iter(vendor_ids)) if len(vendor_ids) == 1 else None
+    return JsonResponse({'items': items, 'vendor_id': vendor_id})

@@ -6,6 +6,14 @@ from apps.settings_app.models import ApprovalConfiguration
 
 def project_awaiting_conversion_approval(project) -> bool:
     """Project was created from a quotation and must be approved before status changes."""
+    from .operation_access import (
+        maybe_auto_approve_project_financial_unlock,
+        project_skips_approval_gates,
+    )
+
+    maybe_auto_approve_project_financial_unlock(project)
+    if project_skips_approval_gates(project):
+        return False
     return (
         getattr(project, 'conversion_approval_status', None) == 'pending'
         and getattr(project, 'status', None) == 'draft'

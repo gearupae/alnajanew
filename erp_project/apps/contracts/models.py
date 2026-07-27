@@ -63,6 +63,10 @@ class Contract(BaseModel):
         help_text='Reminder this many days before end date',
     )
     description = models.TextField(blank=True)
+    scope_of_work = models.TextField(
+        blank=True,
+        help_text='One bullet point per line; shown on the contract PDF.',
+    )
     terms_and_conditions = models.TextField(
         blank=True,
         help_text='Printed on the contract PDF; defaults from Company Settings and can be edited per contract.',
@@ -116,6 +120,12 @@ class Contract(BaseModel):
             return False
         warn_from = self.end_date - timedelta(days=self.remind_before_days)
         return today >= warn_from
+
+    @property
+    def scope_of_work_lines(self):
+        if not self.scope_of_work:
+            return []
+        return [line.strip() for line in self.scope_of_work.splitlines() if line.strip()]
 
 
 class ContractAttachment(BaseModel):

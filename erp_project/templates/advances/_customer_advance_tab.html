@@ -17,7 +17,7 @@
         <h6 class="mb-0 fw-semibold"><i class="fas fa-plus-circle me-2"></i>Record New Advance</h6>
         <button type="button" class="btn-close" onclick="cancelInlineForm('advanceForm')"></button>
     </div>
-    <form method="post" action="{% url 'advances:customer_advance_tab' customer.pk %}">
+    <form method="post" action="{% if advance_form_action %}{{ advance_form_action }}{% else %}{% url 'advances:customer_advance_tab' customer.pk %}{% endif %}">
         {% csrf_token %}
         <div class="row g-3">
             <div class="col-md-3">

@@ -17,5 +17,6 @@ urlpatterns = [
     path('<int:pk>/reject/', views.sr_reject, name='sr_reject'),
     path('<int:pk>/return/', views.sr_return, name='sr_return'),
     path('<int:pk>/convert/', views.sr_convert, name='sr_convert'),
+    path('<int:pk>/convert-pr/', views.sr_convert_pr, name='sr_convert_pr'),
     path('<int:pk>/items/', views.sr_items_json, name='sr_items_json'),
 ]

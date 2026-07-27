@@ -939,16 +939,11 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         context['manual_expenses_total'] = manual_expenses_total
         context['has_manual_expenses'] = (agg['c'] or 0) > 0
 
-        # Vendor bills linked to this project (all active statuses — draft counts as committed)
-        from apps.purchase.models import VendorBill
-        vendor_bills = (
-            self.object.vendor_bills
-            .filter(is_active=True)
-            .exclude(status='cancelled')
-            .select_related('vendor')
-            .order_by('-bill_date')
-        )
-        bills_total = vendor_bills.aggregate(s=Sum('total_amount'))['s'] or Decimal('0.00')
+        # Vendor bills linked to this project (direct FK or via purchase order)
+        from .project_vendor_bills import vendor_bills_queryset_for_project, vendor_bills_total_for_project
+
+        vendor_bills = vendor_bills_queryset_for_project(self.object)
+        bills_total = vendor_bills_total_for_project(self.object)
         context['project_vendor_bills'] = vendor_bills
         context['project_vendor_bills_total'] = bills_total
         context['has_vendor_bills'] = vendor_bills.exists()
@@ -972,6 +967,14 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         context['project_estimate_total'] = estimate_total
         context['header_profit_vs_expenses'] = estimate_total - recorded
         context['header_profit_label'] = 'Quotation price − total expense'
+        from .project_receipt_metrics import project_receipt_totals
+
+        receipt = project_receipt_totals(self.object)
+        context['project_invoiced_amount'] = receipt['invoiced_amount']
+        context['project_received_amount'] = receipt['received_amount']
+        context['project_balance_amount'] = receipt['balance_amount']
+        context['project_advance_received'] = receipt['advance_received']
+        context['project_invoice_paid'] = receipt['invoice_paid']
         if budget_prop > 0:
             pct = (recorded / budget_prop * Decimal('100')).quantize(Decimal('0.1'))
             context['budget_pct_used'] = pct

@@ -19,7 +19,7 @@ from apps.core.mixins import PermissionRequiredMixin, UpdatePermissionMixin
 from apps.core.utils import PermissionChecker
 from apps.crm.models import Customer
 
-from .forms import ContractForm
+from .forms import ContractForm, scope_of_work_lines_for_context
 from .models import Contract, ContractAttachment, ContractType
 
 
@@ -104,6 +104,9 @@ class ContractListView(PermissionRequiredMixin, ListView):
         ctx['customers_for_inline'] = Customer.objects.filter(is_active=True).order_by('name', 'company')
         ctx['contract_types_for_inline'] = ContractType.objects.filter(is_active=True).order_by('name')
         ctx['contract_status_choices'] = Contract.STATUS_CHOICES
+        ctx['scope_of_work_lines'] = scope_of_work_lines_for_context(
+            ctx.get('form'), instance=getattr(self, 'object', None)
+        )
         return ctx
 
     def post(self, request, *args, **kwargs):
@@ -118,6 +121,7 @@ class ContractListView(PermissionRequiredMixin, ListView):
             self.object_list = self.get_queryset()
             context = self.get_context_data()
             context['form'] = form
+            context['scope_of_work_lines'] = scope_of_work_lines_for_context(form)
             return self.render_to_response(context)
 
         selected = form.cleaned_data['contract_types']
@@ -126,6 +130,7 @@ class ContractListView(PermissionRequiredMixin, ListView):
             self.object_list = self.get_queryset()
             context = self.get_context_data()
             context['form'] = form
+            context['scope_of_work_lines'] = scope_of_work_lines_for_context(form)
             return self.render_to_response(context)
 
         contract = form.save(commit=False)
@@ -152,6 +157,9 @@ class ContractUpdateView(UpdatePermissionMixin, UpdateView):
         ctx['is_edit'] = True
         ctx['can_create'] = self.request.user.is_superuser or PermissionChecker.has_permission(
             self.request.user, 'contracts', 'create'
+        )
+        ctx['scope_of_work_lines'] = scope_of_work_lines_for_context(
+            ctx.get('form'), instance=self.object
         )
         return ctx
 

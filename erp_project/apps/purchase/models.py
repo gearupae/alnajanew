@@ -95,6 +95,14 @@ class PurchaseRequest(BaseModel):
         blank=True,
         related_name='purchase_requests',
     )
+    service_request = models.ForeignKey(
+        'service_request.ServiceRequest',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='purchase_requests',
+        help_text='Optional source service request (create only).',
+    )
     notes = models.TextField(blank=True)
     
     # Calculated
@@ -334,6 +342,14 @@ class PurchaseOrderItem(models.Model):
         got = self.quantity_received or Decimal('0')
         return (ordered - got).quantize(Decimal('0.01'))
 
+    def quantity_billed(self, exclude_bill_id=None):
+        from .po_billing import quantity_billed_for_po_item
+        return quantity_billed_for_po_item(self.pk, exclude_bill_id=exclude_bill_id)
+
+    def quantity_billable(self, exclude_bill_id=None):
+        from .po_billing import quantity_billable_for_po_item
+        return quantity_billable_for_po_item(self, exclude_bill_id=exclude_bill_id)
+
     def save(self, *args, **kwargs):
         if self.inventory_item_id:
             inv = self.inventory_item
@@ -534,7 +550,18 @@ class VendorBill(BaseModel):
     def save(self, *args, **kwargs):
         if not self.bill_number:
             self.bill_number = generate_number('BILL', VendorBill, 'bill_number')
+        self.ensure_project_from_purchase_order()
         super().save(*args, **kwargs)
+
+    def ensure_project_from_purchase_order(self):
+        """Copy project from linked PO when bill.project is empty."""
+        if self.project_id or not self.purchase_order_id:
+            return
+        po = self.purchase_order
+        if po is None:
+            po = PurchaseOrder.objects.filter(pk=self.purchase_order_id).only('project_id').first()
+        if po and po.project_id:
+            self.project_id = po.project_id
     
     @property
     def balance(self):
@@ -567,6 +594,12 @@ class VendorBill(BaseModel):
 
         if self.status != 'draft':
             raise ValidationError("Only draft bills can be posted.")
+
+        self.ensure_project_from_purchase_order()
+        if self.project_id and self.pk:
+            VendorBill.objects.filter(pk=self.pk, project_id__isnull=True).update(
+                project_id=self.project_id
+            )
 
         if self.total_amount <= 0:
             raise ValidationError("Bill amount must be greater than zero.")
@@ -742,6 +775,14 @@ class VendorBillItem(models.Model):
         VendorBill,
         on_delete=models.CASCADE,
         related_name='items'
+    )
+    purchase_order_item = models.ForeignKey(
+        PurchaseOrderItem,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vendor_bill_lines',
+        help_text='PO line this bill row bills against (partial billing by received qty).',
     )
     description = models.CharField(max_length=500)
     quantity = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1.00'))

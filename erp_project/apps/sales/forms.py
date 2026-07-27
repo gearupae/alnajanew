@@ -110,6 +110,8 @@ class EstimateForm(forms.ModelForm):
         self.fields['show_brand_name_on_pdf'].required = False
         self.fields['prices_include_vat'].label = 'Prices include VAT'
         self.fields['prices_include_vat'].required = False
+        if not self.instance.pk and not self.is_bound:
+            self.fields['show_brand_name_on_pdf'].initial = True
 
     def clean(self):
         cleaned_data = super().clean()
@@ -340,12 +342,6 @@ class InvoiceForm(forms.ModelForm):
         self.fields['customer'].queryset = Customer.objects.filter(is_active=True)
         self.fields['customer'].widget.attrs['class'] = 'form-select'
         self.fields['customer'].widget.attrs['id'] = 'id_customer'
-        self.fields['estimate'].queryset = Estimate.objects.filter(
-            is_active=True, status='quotation_won',
-        ).select_related('project')
-        self.fields['estimate'].widget.attrs['class'] = 'form-select'
-        self.fields['estimate'].widget.attrs['id'] = 'id_estimate'
-        self.fields['estimate'].required = False
         self.fields['status'].widget.attrs['class'] = 'form-select'
         self.fields['notes'].required = False
         self.fields['prices_include_vat'].label = 'Prices include VAT'

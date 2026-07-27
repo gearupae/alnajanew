@@ -105,6 +105,10 @@ class CustomerAdvance(BaseModel):
             self.advance_number = generate_number('CUSTOMER_ADVANCE', CustomerAdvance, 'advance_number')
         self.total_amount = (self.amount + self.vat_amount).quantize(Decimal('0.01'))
         super().save(*args, **kwargs)
+        if self.project_id and self.is_active:
+            from apps.projects.operation_access import maybe_auto_approve_project_financial_unlock
+
+            maybe_auto_approve_project_financial_unlock(self.project)
 
     def post_to_accounting(self, user=None):
         """

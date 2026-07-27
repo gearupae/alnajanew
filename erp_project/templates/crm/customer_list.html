@@ -297,12 +297,12 @@
                 <div class="form-text small mb-0">Select B2B or B2C.</div>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Email</label>
-                <input type="email" name="email" class="form-control" placeholder="email@example.com">
+                <label class="form-label">Email <span class="text-danger d-none" id="crmInlineEmailRequired">*</span></label>
+                <input type="email" name="email" id="crmInlineEmail" class="form-control" placeholder="email@example.com">
             </div>
             <div class="col-md-3">
-                <label class="form-label">Phone <span class="text-danger">*</span></label>
-                <input type="text" name="phone" class="form-control" placeholder="+971 XX XXX XXXX" required>
+                <label class="form-label">Phone <span class="text-danger d-none" id="crmInlinePhoneRequired">*</span></label>
+                <input type="text" name="phone" id="crmInlinePhone" class="form-control" placeholder="+971 XX XXX XXXX">
             </div>
             <div class="col-md-3">
                 <label class="form-label">Status</label>
@@ -340,10 +340,7 @@
                 <div class="form-text small mb-0">PDF or image.</div>
             </div>
             <div class="col-md-3" id="crmB2bLicenseDocWrap" style="display:none;">
-                <label class="form-label">Trade license
-                    <span class="text-danger" id="crmInlineLicenseRequired">*</span>
-                    <span class="text-muted small d-none" id="crmInlineLicenseOptional">(optional)</span>
-                </label>
+                <label class="form-label">Trade license <span class="text-muted small">(optional)</span></label>
                 <input type="file" name="trade_license_document" id="crmInlineTradeLicense" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic">
             </div>
             <div class="col-12">
@@ -796,6 +793,10 @@
         var trnWrap = document.getElementById('crmInlineTrnWrap');
         var trnInput = document.getElementById('crmInlineTrn');
         var licInput = document.getElementById('crmInlineTradeLicense');
+        var emailInput = document.getElementById('crmInlineEmail');
+        var phoneInput = document.getElementById('crmInlinePhone');
+        var emailRequired = document.getElementById('crmInlineEmailRequired');
+        var phoneRequired = document.getElementById('crmInlinePhoneRequired');
         var licRequired = document.getElementById('crmInlineLicenseRequired');
         var licOptional = document.getElementById('crmInlineLicenseOptional');
         var customerType = typeHidden ? typeHidden.value : (typeSel ? typeSel.value : 'lead');
@@ -806,9 +807,11 @@
         if (trnInput && !isB2b) trnInput.value = '';
         if (b2bTrn) b2bTrn.style.display = isB2b ? '' : 'none';
         if (b2bLic) b2bLic.style.display = isB2b ? '' : 'none';
-        if (licInput) licInput.required = isB2b && isCustomer;
-        if (licRequired) licRequired.classList.toggle('d-none', !isB2b || !isCustomer);
-        if (licOptional) licOptional.classList.toggle('d-none', !isB2b || isCustomer);
+        if (licInput) licInput.required = false;
+        if (emailInput) emailInput.required = isCustomer;
+        if (phoneInput) phoneInput.required = isCustomer;
+        if (emailRequired) emailRequired.classList.toggle('d-none', !isCustomer);
+        if (phoneRequired) phoneRequired.classList.toggle('d-none', !isCustomer);
     }
     document.addEventListener('DOMContentLoaded', function () {
         var typeSel = document.getElementById('crmInlineCustomerType');

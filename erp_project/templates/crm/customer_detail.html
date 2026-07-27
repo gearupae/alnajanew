@@ -301,24 +301,31 @@
                         <div class="border rounded p-3 text-center">
                             <i class="fas fa-file-invoice text-warning fs-3 mb-2"></i>
                             <p class="mb-0 small text-muted">Estimates</p>
-                            <h4 class="mb-0">0</h4>
+                            <h4 class="mb-0">{{ estimate_count }}</h4>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="border rounded p-3 text-center">
                             <i class="fas fa-receipt text-success fs-3 mb-2"></i>
                             <p class="mb-0 small text-muted">Invoices</p>
-                            <h4 class="mb-0">0</h4>
+                            <h4 class="mb-0">{{ invoice_count }}</h4>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="border rounded p-3 text-center">
                             <i class="fas fa-project-diagram text-info fs-3 mb-2"></i>
                             <p class="mb-0 small text-muted">Projects</p>
-                            <h4 class="mb-0">{{ customer.projects.count }}</h4>
+                            <h4 class="mb-0">{{ project_count }}</h4>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Customer Invoices -->
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-body">
+                {% include 'sales/_customer_invoices_tab.html' with customer=customer customer_invoices=customer_invoices can_create_invoice=can_create_invoice can_edit_invoice=can_edit_invoice can_delete_invoice=can_delete_invoice %}
             </div>
         </div>
 

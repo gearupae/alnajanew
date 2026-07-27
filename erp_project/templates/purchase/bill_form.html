@@ -69,7 +69,18 @@
                     {{ form.status }}
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
                 </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        {{ form.goods_received }}
+                        <label class="form-check-label" for="{{ form.goods_received.id_for_label }}">
+                            Goods received (GRN-matched bill)
+                        </label>
+                    </div>
+                    <small class="text-muted d-block">{{ form.goods_received.help_text }}</small>
+                    {% if form.goods_received.errors %}<div class="text-danger small">{{ form.goods_received.errors|join:", " }}</div>{% endif %}
+                </div>
             </div>
+            <div id="poBillingAlert" class="alert alert-info d-none mt-3 mb-0 small"></div>
         </div>
     </div>
     
@@ -97,15 +108,17 @@
                     </thead>
                     <tbody id="itemsBody">
                         {% for item_form in items_formset %}
-                        <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %}>
+                        <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %} data-max-billable="">
                             <td>
                                 {{ item_form.id }}
+                                {{ item_form.purchase_order_item }}
                                 <input type="text" name="{{ item_form.prefix }}-description" class="form-control form-control-sm" 
                                        value="{{ item_form.description.value|default:'' }}" placeholder="Item description">
                             </td>
                             <td>
                                 <input type="number" name="{{ item_form.prefix }}-quantity" class="form-control form-control-sm item-qty" 
                                        value="{{ item_form.quantity.value|default:1 }}" step="0.01" min="0.01" onchange="calculateRowTotal(this)">
+                                <small class="text-muted item-billable-hint d-none"></small>
                             </td>
                             <td>
                                 <input type="number" name="{{ item_form.prefix }}-unit_price" class="form-control form-control-sm item-price" 
@@ -199,6 +212,9 @@ const taxCodes = [
     {% endfor %}
 ];
 const defaultTaxCodeId = {% if default_tax_code %}{{ default_tax_code.id }}{% else %}null{% endif %};
+const preselectPoId = {% if preselect_po %}'{{ preselect_po }}'{% else %}null{% endif %};
+const billExcludeBillId = {% if object.pk %}{{ object.pk }}{% else %}null{% endif %};
+const billReceivedMode = {% if bill_received_mode != '0' %}true{% else %}false{% endif %};
 
 let formCount = {{ items_formset.total_form_count }};
 
@@ -211,13 +227,22 @@ function getTaxCodeOptions(selectedId) {
     return options;
 }
 
-function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId = null) {
+function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId = null, poItemId = '', maxBillable = '') {
     const tbody = document.getElementById('itemsBody');
     const newRow = document.createElement('tr');
     newRow.className = 'item-row';
+    if (maxBillable !== '') {
+        newRow.dataset.maxBillable = maxBillable;
+    }
+    const poItemField = poItemId
+        ? `<input type="hidden" name="items-${formCount}-purchase_order_item" value="${poItemId}">`
+        : `<input type="hidden" name="items-${formCount}-purchase_order_item" value="">`;
+    const billableHint = maxBillable !== ''
+        ? `<small class="text-muted item-billable-hint d-block">Max ${maxBillable}</small>`
+        : `<small class="text-muted item-billable-hint d-none"></small>`;
     newRow.innerHTML = `
-        <td><input type="text" name="items-${formCount}-description" class="form-control form-control-sm" value="${description}" placeholder="Item description"></td>
-        <td><input type="number" name="items-${formCount}-quantity" class="form-control form-control-sm item-qty" value="${quantity}" step="0.01" min="0.01" onchange="calculateRowTotal(this)"></td>
+        <td>${poItemField}<input type="text" name="items-${formCount}-description" class="form-control form-control-sm" value="${description.replace(/"/g, '&quot;')}" placeholder="Item description"></td>
+        <td><input type="number" name="items-${formCount}-quantity" class="form-control form-control-sm item-qty" value="${quantity}" step="0.01" min="0.01" onchange="calculateRowTotal(this)">${billableHint}</td>
         <td><input type="number" name="items-${formCount}-unit_price" class="form-control form-control-sm item-price" value="${unitPrice}" step="0.01" min="0" onchange="calculateRowTotal(this)"></td>
         <td><select name="items-${formCount}-tax_code" class="form-select form-select-sm item-tax-code" onchange="calculateRowTotal(this)">${getTaxCodeOptions(taxCodeId || defaultTaxCodeId)}</select></td>
         <td class="text-end"><span class="row-vat text-muted small">0.00</span></td>
@@ -231,6 +256,84 @@ function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId
     if (qtyInput) calculateRowTotal(qtyInput);
 }
 
+function setPoBillingAlert(message, isError) {
+    const el = document.getElementById('poBillingAlert');
+    if (!el) return;
+    if (!message) {
+        el.classList.add('d-none');
+        el.textContent = '';
+        return;
+    }
+    el.classList.remove('d-none', 'alert-info', 'alert-warning');
+    el.classList.add(isError ? 'alert-warning' : 'alert-info');
+    el.textContent = message;
+}
+
+function poItemsUrl(poId) {
+    let url = `/purchase/orders/${poId}/items/?bill_received=1`;
+    if (billExcludeBillId) {
+        url += `&exclude_bill=${billExcludeBillId}`;
+    }
+    return url;
+}
+
+function loadPOItems(poId) {
+    if (!poId) {
+        const tbody = document.getElementById('itemsBody');
+        tbody.innerHTML = '';
+        formCount = 0;
+        document.getElementById('id_items-TOTAL_FORMS').value = 0;
+        setPoBillingAlert('');
+        calculateTotals();
+        return;
+    }
+    
+    fetch(poItemsUrl(poId))
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('itemsBody');
+            tbody.innerHTML = '';
+            formCount = 0;
+            
+            if (data.items && data.items.length > 0) {
+                data.items.forEach(item => {
+                    addItemRow(
+                        item.description || '',
+                        item.quantity || '1',
+                        item.unit_price || '0',
+                        item.tax_code_id || defaultTaxCodeId,
+                        item.po_item_id || '',
+                        item.quantity_billable || ''
+                    );
+                });
+                setPoBillingAlert(
+                    `Loaded unbilled received quantities for PO ${data.po_number || ''}. Adjust qty if needed (cannot exceed “To bill” per line).`,
+                    false
+                );
+            } else {
+                addItemRow();
+                setPoBillingAlert(
+                    data.has_received_items
+                        ? 'All received quantities on this PO are already billed.'
+                        : 'No received items on this PO yet — receive goods first, or enter bill lines manually.',
+                    true
+                );
+            }
+
+            const grnCheck = document.getElementById('id_goods_received');
+            if (grnCheck && data.has_received_items) {
+                grnCheck.checked = true;
+            }
+            
+            applyPOHeaderFields(data);
+            calculateTotals();
+        })
+        .catch(error => {
+            console.error('Error loading PO items:', error);
+            alert('Error loading Purchase Order items. Please try again.');
+        });
+}
+
 function removeItemRow(btn) {
     const row = btn.closest('tr');
     const deleteCheck = row.querySelector('.delete-check');
@@ -241,7 +344,13 @@ function removeItemRow(btn) {
 
 function calculateRowTotal(input) {
     const row = input.closest('tr');
-    const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+    const qtyInput = row.querySelector('.item-qty');
+    let qty = parseFloat(qtyInput.value) || 0;
+    const maxBillable = parseFloat(row.dataset.maxBillable);
+    if (!isNaN(maxBillable) && qty > maxBillable) {
+        qty = maxBillable;
+        qtyInput.value = maxBillable;
+    }
     const price = parseFloat(row.querySelector('.item-price').value) || 0;
     const taxCodeSelect = row.querySelector('.item-tax-code');
     
@@ -282,53 +391,23 @@ function calculateTotals() {
     document.getElementById('grandTotal').textContent = (subtotal + vatTotal).toFixed(2);
 }
 
-function loadPOItems(poId) {
-    if (!poId) {
-        const tbody = document.getElementById('itemsBody');
-        tbody.innerHTML = '';
-        formCount = 0;
-        document.getElementById('id_items-TOTAL_FORMS').value = 0;
-        calculateTotals();
-        return;
+function applyPOHeaderFields(data) {
+    if (data.vendor_id) {
+        const vendorSelect = document.getElementById('id_vendor');
+        if (vendorSelect) vendorSelect.value = data.vendor_id;
     }
-    
-    const url = `/purchase/orders/${poId}/items/`;
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            const tbody = document.getElementById('itemsBody');
-            tbody.innerHTML = '';
-            formCount = 0;
-            
-            if (data.items && data.items.length > 0) {
-                data.items.forEach(item => {
-                    addItemRow(
-                        item.description || '',
-                        item.quantity || '1',
-                        item.unit_price || '0',
-                        item.tax_code_id || defaultTaxCodeId
-                    );
-                });
-            } else {
-                addItemRow();
-            }
-            
-            if (data.vendor_id) {
-                const vendorSelect = document.getElementById('id_vendor');
-                if (vendorSelect) vendorSelect.value = data.vendor_id;
-            }
+    if (data.project_id) {
+        const projectSelect = document.getElementById('id_project');
+        if (projectSelect) projectSelect.value = data.project_id;
+    }
+}
 
-            if (data.project_id) {
-                const projectSelect = document.getElementById('id_project');
-                if (projectSelect) projectSelect.value = data.project_id;
-            }
-            
-            calculateTotals();
-        })
-        .catch(error => {
-            console.error('Error loading PO items:', error);
-            alert('Error loading Purchase Order items. Please try again.');
-        });
+function syncPOHeaderFromSelection(poId) {
+    if (!poId) return;
+    fetch(`/purchase/orders/${poId}/items/`)
+        .then(response => response.json())
+        .then(data => applyPOHeaderFields(data))
+        .catch(error => console.error('Error loading PO header fields:', error));
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -353,6 +432,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadPOItems(null);
             }
         });
+        if (poSelect.value) {
+            loadPOItems(poSelect.value);
+        }
+    }
+
+    if (preselectPoId && poSelect && !poSelect.value) {
+        poSelect.value = preselectPoId;
+        loadPOItems(preselectPoId);
     }
 });
 </script>

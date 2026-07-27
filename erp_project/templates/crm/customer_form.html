@@ -40,18 +40,24 @@ $(function () {
         if (trnInput && !isB2b) trnInput.value = '';
         if (docs) docs.classList.toggle('d-none', !isB2b);
         if (licInput) {
-            licInput.required = isB2b && isCustomer && !hasLicOnFile;
+            licInput.required = false;
             licInput.removeAttribute('aria-required');
         }
-        if (licRequired) licRequired.classList.toggle('d-none', !isB2b || !isCustomer);
-        if (licOptional) licOptional.classList.toggle('d-none', !isB2b || isCustomer);
+        if (licRequired) licRequired.classList.add('d-none');
+        if (licOptional) licOptional.classList.remove('d-none');
         if (docsHelp) {
-            if (isB2b && isCustomer) {
-                docsHelp.textContent = 'Trade license is required for B2B customers. TRN document is optional. Uploaded files are kept when you save unless you remove them.';
-            } else if (isB2b) {
-                docsHelp.textContent = 'B2B leads may upload documents now (optional).';
+            if (isB2b) {
+                docsHelp.textContent = 'TRN certificate and trade license uploads are optional for B2B. Uploaded files are kept when you save unless you remove them.';
             }
         }
+        var emailInput = document.querySelector('[name="email"]');
+        var phoneInput = document.querySelector('[name="phone"]');
+        var emailRequired = document.getElementById('crmEditEmailRequired');
+        var phoneRequired = document.getElementById('crmEditPhoneRequired');
+        if (emailInput) emailInput.required = isCustomer;
+        if (phoneInput) phoneInput.required = isCustomer;
+        if (emailRequired) emailRequired.classList.toggle('d-none', !isCustomer);
+        if (phoneRequired) phoneRequired.classList.toggle('d-none', !isCustomer);
     }
     var typeSel = document.getElementById('crmEditCustomerType');
     var seg = document.querySelector('[name="business_segment"]');
@@ -168,7 +174,7 @@ $(function () {
             </h6>
             <div class="row g-3 mb-3 d-none" id="crmEditB2bDocs">
                 <div class="col-12">
-                    <p class="small text-muted mb-0" id="crmEditB2bDocsHelp">B2B customers must upload a trade license (TRN certificate upload is optional).</p>
+                    <p class="small text-muted mb-0" id="crmEditB2bDocsHelp">TRN certificate and trade license uploads are optional for B2B.</p>
                 </div>
                 <input type="hidden" id="crmHasTradeLicense" value="{% if object.trade_license_document %}1{% else %}0{% endif %}">
                 <input type="hidden" id="crmHasTrnDocument" value="{% if object.trn_document %}1{% else %}0{% endif %}">
@@ -204,8 +210,8 @@ $(function () {
                     <div class="crm-doc-card">
                         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                             <label class="form-label mb-0" for="{{ form.trade_license_document.id_for_label }}">{{ form.trade_license_document.label }}</label>
-                            <span class="text-danger small fw-semibold" id="crmEditLicenseRequired">Required</span>
-                            <span class="badge bg-secondary d-none" id="crmEditLicenseOptional">Optional</span>
+                            <span class="badge bg-secondary" id="crmEditLicenseOptional">Optional</span>
+                            <span class="text-danger small fw-semibold d-none" id="crmEditLicenseRequired">Required</span>
                         </div>
                         {% if object.trade_license_document %}
                         <div class="d-flex align-items-center gap-2 mb-2 p-2 bg-white rounded border">
@@ -223,7 +229,7 @@ $(function () {
                         </div>
                         <label class="form-label small text-muted mb-1">Replace with new file</label>
                         {% else %}
-                        <label class="form-label small text-muted mb-1">Upload file <span class="text-danger">*</span></label>
+                        <label class="form-label small text-muted mb-1">Upload file</label>
                         {% endif %}
                         {{ form.trade_license_document }}
                         {% for err in form.trade_license_document.errors %}<div class="text-danger small mt-1">{{ err }}</div>{% endfor %}
@@ -250,12 +256,14 @@ $(function () {
             </h6>
             <div class="row g-3 mb-4">
                 <div class="col-md-4">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" value="{{ object.email }}" placeholder="email@example.com">
+                    <label class="form-label">Email{% if object.customer_type == 'customer' %} <span class="text-danger" id="crmEditEmailRequired">*</span>{% else %} <span class="text-danger d-none" id="crmEditEmailRequired">*</span>{% endif %}</label>
+                    <input type="email" name="email" class="form-control" value="{{ object.email }}" placeholder="email@example.com"{% if object.customer_type == 'customer' %} required{% endif %}>
+                    {% for err in form.email.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Phone</label>
-                    <input type="text" name="phone" class="form-control" value="{{ object.phone }}" placeholder="+971 XX XXX XXXX">
+                    <label class="form-label">Phone{% if object.customer_type == 'customer' %} <span class="text-danger" id="crmEditPhoneRequired">*</span>{% else %} <span class="text-danger d-none" id="crmEditPhoneRequired">*</span>{% endif %}</label>
+                    <input type="text" name="phone" class="form-control" value="{{ object.phone }}" placeholder="+971 XX XXX XXXX"{% if object.customer_type == 'customer' %} required{% endif %}>
+                    {% for err in form.phone.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Address</label>

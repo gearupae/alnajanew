@@ -46,40 +46,76 @@ class VendorForm(forms.ModelForm):
 
 class PurchaseRequestForm(forms.ModelForm):
     """Form for creating/editing purchase requests."""
-    
+
+    edit_exclude = ['service_request']
+
     class Meta:
         model = PurchaseRequest
-        fields = ['date', 'required_by_date', 'department', 'priority', 'status', 'vendor', 'notes']
+        fields = [
+            'date', 'required_by_date', 'department', 'priority', 'status',
+            'vendor', 'service_request', 'notes',
+        ]
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'required_by_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'department': forms.Select(attrs={'class': 'form-select'}),
             'priority': forms.Select(attrs={'class': 'form-select'}),
             'vendor': forms.Select(attrs={'class': 'form-select select2-pr-vendor'}),
+            'service_request': forms.Select(attrs={'class': 'form-select select2-pr-sr'}),
             'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from apps.hr.models import Department
+
+        is_edit = self.instance and self.instance.pk
+        if is_edit:
+            for field_name in self.edit_exclude:
+                if field_name in self.fields:
+                    del self.fields[field_name]
+
         self.fields['department'].queryset = Department.objects.filter(is_active=True)
         self.fields['department'].required = False
         self.fields['status'].widget.attrs['class'] = 'form-select'
         self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True).order_by('name')
         self.fields['vendor'].required = False
         self.fields['vendor'].empty_label = '— Select vendor —'
+
+        if not is_edit:
+            from apps.service_request.models import ServiceRequest
+
+            self.fields['service_request'].queryset = ServiceRequest.objects.filter(
+                status='approved', is_active=True
+            ).order_by('-date', '-pk')
+            preselect = self.data.get('service_request') if self.data else None
+            if not preselect and self.initial.get('service_request'):
+                preselect = self.initial.get('service_request')
+            if preselect:
+                self.fields['service_request'].queryset = (
+                    self.fields['service_request'].queryset
+                    | ServiceRequest.objects.filter(pk=preselect, is_active=True)
+                ).distinct()
+            self.fields['service_request'].required = False
+            self.fields['service_request'].empty_label = '— Optional —'
+
         self.fields['required_by_date'].required = False
         self.fields['notes'].required = False
         if self.instance and self.instance.pk and self.instance.status not in ('draft', 'returned'):
             self.fields['status'].disabled = True
             self.fields['status'].help_text = 'Status is changed through approval workflow, not manual edit.'
 
+    def clean_service_request(self):
+        val = self.cleaned_data.get('service_request')
+        return val or None
+
 
 class PurchaseRequestItemForm(forms.ModelForm):
     class Meta:
         model = PurchaseRequestItem
-        fields = ['inventory_item', 'quantity', 'unit', 'estimated_price']
+        fields = ['inventory_item', 'description', 'quantity', 'unit', 'estimated_price']
         widgets = {
+            'description': forms.HiddenInput(attrs={'class': 'item-description-input'}),
             'estimated_price': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
             'quantity': forms.NumberInput(attrs={'step': '1', 'min': '0'}),
         }
@@ -94,10 +130,11 @@ class PurchaseRequestItemForm(forms.ModelForm):
         self.fields['inventory_item'].required = False
         self.fields['inventory_item'].empty_label = '— Select inventory item —'
         self.fields['inventory_item'].widget.attrs['class'] = 'form-select item-inventory-select'
+        self.fields['description'].required = False
 
         self.fields['unit'].widget.attrs['class'] = 'form-select'
         for name, field in self.fields.items():
-            if name in ('inventory_item', 'unit'):
+            if name in ('inventory_item', 'unit', 'description'):
                 continue
             if field.widget.attrs.get('class') != 'form-select':
                 field.widget.attrs['class'] = 'form-control'
@@ -118,6 +155,7 @@ class PurchaseRequestItemForm(forms.ModelForm):
             return cleaned
 
         inv = cleaned.get('inventory_item')
+        desc = (cleaned.get('description') or '').strip()
         qty = cleaned.get('quantity')
         if qty is None:
             qty = Decimal('0')
@@ -130,12 +168,15 @@ class PurchaseRequestItemForm(forms.ModelForm):
                 raise forms.ValidationError({'quantity': 'Enter a quantity greater than zero.'})
             return cleaned
 
+        if desc and qty > 0:
+            return cleaned
+
         if self.instance.pk and (self.instance.description or '').strip():
             return cleaned
 
         if qty > 0 or price > 0:
             raise forms.ValidationError(
-                {'inventory_item': 'Select an inventory item for each line.'}
+                {'inventory_item': 'Select an inventory item or enter a service description.'}
             )
         return cleaned
 
@@ -147,7 +188,8 @@ class BasePurchaseRequestItemFormSet(forms.BaseInlineFormSet):
         if super()._should_delete_form(form):
             return True
         if not form.instance.pk and form.cleaned_data:
-            if not form.cleaned_data.get('inventory_item'):
+            desc = (form.cleaned_data.get('description') or '').strip()
+            if not form.cleaned_data.get('inventory_item') and not desc:
                 return True
         return False
 
@@ -208,8 +250,15 @@ class PurchaseOrderForm(forms.ModelForm):
             # Show approved SRs (create form only)
             from apps.service_request.models import ServiceRequest
             approved_srs = ServiceRequest.objects.filter(is_active=True, status='approved')
-            self.fields['service_request'].queryset = approved_srs
-            self.fields['service_request'].widget.attrs['class'] = 'form-select'
+            preselect = self.data.get('service_request') if self.data else None
+            if not preselect and self.initial.get('service_request'):
+                preselect = self.initial.get('service_request')
+            if preselect:
+                approved_srs = (
+                    approved_srs | ServiceRequest.objects.filter(pk=preselect, is_active=True)
+                ).distinct()
+            self.fields['service_request'].queryset = approved_srs.order_by('-date', '-pk')
+            self.fields['service_request'].widget.attrs['class'] = 'form-select select2-po-sr'
             self.fields['service_request'].required = False
             self.fields['service_request'].empty_label = "— Optional —"
 
@@ -383,10 +432,15 @@ class VendorBillForm(forms.ModelForm):
             self.add_error('purchase_order',
                            'A goods-received bill must be linked to a Purchase Order.')
 
-        if goods_received and po and po.status != 'received':
-            self.add_error('purchase_order',
-                           f'PO {po.po_number} has status "{po.get_status_display()}". '
-                           f'Goods must be received before posting a GRN bill.')
+        if goods_received and po and po.status not in ('partial_received', 'received'):
+            self.add_error(
+                'purchase_order',
+                f'PO {po.po_number} must be partially or fully received before a GRN-matched bill.',
+            )
+
+        project = cleaned.get('project')
+        if po and po.project_id and not project:
+            cleaned['project'] = po.project
 
         return cleaned
 
@@ -399,12 +453,14 @@ class VendorBillItemForm(forms.ModelForm):
     
     class Meta:
         model = VendorBillItem
-        fields = ['description', 'quantity', 'unit_price', 'tax_code', 'is_vat_inclusive']
+        fields = ['description', 'quantity', 'unit_price', 'tax_code', 'is_vat_inclusive', 'purchase_order_item']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['description'].required = False
         self.fields['unit_price'].required = False
+        self.fields['purchase_order_item'].required = False
+        self.fields['purchase_order_item'].widget = forms.HiddenInput()
         for field_name, field in self.fields.items():
             if field_name in ['tax_code']:
                 field.widget.attrs['class'] = 'form-select'

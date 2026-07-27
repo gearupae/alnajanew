@@ -1,0 +1,24 @@
+<div class="col-12 contract-scope-of-work-field">
+    <div class="border rounded p-3 bg-light-subtle">
+        <label class="form-label fw-semibold mb-2">
+            <i class="fas fa-list-ul me-2 text-primary"></i>Scope of work
+        </label>
+        <div class="scope-of-work-rows" id="scope-of-work-rows">
+            {% for line in scope_of_work_lines %}
+            <div class="input-group mb-2 scope-of-work-row">
+                <span class="input-group-text bg-white text-muted">•</span>
+                <input type="text" name="scope_of_work_line" class="form-control scope-of-work-input" value="{{ line }}" placeholder="Describe a deliverable or task…" maxlength="500">
+                <button type="button" class="btn btn-outline-secondary btn-remove-scope-line" title="Remove bullet" aria-label="Remove bullet">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-primary btn-add-scope-line">
+            <i class="fas fa-plus me-1"></i>Add bullet
+        </button>
+        <div class="form-text mb-0 mt-2">Add one line per item — shown as bullet points on the contract PDF.</div>
+    </div>
+    {{ form.scope_of_work }}
+    {% if form.scope_of_work.errors %}<div class="text-danger small">{{ form.scope_of_work.errors }}</div>{% endif %}
+</div>

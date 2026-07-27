@@ -9,6 +9,8 @@ from .utils import (
     get_crm_project_queryset,
     get_sales_employee_for_user,
     get_sales_employee_queryset,
+    normalize_customer_email,
+    normalize_customer_phone,
     normalize_customer_website,
     project_choice_label,
     salesperson_display_name,
@@ -58,7 +60,10 @@ class CustomerForm(forms.ModelForm):
         self.fields['business_segment'].label = 'Business type'
         self.fields['trn_document'].required = False
         self.fields['trade_license_document'].required = False
-        if not self.instance.pk:
+
+        ctype = self._effective_customer_type()
+        if ctype == 'customer':
+            self.fields['email'].required = True
             self.fields['phone'].required = True
 
         include_salesperson_id = None
@@ -119,6 +124,34 @@ class CustomerForm(forms.ModelForm):
                 field.widget = forms.TextInput(attrs=field.widget.attrs)
                 field.widget.attrs['placeholder'] = 'gear-up.ae, www.gear-up.ae, or https://gear-up.ae'
 
+    def _effective_customer_type(self):
+        if self.instance.pk and self.instance.customer_type == 'customer':
+            return 'customer'
+        raw = self.data.get('customer_type') if self.is_bound else None
+        if raw is None:
+            raw = self.initial.get('customer_type', 'lead')
+        return (raw or 'lead').strip()
+
+    def clean_email(self):
+        ctype = self._effective_customer_type()
+        try:
+            return normalize_customer_email(
+                self.cleaned_data.get('email'),
+                required=(ctype == 'customer'),
+            )
+        except ValidationError as exc:
+            raise forms.ValidationError(exc.messages[0] if exc.messages else str(exc))
+
+    def clean_phone(self):
+        ctype = self._effective_customer_type()
+        try:
+            return normalize_customer_phone(
+                self.cleaned_data.get('phone'),
+                required=(ctype == 'customer'),
+            )
+        except ValidationError as exc:
+            raise forms.ValidationError(exc.messages[0] if exc.messages else str(exc))
+
     def clean_website(self):
         raw = self.cleaned_data.get('website') or ''
         try:
@@ -147,12 +180,6 @@ class CustomerForm(forms.ModelForm):
                 'Select a salesman to assign this account.',
             )
 
-        phone = (cleaned.get('phone') or '').strip()
-        if not self.instance.pk and not phone:
-            self.add_error('phone', 'Phone number is required.')
-        else:
-            cleaned['phone'] = phone
-
         company = (cleaned.get('company') or '').strip()
         if not company:
             self.add_error('company', 'Company name is required.')
@@ -163,21 +190,10 @@ class CustomerForm(forms.ModelForm):
 
         if seg == 'b2c':
             cleaned['trn'] = ''
-        elif seg == 'b2b' and ctype == 'customer':
-            if self.data.get('trade_license_document-clear') in ('on', 'true', '1'):
-                cleaned['trade_license_document'] = False
-            lic_f = cleaned.get('trade_license_document')
-            has_lic = bool(lic_f) or (
-                self.instance.pk
-                and bool(self.instance.trade_license_document)
-                and self.data.get('trade_license_document-clear') not in ('on', 'true', '1')
-            )
-            if not has_lic:
-                self.add_error(
-                    'trade_license_document',
-                    'Trade license upload is required for B2B customers.',
-                )
+        elif seg == 'b2b':
             if self.data.get('trn_document-clear') in ('on', 'true', '1'):
                 cleaned['trn_document'] = False
+            if self.data.get('trade_license_document-clear') in ('on', 'true', '1'):
+                cleaned['trade_license_document'] = False
 
         return cleaned

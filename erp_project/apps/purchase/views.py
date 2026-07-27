@@ -268,6 +268,13 @@ class PurchaseRequestCreateView(CreatePermissionMixin, CreateView):
     success_url = reverse_lazy('purchase:pr_list')
     module_name = 'purchase'
     
+    def get_initial(self):
+        initial = super().get_initial()
+        sr_id = self.request.GET.get('sr')
+        if sr_id:
+            initial['service_request'] = sr_id
+        return initial
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Create Purchase Request'
@@ -281,18 +288,19 @@ class PurchaseRequestCreateView(CreatePermissionMixin, CreateView):
             context['items_formset'] = kwargs['items_formset']
         context['pr_inventory_items_data'] = _active_inventory_items_data()
         context['pr_inventory_items_json'] = json.dumps(context['pr_inventory_items_data'])
+        context['preselect_sr'] = self.request.GET.get('sr')
         return context
-    
+
     def post(self, request, *args, **kwargs):
         self.object = None
         form = self.get_form()
         items_formset = PurchaseRequestItemFormSet(request.POST)
-        
+
         if form.is_valid() and items_formset.is_valid():
             return self.form_valid(form, items_formset)
         else:
             return self.form_invalid(form, items_formset)
-    
+
     def form_valid(self, form, items_formset):
         form.instance.requested_by = self.request.user
         self.object = form.save()
@@ -309,7 +317,7 @@ class PurchaseRequestCreateView(CreatePermissionMixin, CreateView):
             )
         messages.success(self.request, f'Purchase Request {self.object.pr_number} created.')
         return redirect(self.success_url)
-    
+
     def form_invalid(self, form, items_formset):
         return self.render_to_response(
             self.get_context_data(form=form, items_formset=items_formset)
@@ -336,6 +344,8 @@ class PurchaseRequestUpdateView(UpdatePermissionMixin, UpdateView):
             context['items_formset'] = kwargs['items_formset']
         context['pr_inventory_items_data'] = _active_inventory_items_data()
         context['pr_inventory_items_json'] = json.dumps(context['pr_inventory_items_data'])
+        if self.object and self.object.pk:
+            context.update(_pr_vendor_quotes_context(self.request, self.object))
         return context
     
     def post(self, request, *args, **kwargs):
@@ -384,7 +394,7 @@ class PurchaseRequestDetailView(PermissionRequiredMixin, DetailView):
     def get_queryset(self):
         qs = (
             PurchaseRequest.objects.filter(is_active=True)
-            .select_related('requested_by', 'department', 'created_by', 'vendor')
+            .select_related('requested_by', 'department', 'created_by', 'vendor', 'service_request')
             .prefetch_related('items', 'attachments')
         )
         from apps.core.visibility import filter_purchase_requests_for_user
@@ -426,6 +436,7 @@ class PurchaseRequestDetailView(PermissionRequiredMixin, DetailView):
             else:
                 line.current_stock = None
         context['pr_line_items'] = items
+        context.update(_pr_vendor_quotes_context(self.request, self.object))
         return context
 
 
@@ -745,27 +756,26 @@ def pr_items_json(request, pk):
     return JsonResponse({
         'items': items,
         'vendor_id': pr.vendor_id,
+        'service_request_id': pr.service_request_id,
     })
 
 
 @login_required
 def po_items_json(request, pk):
-    """Return PO items as JSON for AJAX requests."""
-    po = get_object_or_404(PurchaseOrder, pk=pk)
-    items = []
-    for item in po.items.all():
-        items.append({
-            'description': item.description,
-            'quantity': str(item.quantity),
-            'unit_price': str(item.unit_price),
-            'vat_rate': str(item.vat_rate),
-            'inventory_item_id': item.inventory_item_id,
-        })
-    return JsonResponse({
-        'items': items,
-        'vendor_id': po.vendor.id if po.vendor else None,
-        'project_id': po.project_id,
-    })
+    """Return PO items as JSON for vendor bill / AJAX."""
+    from .po_billing import po_items_billing_payload
+
+    po = get_object_or_404(PurchaseOrder.objects.prefetch_related('items'), pk=pk)
+    bill_received = request.GET.get('bill_received', '1') != '0'
+    exclude_bill_id = request.GET.get('exclude_bill')
+    exclude = int(exclude_bill_id) if exclude_bill_id and str(exclude_bill_id).isdigit() else None
+    return JsonResponse(
+        po_items_billing_payload(
+            po,
+            bill_received_only=bill_received,
+            exclude_bill_id=exclude,
+        )
+    )
 
 
 # ============ PURCHASE ORDER VIEWS ============
@@ -822,6 +832,16 @@ class PurchaseOrderCreateView(CreatePermissionMixin, CreateView):
     success_url = reverse_lazy('purchase:po_list')
     module_name = 'purchase'
     
+    def get_initial(self):
+        initial = super().get_initial()
+        sr_id = self.request.GET.get('sr')
+        if sr_id:
+            initial['service_request'] = sr_id
+        pr_id = self.request.GET.get('pr')
+        if pr_id:
+            initial['purchase_request'] = pr_id
+        return initial
+
     def get_context_data(self, **kwargs):
         from apps.finance.models import TaxCode
         context = super().get_context_data(**kwargs)
@@ -951,6 +971,10 @@ class PurchaseOrderDetailView(PermissionRequiredMixin, DetailView):
             .prefetch_related(
                 Prefetch('goods_receipts', queryset=rcpt_qs),
                 'items__inventory_item',
+                Prefetch(
+                    'bills',
+                    queryset=VendorBill.objects.filter(is_active=True).order_by('-created_at'),
+                ),
             )
         )
         from apps.core.visibility import filter_purchase_orders_for_user
@@ -994,6 +1018,32 @@ class PurchaseOrderDetailView(PermissionRequiredMixin, DetailView):
             and self.object.items.exists()
         )
         context['po_receive_url'] = reverse('purchase:po_receive', args=[self.object.pk])
+
+        from apps.inventory.models import Item
+        from apps.inventory.serial_stock import annotate_item_available_stock
+
+        items = list(self.object.items.select_related('inventory_item').all())
+        inv_ids = [i.inventory_item_id for i in items if i.inventory_item_id]
+        stock_by_id = {}
+        if inv_ids:
+            for row in annotate_item_available_stock(
+                Item.objects.filter(pk__in=inv_ids)
+            ).values('pk', 'total_stock_calc'):
+                stock_by_id[row['pk']] = row['total_stock_calc']
+        for line in items:
+            if line.inventory_item_id:
+                line.current_stock = stock_by_id.get(line.inventory_item_id, Decimal('0.00'))
+            else:
+                line.current_stock = None
+            from .po_billing import annotate_po_item_billing
+            annotate_po_item_billing(line)
+        context['po_line_items'] = items
+        context['po_vendor_bills'] = list(self.object.bills.all())
+        context['can_create_bill'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'purchase', 'create'
+        )
+        from .po_billing import po_has_received_items
+        context['po_has_received_items'] = po_has_received_items(self.object)
         return context
 
 
@@ -1348,12 +1398,22 @@ class VendorBillCreateView(CreatePermissionMixin, CreateView):
     template_name = 'purchase/bill_form.html'
     success_url = reverse_lazy('purchase:bill_list')
     module_name = 'purchase'
+
+    def get_initial(self):
+        initial = super().get_initial()
+        po_id = self.request.GET.get('po')
+        if po_id:
+            initial['purchase_order'] = po_id
+            initial['goods_received'] = True
+        return initial
     
     def get_context_data(self, **kwargs):
         from apps.finance.models import TaxCode
         context = super().get_context_data(**kwargs)
         context['title'] = 'Create Vendor Bill'
         context['today'] = date.today().isoformat()
+        context['preselect_po'] = self.request.GET.get('po')
+        context['bill_received_mode'] = self.request.GET.get('from_received', '1')
         # Tax Codes for VAT selection (SAP/Oracle Standard)
         context['tax_codes'] = TaxCode.objects.filter(is_active=True).order_by('code')
         context['default_tax_code'] = TaxCode.objects.filter(is_active=True, is_default=True).first()
@@ -1377,6 +1437,16 @@ class VendorBillCreateView(CreatePermissionMixin, CreateView):
             return self.form_invalid(form, items_formset)
     
     def form_valid(self, form, items_formset):
+        from .po_billing import bill_formset_lines_for_validation, validate_vendor_bill_po_lines
+
+        bill = form.save(commit=False)
+        line_rows = bill_formset_lines_for_validation(items_formset)
+        po_errors = validate_vendor_bill_po_lines(bill, line_rows)
+        if po_errors:
+            for err in po_errors:
+                form.add_error(None, err)
+            return self.form_invalid(form, items_formset)
+
         self.object = form.save()
         items_formset.instance = self.object
         items_formset.save()
@@ -1417,6 +1487,8 @@ class VendorBillUpdateView(UpdatePermissionMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context['title'] = f'Edit Bill: {self.object.bill_number}'
         context['today'] = date.today().isoformat()
+        context['preselect_po'] = None
+        context['bill_received_mode'] = '1'
         # Tax Codes for VAT selection (SAP/Oracle Standard)
         context['tax_codes'] = TaxCode.objects.filter(is_active=True).order_by('code')
         context['default_tax_code'] = TaxCode.objects.filter(is_active=True, is_default=True).first()
@@ -1442,6 +1514,18 @@ class VendorBillUpdateView(UpdatePermissionMixin, UpdateView):
             return self.form_invalid(form, items_formset)
     
     def form_valid(self, form, items_formset):
+        from .po_billing import bill_formset_lines_for_validation, validate_vendor_bill_po_lines
+
+        bill = form.save(commit=False)
+        line_rows = bill_formset_lines_for_validation(items_formset)
+        po_errors = validate_vendor_bill_po_lines(
+            bill, line_rows, exclude_bill_id=self.object.pk
+        )
+        if po_errors:
+            for err in po_errors:
+                form.add_error(None, err)
+            return self.form_invalid(form, items_formset)
+
         self.object = form.save()
         items_formset.instance = self.object
         items_formset.save()
@@ -1466,7 +1550,7 @@ class VendorBillDetailView(PermissionRequiredMixin, DetailView):
     def get_queryset(self):
         return (
             VendorBill.objects.filter(is_active=True)
-            .select_related('vendor', 'journal_entry', 'project')
+            .select_related('vendor', 'journal_entry', 'project', 'purchase_order')
             .prefetch_related('items', 'attachments')
         )
 

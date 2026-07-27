@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.generic import DetailView, ListView
 
 from apps.core.mixins import PermissionRequiredMixin
@@ -35,6 +36,53 @@ def _can(user, module, ptype):
     return user.is_superuser or PermissionChecker.has_permission(user, module, ptype)
 
 
+def _can_create_customer_advance(user):
+    return _can(user, 'crm', 'create') or _can(user, 'crm', 'edit') or _can(user, 'sales', 'edit')
+
+
+def _process_customer_advance_post(request, customer, redirect_to):
+    if not _can_create_customer_advance(request.user):
+        messages.error(request, 'Permission denied.')
+        return redirect(redirect_to)
+
+    form = CustomerAdvanceForm(request.POST, customer=customer, user=request.user)
+    form.customer = customer
+    if form.is_valid():
+        adv = form.save(commit=False)
+        adv.customer = customer
+        adv.save()
+        if request.POST.get('post_now') == '1':
+            try:
+                adv.post_to_accounting(user=request.user)
+                messages.success(
+                    request,
+                    f'Advance {adv.advance_number} recorded and posted to accounting.',
+                )
+            except Exception as exc:
+                messages.warning(
+                    request,
+                    f'Advance {adv.advance_number} saved as draft. '
+                    f'Post to accounting failed: {exc}',
+                )
+        else:
+            messages.success(request, f'Advance {adv.advance_number} saved as draft.')
+        return redirect(redirect_to)
+
+    for field, errs in form.errors.items():
+        for e in errs:
+            messages.error(request, f'{field}: {e}')
+    return redirect(redirect_to)
+
+
+def _customer_advance_form_initial(customer, project=None, reference=''):
+    initial = {'date': date.today()}
+    if project:
+        initial['project'] = project.pk
+    if reference:
+        initial['reference'] = reference
+    return initial
+
+
 # ===========================================================================
 # MODULE 1 — Customer Advance
 # ===========================================================================
@@ -56,49 +104,48 @@ def customer_advance_tab(request, customer_pk):
     ).select_related('bank_account', 'journal_entry', 'project').order_by('-date')
 
     if request.method == 'POST':
-        if not _can(request.user, 'crm', 'create'):
-            messages.error(request, 'Permission denied.')
-            return redirect('crm:customer_detail', pk=customer_pk)
+        return _process_customer_advance_post(
+            request,
+            customer,
+            redirect_to=reverse('crm:customer_detail', args=[customer_pk]),
+        )
 
-        form = CustomerAdvanceForm(request.POST, customer=customer, user=request.user)
-        form.customer = customer
-        if form.is_valid():
-            adv = form.save(commit=False)
-            adv.customer = customer
-            adv.save()
-            # If user chose "Record & Post", immediately post to accounting
-            if request.POST.get('post_now') == '1':
-                try:
-                    adv.post_to_accounting(user=request.user)
-                    messages.success(
-                        request,
-                        f'Advance {adv.advance_number} recorded and posted to accounting.'
-                    )
-                except Exception as exc:
-                    messages.warning(
-                        request,
-                        f'Advance {adv.advance_number} saved as draft. '
-                        f'Post to accounting failed: {exc}'
-                    )
-            else:
-                messages.success(request, f'Advance {adv.advance_number} saved as draft.')
-            return redirect('crm:customer_detail', pk=customer_pk)
-        else:
-            for field, errs in form.errors.items():
-                for e in errs:
-                    messages.error(request, f'{field}: {e}')
-            return redirect('crm:customer_detail', pk=customer_pk)
-
-    form = CustomerAdvanceForm(initial={'date': date.today()}, customer=customer, user=request.user)
+    form = CustomerAdvanceForm(
+        initial=_customer_advance_form_initial(customer),
+        customer=customer,
+        user=request.user,
+    )
     form.customer = customer
     return render(request, 'advances/_customer_advance_tab.html', {
         'customer': customer,
         'advances': advances,
         'form': form,
-        'can_create': _can(request.user, 'crm', 'create'),
+        'can_create': _can_create_customer_advance(request.user),
         'can_edit': _can(request.user, 'crm', 'edit'),
         'today': date.today().isoformat(),
     })
+
+
+@login_required
+def customer_advance_invoice_tab(request, invoice_pk):
+    """Record customer advances from an invoice detail page."""
+    from apps.sales.models import Invoice
+
+    invoice = get_object_or_404(
+        Invoice.objects.select_related('customer'),
+        pk=invoice_pk,
+        is_active=True,
+    )
+
+    if not _can(request.user, 'sales', 'view'):
+        messages.error(request, 'Permission denied.')
+        return redirect('sales:invoice_list')
+
+    redirect_to = reverse('sales:invoice_detail', args=[invoice_pk])
+    if request.method != 'POST':
+        return redirect(redirect_to)
+
+    return _process_customer_advance_post(request, invoice.customer, redirect_to=redirect_to)
 
 
 @login_required

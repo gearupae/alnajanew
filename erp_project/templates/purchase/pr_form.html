@@ -128,6 +128,30 @@
                     {{ form.vendor }}
                     {% if form.vendor.errors %}<div class="text-danger small">{{ form.vendor.errors|join:", " }}</div>{% endif %}
                 </div>
+                {% if 'service_request' in form.fields %}
+                <div class="col-md-4">
+                    <label class="form-label">Service Request</label>
+                    {{ form.service_request }}
+                    {% if form.service_request.errors %}<div class="text-danger small">{{ form.service_request.errors|join:", " }}</div>{% endif %}
+                    <small class="text-muted d-block mt-1">Optional — pick an approved service request to load its lines.</small>
+                    {% if form.service_request.field.queryset.count == 0 %}
+                    <small class="text-warning d-block mt-1">
+                        <i class="fas fa-info-circle me-1"></i>No approved service requests.
+                        <a href="{% url 'service_request:sr_list' %}">Create or approve one first</a>.
+                    </small>
+                    {% endif %}
+                </div>
+                {% elif object and object.pk and object.service_request %}
+                <div class="col-md-4">
+                    <label class="form-label">Service Request</label>
+                    <p class="mb-0 pt-1">
+                        <a href="{% url 'service_request:sr_detail' object.service_request.pk %}" class="text-decoration-none fw-medium">
+                            {{ object.service_request.sr_number }}
+                        </a>
+                    </p>
+                    <small class="text-muted d-block mt-1">Set when this request was created.</small>
+                </div>
+                {% endif %}
                 <div class="col-md-4">
                     <label class="form-label">Priority</label>
                     {{ form.priority }}
@@ -177,7 +201,11 @@
                         <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %}>
                             <td>
                                 {{ item_form.id }}
+                                {{ item_form.description }}
                                 {{ item_form.inventory_item }}
+                                {% if item_form.instance.description and not item_form.instance.inventory_item_id %}
+                                <div class="small fw-medium item-service-label">{{ item_form.instance.description }}</div>
+                                {% endif %}
                                 {% if item_form.inventory_item.errors %}
                                 <div class="text-danger small">{{ item_form.inventory_item.errors|join:", " }}</div>
                                 {% endif %}
@@ -217,25 +245,19 @@
         </div>
     </div>
     
+    {% if object and object.pk %}
+    {% include 'purchase/partials/pr_vendor_quotes_card.html' %}
+    {% else %}
     <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Attachments</h6></div>
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Vendor quotation attachments</h6></div>
         <div class="card-body">
-            <input type="file" name="attachments" class="form-control" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
-            <small class="text-muted">You can select multiple files</small>
-            {% if object and object.attachments.exists %}
-            <div class="mt-3">
-                <strong>Existing attachments:</strong>
-                <ul class="mb-0 mt-1">
-                    {% for att in object.attachments.all %}
-                    {% if att.file %}
-                    <li><a href="{{ att.file.url }}" target="_blank">{{ att.filename|default:att.file.name }}</a></li>
-                    {% endif %}
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
+            <p class="text-muted small mb-0">
+                Save this purchase request first, then open it again to attach vendor quotation files (PDF or Excel),
+                compare quoted totals, and link each quote to a vendor.
+            </p>
         </div>
     </div>
+    {% endif %}
     
     <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
     <a href="{% if object and object.pk %}{% url 'purchase:pr_detail' object.pk %}{% else %}{% url 'purchase:pr_list' %}{% endif %}" class="btn btn-light">Cancel</a>
@@ -247,6 +269,7 @@
 <script>
 const PR_INVENTORY_ITEMS = JSON.parse(document.getElementById('pr-inventory-items-data').textContent);
 const PR_UNIT_KEYS = new Set(['pcs', 'box', 'kg', 'ltr', 'set', 'other']);
+const SR_UNIT_TO_PR = { hours: 'other', days: 'other', visit: 'other', lumpsum: 'other' };
 let formCount = {{ items_formset.total_form_count }};
 let suppressTrailingEmptyRow = false;
 
@@ -330,9 +353,10 @@ function getVisiblePrRows() {
 function isPrRowFilled(row) {
     if (!row || row.style.display === 'none') return false;
     const inv = (row.querySelector('.item-inventory-select')?.value || '').trim();
+    const desc = (row.querySelector('.item-description-input')?.value || '').trim();
     const qty = parseFloat(row.querySelector('.item-qty')?.value || 0) || 0;
     const cost = parseFloat(row.querySelector('.item-cost')?.value || 0) || 0;
-    return Boolean(inv) || qty > 0 || cost > 0;
+    return Boolean(inv) || Boolean(desc) || qty > 0 || cost > 0;
 }
 
 function isPrRowEmpty(row) {
@@ -439,6 +463,10 @@ function buildInventorySelect(name, selectedId) {
 }
 
 function addItemRow() {
+    addInventoryItemRow();
+}
+
+function addInventoryItemRow() {
     const tbody = document.getElementById('itemsBody');
     const newRow = document.createElement('tr');
     newRow.className = 'item-row';
@@ -447,13 +475,19 @@ function addItemRow() {
         <td class="td-inv"></td>
         <td class="text-center text-nowrap align-middle item-current-stock pr-current-stock-cell text-muted small">—</td>
         <td><input type="number" name="items-${idx}-quantity" class="form-control item-qty" value="0" step="1" min="0"></td>
-        <td><select name="items-${idx}-unit" class="form-select"><option value="pcs">Pcs</option><option value="box">Box</option><option value="kg">Kg</option><option value="ltr">Ltr</option><option value="set">Set</option><option value="other">Other</option></select></td>
+        <td><select name="items-${idx}-unit" class="form-select item-unit-select"><option value="pcs">Pcs</option><option value="box">Box</option><option value="kg">Kg</option><option value="ltr">Ltr</option><option value="set">Set</option><option value="other">Other</option></select></td>
         <td><input type="number" name="items-${idx}-estimated_price" class="form-control item-cost" value="0" step="0.01" min="0"></td>
         <td class="item-total align-middle">0.00</td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow(this)"><i class="fas fa-times"></i></button></td>
     `;
     tbody.appendChild(newRow);
     const tdInv = newRow.querySelector('.td-inv');
+    const descInput = document.createElement('input');
+    descInput.type = 'hidden';
+    descInput.name = `items-${idx}-description`;
+    descInput.className = 'item-description-input';
+    descInput.value = '';
+    tdInv.appendChild(descInput);
     const invSel = buildInventorySelect(`items-${idx}-inventory_item`);
     tdInv.appendChild(invSel);
     initPrInventorySelect2(invSel);
@@ -461,6 +495,92 @@ function addItemRow() {
     document.getElementById('id_items-TOTAL_FORMS').value = formCount;
     newRow.querySelectorAll('.item-qty, .item-cost').forEach(el => el.addEventListener('input', () => updateRowTotal(newRow)));
     updateRowTotal(newRow);
+}
+
+function addServiceItemRow(description, quantity, unit, estimatedPrice) {
+    const tbody = document.getElementById('itemsBody');
+    const newRow = document.createElement('tr');
+    newRow.className = 'item-row item-row-service';
+    const idx = formCount;
+    const prUnit = SR_UNIT_TO_PR[(unit || '').toLowerCase()] || 'other';
+    newRow.innerHTML = `
+        <td class="td-inv"></td>
+        <td class="text-center text-nowrap align-middle item-current-stock pr-current-stock-cell text-muted small">—</td>
+        <td><input type="number" name="items-${idx}-quantity" class="form-control item-qty" value="${escapeHtml(String(quantity || '0'))}" step="1" min="0"></td>
+        <td><select name="items-${idx}-unit" class="form-select item-unit-select"><option value="pcs">Pcs</option><option value="box">Box</option><option value="kg">Kg</option><option value="ltr">Ltr</option><option value="set">Set</option><option value="other">Other</option></select></td>
+        <td><input type="number" name="items-${idx}-estimated_price" class="form-control item-cost" value="${escapeHtml(String(estimatedPrice || '0'))}" step="0.01" min="0"></td>
+        <td class="item-total align-middle">0.00</td>
+        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow(this)"><i class="fas fa-times"></i></button></td>
+    `;
+    tbody.appendChild(newRow);
+    const tdInv = newRow.querySelector('.td-inv');
+    const descInput = document.createElement('input');
+    descInput.type = 'hidden';
+    descInput.name = `items-${idx}-description`;
+    descInput.className = 'item-description-input';
+    descInput.value = description || '';
+    tdInv.appendChild(descInput);
+    const label = document.createElement('div');
+    label.className = 'small fw-medium item-service-label';
+    label.textContent = description || '';
+    tdInv.appendChild(label);
+    const unitSel = newRow.querySelector('.item-unit-select');
+    if (unitSel) unitSel.value = prUnit;
+    formCount++;
+    document.getElementById('id_items-TOTAL_FORMS').value = formCount;
+    newRow.querySelectorAll('.item-qty, .item-cost').forEach(el => el.addEventListener('input', () => updateRowTotal(newRow)));
+    updateRowTotal(newRow);
+}
+
+function clearItemsBody() {
+    document.querySelectorAll('#itemsBody .item-inventory-select').forEach(destroyPrInventorySelect2);
+    document.getElementById('itemsBody').innerHTML = '';
+    formCount = 0;
+    document.getElementById('id_items-TOTAL_FORMS').value = 0;
+}
+
+function loadSRItems(srId) {
+    if (!srId) {
+        clearItemsBody();
+        ensureTrailingEmptyRow();
+        return;
+    }
+    fetch(`/service-request/${srId}/items/`)
+        .then(response => response.json())
+        .then(data => {
+            clearItemsBody();
+            suppressTrailingEmptyRow = true;
+            try {
+                if (data.items && data.items.length > 0) {
+                    data.items.forEach(item => {
+                        addServiceItemRow(
+                            item.description || '',
+                            item.quantity || '0',
+                            item.unit || 'other',
+                            item.estimated_price || item.unit_price || '0'
+                        );
+                    });
+                } else {
+                    addInventoryItemRow();
+                }
+            } finally {
+                suppressTrailingEmptyRow = false;
+                ensureTrailingEmptyRow();
+            }
+            if (data.vendor_id) {
+                const vendorSelect = document.getElementById('id_vendor');
+                if (vendorSelect) {
+                    vendorSelect.value = String(data.vendor_id);
+                    if (typeof $ !== 'undefined' && $(vendorSelect).data('select2')) {
+                        $(vendorSelect).trigger('change.select2');
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading SR items:', error);
+            alert('Error loading Service Request items. Please try again.');
+        });
 }
 
 function removeItemRow(btn) {
@@ -513,6 +633,30 @@ $(function() {
         updateRowTotal(row);
     });
     ensureTrailingEmptyRow();
+
+    const srSelect = document.getElementById('id_service_request');
+    if (srSelect) {
+        srSelect.addEventListener('change', function() {
+            const srId = this.value;
+            if (srId) {
+                if (!confirm('Loading SR items will replace existing lines. Continue?')) {
+                    this.value = '';
+                    return;
+                }
+                loadSRItems(srId);
+            } else {
+                loadSRItems(null);
+            }
+        });
+    }
+
+    {% if preselect_sr %}
+    const preselectSr = '{{ preselect_sr }}';
+    if (preselectSr && srSelect && document.querySelector('#id_service_request option[value="' + preselectSr + '"]')) {
+        srSelect.value = preselectSr;
+        loadSRItems(preselectSr);
+    }
+    {% endif %}
 });
 
 $(function() {
@@ -527,6 +671,20 @@ $(function() {
             dropdownParent: $(document.body),
         });
     }
+    const srSel = document.getElementById('id_service_request');
+    if (srSel && typeof $ !== 'undefined' && $.fn.select2) {
+        $(srSel).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Search service request…',
+            allowClear: true,
+            minimumResultsForSearch: 0,
+            dropdownParent: $(document.body),
+        });
+    }
 });
 </script>
+{% if object and object.pk %}
+{% include 'purchase/partials/pr_vendor_quotes_js.html' %}
+{% endif %}
 {% endblock %}

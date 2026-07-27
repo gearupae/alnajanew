@@ -41,11 +41,6 @@
                     {% if form.customer.errors %}<div class="text-danger small">{{ form.customer.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">From Estimate</label>
-                    {{ form.estimate }}
-                    {% if form.estimate.errors %}<div class="text-danger small">{{ form.estimate.errors|join:", " }}</div>{% endif %}
-                </div>
-                <div class="col-md-4">
                     <label class="form-label">Project</label>
                     {{ form.project }}
                     {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
@@ -376,10 +371,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const projectOptions = {{ invoice_project_options_json|safe }};
-    const estimateProjectMap = {{ invoice_estimate_project_map_json|safe }};
     const customerSelect = document.getElementById('id_customer');
     const projectSelect = document.getElementById('id_project');
-    const estimateSelect = document.getElementById('id_estimate');
 
     function rebuildProjectOptions() {
         if (!projectSelect) return;
@@ -399,15 +392,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (customerSelect) {
         customerSelect.addEventListener('change', rebuildProjectOptions);
         rebuildProjectOptions();
-    }
-
-    if (estimateSelect && projectSelect) {
-        estimateSelect.addEventListener('change', function() {
-            const projectId = estimateProjectMap[this.value];
-            if (projectId) {
-                projectSelect.value = String(projectId);
-            }
-        });
     }
 });
 </script>

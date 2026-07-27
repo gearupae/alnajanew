@@ -1,7 +1,9 @@
 """CRM helpers."""
+import re
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.core.validators import URLValidator
+from django.core.validators import URLValidator, validate_email
 from django.db.models import Q
 
 from apps.core.visibility import (
@@ -235,6 +237,35 @@ def normalize_customer_website(value: str) -> str:
         website = f'https://{website}'
     URLValidator()(website)
     return website
+
+
+def normalize_customer_email(value: str, *, required: bool = False) -> str:
+    """Validate and normalize customer email."""
+    email = (value or '').strip()
+    if not email:
+        if required:
+            raise ValidationError('Email is required for customers.')
+        return ''
+    try:
+        validate_email(email)
+    except ValidationError as exc:
+        raise ValidationError('Enter a valid email address.') from exc
+    return email.lower()
+
+
+def normalize_customer_phone(value: str, *, required: bool = False) -> str:
+    """Validate phone: 8–15 digits; allows +, spaces, dashes, parentheses."""
+    phone = (value or '').strip()
+    if not phone:
+        if required:
+            raise ValidationError('Phone number is required for customers.')
+        return ''
+    if not re.fullmatch(r'[\d\s+\-().]+', phone):
+        raise ValidationError('Phone number contains invalid characters.')
+    digits = re.sub(r'\D', '', phone)
+    if len(digits) < 8 or len(digits) > 15:
+        raise ValidationError('Enter a valid phone number (8–15 digits, e.g. +971 50 123 4567).')
+    return phone
 
 
 def annotate_latest_estimate_value(queryset):

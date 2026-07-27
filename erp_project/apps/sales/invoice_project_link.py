@@ -35,3 +35,7 @@ def save_invoice_project_link(invoice, project: Project | None) -> None:
         link.save(update_fields=['is_active'])
 
     ProjectInvoice.objects.create(project=project, invoice=invoice)
+
+    from apps.projects.operation_access import maybe_auto_approve_project_financial_unlock
+
+    maybe_auto_approve_project_financial_unlock(project)

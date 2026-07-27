@@ -220,6 +220,19 @@
     color: #084298;
 }
 
+.sales-perf-table tbody tr.is-selected {
+    background: #f0f7ff;
+}
+.sales-perf-table tbody tr:hover {
+    background: #f8fbff;
+}
+.sales-alert-list .alert {
+    margin-bottom: 0.5rem;
+}
+.sales-alert-list .alert:last-child {
+    margin-bottom: 0;
+}
+
 @media (max-width: 768px) {
     .sales-detail-tabs {
         flex-direction: column;
@@ -254,7 +267,7 @@
             </ol>
         </nav>
         <h4 class="mb-0 fw-bold">{{ title }}</h4>
-        <p class="text-muted small mb-0">{{ start_date|date:"d/m/Y" }} – {{ end_date|date:"d/m/Y" }}</p>
+        <p class="text-muted small mb-0">{{ start_date|date:"d/m/Y" }} – {{ end_date|date:"d/m/Y" }}{% if is_current_month %} · <span class="text-primary fw-medium">This month</span>{% endif %}</p>
     </div>
     <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
         <i class="fas fa-print me-1"></i>Print
@@ -272,10 +285,91 @@
                 <label class="form-label mb-1">End Date</label>
                 <input type="date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
             </div>
-            <div class="col-sm-4 col-md-2">
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label mb-1">Salesman</label>
+                <select name="salesperson" class="form-select">
+                    <option value="">All salesmen</option>
+                    <option value="none" {% if filter_salesperson == 'none' %}selected{% endif %}>Unassigned</option>
+                    {% for sp in filter_salespeople %}
+                    <option value="{{ sp.id }}" {% if filter_salesperson == sp.id|stringformat:'s' %}selected{% endif %}>{{ sp.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-4 col-md-3">
                 <button type="submit" class="btn btn-primary w-100"><i class="fas fa-sync me-1"></i>Update</button>
             </div>
         </form>
+    </div>
+</div>
+
+{% if sales_alerts %}
+<div class="sales-alert-list mb-3">
+    {% for alert in sales_alerts %}
+    <div class="alert alert-{{ alert.level }} border-0 shadow-sm py-2 px-3 mb-2 d-flex align-items-start gap-2">
+        <i class="fas {{ alert.icon }} mt-1"></i>
+        <span class="small mb-0">{{ alert.message }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if selected_salesperson_performance %}
+<div class="alert alert-primary border-0 shadow-sm py-2 px-3 mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <strong>{{ selected_salesperson_performance.label }}</strong>
+            <span class="text-muted small ms-1">in selected period</span>
+        </div>
+        <div class="d-flex flex-wrap gap-3 small">
+            <span><span class="text-muted">Collected:</span> <strong class="text-success">AED {{ selected_salesperson_performance.collected_total|floatformat:2|intcomma }}</strong></span>
+            <span><span class="text-muted">Invoiced:</span> <strong class="text-primary">AED {{ selected_salesperson_performance.invoiced_total|floatformat:2|intcomma }}</strong></span>
+            <span><span class="text-muted">Quot won:</span> <strong>AED {{ selected_salesperson_performance.won_total|floatformat:2|intcomma }}</strong></span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2 px-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div class="text-muted text-uppercase fw-medium sales-section-heading mb-0">
+                Salesman performance{% if is_current_month %} this month{% endif %}
+            </div>
+            <span class="text-muted small">Click a row to filter the report</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle sales-perf-table mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Salesman</th>
+                        <th class="text-end">Collected</th>
+                        <th class="text-end">Invoiced</th>
+                        <th class="text-end">Quot won</th>
+                        <th class="text-end">Won count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in salesperson_performance %}
+                    <tr class="{% if row.is_selected %}is-selected{% elif row.collected_total <= 0 and row.invoiced_total <= 0 and row.won_total <= 0 %}text-muted{% endif %}">
+                        <td>
+                            <a href="?start_date={{ start_date|date:'Y-m-d' }}&amp;end_date={{ end_date|date:'Y-m-d' }}&amp;salesperson={{ row.filter_key }}" class="text-decoration-none fw-medium {% if row.is_selected %}text-primary{% else %}text-dark{% endif %}">
+                                {{ row.label }}
+                            </a>
+                        </td>
+                        <td class="text-end fw-semibold text-success">AED {{ row.collected_total|floatformat:2|intcomma }}</td>
+                        <td class="text-end">AED {{ row.invoiced_total|floatformat:2|intcomma }}</td>
+                        <td class="text-end">AED {{ row.won_total|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-muted">{{ row.won_count|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if filter_salesperson %}
+        <div class="mt-2">
+            <a href="?start_date={{ start_date|date:'Y-m-d' }}&amp;end_date={{ end_date|date:'Y-m-d' }}" class="small text-decoration-none">Clear salesman filter</a>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -365,7 +459,7 @@
                 <table class="table sales-detail-table align-middle">
                     <thead>
                         <tr>
-                            <th>Invoice</th><th>Customer</th><th>Date</th>
+                            <th>Invoice</th><th>Customer</th><th>Salesman</th><th>Date</th>
                             <th class="text-end">Total</th><th class="text-end">Balance</th>
                         </tr>
                     </thead>
@@ -374,13 +468,14 @@
                         <tr>
                             <td><a href="{% url 'sales:invoice_detail' row.pk %}" class="fw-semibold text-decoration-none">{{ row.invoice_number }}</a></td>
                             <td>{{ row.customer_name }}</td>
+                            <td class="text-muted">{{ row.salesman_name }}</td>
                             <td class="text-muted">{{ row.date|date:"d/m/Y" }}</td>
                             <td class="text-end fw-medium">AED {{ row.total_amount|floatformat:2|intcomma }}</td>
                             <td class="text-end {% if row.balance %}text-warning fw-semibold{% else %}text-muted{% endif %}">{{ row.balance|floatformat:2|intcomma }}</td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5">
+                            <td colspan="6">
                                 <div class="sales-detail-empty">
                                     <div class="sales-detail-empty__icon"><i class="fas fa-file-invoice"></i></div>
                                     <div class="fw-semibold mb-1">No invoices in this period</div>
@@ -440,7 +535,7 @@
                 <table class="table sales-detail-table align-middle">
                     <thead>
                         <tr>
-                            <th>Estimate</th><th>Customer</th><th>Date</th><th>Status</th><th class="text-end">Amount</th>
+                            <th>Estimate</th><th>Customer</th><th>Salesman</th><th>Date</th><th>Status</th><th class="text-end">Amount</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -448,6 +543,7 @@
                         <tr>
                             <td><a href="{% url 'sales:estimate_detail' row.pk %}" class="fw-semibold text-decoration-none">{{ row.display_estimate_number }}</a></td>
                             <td>{{ row.customer_name }}</td>
+                            <td class="text-muted">{{ row.salesman_name }}</td>
                             <td class="text-muted">{{ row.date|date:"d/m/Y" }}</td>
                             <td>
                                 <span class="sales-status-badge
@@ -459,7 +555,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5">
+                            <td colspan="6">
                                 <div class="sales-detail-empty">
                                     <div class="sales-detail-empty__icon"><i class="fas fa-file-signature"></i></div>
                                     <div class="fw-semibold mb-1">No quotations in this period</div>

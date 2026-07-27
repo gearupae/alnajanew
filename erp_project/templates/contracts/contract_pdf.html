@@ -300,6 +300,19 @@
         </div>
         {% endif %}
 
+        {% if contract.scope_of_work_lines %}
+        <div class="notes-section">
+            <div class="notes-title">Scope of work</div>
+            <div class="notes-content">
+                <ul class="terms-list">
+                    {% for line in contract.scope_of_work_lines %}
+                    <li>{{ line }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="terms-section">
             <div class="terms-title">Terms &amp; conditions</div>
             <div class="terms-content">

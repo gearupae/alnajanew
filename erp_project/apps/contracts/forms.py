@@ -18,6 +18,7 @@ class ContractForm(forms.ModelForm):
             'status',
             'remind_before_days',
             'description',
+            'scope_of_work',
             'terms_and_conditions',
             'contract_types',
         ]
@@ -25,11 +26,12 @@ class ContractForm(forms.ModelForm):
             'status': forms.Select(attrs={'class': 'form-select'}),
             'customer': forms.Select(attrs={'class': 'form-select'}),
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Contract name'}),
-            'contract_value': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'contract_value': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'end_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'remind_before_days': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '365'}),
             'description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'scope_of_work': forms.HiddenInput(),
             'terms_and_conditions': forms.Textarea(
                 attrs={'rows': 6, 'class': 'form-control', 'placeholder': 'Terms & conditions (shown on PDF)'}
             ),
@@ -50,6 +52,7 @@ class ContractForm(forms.ModelForm):
         self.fields['remind_before_days'].label = 'Remind before (days)'
         self.fields['status'].label = 'Status'
         self.fields['terms_and_conditions'].label = 'Terms & conditions'
+        self.fields['scope_of_work'].required = False
         if not self.instance.pk and not self.data:
             self.fields['terms_and_conditions'].initial = (
                 CompanySettings.get_settings().contract_default_terms or ''
@@ -61,4 +64,19 @@ class ContractForm(forms.ModelForm):
         end = cleaned.get('end_date')
         if start and end and end < start:
             raise forms.ValidationError('End date must be on or after start date.')
+        lines = []
+        if self.data:
+            lines = [line.strip() for line in self.data.getlist('scope_of_work_line') if line.strip()]
+        cleaned['scope_of_work'] = '\n'.join(lines)
         return cleaned
+
+
+def scope_of_work_lines_for_context(form, instance=None):
+    """Bullet rows for the scope-of-work UI."""
+    if form is not None and form.data and 'scope_of_work_line' in form.data:
+        lines = [line.strip() for line in form.data.getlist('scope_of_work_line')]
+        return lines or ['']
+    if instance is not None and getattr(instance, 'pk', None):
+        lines = instance.scope_of_work_lines
+        return lines or ['']
+    return ['']

@@ -643,6 +643,32 @@ class CustomerDetailView(PermissionRequiredMixin, DetailView):
             self.object.public_uploads.filter(is_active=True).order_by('-created_at')
         )
         context['customer_activity'] = get_customer_activity_feed(self.object)
+        from apps.core.visibility import filter_estimates_for_user, filter_projects_for_user
+        from apps.sales.models import Estimate, Invoice
+
+        context['estimate_count'] = filter_estimates_for_user(
+            Estimate.objects.filter(customer=self.object, is_active=True),
+            self.request.user,
+        ).count()
+        context['invoice_count'] = Invoice.objects.filter(
+            customer=self.object, is_active=True
+        ).count()
+        context['customer_invoices'] = Invoice.objects.filter(
+            customer=self.object, is_active=True
+        ).select_related('estimate').order_by('-invoice_date', '-pk')
+        context['can_create_invoice'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'sales', 'create'
+        )
+        context['can_edit_invoice'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'sales', 'edit'
+        )
+        context['can_delete_invoice'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'sales', 'delete'
+        )
+        context['project_count'] = filter_projects_for_user(
+            self.object.projects.filter(is_active=True),
+            self.request.user,
+        ).count()
         return context
 
 
