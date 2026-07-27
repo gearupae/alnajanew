@@ -297,12 +297,13 @@
                 <div class="form-text small mb-0">Select B2B or B2C.</div>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Email <span class="text-danger d-none" id="crmInlineEmailRequired">*</span></label>
+                <label class="form-label">Email</label>
                 <input type="email" name="email" id="crmInlineEmail" class="form-control" placeholder="email@example.com">
             </div>
             <div class="col-md-3">
-                <label class="form-label">Phone <span class="text-danger d-none" id="crmInlinePhoneRequired">*</span></label>
+                <label class="form-label">Phone</label>
                 <input type="text" name="phone" id="crmInlinePhone" class="form-control" placeholder="+971 XX XXX XXXX">
+                <div class="form-text small mb-0 d-none" id="crmInlineContactHint">For customers, enter at least one of email or phone.</div>
             </div>
             <div class="col-md-3">
                 <label class="form-label">Status</label>
@@ -795,8 +796,7 @@
         var licInput = document.getElementById('crmInlineTradeLicense');
         var emailInput = document.getElementById('crmInlineEmail');
         var phoneInput = document.getElementById('crmInlinePhone');
-        var emailRequired = document.getElementById('crmInlineEmailRequired');
-        var phoneRequired = document.getElementById('crmInlinePhoneRequired');
+        var contactHint = document.getElementById('crmInlineContactHint');
         var licRequired = document.getElementById('crmInlineLicenseRequired');
         var licOptional = document.getElementById('crmInlineLicenseOptional');
         var customerType = typeHidden ? typeHidden.value : (typeSel ? typeSel.value : 'lead');
@@ -808,10 +808,9 @@
         if (b2bTrn) b2bTrn.style.display = isB2b ? '' : 'none';
         if (b2bLic) b2bLic.style.display = isB2b ? '' : 'none';
         if (licInput) licInput.required = false;
-        if (emailInput) emailInput.required = isCustomer;
-        if (phoneInput) phoneInput.required = isCustomer;
-        if (emailRequired) emailRequired.classList.toggle('d-none', !isCustomer);
-        if (phoneRequired) phoneRequired.classList.toggle('d-none', !isCustomer);
+        if (emailInput) emailInput.required = false;
+        if (phoneInput) phoneInput.required = false;
+        if (contactHint) contactHint.classList.toggle('d-none', !isCustomer);
     }
     document.addEventListener('DOMContentLoaded', function () {
         var typeSel = document.getElementById('crmInlineCustomerType');

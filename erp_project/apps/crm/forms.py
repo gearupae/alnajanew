@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 
 from .models import Customer
 from .utils import (
+    find_customer_contact_duplicate,
     get_crm_project_queryset,
     get_sales_employee_for_user,
     get_sales_employee_queryset,
@@ -60,11 +61,6 @@ class CustomerForm(forms.ModelForm):
         self.fields['business_segment'].label = 'Business type'
         self.fields['trn_document'].required = False
         self.fields['trade_license_document'].required = False
-
-        ctype = self._effective_customer_type()
-        if ctype == 'customer':
-            self.fields['email'].required = True
-            self.fields['phone'].required = True
 
         include_salesperson_id = None
         if self.instance.pk and self.instance.assigned_salesperson_id:
@@ -133,21 +129,19 @@ class CustomerForm(forms.ModelForm):
         return (raw or 'lead').strip()
 
     def clean_email(self):
-        ctype = self._effective_customer_type()
         try:
             return normalize_customer_email(
                 self.cleaned_data.get('email'),
-                required=(ctype == 'customer'),
+                required=False,
             )
         except ValidationError as exc:
             raise forms.ValidationError(exc.messages[0] if exc.messages else str(exc))
 
     def clean_phone(self):
-        ctype = self._effective_customer_type()
         try:
             return normalize_customer_phone(
                 self.cleaned_data.get('phone'),
-                required=(ctype == 'customer'),
+                required=False,
             )
         except ValidationError as exc:
             raise forms.ValidationError(exc.messages[0] if exc.messages else str(exc))
@@ -165,7 +159,6 @@ class CustomerForm(forms.ModelForm):
         cleaned = super().clean()
         if self.instance.pk and self.instance.customer_type == 'customer':
             cleaned['customer_type'] = 'customer'
-        ctype = cleaned.get('customer_type')
         seg = (cleaned.get('business_segment') or '').strip()
 
         if seg not in ('b2b', 'b2c'):
@@ -187,6 +180,33 @@ class CustomerForm(forms.ModelForm):
             cleaned['company'] = company
 
         cleaned['name'] = (cleaned.get('name') or '').strip()
+
+        ctype = self._effective_customer_type()
+        if ctype == 'customer':
+            email = cleaned.get('email') or ''
+            phone = cleaned.get('phone') or ''
+            if not email and not phone:
+                msg = 'Enter an email or phone number for customers.'
+                self.add_error('email', msg)
+                self.add_error('phone', msg)
+            else:
+                duplicate, matched_field = find_customer_contact_duplicate(
+                    email=email,
+                    phone=phone,
+                    exclude_pk=self.instance.pk if self.instance.pk else None,
+                )
+                if duplicate:
+                    label = duplicate.company or duplicate.name or duplicate.customer_number
+                    if matched_field == 'email':
+                        self.add_error(
+                            'email',
+                            f'An account with this email already exists ({duplicate.customer_number} — {label}).',
+                        )
+                    else:
+                        self.add_error(
+                            'phone',
+                            f'An account with this phone number already exists ({duplicate.customer_number} — {label}).',
+                        )
 
         if seg == 'b2c':
             cleaned['trn'] = ''

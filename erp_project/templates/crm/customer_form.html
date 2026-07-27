@@ -52,12 +52,10 @@ $(function () {
         }
         var emailInput = document.querySelector('[name="email"]');
         var phoneInput = document.querySelector('[name="phone"]');
-        var emailRequired = document.getElementById('crmEditEmailRequired');
-        var phoneRequired = document.getElementById('crmEditPhoneRequired');
-        if (emailInput) emailInput.required = isCustomer;
-        if (phoneInput) phoneInput.required = isCustomer;
-        if (emailRequired) emailRequired.classList.toggle('d-none', !isCustomer);
-        if (phoneRequired) phoneRequired.classList.toggle('d-none', !isCustomer);
+        var contactHint = document.getElementById('crmEditContactHint');
+        if (emailInput) emailInput.required = false;
+        if (phoneInput) phoneInput.required = false;
+        if (contactHint) contactHint.classList.toggle('d-none', !isCustomer);
     }
     var typeSel = document.getElementById('crmEditCustomerType');
     var seg = document.querySelector('[name="business_segment"]');
@@ -256,14 +254,15 @@ $(function () {
             </h6>
             <div class="row g-3 mb-4">
                 <div class="col-md-4">
-                    <label class="form-label">Email{% if object.customer_type == 'customer' %} <span class="text-danger" id="crmEditEmailRequired">*</span>{% else %} <span class="text-danger d-none" id="crmEditEmailRequired">*</span>{% endif %}</label>
-                    <input type="email" name="email" class="form-control" value="{{ object.email }}" placeholder="email@example.com"{% if object.customer_type == 'customer' %} required{% endif %}>
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" value="{{ object.email }}" placeholder="email@example.com">
                     {% for err in form.email.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Phone{% if object.customer_type == 'customer' %} <span class="text-danger" id="crmEditPhoneRequired">*</span>{% else %} <span class="text-danger d-none" id="crmEditPhoneRequired">*</span>{% endif %}</label>
-                    <input type="text" name="phone" class="form-control" value="{{ object.phone }}" placeholder="+971 XX XXX XXXX"{% if object.customer_type == 'customer' %} required{% endif %}>
+                    <label class="form-label">Phone</label>
+                    <input type="text" name="phone" class="form-control" value="{{ object.phone }}" placeholder="+971 XX XXX XXXX">
                     {% for err in form.phone.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                    <div class="form-text{% if object.customer_type != 'customer' %} d-none{% endif %}" id="crmEditContactHint">For customers, enter at least one of email or phone.</div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Address</label>

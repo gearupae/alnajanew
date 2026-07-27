@@ -181,7 +181,7 @@ class Estimate(BaseModel):
         help_text='Customer signature image (e.g. scan)',
     )
     show_rates_on_pdf = models.BooleanField(
-        default=True,
+        default=False,
         help_text='If off, PDF shows description and quantity only; totals still show VAT and amount.',
     )
     show_group_totals_on_pdf = models.BooleanField(

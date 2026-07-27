@@ -239,6 +239,39 @@ def normalize_customer_website(value: str) -> str:
     return website
 
 
+def customer_phone_digits(value: str) -> str:
+    """Digits-only form for comparing phone numbers."""
+    return re.sub(r'\D', '', (value or '').strip())
+
+
+def find_customer_contact_duplicate(*, email: str = '', phone: str = '', exclude_pk=None):
+    """
+    Return (customer, matched_field) when email or phone matches another CRM account.
+    matched_field is 'email' or 'phone'.
+    """
+    from .models import Customer
+
+    qs = Customer.objects.all()
+    if exclude_pk:
+        qs = qs.exclude(pk=exclude_pk)
+
+    normalized_email = (email or '').strip().lower()
+    if normalized_email:
+        match = qs.filter(email__iexact=normalized_email).first()
+        if match:
+            return match, 'email'
+
+    phone_digits = customer_phone_digits(phone)
+    if phone_digits:
+        for customer in qs.exclude(phone='').only(
+            'pk', 'phone', 'customer_number', 'company', 'name',
+        ):
+            if customer_phone_digits(customer.phone) == phone_digits:
+                return customer, 'phone'
+
+    return None, None
+
+
 def normalize_customer_email(value: str, *, required: bool = False) -> str:
     """Validate and normalize customer email."""
     email = (value or '').strip()
