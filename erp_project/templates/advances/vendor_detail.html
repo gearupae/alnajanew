@@ -71,6 +71,33 @@
                         <p class="fw-medium mb-0">{{ vendor.trn }}</p>
                     </div>
                     {% endif %}
+                    {% if vendor.website %}
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Website</label>
+                        <p class="mb-0">
+                            <a href="{{ vendor.website }}" class="text-decoration-none" target="_blank" rel="noopener">
+                                <i class="fas fa-globe me-1"></i>{{ vendor.website }}
+                            </a>
+                        </p>
+                    </div>
+                    {% endif %}
+                    {% if vendor.trn_document or vendor.trade_license_document %}
+                    <div class="col-12">
+                        <label class="form-label text-muted small">Documents</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% if vendor.trn_document %}
+                            <a href="{{ vendor.trn_document.url }}" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener">
+                                <i class="fas fa-file-download me-1"></i>TRN document
+                            </a>
+                            {% endif %}
+                            {% if vendor.trade_license_document %}
+                            <a href="{{ vendor.trade_license_document.url }}" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener">
+                                <i class="fas fa-file-download me-1"></i>Trade license
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
                     {% if vendor.address %}
                     <div class="col-12">
                         <label class="form-label text-muted small">Address</label>

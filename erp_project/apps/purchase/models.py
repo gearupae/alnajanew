@@ -34,6 +34,21 @@ class Vendor(BaseModel):
     country = models.CharField(max_length=100, default='United Arab Emirates')
     trn = models.CharField(max_length=20, blank=True, verbose_name='Tax Registration Number (TRN)',
                           help_text='UAE VAT TRN for B2B transactions')
+    website = models.URLField(blank=True, max_length=500)
+    trn_document = models.FileField(
+        upload_to='purchase/vendor_documents/%Y/%m/',
+        blank=True,
+        max_length=500,
+        verbose_name='TRN document',
+        help_text='Optional. VAT/TRN certificate (PDF or image).',
+    )
+    trade_license_document = models.FileField(
+        upload_to='purchase/vendor_documents/%Y/%m/',
+        blank=True,
+        max_length=500,
+        verbose_name='Trade license',
+        help_text='Optional. Trade license (PDF or image).',
+    )
     payment_terms = models.CharField(max_length=50, blank=True, default='Net 30')
     credit_limit = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')

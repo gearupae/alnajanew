@@ -70,7 +70,7 @@
         <h6 class="mb-0 fw-semibold"><i class="fas fa-industry me-2"></i>Add New Vendor</h6>
         <button type="button" class="btn-close" onclick="cancelInlineForm('vendorForm')"></button>
     </div>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="row g-3">
             <div class="col-md-4">
@@ -97,8 +97,24 @@
                 <input type="text" name="phone" class="form-control">
             </div>
             <div class="col-md-4">
+                <label class="form-label">TRN (VAT)</label>
+                <input type="text" name="trn" class="form-control" placeholder="VAT / TRN number">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Website</label>
+                <input type="text" name="website" class="form-control" placeholder="gear-up.ae, www.gear-up.ae, or https://gear-up.ae">
+            </div>
+            <div class="col-md-4">
                 <label class="form-label">Address</label>
                 <input type="text" name="address" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">TRN document</label>
+                <input type="file" name="trn_document" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Trade license</label>
+                <input type="file" name="trade_license_document" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic">
             </div>
         </div>
         <div class="mt-3">

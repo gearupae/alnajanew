@@ -27,21 +27,66 @@ class VendorForm(forms.ModelForm):
     
     class Meta:
         model = Vendor
-        fields = ['name', 'contact_person', 'email', 'phone', 'address', 'status', 'notes']
+        fields = [
+            'name', 'contact_person', 'email', 'phone', 'address',
+            'trn', 'website', 'trn_document', 'trade_license_document',
+            'status', 'notes',
+        ]
         widgets = {
             'address': forms.Textarea(attrs={'rows': 2}),
             'notes': forms.Textarea(attrs={'rows': 2}),
+            'trn_document': forms.FileInput(
+                attrs={
+                    'class': 'form-control form-control-sm',
+                    'accept': '.pdf,.jpg,.jpeg,.png,.webp,.heic',
+                }
+            ),
+            'trade_license_document': forms.FileInput(
+                attrs={
+                    'class': 'form-control form-control-sm',
+                    'accept': '.pdf,.jpg,.jpeg,.png,.webp,.heic',
+                }
+            ),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['trn_document'].required = False
+        self.fields['trade_license_document'].required = False
+        self.fields['trn'].label = 'TRN (VAT)'
+        self.fields['website'].required = False
         for field_name, field in self.fields.items():
-            if field_name in ['address', 'notes']:
+            if field_name in ('address', 'notes'):
                 field.widget.attrs['class'] = 'form-control'
+            elif field_name in ('trn_document', 'trade_license_document'):
+                continue
             elif field_name == 'status':
                 field.widget.attrs['class'] = 'form-select'
             else:
                 field.widget.attrs['class'] = 'form-control'
+            if field_name == 'trn':
+                field.widget.attrs['placeholder'] = 'VAT / TRN number'
+            elif field_name == 'website':
+                field.widget.attrs['placeholder'] = 'gear-up.ae, www.gear-up.ae, or https://gear-up.ae'
+
+    def clean_website(self):
+        from apps.crm.utils import normalize_customer_website
+
+        raw = self.cleaned_data.get('website') or ''
+        try:
+            return normalize_customer_website(raw)
+        except ValidationError:
+            raise forms.ValidationError(
+                'Enter a valid website (e.g. gear-up.ae, www.gear-up.ae, or https://gear-up.ae).'
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.data.get('trn_document-clear') in ('on', 'true', '1'):
+            cleaned['trn_document'] = False
+        if self.data.get('trade_license_document-clear') in ('on', 'true', '1'):
+            cleaned['trade_license_document'] = False
+        return cleaned
 
 
 class PurchaseRequestForm(forms.ModelForm):

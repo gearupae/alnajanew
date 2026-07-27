@@ -167,7 +167,7 @@ class VendorListView(PermissionRequiredMixin, ListView):
             messages.error(request, 'Permission denied.')
             return redirect('purchase:vendor_list')
         
-        form = VendorForm(request.POST)
+        form = VendorForm(request.POST, request.FILES)
         if form.is_valid():
             vendor = form.save()
             messages.success(request, f'Vendor {vendor.name} created successfully.')

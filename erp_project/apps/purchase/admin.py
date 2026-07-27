@@ -13,10 +13,24 @@ class VendorBillAttachmentInline(admin.TabularInline):
 
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
-    list_display = ['vendor_number', 'name', 'contact_person', 'email', 'phone', 'status']
+    list_display = ['vendor_number', 'name', 'contact_person', 'email', 'phone', 'trn', 'status']
     list_filter = ['status', 'is_active']
-    search_fields = ['vendor_number', 'name', 'email']
+    search_fields = ['vendor_number', 'name', 'email', 'trn']
     readonly_fields = ['vendor_number']
+    fieldsets = (
+        (None, {
+            'fields': ('vendor_number', 'name', 'contact_person', 'status', 'notes'),
+        }),
+        ('Contact', {
+            'fields': ('email', 'phone', 'address', 'city', 'country', 'website'),
+        }),
+        ('Tax & compliance', {
+            'fields': ('trn', 'trn_document', 'trade_license_document'),
+        }),
+        ('Terms', {
+            'fields': ('payment_terms', 'credit_limit'),
+        }),
+    )
 
 
 class PurchaseRequestItemInline(admin.TabularInline):
