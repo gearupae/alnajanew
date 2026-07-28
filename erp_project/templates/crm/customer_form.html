@@ -263,7 +263,7 @@ $(function () {
                     <label class="form-label">Phone</label>
                     <input type="text" name="phone" class="form-control" value="{{ object.phone }}" placeholder="+971 XX XXX XXXX">
                     {% for err in form.phone.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                    <div class="form-text{% if object.customer_type != 'customer' %} d-none{% endif %}" id="crmEditContactHint">For customers, enter at least one of email or phone.</div>
+                    <div class="form-text{% if object.customer_type != 'customer' %} d-none{% endif %}" id="crmEditContactHint">For customers, enter at least one of email or phone. Phone must include country code (e.g. +971 50 741 2365).</div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Address</label>

@@ -287,17 +287,23 @@ def normalize_customer_email(value: str, *, required: bool = False) -> str:
 
 
 def normalize_customer_phone(value: str, *, required: bool = False) -> str:
-    """Validate phone: 8–15 digits; allows +, spaces, dashes, parentheses."""
+    """Validate phone with country code (+ prefix); 10–15 digits total."""
     phone = (value or '').strip()
     if not phone:
         if required:
             raise ValidationError('Phone number is required for customers.')
         return ''
+    if not phone.startswith('+'):
+        raise ValidationError(
+            'Include country code starting with + (e.g. +971 50 741 2365).'
+        )
     if not re.fullmatch(r'[\d\s+\-().]+', phone):
         raise ValidationError('Phone number contains invalid characters.')
     digits = re.sub(r'\D', '', phone)
-    if len(digits) < 8 or len(digits) > 15:
-        raise ValidationError('Enter a valid phone number (8–15 digits, e.g. +971 50 123 4567).')
+    if len(digits) < 10 or len(digits) > 15:
+        raise ValidationError(
+            'Enter a valid phone number with country code (10–15 digits, e.g. +971 50 741 2365).'
+        )
     return phone
 
 

@@ -15,28 +15,43 @@
         return sel ? sel.value === 'customer' : false;
     }
 
-    function validatePhone(value, required) {
+    function validatePhoneFormat(value) {
         var phone = trim(value);
         if (!phone) {
-            return required ? 'Phone number is required for customers.' : '';
+            return '';
+        }
+        if (!phone.startsWith('+')) {
+            return 'Include country code starting with + (e.g. +971 50 741 2365).';
         }
         if (!/^[\d\s+\-().]+$/.test(phone)) {
             return 'Phone number contains invalid characters.';
         }
         var digits = phone.replace(/\D/g, '');
-        if (digits.length < 8 || digits.length > 15) {
-            return 'Enter a valid phone number (8–15 digits, e.g. +971 50 123 4567).';
+        if (digits.length < 10 || digits.length > 15) {
+            return 'Enter a valid phone number with country code (10–15 digits, e.g. +971 50 741 2365).';
         }
         return '';
     }
 
-    function validateEmail(value, required) {
+    function validateEmail(value) {
         var email = trim(value);
         if (!email) {
-            return required ? 'Email is required for customers.' : '';
+            return '';
         }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return 'Enter a valid email address.';
+        }
+        return '';
+    }
+
+    function validateCustomerContact(form) {
+        if (!isCustomerType(form)) {
+            return '';
+        }
+        var email = trim(form.querySelector('[name="email"]')?.value);
+        var phone = trim(form.querySelector('[name="phone"]')?.value);
+        if (!email && !phone) {
+            return 'Enter an email or phone number for customers.';
         }
         return '';
     }
@@ -108,15 +123,14 @@
 
     function validateField(form, input) {
         if (!input || !input.name) return true;
-        var requiredCustomer = isCustomerType(form);
         var message = '';
 
         switch (input.name) {
             case 'phone':
-                message = validatePhone(input.value, requiredCustomer);
+                message = validatePhoneFormat(input.value);
                 break;
             case 'email':
-                message = validateEmail(input.value, requiredCustomer);
+                message = validateEmail(input.value);
                 break;
             case 'website':
                 message = validateWebsite(input.value);
@@ -136,6 +150,25 @@
         return setFieldValidity(input, message);
     }
 
+    function applyCustomerContactRequirement(form) {
+        var message = validateCustomerContact(form);
+        if (!message) {
+            return true;
+        }
+        var emailInput = form.querySelector('[name="email"]');
+        var phoneInput = form.querySelector('[name="phone"]');
+        var ok = true;
+        if (emailInput && !trim(emailInput.value)) {
+            setFieldValidity(emailInput, message);
+            ok = false;
+        }
+        if (phoneInput && !trim(phoneInput.value)) {
+            setFieldValidity(phoneInput, message);
+            ok = false;
+        }
+        return ok;
+    }
+
     function validateForm(form) {
         var ok = true;
         var names = ['company', 'business_segment', 'assigned_salesperson', 'email', 'phone', 'website'];
@@ -145,6 +178,9 @@
                 ok = false;
             }
         });
+        if (!applyCustomerContactRequirement(form)) {
+            ok = false;
+        }
         if (!form.checkValidity()) {
             ok = false;
         }
@@ -174,6 +210,7 @@
                 var input = form.querySelector('[name="' + name + '"]');
                 if (input) validateField(form, input);
             });
+            applyCustomerContactRequirement(form);
         }
         if (typeSel) typeSel.addEventListener('change', revalidateContactFields);
         if (typeHidden) {
@@ -201,7 +238,7 @@
         attachForm: attachForm,
         validateForm: validateForm,
         validateField: validateField,
-        validatePhone: validatePhone,
+        validatePhoneFormat: validatePhoneFormat,
         validateEmail: validateEmail,
     };
 
