@@ -39,10 +39,7 @@
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a href="{% url 'purchase:po_pdf' po.pk %}" class="btn btn-outline-danger" target="_blank" rel="noopener">
-                <i class="fas fa-file-pdf me-2"></i>PDF / Print
-            </a>
-            <a href="{% url 'purchase:po_pdf' po.pk %}?format=pdf" class="btn btn-outline-success" target="_blank" rel="noopener">
-                <i class="fas fa-download me-2"></i>Download PDF
+                <i class="fas fa-file-pdf me-2"></i>PDF
             </a>
             {% if can_receive_po %}
             <a href="{% url 'purchase:po_receive' po.pk %}" class="btn btn-success">
@@ -131,7 +128,7 @@
             </div>
         </div>
         
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header"><h6 class="mb-0 fw-semibold">Line Items</h6></div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -207,80 +204,6 @@
                         </tfoot>
                     </table>
                 </div>
-            </div>
-        </div>
-
-        <div class="card mb-4" id="po-vendor-bills">
-            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div>
-                    <h6 class="mb-0 fw-semibold">
-                        <i class="fas fa-file-invoice-dollar me-2"></i>Vendor bills
-                        {% if po_vendor_bill_count %}<span class="badge bg-secondary ms-1">{{ po_vendor_bill_count }}</span>{% endif %}
-                    </h6>
-                    <p class="small text-muted mb-0">
-                        All vendor bills linked to this purchase order. Each partial receive can have its own bill.
-                    </p>
-                </div>
-                {% if can_create_bill and po_has_billable_items %}
-                <a href="{% url 'purchase:bill_create' %}?po={{ po.pk }}&from_received=1" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-plus me-1"></i>{% if po_vendor_bill_count %}Create another bill{% else %}Bill received items{% endif %}
-                </a>
-                {% endif %}
-            </div>
-            <div class="card-body p-0">
-                {% if po_vendor_bills %}
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Bill #</th>
-                                <th>Vendor invoice #</th>
-                                <th>Date</th>
-                                <th class="text-end">Amount</th>
-                                <th class="text-end">Paid</th>
-                                <th class="text-end">Balance</th>
-                                <th>Status</th>
-                                <th class="text-center">GRN bill</th>
-                                <th>Lines billed</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for bill in po_vendor_bills %}
-                            <tr>
-                                <td class="fw-medium">
-                                    <a href="{% url 'purchase:bill_detail' bill.pk %}" class="text-decoration-none">{{ bill.bill_number }}</a>
-                                </td>
-                                <td class="small text-muted">{{ bill.vendor_invoice_number|default:"—" }}</td>
-                                <td>{{ bill.bill_date|date:"d/m/Y" }}</td>
-                                <td class="text-end">AED {{ bill.total_amount|floatformat:2 }}</td>
-                                <td class="text-end">AED {{ bill.paid_amount|floatformat:2 }}</td>
-                                <td class="text-end {% if bill.balance > 0 %}fw-medium{% endif %}">AED {{ bill.balance|floatformat:2 }}</td>
-                                <td><span class="badge bg-light text-dark border">{{ bill.get_status_display }}</span></td>
-                                <td class="text-center">{% if bill.goods_received %}<i class="fas fa-check text-success" title="GRN-matched bill"></i>{% else %}<span class="text-muted">—</span>{% endif %}</td>
-                                <td class="small">
-                                    {% for line in bill.items.all %}
-                                    {% if line.purchase_order_item_id %}
-                                    <div class="text-muted">{{ line.description|truncatechars:40 }} × {{ line.quantity|floatformat:2 }}</div>
-                                    {% endif %}
-                                    {% empty %}
-                                    <span class="text-muted">—</span>
-                                    {% endfor %}
-                                </td>
-                                <td class="text-end text-nowrap">
-                                    <a href="{% url 'purchase:bill_detail' bill.pk %}" class="btn btn-sm btn-outline-secondary">Open</a>
-                                    {% if bill.status == 'draft' %}
-                                    <a href="{% url 'purchase:bill_edit' bill.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <p class="text-muted small mb-0 p-3">No vendor bills yet{% if po_has_billable_items %} — use <strong>Bill received items</strong> to create one{% endif %}.</p>
-                {% endif %}
             </div>
         </div>
 
@@ -374,32 +297,76 @@
             </div>
         </div>
 
-        {% if po_vendor_bills %}
-        <div class="card mb-4">
-            <div class="card-header py-2">
-                <h6 class="mb-0 fw-semibold small">
-                    <i class="fas fa-file-invoice-dollar me-2"></i>Bills on this PO
-                    <span class="badge bg-secondary ms-1">{{ po_vendor_bill_count }}</span>
-                </h6>
-            </div>
-            <div class="list-group list-group-flush">
-                {% for bill in po_vendor_bills %}
-                <a href="{% url 'purchase:bill_detail' bill.pk %}" class="list-group-item list-group-item-action py-2">
-                    <div class="d-flex justify-content-between align-items-start gap-2">
-                        <div>
-                            <span class="fw-medium">{{ bill.bill_number }}</span>
-                            <div class="small text-muted">{{ bill.bill_date|date:"d/m/Y" }} · {{ bill.get_status_display }}</div>
-                        </div>
-                        <span class="small fw-medium text-nowrap">AED {{ bill.total_amount|floatformat:2 }}</span>
-                    </div>
+        <div class="card mb-4" id="po-vendor-bills">
+            <div class="card-header d-flex justify-content-between align-items-start flex-wrap gap-2 py-3">
+                <div>
+                    <h6 class="mb-1 fw-semibold">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>Vendor bills
+                        {% if po_vendor_bill_count %}<span class="badge bg-secondary ms-1">{{ po_vendor_bill_count }}</span>{% endif %}
+                    </h6>
+                    <p class="small text-muted mb-0">
+                        Bills linked to this PO. Each partial receive can have its own bill.
+                    </p>
+                </div>
+                {% if can_create_bill and po_has_billable_items %}
+                <a href="{% url 'purchase:bill_create' %}?po={{ po.pk }}&from_received=1" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-plus me-1"></i>{% if po_vendor_bill_count %}New bill{% else %}Bill received{% endif %}
                 </a>
-                {% endfor %}
+                {% endif %}
             </div>
-            <div class="card-footer py-2 text-center">
-                <a href="#po-vendor-bills" class="small text-decoration-none">View full bill details</a>
+            <div class="card-body p-0">
+                {% if po_vendor_bills %}
+                <div class="list-group list-group-flush">
+                    {% for bill in po_vendor_bills %}
+                    <div class="list-group-item py-3">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                                <a href="{% url 'purchase:bill_detail' bill.pk %}" class="fw-semibold text-decoration-none">{{ bill.bill_number }}</a>
+                                <div class="small text-muted">{{ bill.bill_date|date:"d/m/Y" }}</div>
+                                {% if bill.vendor_invoice_number %}
+                                <div class="small text-muted">Inv: {{ bill.vendor_invoice_number }}</div>
+                                {% endif %}
+                            </div>
+                            <span class="badge bg-light text-dark border">{{ bill.get_status_display }}</span>
+                        </div>
+                        <div class="small mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Amount</span>
+                                <span>AED {{ bill.total_amount|floatformat:2 }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Paid</span>
+                                <span>AED {{ bill.paid_amount|floatformat:2 }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between {% if bill.balance > 0 %}fw-medium{% endif %}">
+                                <span class="text-muted">Balance</span>
+                                <span>AED {{ bill.balance|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        {% if bill.goods_received %}
+                        <div class="small text-success mb-2"><i class="fas fa-check me-1"></i>GRN-matched bill</div>
+                        {% endif %}
+                        <div class="small text-muted mb-2">
+                            {% for line in bill.items.all %}
+                            {% if line.purchase_order_item_id %}
+                            <div>{{ line.description|truncatechars:36 }} × {{ line.quantity|floatformat:0 }}</div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'purchase:bill_detail' bill.pk %}" class="btn btn-sm btn-outline-secondary">Open</a>
+                            {% if bill.status == 'draft' %}
+                            <a href="{% url 'purchase:bill_edit' bill.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0 p-3">No vendor bills yet{% if po_has_billable_items %} — use <strong>Bill received items</strong> above to create one{% endif %}.</p>
+                {% endif %}
             </div>
         </div>
-        {% endif %}
 
         {% if can_send_po_email %}
         <div class="card border-primary border-opacity-25">
@@ -411,7 +378,7 @@
                 <div class="alert alert-warning py-2 small mb-3">{{ po_email_hint }}</div>
                 {% endif %}
                 <p class="text-muted small mb-3">
-                    The PO is sent as a <strong>PDF attachment</strong> (same as Download PDF). Configure SMTP under
+                    The PO is sent as a <strong>PDF attachment</strong> (same as the PDF button above). Configure SMTP under
                     <a href="{% url 'settings:company' %}">Settings → Company</a> unless your server already provides email via environment variables.
                 </p>
                 {% csrf_token %}
