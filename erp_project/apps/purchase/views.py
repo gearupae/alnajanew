@@ -1035,15 +1035,22 @@ class PurchaseOrderDetailView(PermissionRequiredMixin, DetailView):
                 line.current_stock = stock_by_id.get(line.inventory_item_id, Decimal('0.00'))
             else:
                 line.current_stock = None
-            from .po_billing import annotate_po_item_billing
-            annotate_po_item_billing(line)
+            from .po_billing import annotate_po_item_billing_details
+            annotate_po_item_billing_details(line)
         context['po_line_items'] = items
-        context['po_vendor_bills'] = list(self.object.bills.all())
+        from .po_billing import po_has_billable_items, po_has_received_items, vendor_bills_for_po
+
+        context['po_vendor_bills'] = list(
+            vendor_bills_for_po(self.object).prefetch_related(
+                'items__purchase_order_item',
+            )
+        )
+        context['po_vendor_bill_count'] = len(context['po_vendor_bills'])
         context['can_create_bill'] = self.request.user.is_superuser or PermissionChecker.has_permission(
             self.request.user, 'purchase', 'create'
         )
-        from .po_billing import po_has_received_items
         context['po_has_received_items'] = po_has_received_items(self.object)
+        context['po_has_billable_items'] = po_has_billable_items(self.object)
         return context
 
 
@@ -1414,6 +1421,7 @@ class VendorBillCreateView(CreatePermissionMixin, CreateView):
         context['today'] = date.today().isoformat()
         context['preselect_po'] = self.request.GET.get('po')
         context['bill_received_mode'] = self.request.GET.get('from_received', '1')
+        context['form_was_posted'] = self.request.method == 'POST'
         # Tax Codes for VAT selection (SAP/Oracle Standard)
         context['tax_codes'] = TaxCode.objects.filter(is_active=True).order_by('code')
         context['default_tax_code'] = TaxCode.objects.filter(is_active=True, is_default=True).first()
@@ -1453,6 +1461,9 @@ class VendorBillCreateView(CreatePermissionMixin, CreateView):
         _save_vendor_bill_attachments(self.request, self.object)
         self.object.calculate_totals()
         messages.success(self.request, f'Vendor Bill {self.object.bill_number} created.')
+        return_po = self.request.GET.get('po') or self.request.POST.get('return_po')
+        if return_po and str(return_po).isdigit():
+            return redirect('purchase:po_detail', pk=int(return_po))
         return redirect(self.success_url)
     
     def form_invalid(self, form, items_formset):
@@ -1489,6 +1500,7 @@ class VendorBillUpdateView(UpdatePermissionMixin, UpdateView):
         context['today'] = date.today().isoformat()
         context['preselect_po'] = None
         context['bill_received_mode'] = '1'
+        context['form_was_posted'] = self.request.method == 'POST'
         # Tax Codes for VAT selection (SAP/Oracle Standard)
         context['tax_codes'] = TaxCode.objects.filter(is_active=True).order_by('code')
         context['default_tax_code'] = TaxCode.objects.filter(is_active=True, is_default=True).first()
@@ -1571,6 +1583,14 @@ class VendorBillDetailView(PermissionRequiredMixin, DetailView):
         context['debit_notes'] = self.object.debit_notes.filter(is_active=True).order_by('-created_at')
         context['debit_notes_total'] = DebitNote.posted_total_for_bill(self.object)
         context['audit_history'] = get_entity_audit_history('Bill', self.object.pk)
+        if self.object.purchase_order_id:
+            from .po_billing import vendor_bills_for_po
+
+            context['po_sibling_bills'] = list(
+                vendor_bills_for_po(self.object.purchase_order).exclude(pk=self.object.pk)
+            )
+        else:
+            context['po_sibling_bills'] = []
         
         return context
 

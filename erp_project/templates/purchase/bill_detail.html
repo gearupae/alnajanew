@@ -83,6 +83,41 @@
                 </div>
             </div>
         </div>
+
+        {% if bill.purchase_order and po_sibling_bills %}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">Other bills on {{ bill.purchase_order.po_number }}</h6>
+                <a href="{% url 'purchase:po_detail' bill.purchase_order.pk %}" class="btn btn-sm btn-outline-secondary">View PO</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Bill #</th>
+                                <th>Date</th>
+                                <th class="text-end">Amount</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for other in po_sibling_bills %}
+                            <tr>
+                                <td class="fw-medium">{{ other.bill_number }}</td>
+                                <td>{{ other.bill_date|date:"d/m/Y" }}</td>
+                                <td class="text-end">AED {{ other.total_amount|floatformat:2 }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ other.get_status_display }}</span></td>
+                                <td class="text-end"><a href="{% url 'purchase:bill_detail' other.pk %}" class="btn btn-sm btn-outline-secondary">View</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         
         <div class="card">
             <div class="card-header"><h6 class="mb-0 fw-semibold">Line Items</h6></div>

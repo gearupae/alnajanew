@@ -25,9 +25,25 @@
     <div>{{ items_formset.non_form_errors|join:", " }}</div>
 </div>
 {% endif %}
+{% if items_formset.errors %}
+<div class="alert alert-danger mb-4">
+    <h6 class="alert-heading mb-2"><i class="fas fa-exclamation-triangle me-2"></i>Line item errors:</h6>
+    {% for item_form in items_formset %}
+        {% if item_form.errors %}
+        <div class="mb-1">
+            {% if item_form.description.value %}<strong>{{ item_form.description.value }}:</strong>{% else %}<strong>Line {{ forloop.counter }}:</strong>{% endif %}
+            {% for field, errors in item_form.errors.items %}
+                {{ errors|join:", " }}{% if not forloop.last %}; {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
 
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
+    {% if preselect_po %}<input type="hidden" name="return_po" value="{{ preselect_po }}">{% endif %}
     
     <div class="card mb-4">
         <div class="card-header"><h6 class="mb-0 fw-semibold">Bill Details</h6></div>
@@ -94,16 +110,18 @@
         <div class="card-body p-0">
             {{ items_formset.management_form }}
             <div class="table-responsive">
-                <table class="table mb-0">
+                <table class="table mb-0" id="billItemsTable">
                     <thead>
                         <tr>
-                            <th style="width:35%">Description</th>
-                            <th style="width:10%">Qty</th>
-                            <th style="width:12%">Unit Price</th>
-                            <th style="width:18%">Tax Code</th>
-                            <th style="width:10%">VAT</th>
-                            <th style="width:10%" class="text-end">Total</th>
-                            <th style="width:5%"></th>
+                            <th style="min-width:28%">Description</th>
+                            <th class="text-center text-nowrap po-qty-col" style="width:7%">Received</th>
+                            <th class="text-center text-nowrap po-qty-col" style="width:8%">Bill qty</th>
+                            <th class="text-center text-nowrap po-qty-col" style="width:8%">Total billed</th>
+                            <th style="width:10%">Unit price</th>
+                            <th style="width:18%">Tax code</th>
+                            <th class="text-end" style="width:8%">VAT</th>
+                            <th class="text-end" style="width:9%">Total</th>
+                            <th style="width:4%"></th>
                         </tr>
                     </thead>
                     <tbody id="itemsBody">
@@ -115,11 +133,13 @@
                                 <input type="text" name="{{ item_form.prefix }}-description" class="form-control form-control-sm" 
                                        value="{{ item_form.description.value|default:'' }}" placeholder="Item description">
                             </td>
+                            <td class="text-center po-qty-col"><span class="item-received-qty text-muted">—</span></td>
                             <td>
-                                <input type="number" name="{{ item_form.prefix }}-quantity" class="form-control form-control-sm item-qty" 
+                                <input type="number" name="{{ item_form.prefix }}-quantity" class="form-control form-control-sm item-qty text-center" 
                                        value="{{ item_form.quantity.value|default:1 }}" step="0.01" min="0.01" onchange="calculateRowTotal(this)">
                                 <small class="text-muted item-billable-hint d-none"></small>
                             </td>
+                            <td class="text-center po-qty-col"><span class="item-total-billed-qty text-muted">—</span></td>
                             <td>
                                 <input type="number" name="{{ item_form.prefix }}-unit_price" class="form-control form-control-sm item-price" 
                                        value="{{ item_form.unit_price.value|default:0 }}" step="0.01" min="0" onchange="calculateRowTotal(this)">
@@ -153,17 +173,17 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="4" class="text-end">Subtotal:</td>
+                            <td colspan="7" class="text-end">Subtotal:</td>
                             <td class="text-end fw-medium" id="subtotal">0.00</td>
                             <td></td>
                         </tr>
                         <tr>
-                            <td colspan="4" class="text-end">VAT:</td>
+                            <td colspan="7" class="text-end">VAT:</td>
                             <td class="text-end fw-medium" id="vatTotal">0.00</td>
                             <td></td>
                         </tr>
                         <tr>
-                            <td colspan="4" class="text-end fw-bold">Total:</td>
+                            <td colspan="7" class="text-end fw-bold">Total:</td>
                             <td class="text-end fw-bold" id="grandTotal">0.00</td>
                             <td></td>
                         </tr>
@@ -215,6 +235,7 @@ const defaultTaxCodeId = {% if default_tax_code %}{{ default_tax_code.id }}{% el
 const preselectPoId = {% if preselect_po %}'{{ preselect_po }}'{% else %}null{% endif %};
 const billExcludeBillId = {% if object.pk %}{{ object.pk }}{% else %}null{% endif %};
 const billReceivedMode = {% if bill_received_mode != '0' %}true{% else %}false{% endif %};
+const formWasPosted = {% if form_was_posted %}true{% else %}false{% endif %};
 
 let formCount = {{ items_formset.total_form_count }};
 
@@ -227,22 +248,128 @@ function getTaxCodeOptions(selectedId) {
     return options;
 }
 
-function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId = null, poItemId = '', maxBillable = '') {
+function formatQty(value, wholeOnly) {
+    const n = parseFloat(value);
+    if (isNaN(n)) return '—';
+    if (wholeOnly) return String(Math.round(n));
+    return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
+function isWholeQtyRow(row) {
+    return row && row.dataset.requiresWholeQty === '1';
+}
+
+function configureQtyInput(qtyInput, requiresWholeQty, maxBillable) {
+    if (!qtyInput) return;
+    const row = qtyInput.closest('tr');
+    if (row) {
+        row.dataset.requiresWholeQty = requiresWholeQty ? '1' : '0';
+    }
+    if (requiresWholeQty) {
+        qtyInput.step = '1';
+        qtyInput.min = '1';
+        qtyInput.inputMode = 'numeric';
+    } else {
+        qtyInput.step = '0.01';
+        qtyInput.min = '0.01';
+        qtyInput.inputMode = 'decimal';
+    }
+    if (maxBillable !== '' && maxBillable != null) {
+        qtyInput.max = maxBillable;
+    } else {
+        qtyInput.removeAttribute('max');
+    }
+}
+
+function clampBillQtyInput(qtyInput) {
+    if (!qtyInput) return true;
+    let val = parseFloat(qtyInput.value);
+    if (isNaN(val)) return true;
+
+    const row = qtyInput.closest('tr');
+    const maxBillable = parseFloat(row?.dataset.maxBillable);
+    if (!isNaN(maxBillable) && val > maxBillable) {
+        val = maxBillable;
+    }
+    if (isWholeQtyRow(row)) {
+        val = Math.round(val);
+        if (val < 1 && parseFloat(qtyInput.value) > 0) {
+            val = 1;
+        }
+    }
+    if (val < 0) val = 0;
+    if (isWholeQtyRow(row)) {
+        qtyInput.value = String(Math.round(val));
+    } else {
+        qtyInput.value = Number.isInteger(val) ? String(val) : val.toFixed(2);
+    }
+    return true;
+}
+
+function setPoQtyColumnsVisible(show) {
+    document.querySelectorAll('.po-qty-col').forEach(function (el) {
+        el.style.display = show ? '' : 'none';
+    });
+}
+
+function applyPoQtyCells(row, receivedQty, totalBilledQty, maxBillable, requiresWholeQty) {
+    const receivedEl = row.querySelector('.item-received-qty');
+    const billedEl = row.querySelector('.item-total-billed-qty');
+    const hint = row.querySelector('.item-billable-hint');
+    const whole = !!requiresWholeQty;
+    row.dataset.requiresWholeQty = whole ? '1' : '0';
+    if (receivedEl) {
+        receivedEl.textContent = receivedQty !== '' && receivedQty != null ? formatQty(receivedQty, whole) : '—';
+    }
+    if (billedEl) {
+        billedEl.textContent = totalBilledQty !== '' && totalBilledQty != null ? formatQty(totalBilledQty, whole) : '—';
+    }
+    const qtyInput = row.querySelector('.item-qty');
+    if (maxBillable !== '' && maxBillable != null) {
+        row.dataset.maxBillable = maxBillable;
+        configureQtyInput(qtyInput, whole, maxBillable);
+        if (hint) {
+            hint.textContent = 'Max ' + formatQty(maxBillable, whole);
+            hint.classList.remove('d-none');
+        }
+    } else {
+        configureQtyInput(qtyInput, whole, '');
+        if (hint) {
+            hint.classList.add('d-none');
+        }
+    }
+    if (qtyInput) {
+        clampBillQtyInput(qtyInput);
+    }
+}
+
+function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId = null, poItemId = '', maxBillable = '', receivedQty = '', totalBilledQty = '', requiresWholeQty = false) {
     const tbody = document.getElementById('itemsBody');
     const newRow = document.createElement('tr');
     newRow.className = 'item-row';
+    newRow.dataset.requiresWholeQty = requiresWholeQty ? '1' : '0';
     if (maxBillable !== '') {
         newRow.dataset.maxBillable = maxBillable;
     }
+    const hasPoLine = !!poItemId;
+    const whole = !!requiresWholeQty;
+    const qtyStep = whole ? '1' : '0.01';
+    const qtyMin = whole ? '1' : '0.01';
+    const qtyInputMode = whole ? 'numeric' : 'decimal';
     const poItemField = poItemId
         ? `<input type="hidden" name="items-${formCount}-purchase_order_item" value="${poItemId}">`
         : `<input type="hidden" name="items-${formCount}-purchase_order_item" value="">`;
+    const receivedDisplay = hasPoLine ? formatQty(receivedQty, whole) : '—';
+    const billedDisplay = hasPoLine ? formatQty(totalBilledQty, whole) : '—';
     const billableHint = maxBillable !== ''
-        ? `<small class="text-muted item-billable-hint d-block">Max ${maxBillable}</small>`
+        ? `<small class="text-muted item-billable-hint d-block">Max ${formatQty(maxBillable, whole)}</small>`
         : `<small class="text-muted item-billable-hint d-none"></small>`;
+    const qtyMaxAttr = maxBillable !== '' ? ` max="${maxBillable}"` : '';
     newRow.innerHTML = `
         <td>${poItemField}<input type="text" name="items-${formCount}-description" class="form-control form-control-sm" value="${description.replace(/"/g, '&quot;')}" placeholder="Item description"></td>
-        <td><input type="number" name="items-${formCount}-quantity" class="form-control form-control-sm item-qty" value="${quantity}" step="0.01" min="0.01" onchange="calculateRowTotal(this)">${billableHint}</td>
+        <td class="text-center po-qty-col"><span class="item-received-qty text-muted">${receivedDisplay}</span></td>
+        <td><input type="number" name="items-${formCount}-quantity" class="form-control form-control-sm item-qty text-center" value="${quantity}" step="${qtyStep}" min="${qtyMin}" inputmode="${qtyInputMode}"${qtyMaxAttr} onchange="calculateRowTotal(this)" onblur="clampBillQtyInput(this); calculateRowTotal(this);">${billableHint}</td>
+        <td class="text-center po-qty-col"><span class="item-total-billed-qty text-muted">${billedDisplay}</span></td>
         <td><input type="number" name="items-${formCount}-unit_price" class="form-control form-control-sm item-price" value="${unitPrice}" step="0.01" min="0" onchange="calculateRowTotal(this)"></td>
         <td><select name="items-${formCount}-tax_code" class="form-select form-select-sm item-tax-code" onchange="calculateRowTotal(this)">${getTaxCodeOptions(taxCodeId || defaultTaxCodeId)}</select></td>
         <td class="text-end"><span class="row-vat text-muted small">0.00</span></td>
@@ -254,6 +381,7 @@ function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId
     document.getElementById('id_items-TOTAL_FORMS').value = formCount;
     const qtyInput = newRow.querySelector('.item-qty');
     if (qtyInput) calculateRowTotal(qtyInput);
+    if (hasPoLine) setPoQtyColumnsVisible(true);
 }
 
 function setPoBillingAlert(message, isError) {
@@ -269,12 +397,51 @@ function setPoBillingAlert(message, isError) {
     el.textContent = message;
 }
 
-function poItemsUrl(poId) {
-    let url = `/purchase/orders/${poId}/items/?bill_received=1`;
+function poItemsUrl(poId, billReceivedOnly) {
+    const receivedOnly = billReceivedOnly !== false;
+    let url = `/purchase/orders/${poId}/items/?bill_received=${receivedOnly ? '1' : '0'}`;
     if (billExcludeBillId) {
         url += `&exclude_bill=${billExcludeBillId}`;
     }
     return url;
+}
+
+function enrichExistingRowsFromPo(poId) {
+    if (!poId) {
+        setPoQtyColumnsVisible(false);
+        return;
+    }
+    fetch(poItemsUrl(poId, false))
+        .then(response => response.json())
+        .then(data => {
+            const statsByPoItem = {};
+            (data.items || []).forEach(function (item) {
+                statsByPoItem[String(item.po_item_id)] = item;
+            });
+            let anyPoLine = false;
+            document.querySelectorAll('.item-row').forEach(function (row) {
+                if (row.style.display === 'none') return;
+                const poInput = row.querySelector('input[name$="-purchase_order_item"]');
+                const poItemId = poInput && poInput.value ? String(poInput.value) : '';
+                if (!poItemId || !statsByPoItem[poItemId]) {
+                    applyPoQtyCells(row, '', '', '');
+                    return;
+                }
+                anyPoLine = true;
+                const stats = statsByPoItem[poItemId];
+                applyPoQtyCells(
+                    row,
+                    stats.quantity_received,
+                    stats.quantity_billed,
+                    stats.quantity_billable,
+                    stats.requires_whole_quantity
+                );
+            });
+            setPoQtyColumnsVisible(anyPoLine);
+        })
+        .catch(function (error) {
+            console.error('Error loading PO billing stats:', error);
+        });
 }
 
 function loadPOItems(poId) {
@@ -284,11 +451,12 @@ function loadPOItems(poId) {
         formCount = 0;
         document.getElementById('id_items-TOTAL_FORMS').value = 0;
         setPoBillingAlert('');
+        setPoQtyColumnsVisible(false);
         calculateTotals();
         return;
     }
     
-    fetch(poItemsUrl(poId))
+    fetch(poItemsUrl(poId, true))
         .then(response => response.json())
         .then(data => {
             const tbody = document.getElementById('itemsBody');
@@ -303,15 +471,20 @@ function loadPOItems(poId) {
                         item.unit_price || '0',
                         item.tax_code_id || defaultTaxCodeId,
                         item.po_item_id || '',
-                        item.quantity_billable || ''
+                        item.quantity_billable || '',
+                        item.quantity_received || '',
+                        item.quantity_billed || '',
+                        item.requires_whole_quantity
                     );
                 });
+                setPoQtyColumnsVisible(true);
                 setPoBillingAlert(
-                    `Loaded unbilled received quantities for PO ${data.po_number || ''}. Adjust qty if needed (cannot exceed “To bill” per line).`,
+                    `PO ${data.po_number || ''} lines loaded. Bill up to the received qty minus any amount already billed on other bills.`,
                     false
                 );
             } else {
                 addItemRow();
+                setPoQtyColumnsVisible(false);
                 setPoBillingAlert(
                     data.has_received_items
                         ? 'All received quantities on this PO are already billed.'
@@ -334,22 +507,51 @@ function loadPOItems(poId) {
         });
 }
 
+function reindexItemRows() {
+    const rows = Array.from(document.querySelectorAll('#itemsBody .item-row')).filter(
+        row => row.style.display !== 'none'
+    );
+    rows.forEach(function (row, index) {
+        row.querySelectorAll('input, select, textarea').forEach(function (el) {
+            if (!el.name) return;
+            el.name = el.name.replace(/items-\d+-/, 'items-' + index + '-');
+            if (el.id) {
+                el.id = el.id.replace(/id_items-\d+-/, 'id_items-' + index + '-');
+            }
+        });
+    });
+    formCount = rows.length;
+    const totalInput = document.getElementById('id_items-TOTAL_FORMS');
+    if (totalInput) {
+        totalInput.value = formCount;
+    }
+}
+
 function removeItemRow(btn) {
     const row = btn.closest('tr');
     const deleteCheck = row.querySelector('.delete-check');
-    if (deleteCheck) { deleteCheck.checked = true; row.style.display = 'none'; }
-    else { row.remove(); }
+    if (deleteCheck) {
+        deleteCheck.checked = true;
+        row.style.display = 'none';
+    } else {
+        row.remove();
+    }
+    reindexItemRows();
     calculateTotals();
 }
 
 function calculateRowTotal(input) {
     const row = input.closest('tr');
     const qtyInput = row.querySelector('.item-qty');
+    clampBillQtyInput(qtyInput);
     let qty = parseFloat(qtyInput.value) || 0;
     const maxBillable = parseFloat(row.dataset.maxBillable);
     if (!isNaN(maxBillable) && qty > maxBillable) {
         qty = maxBillable;
-        qtyInput.value = maxBillable;
+        if (isWholeQtyRow(row)) {
+            qty = Math.round(qty);
+        }
+        qtyInput.value = isWholeQtyRow(row) ? String(Math.round(qty)) : qty.toFixed(2);
     }
     const price = parseFloat(row.querySelector('.item-price').value) || 0;
     const taxCodeSelect = row.querySelector('.item-tax-code');
@@ -413,8 +615,36 @@ function syncPOHeaderFromSelection(poId) {
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.item-row').forEach(row => {
         const qty = row.querySelector('.item-qty');
-        if (qty) calculateRowTotal(qty);
+        if (qty) {
+            qty.addEventListener('blur', function () {
+                clampBillQtyInput(qty);
+                calculateRowTotal(qty);
+            });
+            calculateRowTotal(qty);
+        }
     });
+
+    const billForm = document.querySelector('form[method="post"]');
+    if (billForm) {
+        billForm.addEventListener('submit', function (e) {
+            reindexItemRows();
+            let invalid = false;
+            document.querySelectorAll('.item-row .item-qty').forEach(function (qtyInput) {
+                const row = qtyInput.closest('tr');
+                if (row.style.display === 'none') return;
+                clampBillQtyInput(qtyInput);
+                const val = parseFloat(qtyInput.value);
+                if (isWholeQtyRow(row) && !isNaN(val) && val !== Math.round(val)) {
+                    invalid = true;
+                    qtyInput.classList.add('is-invalid');
+                }
+            });
+            if (invalid) {
+                e.preventDefault();
+                alert('Bill quantity must be a whole number for piece-count items.');
+            }
+        });
+    }
     
     const poSelect = document.getElementById('id_purchase_order');
     if (poSelect) {
@@ -422,7 +652,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const poId = this.value;
             if (poId) {
                 const existingRows = document.querySelectorAll('.item-row:not([style*="display: none"])');
-                if (existingRows.length > 0) {
+                const hasExistingLines = existingRows.length > 0 && (
+                    existingRows.length > 1 || (existingRows[0].querySelector('.item-qty')?.value || '0') !== '0'
+                );
+                if (hasExistingLines && !billReceivedMode) {
+                    enrichExistingRowsFromPo(poId);
+                    syncPOHeaderFromSelection(poId);
+                    return;
+                }
+                if (hasExistingLines) {
                     if (!confirm('Loading PO items will replace existing items. Continue?')) {
                         return;
                     }
@@ -432,12 +670,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadPOItems(null);
             }
         });
-        if (poSelect.value) {
-            loadPOItems(poSelect.value);
+        if (poSelect.value && !formWasPosted) {
+            const existingRows = document.querySelectorAll('.item-row:not([style*="display: none"])');
+            const hasFormsetLines = existingRows.length > 0 && billExcludeBillId;
+            if (hasFormsetLines) {
+                enrichExistingRowsFromPo(poSelect.value);
+                syncPOHeaderFromSelection(poSelect.value);
+            } else {
+                loadPOItems(poSelect.value);
+            }
+        } else if (poSelect.value && formWasPosted) {
+            enrichExistingRowsFromPo(poSelect.value);
+            syncPOHeaderFromSelection(poSelect.value);
+        } else {
+            setPoQtyColumnsVisible(false);
         }
+    } else {
+        setPoQtyColumnsVisible(false);
     }
 
-    if (preselectPoId && poSelect && !poSelect.value) {
+    if (preselectPoId && poSelect && !poSelect.value && !formWasPosted) {
         poSelect.value = preselectPoId;
         loadPOItems(preselectPoId);
     }

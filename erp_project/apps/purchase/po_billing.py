@@ -47,13 +47,72 @@ def po_has_received_items(po):
     return any((line.quantity_received or Decimal('0')) > 0 for line in po.items.all())
 
 
+def po_has_billable_items(po, *, exclude_bill_id=None):
+    """True when at least one PO line has received qty not yet on a vendor bill."""
+    for line in po.items.all():
+        if quantity_billable_for_po_item(line, exclude_bill_id=exclude_bill_id) > 0:
+            return True
+    return False
+
+
+def vendor_bills_for_po(po):
+    """All active vendor bills linked to this PO, newest first."""
+    from .models import VendorBill
+
+    return (
+        VendorBill.objects.filter(purchase_order=po, is_active=True)
+        .order_by('-bill_date', '-created_at', '-pk')
+    )
+
+
+def po_item_bill_allocations(po_item):
+    """Bill lines posted against this PO item: [{bill, quantity}, ...]."""
+    from .models import VendorBillItem
+
+    rows = (
+        VendorBillItem.objects.filter(
+            purchase_order_item_id=po_item.pk,
+            bill__is_active=True,
+        )
+        .select_related('bill')
+        .order_by('bill__bill_date', 'bill__pk', 'pk')
+    )
+    return [
+        {
+            'bill': row.bill,
+            'bill_id': row.bill_id,
+            'bill_number': row.bill.bill_number,
+            'bill_status': row.bill.status,
+            'quantity': row.quantity,
+        }
+        for row in rows
+    ]
+
+
+def annotate_po_item_billing_details(po_item, *, exclude_bill_id=None):
+    """Add quantity_billed, quantity_billable, and per-bill allocation list."""
+    annotate_po_item_billing(po_item, exclude_bill_id=exclude_bill_id)
+    po_item.bill_allocations = po_item_bill_allocations(po_item)
+    return po_item
+
+
+def _po_line_requires_whole_quantity(po_line):
+    inv = getattr(po_line, 'inventory_item', None)
+    return bool(inv and inv.requires_whole_quantity())
+
+
 def po_items_billing_payload(po, *, bill_received_only=True, exclude_bill_id=None):
     """JSON-serializable PO lines for vendor bill form."""
+    from apps.inventory.models import Item
+
     items = []
     any_billable = False
-    for line in po.items.all().order_by('id'):
+    for line in po.items.select_related('inventory_item').all().order_by('id'):
         annotate_po_item_billing(line, exclude_bill_id=exclude_bill_id)
         billable = line.quantity_billable
+        whole_qty = _po_line_requires_whole_quantity(line)
+        if whole_qty:
+            billable = Item.normalize_quantity(line.inventory_item, billable)
         if bill_received_only:
             if billable <= 0:
                 continue
@@ -61,6 +120,8 @@ def po_items_billing_payload(po, *, bill_received_only=True, exclude_bill_id=Non
             any_billable = True
         else:
             qty = line.quantity or Decimal('0')
+            if whole_qty:
+                qty = Item.normalize_quantity(line.inventory_item, qty)
 
         items.append({
             'po_item_id': line.pk,
@@ -74,6 +135,7 @@ def po_items_billing_payload(po, *, bill_received_only=True, exclude_bill_id=Non
             'vat_rate': str(line.vat_rate),
             'tax_code_id': line.tax_code_id,
             'inventory_item_id': line.inventory_item_id,
+            'requires_whole_quantity': whole_qty,
         })
 
     return {
@@ -92,6 +154,7 @@ def validate_vendor_bill_po_lines(bill, line_items, *, exclude_bill_id=None):
     Validate bill line quantities against PO received/unbilled caps.
     Returns list of error strings (empty if valid).
     """
+    from apps.inventory.models import Item
     from .models import PurchaseOrderItem
 
     errors = []
@@ -125,7 +188,9 @@ def validate_vendor_bill_po_lines(bill, line_items, *, exclude_bill_id=None):
 
     po_items_by_id = {
         row.pk: row
-        for row in PurchaseOrderItem.objects.filter(pk__in=po_item_ids, purchase_order=po)
+        for row in PurchaseOrderItem.objects.select_related('inventory_item').filter(
+            pk__in=po_item_ids, purchase_order=po
+        )
     }
 
     for li in line_items:
@@ -141,7 +206,17 @@ def validate_vendor_bill_po_lines(bill, line_items, *, exclude_bill_id=None):
         qty = _qty(li)
         if qty <= 0:
             continue
+        inv = getattr(po_item, 'inventory_item', None)
+        if inv and inv.requires_whole_quantity():
+            if qty != qty.to_integral_value():
+                errors.append(
+                    f'"{po_item.description}": bill quantity must be a whole number.'
+                )
+                continue
+            qty = Item.normalize_quantity(inv, qty)
         billable = quantity_billable_for_po_item(po_item, exclude_bill_id=exclude_bill_id)
+        if inv and inv.requires_whole_quantity():
+            billable = Item.normalize_quantity(inv, billable)
         if qty > billable:
             errors.append(
                 f'"{po_item.description}": bill qty {qty} exceeds unbilled received qty {billable}.'

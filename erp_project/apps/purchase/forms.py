@@ -502,7 +502,9 @@ class VendorBillItemForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.empty_permitted = True
         self.fields['description'].required = False
+        self.fields['quantity'].required = False
         self.fields['unit_price'].required = False
         self.fields['purchase_order_item'].required = False
         self.fields['purchase_order_item'].widget = forms.HiddenInput()
@@ -525,22 +527,75 @@ class VendorBillItemForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        if cleaned_data.get('DELETE'):
+            return cleaned_data
+
         description = (cleaned_data.get('description') or '').strip()
         unit_price = cleaned_data.get('unit_price')
-        if not description and not unit_price:
-            return cleaned_data
+        qty = cleaned_data.get('quantity')
+
+        # Ignore blank extra rows (e.g. after removing a line in the browser).
+        if not description and (qty is None or qty == 0) and (unit_price is None or unit_price == 0):
+            if not self.instance.pk:
+                return cleaned_data
+
         if not description:
             self.add_error('description', 'Description is required.')
         if not unit_price and unit_price != 0:
             self.add_error('unit_price', 'Unit price is required.')
+        if qty is None or qty <= 0:
+            self.add_error('quantity', 'Enter a quantity greater than zero.')
+            return cleaned_data
+
+        po_item = cleaned_data.get('purchase_order_item')
+        if po_item and po_item.inventory_item_id:
+            from apps.inventory.models import Item
+
+            inv = po_item.inventory_item
+            if inv.requires_whole_quantity():
+                if qty != qty.to_integral_value():
+                    self.add_error(
+                        'quantity',
+                        'Quantity must be a whole number for this item.',
+                    )
+                else:
+                    cleaned_data['quantity'] = Item.normalize_quantity(inv, qty)
         return cleaned_data
+
+
+class BaseVendorBillItemFormSet(forms.BaseInlineFormSet):
+    def _is_blank_line(self, form):
+        if not form.cleaned_data or form.cleaned_data.get('DELETE'):
+            return True
+        desc = (form.cleaned_data.get('description') or '').strip()
+        qty = form.cleaned_data.get('quantity') or 0
+        return not desc or qty <= 0
+
+    def clean(self):
+        super().clean()
+        kept = 0
+        for form in self.forms:
+            if self._is_blank_line(form):
+                continue
+            kept += 1
+        if kept == 0:
+            raise forms.ValidationError('Add at least one bill line with quantity greater than zero.')
+
+    def save_new_objects(self, commit=True):
+        saved = []
+        for form in self.extra_forms:
+            if self._is_blank_line(form):
+                continue
+            saved.append(self.save_new(form, commit=commit))
+        return saved
 
 
 VendorBillItemFormSet = forms.inlineformset_factory(
     VendorBill,
     VendorBillItem,
     form=VendorBillItemForm,
-    extra=1,
+    formset=BaseVendorBillItemFormSet,
+    extra=0,
     can_delete=True
 )
 
