@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from apps.inventory.models import ItemSerialNumber, StockMovement, Warehouse
+from apps.inventory.models import Item, ItemSerialNumber, StockMovement, Warehouse
 from apps.inventory.serial_stock import sync_serial_stock_mirror, validate_model_numbers_for_receive
 
 from .models import (
@@ -116,6 +116,16 @@ def process_goods_receipt(po_id: int, warehouse_pk: int, received_on, notes: str
             errors.extend(exc.messages if hasattr(exc, 'messages') else [str(exc)])
             continue
 
+        inv = po_line.inventory_item
+        if qty_now > 0 and inv and inv.requires_whole_quantity():
+            if qty_now != qty_now.to_integral_value():
+                errors.append(
+                    f'Line "{po_line.description[:80]}": quantity must be a whole number '
+                    f'for items measured in {inv.unit or "pcs"}.'
+                )
+                continue
+            qty_now = Item.normalize_quantity(inv, qty_now)
+
         if qty_now < 0:
             errors.append(f'Line "{po_line.description[:60]}": quantity cannot be negative.')
             continue
@@ -141,7 +151,6 @@ def process_goods_receipt(po_id: int, warehouse_pk: int, received_on, notes: str
             continue
 
         model_numbers = raw.get('model_numbers') or []
-        inv = po_line.inventory_item
         if qty_now > 0 and inv and inv.track_by_serial:
             if qty_now != qty_now.to_integral_value():
                 errors.append(

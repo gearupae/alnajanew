@@ -83,14 +83,16 @@
                                    name="qty_{{ line.pk }}"
                                    class="form-control form-control-sm text-center mx-auto po-qty-input"
                                    style="max-width:110px;"
-                                   step="{% if line.inventory_item.track_by_serial %}1{% else %}0.01{% endif %}"
+                                   step="{% if line.inventory_item.requires_whole_quantity %}1{% else %}0.01{% endif %}"
                                    min="0"
                                    max="{{ line.quantity_remaining }}"
                                    value="{{ row.posted_qty }}"
                                    data-line-pk="{{ line.pk }}"
+                                   data-max-qty="{{ line.quantity_remaining }}"
                                    data-track-serial="{% if line.inventory_item.track_by_serial %}1{% else %}0{% endif %}"
                                    data-posted-models="{{ row.posted_model_numbers|join:'|' }}"
-                                   inputmode="decimal">
+                                   inputmode="{% if line.inventory_item.requires_whole_quantity %}numeric{% else %}decimal{% endif %}">
+                            <div class="invalid-feedback d-block po-qty-error" data-line-pk="{{ line.pk }}"></div>
                             {% else %}
                             <span class="text-muted small">—</span>
                             <input type="hidden" name="qty_{{ line.pk }}" value="0">
@@ -152,6 +154,79 @@
 {% block extra_js %}
 <script>
 (function () {
+    function parseQty(raw) {
+        const n = parseFloat(String(raw).replace(',', ''));
+        return isNaN(n) ? null : n;
+    }
+
+    function maxQtyForInput(input) {
+        const max = parseQty(input.getAttribute('data-max-qty') ?? input.getAttribute('max'));
+        return max === null ? null : max;
+    }
+
+    function isWholeStep(input) {
+        const step = parseFloat(input.getAttribute('step') || '1');
+        return step >= 1;
+    }
+
+    function validateQtyInput(input, showMessage) {
+        const maxQty = maxQtyForInput(input);
+        const val = parseQty(input.value);
+        const errEl = document.querySelector('.po-qty-error[data-line-pk="' + input.getAttribute('data-line-pk') + '"]');
+        let message = '';
+
+        if (input.value !== '' && val === null) {
+            message = 'Enter a valid quantity.';
+        } else if (val !== null && val < 0) {
+            message = 'Quantity cannot be negative.';
+        } else if (val !== null && maxQty !== null && val > maxQty) {
+            message = 'Maximum allowed is ' + maxQty + ' (remaining on this PO line).';
+        } else if (val !== null && isWholeStep(input) && val !== Math.round(val)) {
+            message = 'Enter a whole number for this item.';
+        }
+
+        input.classList.toggle('is-invalid', !!message);
+        if (errEl) {
+            errEl.textContent = showMessage ? message : '';
+            errEl.style.display = showMessage && message ? 'block' : 'none';
+        }
+        input.setCustomValidity(message);
+        return !message;
+    }
+
+    function clampQtyInput(input) {
+        let val = parseQty(input.value);
+        if (val === null) {
+            return validateQtyInput(input, false);
+        }
+
+        const maxQty = maxQtyForInput(input);
+        if (val < 0) val = 0;
+        if (maxQty !== null && val > maxQty) val = maxQty;
+        if (isWholeStep(input)) val = Math.round(val);
+
+        input.value = String(val);
+        return validateQtyInput(input, false);
+    }
+
+    document.querySelectorAll('.po-qty-input').forEach(function (input) {
+        input.addEventListener('input', function () {
+            validateQtyInput(input, true);
+            if (input.getAttribute('data-track-serial') === '1') {
+                const pk = input.getAttribute('data-line-pk');
+                const val = parseQty(input.value);
+                const maxQty = maxQtyForInput(input);
+                let count = val === null ? 0 : val;
+                if (maxQty !== null) count = Math.min(count, maxQty);
+                rebuildSerialRows(pk, count);
+            }
+        });
+        input.addEventListener('blur', function () {
+            clampQtyInput(input);
+        });
+        validateQtyInput(input, false);
+    });
+
     function rebuildSerialRows(linePk, count) {
         const panel = document.querySelector(`tr[data-serial-panel="${linePk}"]`);
         const container = document.querySelector(`.serial-rows[data-line-pk="${linePk}"]`);
@@ -202,9 +277,6 @@
                 });
             }
         }
-        input.addEventListener('input', function () {
-            rebuildSerialRows(input.getAttribute('data-line-pk'), input.value);
-        });
     });
 
     document.querySelectorAll('.serial-paste-toggle').forEach(function (btn) {
@@ -222,8 +294,11 @@
             const qtyInput = document.querySelector('.po-qty-input[data-line-pk="' + pk + '"]');
             if (!ta || !qtyInput) return;
             const lines = ta.value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
-            qtyInput.value = lines.length;
-            rebuildSerialRows(pk, lines.length);
+            const maxQty = maxQtyForInput(qtyInput);
+            const count = maxQty === null ? lines.length : Math.min(lines.length, maxQty);
+            qtyInput.value = count;
+            clampQtyInput(qtyInput);
+            rebuildSerialRows(pk, count);
             const container = document.querySelector('.serial-rows[data-line-pk="' + pk + '"]');
             container.querySelectorAll('input.serial-model-input').forEach(function (inp, idx) {
                 if (lines[idx]) inp.value = lines[idx];
@@ -233,6 +308,14 @@
 
     document.getElementById('poReceiveForm').addEventListener('submit', function (e) {
         let ok = true;
+
+        document.querySelectorAll('.po-qty-input').forEach(function (qtyInput) {
+            clampQtyInput(qtyInput);
+            if (!validateQtyInput(qtyInput, true)) {
+                ok = false;
+            }
+        });
+
         document.querySelectorAll('.po-qty-input[data-track-serial="1"]').forEach(function (qtyInput) {
             const pk = qtyInput.getAttribute('data-line-pk');
             const qty = parseInt(qtyInput.value, 10) || 0;

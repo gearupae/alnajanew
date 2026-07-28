@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block extra_css %}
 <style>
@@ -252,7 +253,7 @@
         </h5>
         <button type="button" class="btn-close" onclick="cancelInlineForm('customerForm')"></button>
     </div>
-    <form method="post" id="createCustomerForm" enctype="multipart/form-data">
+    <form method="post" id="createCustomerForm" enctype="multipart/form-data" data-crm-customer-form novalidate>
         {% csrf_token %}
         <div class="row g-3">
             <div class="col-md-3">
@@ -734,6 +735,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/crm_customer_validation.js' %}"></script>
 <script>
 (function () {
     document.addEventListener('DOMContentLoaded', function () {
