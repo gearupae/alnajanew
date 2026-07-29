@@ -118,16 +118,18 @@
     }
   }
 
-  function populateProjects(projects) {
+  function populateProjects(projects, preserveProjectId) {
     projectSelect.innerHTML = '<option value="">— Select project —</option>';
     technicianProjectCount = projects.length;
     projects.forEach((p) => {
       const o = document.createElement('option');
-      o.value = p.id;
+      o.value = String(p.id);
       o.textContent = p.project_code + ' — ' + p.name;
       projectSelect.appendChild(o);
     });
-    if (technicianProjectCount === 1) {
+    if (preserveProjectId && Array.from(projectSelect.options).some((o) => o.value === String(preserveProjectId))) {
+      projectSelect.value = String(preserveProjectId);
+    } else if (technicianProjectCount === 1) {
       projectSelect.selectedIndex = 1;
     }
     projectLabelHint.textContent = technicianProjectCount > 1 ? '(required)' : '(optional)';
@@ -136,6 +138,7 @@
 
   function loadTechnicianProjects(options) {
     const force = !!(options && options.force);
+    const preserveProjectId = options && options.preserveProjectId ? String(options.preserveProjectId) : '';
     const code = normalizeCode(codeInput.value);
 
     if (!code) {
@@ -184,7 +187,7 @@
 
         lastLoadedCode = code;
         if (data.projects && data.projects.length) {
-          populateProjects(data.projects);
+          populateProjects(data.projects, preserveProjectId);
         } else {
           setProjectUiState('none');
         }
@@ -230,8 +233,13 @@
     }
 
     clearTimeout(projectLoadTimer);
+    const selectedProjectId = projectSelect && projectUiState === 'ready' ? (projectSelect.value || '') : '';
     const runPunch = () => {
-      if (action === 'check_in' && technicianProjectCount > 1 && projectSelect && !projectSelect.value) {
+      let projectId = projectSelect && projectUiState === 'ready' ? (projectSelect.value || '') : '';
+      if (action === 'check_in' && technicianProjectCount === 1 && !projectId && projectSelect && projectSelect.options.length > 1) {
+        projectId = projectSelect.options[1].value;
+      }
+      if (action === 'check_in' && technicianProjectCount > 1 && projectUiState === 'ready' && !projectId) {
         showFeedback('Please choose the project you are working on before clocking in.', false);
         return;
       }
@@ -243,8 +251,8 @@
         longitude: lng,
         client_time: new Date().toISOString(),
       };
-      if (action === 'check_in' && projectSelect && projectSelect.value) {
-        body.project_id = parseInt(projectSelect.value, 10);
+      if (action === 'check_in' && projectId) {
+        body.project_id = parseInt(projectId, 10);
       }
       fetch(punchUrl, {
         method: 'POST',
@@ -286,7 +294,7 @@
     );
     };
 
-    loadTechnicianProjects({ force: true }).then(runPunch);
+    loadTechnicianProjects({ force: true, preserveProjectId: selectedProjectId }).then(runPunch);
   }
 
   codeInput.addEventListener('input', scheduleProjectLoad);

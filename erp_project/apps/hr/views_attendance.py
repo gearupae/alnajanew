@@ -762,6 +762,7 @@ def _fmt_coords(la, lo):
 
 def _resolve_technician_project_for_punch(employee: Employee, raw_project_id):
     """Optional project on clock-in: must be a project where this employee's user is a technician."""
+    from apps.projects.labour_utils import active_technician_projects
     from apps.projects.models import Project
 
     if raw_project_id in (None, '', 0, '0', False):
@@ -775,8 +776,8 @@ def _resolve_technician_project_for_punch(employee: Employee, raw_project_id):
         return None, 'Project not found.'
     if not employee.user_id:
         return None, 'This employee has no linked user; project cannot be set from punch.'
-    if not project.technicians.filter(pk=employee.user_id).exists():
-        return None, 'This employee is not a technician on the selected project.'
+    if not active_technician_projects(employee.user).filter(pk=project.pk).exists():
+        return None, 'This employee is not assigned as a technician on the selected project (or the project is no longer active).'
     return project, None
 
 
@@ -854,7 +855,7 @@ def _perform_attendance_punch(*, employee: Employee, action: str, when, lat, lng
 @require_GET
 def attendance_technician_projects(request):
     """JSON: projects where employee (by code) is assigned as technician. For public punch project picker."""
-    from apps.projects.models import Project
+    from apps.projects.labour_utils import active_technician_projects
 
     code = (request.GET.get('code') or '').strip()
     if not code:
@@ -864,10 +865,11 @@ def attendance_technician_projects(request):
         return JsonResponse({'ok': False, 'error': 'Employee not found.'}, status=404)
     if not emp.user_id:
         return JsonResponse({'ok': True, 'projects': []})
+    from apps.projects.labour_utils import active_technician_projects
+
     rows = (
-        Project.objects.filter(is_active=True, technicians__pk=emp.user_id)
-        .distinct()
-        .order_by('-created_at', '-id')
+        active_technician_projects(emp.user)
+        .order_by('-start_date', '-id')
         .values('id', 'project_code', 'name')
     )
     return JsonResponse({'ok': True, 'projects': list(rows)})
