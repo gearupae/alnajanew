@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.views.generic import ListView, CreateView, UpdateView, DetailView
+from django.views.generic import ListView, CreateView, UpdateView, DetailView, FormView
 from django.urls import reverse, reverse_lazy
 from django.db.models import Q, Sum, Count, Value, Prefetch
 from django.db.models.fields import DecimalField
@@ -22,6 +22,7 @@ from .models import (
     ProjectGatepass,
     ProjectPublicUpload,
     ProjectItemLine,
+    ProjectItemDelivery,
 )
 from .forms import ProjectForm, ProjectTaskCreateForm, TaskForm, ProjectExpenseForm, ProjectGatepassForm, ProjectItemDeliveryForm, ProjectItemReturnForm
 from .gatepass_alerts import pick_display_gatepass
@@ -69,6 +70,8 @@ class ProjectListView(PermissionRequiredMixin, ListView):
                 status='draft',
                 conversion_approval_status='pending',
             )
+        elif status == 'operation_access_pending':
+            queryset = queryset.filter(operation_access_status='pending')
         elif status:
             queryset = queryset.filter(status=status)
         from .project_list_metrics import annotate_project_list_queryset
@@ -88,8 +91,10 @@ class ProjectListView(PermissionRequiredMixin, ListView):
         from .approval_rules import (
             pending_completion_projects_for_user,
             pending_conversion_projects_for_user,
+            pending_operation_access_projects_for_user,
             user_is_project_completion_approver,
             user_is_project_conversion_approver,
+            user_is_project_operation_access_approver,
         )
 
         pending_completion = pending_completion_projects_for_user(self.request.user)
@@ -102,9 +107,17 @@ class ProjectListView(PermissionRequiredMixin, ListView):
         context['pending_conversion_count'] = len(pending_conversion)
         context['is_project_conversion_approver'] = user_is_project_conversion_approver(self.request.user)
 
+        pending_operation = pending_operation_access_projects_for_user(self.request.user)
+        context['pending_operation_access_projects'] = pending_operation
+        context['pending_operation_access_count'] = len(pending_operation)
+        context['is_project_operation_access_approver'] = user_is_project_operation_access_approver(
+            self.request.user
+        )
+
         context['status_filter_choices'] = list(Project.STATUS_CHOICES) + [
             ('conversion_pending', 'Pending conversion approval'),
             ('completion_pending', 'Pending completion approval'),
+            ('operation_access_pending', 'Pending operation access'),
         ]
 
         from apps.core.visibility import filter_projects_for_user
@@ -269,6 +282,134 @@ class TaskListView(PermissionRequiredMixin, ListView):
             context['tasks_kanban_progress'] = list(qs.filter(status='in_progress'))
             context['tasks_kanban_done'] = list(qs.filter(status='completed'))
         return context
+
+
+def _task_edit_locked(task):
+    """True when task belongs to a project with operations locked."""
+    if not task.project_id:
+        return False
+    from .operation_access import project_operations_locked
+    return project_operations_locked(task.project)
+
+
+class TaskDetailView(PermissionRequiredMixin, DetailView):
+    model = Task
+    template_name = 'projects/task_detail.html'
+    context_object_name = 'task'
+    module_name = 'projects'
+    permission_type = 'view'
+
+    def get_queryset(self):
+        return Task.objects.select_related(
+            'project', 'customer', 'assigned_to', 'assigned_to__employee_profile',
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = self.object.name
+        context['can_edit'] = (
+            (self.request.user.is_superuser or PermissionChecker.has_permission(
+                self.request.user, 'projects', 'edit',
+            ))
+            and not _task_edit_locked(self.object)
+        )
+        context['status_choices'] = Task.STATUS_CHOICES
+        return context
+
+
+class TaskCreateView(CreatePermissionMixin, CreateView):
+    model = Task
+    form_class = TaskForm
+    template_name = 'projects/task_form.html'
+    module_name = 'projects'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        project_id = self.request.GET.get('project')
+        customer_id = self.request.GET.get('customer')
+        if project_id:
+            kwargs['project'] = get_object_or_404(Project, pk=project_id, is_active=True)
+        elif customer_id:
+            from apps.crm.models import Customer
+            kwargs['customer'] = get_object_or_404(Customer, pk=customer_id, is_active=True)
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Create Task'
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Task {form.instance.name} created.')
+        response = super().form_valid(form)
+        task = self.object
+        if task.assigned_to_id:
+            link = reverse('projects:task_detail', kwargs={'pk': task.pk})
+            notify_if_new_assignee(
+                task.assigned_to,
+                self.request.user,
+                f'Task assigned: {task.name}',
+                task.context_code,
+                link,
+            )
+        return response
+
+    def get_success_url(self):
+        return reverse('projects:task_detail', kwargs={'pk': self.object.pk})
+
+
+class TaskUpdateView(UpdatePermissionMixin, UpdateView):
+    model = Task
+    form_class = TaskForm
+    template_name = 'projects/task_form.html'
+    module_name = 'projects'
+
+    def get_queryset(self):
+        return Task.objects.select_related('project', 'customer')
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if _task_edit_locked(self.object):
+            messages.error(
+                request,
+                'This project is locked until a linked invoice is paid or update access is approved.',
+            )
+            return redirect('projects:task_detail', pk=self.object.pk)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if self.object.project_id:
+            kwargs['project'] = self.object.project
+        elif self.object.customer_id:
+            kwargs['customer'] = self.object.customer
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f'Edit Task: {self.object.name}'
+        return context
+
+    def form_valid(self, form):
+        prev_assignee_id = Task.objects.filter(pk=self.object.pk).values_list(
+            'assigned_to_id', flat=True,
+        ).first()
+        messages.success(self.request, f'Task {form.instance.name} updated.')
+        response = super().form_valid(form)
+        task = self.object
+        if task.assigned_to_id and task.assigned_to_id != prev_assignee_id:
+            link = reverse('projects:task_detail', kwargs={'pk': task.pk})
+            notify_if_new_assignee(
+                task.assigned_to,
+                self.request.user,
+                f'Task assigned: {task.name}',
+                task.context_code,
+                link,
+            )
+        return response
+
+    def get_success_url(self):
+        return reverse('projects:task_detail', kwargs={'pk': self.object.pk})
 
 
 class ProjectCreateView(CreatePermissionMixin, CreateView):
@@ -715,7 +856,11 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         )
         estimate_qs = Estimate.objects.filter(is_active=True).order_by('-date', '-pk')
         return Project.objects.filter(is_active=True).select_related(
-            'customer', 'manager', 'created_by'
+            'customer', 'manager', 'created_by',
+            'conversion_approval_submitted_by',
+            'edit_approval_submitted_by',
+            'operation_access_submitted_by',
+            'expense_account', 'revenue_account',
         ).prefetch_related(
             Prefetch(
                 'members',
@@ -786,7 +931,14 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         context['tasks'] = self.object.tasks.filter(is_active=True).select_related(
             'assigned_to', 'assigned_to__employee_profile'
         )
-        item_lines = list(self.object.item_lines.all())
+        from apps.projects.item_delivery import sync_zero_project_item_line_prices
+
+        sync_zero_project_item_line_prices(self.object)
+        item_lines = list(
+            ProjectItemLine.objects.filter(project=self.object)
+            .select_related('inventory_item', 'source_estimate')
+            .order_by('sort_order', 'id')
+        )
         from apps.inventory.models import Item
 
         for line in item_lines:
@@ -967,7 +1119,7 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         context['project_estimate_total'] = estimate_total
         context['header_profit_vs_expenses'] = estimate_total - recorded
         context['header_profit_label'] = 'Quotation price − total expense'
-        from .project_receipt_metrics import project_receipt_totals
+        from .project_receipt_metrics import project_receipt_totals, _linked_invoices_for_project
 
         receipt = project_receipt_totals(self.object)
         context['project_invoiced_amount'] = receipt['invoiced_amount']
@@ -975,6 +1127,11 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         context['project_balance_amount'] = receipt['balance_amount']
         context['project_advance_received'] = receipt['advance_received']
         context['project_invoice_paid'] = receipt['invoice_paid']
+        context['linked_sales_invoices'] = _linked_invoices_for_project(self.object)
+        context['can_create_sales_invoice'] = (
+            self.request.user.is_superuser
+            or PermissionChecker.has_permission(self.request.user, 'sales', 'create')
+        )
         if budget_prop > 0:
             pct = (recorded / budget_prop * Decimal('100')).quantize(Decimal('0.1'))
             context['budget_pct_used'] = pct
@@ -1006,6 +1163,11 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         from .member_roles import build_project_team_display
 
         context['project_team'] = build_project_team_display(self.object)
+        context['can_manage_gatepass'] = (
+            self.request.user.is_superuser
+            or PermissionChecker.has_permission(self.request.user, 'projects', 'create')
+            or PermissionChecker.has_permission(self.request.user, 'projects', 'edit')
+        )
         context['item_delivery_groups'] = project_delivery_summary_groups(self.object)
         context['item_return_rows'] = project_return_history_rows(self.object)
         context['item_activity_timeline'] = project_item_activity_timeline(self.object)
@@ -1037,11 +1199,70 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         )
         return context
 
+    def _post_save_gatepass(self, request):
+        """Gate passes can be managed even when project operations are locked."""
+        from .conversion_approval import project_awaiting_conversion_approval
+
+        if project_awaiting_conversion_approval(self.object):
+            messages.error(
+                request,
+                'This project is locked until conversion from quotation is approved.',
+            )
+            return redirect('projects:project_detail', pk=self.object.pk)
+
+        gatepass_id = request.POST.get('gatepass_id')
+        if gatepass_id:
+            if not (
+                request.user.is_superuser
+                or PermissionChecker.has_permission(request.user, 'projects', 'edit')
+            ):
+                messages.error(request, 'Permission denied.')
+                return redirect('projects:project_detail', pk=self.object.pk)
+            gp = get_object_or_404(
+                ProjectGatepass,
+                pk=gatepass_id,
+                project=self.object,
+                is_active=True,
+            )
+            form = ProjectGatepassForm(request.POST, instance=gp, project=self.object)
+        else:
+            if not (
+                request.user.is_superuser
+                or PermissionChecker.has_permission(request.user, 'projects', 'create')
+            ):
+                messages.error(request, 'Permission denied.')
+                return redirect('projects:project_detail', pk=self.object.pk)
+            form = ProjectGatepassForm(request.POST, project=self.object)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.project = self.object
+            obj.save()
+            who = obj.member.get_full_name() or obj.member.username
+            if gatepass_id:
+                messages.success(request, f'Gate pass updated for {who}.')
+            else:
+                messages.success(request, f'Gate pass added for {who}.')
+            return redirect('projects:project_detail', pk=self.object.pk)
+        messages.error(request, 'Please correct the gate pass errors below.')
+        edit_pk_val = None
+        if gatepass_id and str(gatepass_id).isdigit():
+            edit_pk_val = int(gatepass_id)
+        context = self.get_context_data(
+            gatepass_form=form,
+            editing_gatepass_pk=edit_pk_val,
+        )
+        return self.render_to_response(context)
+
     def post(self, request, *args, **kwargs):
         from .conversion_approval import project_awaiting_conversion_approval
         from .operation_access import project_operations_locked
 
         self.object = self.get_object()
+        action = request.POST.get('action', 'add_task')
+
+        if action == 'save_gatepass':
+            return self._post_save_gatepass(request)
+
         if project_awaiting_conversion_approval(self.object):
             messages.error(
                 request,
@@ -1054,8 +1275,6 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
                 'This project is locked. Create and pay a linked invoice, or request operation access approval.',
             )
             return redirect('projects:project_detail', pk=self.object.pk)
-
-        action = request.POST.get('action', 'add_task')
 
         if action == 'record_item_delivery':
             if not self.object.allows_edit_by(request.user):
@@ -1096,6 +1315,18 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
                         messages.error(request, msg)
                     context = self.get_context_data(item_delivery_form=form)
                     return self.render_to_response(context)
+                delivery = (
+                    ProjectItemDelivery.objects.filter(
+                        project=self.object,
+                        item=form.cleaned_data['item'],
+                        delivered_date=form.cleaned_data['delivered_date'],
+                        delivered_by=request.user,
+                    )
+                    .order_by('-pk')
+                    .first()
+                )
+                if delivery:
+                    return redirect('projects:item_delivery_detail', pk=delivery.pk)
                 return redirect('projects:project_detail', pk=self.object.pk)
             messages.error(request, 'Please correct the delivery form errors below.')
             context = self.get_context_data(item_delivery_form=form)
@@ -1363,50 +1594,6 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
                     messages.error(request, msg)
             return redirect('projects:project_detail', pk=self.object.pk)
 
-        if action == 'save_gatepass':
-            gatepass_id = request.POST.get('gatepass_id')
-            if gatepass_id:
-                if not (
-                    request.user.is_superuser
-                    or PermissionChecker.has_permission(request.user, 'projects', 'edit')
-                ):
-                    messages.error(request, 'Permission denied.')
-                    return redirect('projects:project_detail', pk=self.object.pk)
-                gp = get_object_or_404(
-                    ProjectGatepass,
-                    pk=gatepass_id,
-                    project=self.object,
-                    is_active=True,
-                )
-                form = ProjectGatepassForm(request.POST, instance=gp, project=self.object)
-            else:
-                if not (
-                    request.user.is_superuser
-                    or PermissionChecker.has_permission(request.user, 'projects', 'create')
-                ):
-                    messages.error(request, 'Permission denied.')
-                    return redirect('projects:project_detail', pk=self.object.pk)
-                form = ProjectGatepassForm(request.POST, project=self.object)
-            if form.is_valid():
-                obj = form.save(commit=False)
-                obj.project = self.object
-                obj.save()
-                who = obj.member.get_full_name() or obj.member.username
-                if gatepass_id:
-                    messages.success(request, f'Gate pass updated for {who}.')
-                else:
-                    messages.success(request, f'Gate pass added for {who}.')
-                return redirect('projects:project_detail', pk=self.object.pk)
-            messages.error(request, 'Please correct the gate pass errors below.')
-            edit_pk_val = None
-            if gatepass_id and str(gatepass_id).isdigit():
-                edit_pk_val = int(gatepass_id)
-            context = self.get_context_data(
-                gatepass_form=form,
-                editing_gatepass_pk=edit_pk_val,
-            )
-            return self.render_to_response(context)
-
         if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'projects', 'create')):
             messages.error(request, 'Permission denied.')
             return redirect('projects:project_detail', pk=self.object.pk)
@@ -1498,14 +1685,166 @@ def task_set_status(request, pk):
 
 @login_required
 def task_update_status(request, pk, status):
+    from .operation_access import project_operations_locked
+
     task = get_object_or_404(Task, pk=pk)
-    if request.user.is_superuser or PermissionChecker.has_permission(request.user, 'projects', 'edit'):
+    valid_statuses = {c[0] for c in Task.STATUS_CHOICES}
+    if status not in valid_statuses:
+        messages.error(request, 'Invalid task status.')
+    elif task.project_id and project_operations_locked(task.project):
+        messages.error(
+            request,
+            'This project is locked. Create and pay a linked invoice, or request operation access approval.',
+        )
+    elif request.user.is_superuser or PermissionChecker.has_permission(request.user, 'projects', 'edit'):
         task.status = status
-        task.save()
+        task.save(update_fields=['status', 'updated_at'])
         messages.success(request, f'Task status updated to {task.get_status_display()}.')
+    else:
+        messages.error(request, 'Permission denied.')
     if task.project_id:
         return redirect('projects:project_detail', pk=task.project.pk)
     return redirect('projects:task_list')
+
+
+# ============ PROJECT ITEM DELIVERY VIEWS ============
+
+class ItemDeliveryListView(PermissionRequiredMixin, ListView):
+    model = ProjectItemDelivery
+    template_name = 'projects/item_delivery_list.html'
+    context_object_name = 'deliveries'
+    module_name = 'projects'
+    permission_type = 'view'
+    paginate_by = 30
+
+    def get_queryset(self):
+        qs = ProjectItemDelivery.objects.select_related(
+            'project', 'item', 'delivered_by', 'delivered_by__employee_profile',
+        ).order_by('-delivered_date', '-pk')
+
+        search = self.request.GET.get('search')
+        if search:
+            qs = qs.filter(
+                Q(project__name__icontains=search)
+                | Q(project__project_code__icontains=search)
+                | Q(item__name__icontains=search)
+                | Q(item__item_code__icontains=search)
+            )
+
+        project_id = self.request.GET.get('project')
+        if project_id:
+            qs = qs.filter(project_id=project_id)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Project Item Deliveries'
+        context['projects'] = Project.objects.filter(is_active=True).order_by('project_code')
+        context['can_create'] = (
+            self.request.user.is_superuser
+            or PermissionChecker.has_permission(self.request.user, 'inventory', 'edit')
+        )
+        return context
+
+
+class ItemDeliveryDetailView(PermissionRequiredMixin, DetailView):
+    model = ProjectItemDelivery
+    template_name = 'projects/item_delivery_detail.html'
+    context_object_name = 'delivery'
+    module_name = 'projects'
+    permission_type = 'view'
+
+    def get_queryset(self):
+        return ProjectItemDelivery.objects.select_related(
+            'project', 'item', 'delivered_by', 'delivered_by__employee_profile',
+        )
+
+
+class ItemDeliveryCreateView(PermissionRequiredMixin, FormView):
+    form_class = ProjectItemDeliveryForm
+    template_name = 'projects/item_delivery_form.html'
+    module_name = 'inventory'
+    permission_type = 'edit'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        project_id = self.request.GET.get('project')
+        if project_id:
+            kwargs['project'] = get_object_or_404(Project, pk=project_id, is_active=True)
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Record Item Delivery'
+        context['delivered_by'] = self.request.user
+        return context
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial['delivered_date'] = timezone.now().date()
+        return initial
+
+    def form_valid(self, form):
+        project = form.cleaned_data['project']
+        from .conversion_approval import project_awaiting_conversion_approval
+        from .operation_access import project_operations_locked
+
+        if project_awaiting_conversion_approval(project):
+            messages.error(
+                self.request,
+                'This project is locked until conversion from quotation is approved.',
+            )
+            return self.form_invalid(form)
+        if project_operations_locked(project):
+            messages.error(
+                self.request,
+                'This project is locked until a linked invoice is paid or update access is approved.',
+            )
+            return self.form_invalid(form)
+        if not project.allows_edit_by(self.request.user):
+            messages.error(self.request, 'This project cannot be edited.')
+            return self.form_invalid(form)
+
+        try:
+            result = deliver_items_to_project(
+                project,
+                form.cleaned_data['item'],
+                form.cleaned_data['quantity'],
+                form.cleaned_data['delivered_date'],
+                self.request.user,
+            )
+        except ValidationError as exc:
+            msgs = exc.messages if hasattr(exc, 'messages') else [str(exc)]
+            for msg in msgs:
+                messages.error(self.request, msg)
+            return self.form_invalid(form)
+
+        delivery = (
+            ProjectItemDelivery.objects.filter(
+                project=project,
+                item=form.cleaned_data['item'],
+                delivered_date=form.cleaned_data['delivered_date'],
+                delivered_by=self.request.user,
+            )
+            .order_by('-pk')
+            .first()
+        )
+        serials = result.get('serials') or []
+        if serials:
+            nums = ', '.join(s.model_number for s in serials)
+            messages.success(
+                self.request,
+                f'Delivered {len(serials)} unit(s) of {form.cleaned_data["item"].name} (FIFO: {nums}).',
+            )
+        else:
+            messages.success(
+                self.request,
+                f'Delivered {form.cleaned_data["quantity"]} × {form.cleaned_data["item"].name}.',
+            )
+        if delivery:
+            return redirect('projects:item_delivery_detail', pk=delivery.pk)
+        return redirect('projects:project_detail', pk=project.pk)
 
 
 # ============ PROJECT EXPENSE VIEWS ============
@@ -1570,7 +1909,6 @@ class ProjectExpenseCreateView(CreatePermissionMixin, CreateView):
     model = ProjectExpense
     form_class = ProjectExpenseForm
     template_name = 'projects/expense_form.html'
-    success_url = reverse_lazy('projects:expense_list')
     module_name = 'projects'
     
     def get_context_data(self, **kwargs):
@@ -1601,17 +1939,21 @@ class ProjectExpenseCreateView(CreatePermissionMixin, CreateView):
             )
         return response
 
+    def get_success_url(self):
+        return reverse('projects:expense_detail', kwargs={'pk': self.object.pk})
+
 
 class ProjectExpenseUpdateView(UpdatePermissionMixin, UpdateView):
     """Update a project expense."""
     model = ProjectExpense
     form_class = ProjectExpenseForm
     template_name = 'projects/expense_form.html'
-    success_url = reverse_lazy('projects:expense_list')
     module_name = 'projects'
     
     def get_queryset(self):
-        return ProjectExpense.objects.filter(status='draft')
+        return ProjectExpense.objects.select_related(
+            'project', 'vendor', 'vendor_bill', 'approved_by', 'expense_account', 'journal_entry',
+        ).filter(status='draft')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1621,6 +1963,9 @@ class ProjectExpenseUpdateView(UpdatePermissionMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, f'Project expense updated: {form.instance.expense_number}')
         return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse('projects:expense_detail', kwargs={'pk': self.object.pk})
 
 
 class ProjectExpenseDetailView(PermissionRequiredMixin, DetailView):

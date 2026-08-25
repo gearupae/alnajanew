@@ -193,10 +193,21 @@ class HolidayForm(forms.ModelForm):
                 field.widget.attrs.setdefault('class', 'form-control')
 
 
-class AttendanceMarkForm(forms.ModelForm):
+class AttendanceRecordForm(forms.ModelForm):
     class Meta:
         model = AttendanceRecord
-        fields = ['employee', 'date', 'check_in', 'check_out', 'status', 'overtime_type', 'notes', 'source', 'project']
+        fields = [
+            'is_active',
+            'employee',
+            'date',
+            'check_in',
+            'check_out',
+            'status',
+            'notes',
+            'project',
+            'overtime_type',
+            'source',
+        ]
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'check_in': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
@@ -206,19 +217,36 @@ class AttendanceMarkForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
+
         self.fields['employee'].queryset = Employee.objects.filter(is_active=True).order_by('first_name', 'last_name')
         self.fields['project'].queryset = Project.objects.filter(is_active=True).order_by('project_code', 'name')
         self.fields['project'].required = False
         self.fields['project'].label = 'Project (labour / site)'
         for name, field in self.fields.items():
+            if name in ('is_active',):
+                continue
             if name not in self.Meta.widgets:
                 field.widget.attrs.setdefault(
                     'class',
                     'form-select' if name in ('employee', 'status', 'source', 'overtime_type', 'project') else 'form-control',
                 )
+        if self.instance.pk:
+            self.fields['source'].disabled = True
+            self.fields['source'].help_text = 'Set when the record was created (manual entry, punch, import, etc.).'
 
     def clean(self):
         cleaned = super().clean()
+        if self.data:
+            cleaned['is_active'] = 'is_active' in self.data
+        elif not self.instance.pk:
+            cleaned['is_active'] = True
+        if self.instance.pk and self.fields['source'].disabled:
+            cleaned['source'] = self.instance.source
+
         employee = cleaned.get('employee')
         ad = cleaned.get('date')
         check_in = cleaned.get('check_in')
@@ -244,6 +272,9 @@ class AttendanceMarkForm(forms.ModelForm):
                 if overlap:
                     raise forms.ValidationError(overlap)
         return cleaned
+
+
+AttendanceMarkForm = AttendanceRecordForm
 
 
 class UAEComplianceForm(forms.ModelForm):

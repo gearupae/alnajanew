@@ -75,12 +75,20 @@ def _debit_reason_display_label(reason, reason_description=''):
     return labels.get(reason, reason)
 
 
+def _debit_note_remaining_cap(bill, exclude_debit_note_pk=None):
+    """Max debit amount: uncredited bill value capped by outstanding AP."""
+    prior = DebitNote.posted_total_for_bill(bill, exclude_pk=exclude_debit_note_pk)
+    uncredited = bill.total_amount - prior
+    return min(bill.balance, uncredited).quantize(Decimal('0.01'))
+
+
 def _debit_note_bill_payload(bill, exclude_debit_note_pk=None):
     """Shared bill + line data for debit note create (server template and AJAX)."""
     prior = DebitNote.posted_total_for_bill(
         bill,
         exclude_pk=exclude_debit_note_pk,
     )
+    remaining_cap = _debit_note_remaining_cap(bill, exclude_debit_note_pk)
     lines = []
     for row in _bill_line_rows(bill, exclude_debit_note_pk):
         lines.append({
@@ -99,8 +107,8 @@ def _debit_note_bill_payload(bill, exclude_debit_note_pk=None):
         'vendor_trn': bill.vendor.trn or '',
         'bill_total': str(bill.total_amount),
         'prior_debited': str(prior),
-        'remaining_bill_value': str(bill.total_amount - prior),
-        'max_debit': str(bill.total_amount - prior),
+        'remaining_bill_value': str(remaining_cap),
+        'max_debit': str(remaining_cap),
         'default_vat_rate': str(_default_vat_rate_for_bill(bill)),
         'lines': lines,
     }
@@ -160,10 +168,13 @@ def _save_amount_debit_line(debit_note, post_data, exclude_debit_note_pk=None):
         bill,
         exclude_pk=exclude_debit_note_pk or (debit_note.pk if debit_note.pk else None),
     )
-    remaining = bill.total_amount - prior
+    remaining = _debit_note_remaining_cap(
+        bill,
+        exclude_debit_note_pk or (debit_note.pk if debit_note.pk else None),
+    )
     if total > remaining:
         raise ValidationError(
-            f'Debit amount AED {total:,.2f} exceeds remaining bill value AED {remaining:,.2f}.'
+            f'Debit amount AED {total:,.2f} exceeds remaining payable balance AED {remaining:,.2f}.'
         )
 
     desc = f"Partial debit - {_debit_reason_display_label(debit_note.reason, debit_note.reason_description)}"

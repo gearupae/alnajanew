@@ -137,10 +137,16 @@
     color: #374151;
     border-color: #e5e7eb;
 }
+.contract-inline-status.contract-inline-st-terminated,
 .contract-inline-status.contract-inline-st-cancelled {
     background-color: #fee2e2;
     color: #991b1b;
     border-color: #fecaca;
+}
+.contract-inline-status.contract-inline-st-draft {
+    background-color: #f3f4f6;
+    color: #374151;
+    border-color: #d1d5db;
 }
 </style>
 {% endblock %}
@@ -153,6 +159,7 @@
     </div>
     <div>
         {% if can_create %}
+        <a href="{% url 'contracts:type_list' %}" class="btn btn-outline-secondary me-2"><i class="fas fa-tags me-1"></i>Types</a>
         <button class="btn btn-primary" type="button" onclick="toggleInlineForm('contractForm')">
             <i class="fas fa-plus me-2"></i>Add Contract
         </button>
@@ -193,15 +200,15 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card">
+        <div class="card {% if metric_reminder_due %}border-warning{% endif %}">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="bg-warning bg-opacity-10 rounded p-3 me-3">
-                        <i class="fas fa-hourglass-half text-warning"></i>
+                        <i class="fas fa-bell text-warning"></i>
                     </div>
                     <div>
-                        <p class="text-muted mb-0 small">Ending in 30 days</p>
-                        <h5 class="mb-0 fw-bold">{{ metric_expiring }}</h5>
+                        <p class="text-muted mb-0 small">Reminders due</p>
+                        <h5 class="mb-0 fw-bold {% if metric_reminder_due %}text-warning{% endif %}">{{ metric_reminder_due }}</h5>
                     </div>
                 </div>
             </div>
@@ -211,8 +218,8 @@
         <div class="card">
             <div class="card-body">
                 <div class="d-flex align-items-center">
-                    <div class="bg-info bg-opacity-10 rounded p-3 me-3">
-                        <i class="fas fa-clock text-info"></i>
+                    <div class="bg-primary bg-opacity-10 rounded p-3 me-3">
+                        <i class="fas fa-clock text-primary"></i>
                     </div>
                     <div>
                         <p class="text-muted mb-0 small">Recently added (7d)</p>
@@ -223,6 +230,18 @@
         </div>
     </div>
 </div>
+
+{% if metric_reminder_due %}
+<div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4" role="alert">
+    <div>
+        <i class="fas fa-bell me-2"></i>
+        <strong>{{ metric_reminder_due }}</strong> contract{{ metric_reminder_due|pluralize }} within their <strong>remind-before</strong> window — review for renewal.
+    </div>
+    {% if request.GET.reminder_due != '1' %}
+    <a href="{% url 'contracts:contract_list' %}?reminder_due=1" class="btn btn-sm btn-outline-dark">View reminder queue</a>
+    {% endif %}
+</div>
+{% endif %}
 
 <!-- Charts by contract type -->
 <div class="row g-3 mb-4">
@@ -259,6 +278,12 @@
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="row g-3">
+            <div class="col-12">
+                <div class="form-check">
+                    {{ form.is_active }}
+                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                </div>
+            </div>
             <div class="col-md-4">
                 <label class="form-label">Customer</label>
                 {{ form.customer }}
@@ -345,7 +370,23 @@
                 <label class="form-label small text-muted">Search</label>
                 <input type="text" name="search" class="form-control" placeholder="Number, name, customer…" value="{{ request.GET.search }}">
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
+                <label class="form-label small text-muted">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All statuses</option>
+                    {% for value, label in contract_status_choices %}
+                    <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted">&nbsp;</label>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="reminder_due" value="1" id="filterReminderDue" {% if request.GET.reminder_due == '1' %}checked{% endif %}>
+                    <label class="form-check-label small" for="filterReminderDue">Reminders due</label>
+                </div>
+            </div>
+            <div class="col-md-12">
                 <button type="submit" class="btn btn-primary me-2">Filter</button>
                 <a href="{% url 'contracts:contract_list' %}" class="btn btn-light">Clear</a>
             </div>
@@ -374,7 +415,7 @@
                 <tbody>
                     {% for c in contracts %}
                     <tr>
-                        <td class="text-nowrap fw-medium">{{ c.contract_number }}</td>
+                        <td class="text-nowrap fw-medium"><a href="{% url 'contracts:contract_detail' c.pk %}">{{ c.contract_number }}</a></td>
                         {% if can_edit %}
                         <td>
                             <form method="post" action="{% url 'contracts:contract_inline_update' c.pk %}" class="contract-inline-field-form">
@@ -459,8 +500,10 @@
                         <td>{{ c.end_date|date:"d/m/Y" }}</td>
                         <td class="small">{% for t in c.contract_types.all %}{{ t.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
                         <td>
-                            {% if c.status == 'cancelled' %}
+                            {% if c.status == 'terminated' %}
                             <span class="badge bg-danger bg-opacity-25 text-danger">{{ c.get_status_display }}</span>
+                            {% elif c.status == 'draft' %}
+                            <span class="badge bg-secondary">{{ c.get_status_display }}</span>
                             {% elif c.status == 'expired' %}
                             <span class="badge bg-secondary">{{ c.get_status_display }}</span>
                             {% elif c.status == 'active' %}
@@ -471,6 +514,7 @@
                         </td>
                         {% endif %}
                         <td class="text-center text-nowrap">
+                            <a href="{% url 'contracts:contract_detail' c.pk %}" class="btn btn-action btn-outline-secondary" title="View"><i class="fas fa-eye"></i></a>
                             <a href="{% url 'contracts:contract_pdf' c.pk %}" class="btn btn-action btn-outline-secondary" title="PDF" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i></a>
                             {% if can_edit %}
                             <a href="{% url 'contracts:contract_edit' c.pk %}" class="btn btn-action btn-outline-primary" title="Edit"><i class="fas fa-edit"></i></a>
@@ -569,7 +613,7 @@
     });
 })();
 
-{% if form.errors %}
+{% if form.errors or open_contract_form %}
 document.addEventListener('DOMContentLoaded', function () {
     var el = document.getElementById('contractForm');
     if (el) {

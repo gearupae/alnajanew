@@ -1,5 +1,7 @@
-"""Estimate → project conversion eligibility (B2B compliance, linked project state)."""
+"""Estimate → project / invoice conversion helpers."""
 from __future__ import annotations
+
+from decimal import Decimal
 
 from apps.crm.customer_compliance import (
     b2b_compliance_missing_labels,
@@ -87,4 +89,45 @@ def existing_project_link_block_reason(estimate, project) -> str:
     if estimate.customer_id and project.customer_id != estimate.customer_id:
         return 'The project must belong to the same customer as this quotation.'
     return ''
+
+
+def copy_estimate_lines_to_invoice(estimate, invoice):
+    """
+    Copy estimate lines to an invoice, applying header discount allocations so
+    invoice totals match the estimate grand total.
+    """
+    from .models import InvoiceItem
+    from .vat_pricing import line_uses_inclusive_pricing, sync_document_line_vat_flags
+
+    estimate.calculate_totals()
+    items = list(estimate.items.order_by('sort_order', 'id'))
+    if not items:
+        sync_document_line_vat_flags(invoice)
+        invoice.calculate_totals()
+        return invoice
+
+    line_amounts, _, _discount_amt = estimate.discounted_line_amounts(items)
+    for item, (line_net, line_vat) in zip(items, line_amounts):
+        qty = item.quantity or Decimal('1')
+        if qty <= 0:
+            qty = Decimal('1')
+        inclusive = line_uses_inclusive_pricing(item)
+        if inclusive:
+            line_gross = (line_net + line_vat).quantize(Decimal('0.01'))
+            unit_price = (line_gross / qty).quantize(Decimal('0.01'))
+        else:
+            unit_price = (line_net / qty).quantize(Decimal('0.01'))
+        InvoiceItem.objects.create(
+            invoice=invoice,
+            description=item.description,
+            quantity=qty,
+            unit_price=unit_price,
+            tax_code=item.tax_code,
+            vat_rate=item.vat_rate,
+            is_vat_inclusive=inclusive,
+        )
+
+    sync_document_line_vat_flags(invoice)
+    invoice.calculate_totals()
+    return invoice
 

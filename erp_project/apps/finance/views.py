@@ -9,7 +9,7 @@ from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import ListView, CreateView, UpdateView, DetailView, TemplateView
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.db.models import Q, Sum, F
 from django.db.models.functions import Coalesce
 from django.core.exceptions import ValidationError
@@ -2935,14 +2935,16 @@ def journal_register_detail(request, pk):
                 'url': f'/finance/bank-transfers/',
             })
     
-    # Check for linked expense claims
-    if hasattr(entry, 'expense_claims') and entry.expense_claims.exists():
-        for claim in entry.expense_claims.all():
-            linked_records.append({
-                'type': 'Expense Claim',
-                'number': claim.claim_number,
-                'url': f'/finance/expense-claims/{claim.pk}/',
-            })
+    # Check for linked expense claims (Purchase module)
+    for rel_name in ('purchase_expense_claims', 'expense_claim_payments', 'finance_expense_claims'):
+        claims = getattr(entry, rel_name, None)
+        if claims is not None and claims.exists():
+            for claim in claims.all():
+                linked_records.append({
+                    'type': 'Expense Claim',
+                    'number': claim.claim_number,
+                    'url': reverse('purchase:expenseclaim_detail', args=[claim.pk]),
+                })
     
     # Check for opening balance entry
     if hasattr(entry, 'opening_balance_entry') and entry.opening_balance_entry.exists():
@@ -3205,7 +3207,61 @@ def banktransfer_confirm(request, pk):
     return redirect('finance:banktransfer_list')
 
 
-# ============ EXPENSE CLAIM VIEWS ============
+# ============ EXPENSE CLAIM REDIRECTS (legacy Finance URLs → Purchase) ============
+
+def _resolve_purchase_expenseclaim_pk(legacy_pk):
+    """Map a legacy finance claim pk to the purchase module claim pk."""
+    from apps.purchase.models import ExpenseClaim as PurchaseExpenseClaim
+
+    if PurchaseExpenseClaim.objects.filter(pk=legacy_pk).exists():
+        return legacy_pk
+
+    legacy = ExpenseClaim.objects.filter(pk=legacy_pk).only('claim_number').first()
+    if not legacy:
+        return None
+
+    mapped = PurchaseExpenseClaim.objects.filter(claim_number=legacy.claim_number).only('pk').first()
+    return mapped.pk if mapped else None
+
+
+@login_required
+def expenseclaim_redirect_list(request):
+    return redirect('purchase:expenseclaim_list')
+
+
+@login_required
+def expenseclaim_redirect_create(request):
+    return redirect('purchase:expenseclaim_create')
+
+
+@login_required
+def expenseclaim_redirect_detail(request, pk):
+    purchase_pk = _resolve_purchase_expenseclaim_pk(pk)
+    if purchase_pk is None:
+        messages.info(request, 'Expense claims are managed under Purchase.')
+        return redirect('purchase:expenseclaim_list')
+    return redirect('purchase:expenseclaim_detail', pk=purchase_pk)
+
+
+@login_required
+def expenseclaim_redirect_submit(request, pk):
+    purchase_pk = _resolve_purchase_expenseclaim_pk(pk)
+    if purchase_pk is None:
+        messages.info(request, 'Expense claims are managed under Purchase.')
+        return redirect('purchase:expenseclaim_list')
+    return redirect('purchase:expenseclaim_submit', pk=purchase_pk)
+
+
+@login_required
+def expenseclaim_redirect_approve(request, pk):
+    purchase_pk = _resolve_purchase_expenseclaim_pk(pk)
+    if purchase_pk is None:
+        messages.info(request, 'Expense claims are managed under Purchase.')
+        return redirect('purchase:expenseclaim_list')
+    return redirect('purchase:expenseclaim_approve', pk=purchase_pk)
+
+
+# ============ EXPENSE CLAIM VIEWS (deprecated — use Purchase module) ============
 
 class ExpenseClaimListView(PermissionRequiredMixin, ListView):
     model = ExpenseClaim

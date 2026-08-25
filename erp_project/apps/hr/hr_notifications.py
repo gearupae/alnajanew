@@ -88,7 +88,15 @@ def on_payroll_paid(payroll, request=None):
 
 def notify_department_manager(leave_request):
     from apps.hr.leave_approval_rules import manager_approver_for_employee
+    from apps.hr.leave_workflow import route_leave_on_submit
     from apps.settings_app.models import Notification
+
+    route_leave_on_submit(leave_request)
+    leave_request.refresh_from_db()
+
+    if leave_request.status == 'pending_hr':
+        notify_hr_leave_pending(leave_request)
+        return
 
     mgr = manager_approver_for_employee(leave_request.employee)
     ref = (leave_request.reference_number or str(leave_request.pk)).strip()
@@ -121,9 +129,6 @@ def notify_department_manager(leave_request):
             message=f'Leave request {ref} from {leave_request.employee.full_name} requires your approval.',
             link=f'/hr/leave/{leave_request.pk}/',
         )
-        return
-
-    notify_hr_leave_pending(leave_request)
 
 
 def notify_hr_public_leave_submitted(leave_request):

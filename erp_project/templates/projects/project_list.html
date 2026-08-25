@@ -28,6 +28,19 @@
 </div>
 {% endif %}
 
+{% if is_project_operation_access_approver and pending_operation_access_count %}
+<div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4" role="alert">
+    <div>
+        <i class="fas fa-unlock-alt me-2"></i>
+        <strong>{{ pending_operation_access_count }}</strong>
+        project{{ pending_operation_access_count|pluralize }} awaiting your <strong>operation access</strong> approval.
+    </div>
+    {% if request.GET.status != 'operation_access_pending' %}
+    <a href="{% url 'projects:project_list' %}?status=operation_access_pending" class="btn btn-sm btn-outline-dark">View all pending</a>
+    {% endif %}
+</div>
+{% endif %}
+
 {% if is_project_completion_approver and pending_completion_count %}
 <div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4" role="alert">
     <div>

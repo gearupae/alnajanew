@@ -1,7 +1,11 @@
-"""Customer Progress Report: progress summary without costing."""
+"""Customer Progress Report: progress summary with billing snapshot."""
 from __future__ import annotations
 
 from apps.projects.models import Project
+from apps.projects.project_receipt_metrics import (
+    _linked_invoices_for_project,
+    project_receipt_totals,
+)
 
 
 def _member_row(user, role: str) -> dict:
@@ -92,8 +96,25 @@ def _task_row(task) -> dict:
     }
 
 
+def _billing_invoice_rows(project) -> list[dict]:
+    rows = []
+    for inv in _linked_invoices_for_project(project):
+        rows.append({
+            'pk': inv.pk,
+            'invoice_number': inv.invoice_number,
+            'date': inv.invoice_date,
+            'due_date': inv.due_date,
+            'total_amount': inv.total_amount,
+            'paid_amount': inv.paid_amount,
+            'balance': inv.balance,
+            'status': inv.get_status_display(),
+            'status_code': inv.status,
+        })
+    return rows
+
+
 def build_project_report_customer(*, project):
-    """Customer-facing project summary — no financial or costing data."""
+    """Customer-facing project summary with billing snapshot (no cost breakdown)."""
     from apps.settings_app.models import CompanySettings
 
     tasks_qs = (
@@ -106,6 +127,9 @@ def build_project_report_customer(*, project):
     pending = [t for t in tasks if not t['is_completed']]
     team_members = _team_members(project)
     technicians = _technicians(project)
+    billing = project_receipt_totals(project)
+    billing_invoices = _billing_invoice_rows(project)
+    contract_value = project.contract_value or billing['invoiced_amount']
 
     return {
         'project': project,
@@ -124,6 +148,14 @@ def build_project_report_customer(*, project):
         'task_progress_percent': project.task_progress_percent,
         'period_start': project.start_date,
         'period_end': project.end_date,
+        'billing': billing,
+        'billing_invoices': billing_invoices,
+        'contract_value': contract_value,
+        'billing_progress_pct': (
+            int((billing['received_amount'] / contract_value) * 100)
+            if contract_value and contract_value > 0
+            else None
+        ),
     }
 
 

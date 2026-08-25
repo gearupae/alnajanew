@@ -28,35 +28,43 @@ $(function () {
         var seg = document.querySelector('[name="business_segment"]');
         var docs = document.getElementById('crmEditB2bDocs');
         var trnWrap = document.getElementById('crmEditTrnWrap');
+        var tradeLicWrap = document.getElementById('crmEditTradeLicenseNoWrap');
         var trnInput = document.querySelector('[name="trn"]');
+        var tradeLicInput = document.querySelector('[name="trade_license_number"]');
         var licInput = document.querySelector('[name="trade_license_document"]');
         var licRequired = document.getElementById('crmEditLicenseRequired');
         var licOptional = document.getElementById('crmEditLicenseOptional');
         var docsHelp = document.getElementById('crmEditB2bDocsHelp');
         var hasTradeLicense = document.getElementById('crmHasTradeLicense');
+        var kanbanWrap = document.getElementById('crmEditKanbanWrap');
         var isCustomer = customerType === 'customer';
         var isB2b = seg && seg.value === 'b2b';
-        var hasLicOnFile = hasTradeLicense && hasTradeLicense.value === '1';
         if (trnWrap) trnWrap.style.display = isB2b ? '' : 'none';
+        if (tradeLicWrap) tradeLicWrap.style.display = isB2b ? '' : 'none';
         if (trnInput && !isB2b) trnInput.value = '';
+        if (tradeLicInput && !isB2b) tradeLicInput.value = '';
         if (docs) docs.classList.toggle('d-none', !isB2b);
+        if (kanbanWrap) kanbanWrap.style.display = isCustomer ? 'none' : '';
         if (licInput) {
             licInput.required = false;
             licInput.removeAttribute('aria-required');
         }
         if (licRequired) licRequired.classList.add('d-none');
         if (licOptional) licOptional.classList.remove('d-none');
-        if (docsHelp) {
-            if (isB2b) {
-                docsHelp.textContent = 'TRN certificate and trade license uploads are optional for B2B. Uploaded files are kept when you save unless you remove them.';
-            }
+        if (docsHelp && isB2b) {
+            docsHelp.textContent = 'TRN certificate and trade license uploads are optional for B2B. Uploaded files are kept when you save unless you remove them.';
         }
         var emailInput = document.querySelector('[name="email"]');
         var phoneInput = document.querySelector('[name="phone"]');
         var contactHint = document.getElementById('crmEditContactHint');
-        if (emailInput) emailInput.required = false;
-        if (phoneInput) phoneInput.required = false;
-        if (contactHint) contactHint.classList.toggle('d-none', !isCustomer);
+        if (emailInput) emailInput.required = isB2b;
+        if (phoneInput) phoneInput.required = isB2b;
+        if (trnInput) trnInput.required = isB2b;
+        if (tradeLicInput) tradeLicInput.required = isB2b;
+        if (contactHint) contactHint.classList.toggle('d-none', !isB2b);
+        document.querySelectorAll('.crm-b2b-required-star').forEach(function (el) {
+            el.style.display = isB2b ? '' : 'none';
+        });
     }
     var typeSel = document.getElementById('crmEditCustomerType');
     var seg = document.querySelector('[name="business_segment"]');
@@ -78,7 +86,7 @@ $(function () {
         <ol class="breadcrumb mb-2">
             <li class="breadcrumb-item"><a href="{% url 'crm:customer_list' %}">Customers</a></li>
             {% if object.pk %}
-            <li class="breadcrumb-item"><a href="{% url 'crm:customer_detail' object.pk %}">{{ object.customer_number }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'crm:customer_detail' object.pk %}">{{ object.company|default:object.name|default:"Account" }}</a></li>
             {% endif %}
             <li class="breadcrumb-item active">{{ title }}</li>
         </ol>
@@ -92,66 +100,45 @@ $(function () {
             {% csrf_token %}
 
             <h6 class="fw-semibold mb-3">
-                <i class="fas fa-user me-2 text-dark"></i>Basic Information
+                <i class="fas fa-id-card me-2 text-dark"></i>Account
             </h6>
             <div class="row g-3 mb-4">
                 <div class="col-md-4">
-                    <label class="form-label">Company <span class="text-danger">*</span></label>
-                    <input type="text" name="company" class="form-control" value="{{ object.company }}" placeholder="Company Name" required>
-                    {% for err in form.company.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Contact Name</label>
-                    <input type="text" name="name" class="form-control" value="{{ object.name }}" placeholder="Full Name (optional)">
-                    {% for err in form.name.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-                {% if object.customer_type == 'customer' %}
-                <input type="hidden" name="customer_type" value="customer">
-                <div class="col-md-4">
-                    <label class="form-label" for="{{ form.business_segment.id_for_label }}">{{ form.business_segment.label }} <span class="text-danger">*</span></label>
-                    {{ form.business_segment }}
-                    {% for err in form.business_segment.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                    <div class="form-text">Select B2B or B2C.</div>
-                </div>
-                <div class="col-md-4">
                     <label class="form-label">Status</label>
-                    <select name="status" class="form-select">
-                        <option value="active" {% if object.status == 'active' %}selected{% endif %}>Active</option>
-                        <option value="prospect" {% if object.status == 'prospect' %}selected{% endif %}>Prospect</option>
-                        <option value="inactive" {% if object.status == 'inactive' %}selected{% endif %}>Inactive</option>
-                    </select>
+                    {{ form.status }}
+                    {% for err in form.status.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="{{ form.assigned_salesperson.id_for_label }}">{{ form.assigned_salesperson.label }} <span class="text-danger">*</span></label>
-                    {{ form.assigned_salesperson }}
-                    {% for err in form.assigned_salesperson.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">{{ form.job_type.label }}</label>
-                    {{ form.job_type }}
-                    {% for err in form.job_type.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-                {% else %}
-                <div class="col-md-4">
-                    <label class="form-label">Type <span class="text-danger">*</span></label>
+                    {% if object.customer_type == 'customer' %}
+                    <label class="form-label">Customer type</label>
+                    <input type="hidden" name="customer_type" value="customer">
+                    <input type="text" class="form-control" value="Customer" readonly>
+                    {% else %}
+                    <label class="form-label">Customer type <span class="text-danger">*</span></label>
                     <select name="customer_type" class="form-select" id="crmEditCustomerType" required>
                         <option value="lead" {% if object.customer_type == 'lead' %}selected{% endif %}>Lead</option>
                         <option value="customer" {% if object.customer_type == 'customer' %}selected{% endif %}>Customer</option>
                     </select>
+                    {% endif %}
+                    {% for err in form.customer_type.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <h6 class="fw-semibold mb-3">
+                <i class="fas fa-user me-2 text-dark"></i>Contact &amp; Company
+            </h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Name</label>
+                    {{ form.name }}
+                    {% for err in form.name.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="{{ form.business_segment.id_for_label }}">{{ form.business_segment.label }} <span class="text-danger">*</span></label>
-                    {{ form.business_segment }}
-                    {% for err in form.business_segment.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                    <div class="form-text">Select B2B or B2C.</div>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Status</label>
-                    <select name="status" class="form-select">
-                        <option value="active" {% if object.status == 'active' %}selected{% endif %}>Active</option>
-                        <option value="prospect" {% if object.status == 'prospect' %}selected{% endif %}>Prospect</option>
-                        <option value="inactive" {% if object.status == 'inactive' %}selected{% endif %}>Inactive</option>
-                    </select>
+                    <label class="form-label">Company <span class="text-danger">*</span></label>
+                    {{ form.company }}
+                    {% for err in form.company.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" for="{{ form.assigned_salesperson.id_for_label }}">{{ form.assigned_salesperson.label }} <span class="text-danger">*</span></label>
@@ -159,11 +146,36 @@ $(function () {
                     {% for err in form.assigned_salesperson.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">{{ form.job_type.label }}</label>
-                    {{ form.job_type }}
-                    {% for err in form.job_type.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                    <label class="form-label">Email <span class="text-danger crm-b2b-required-star" style="display:none;">*</span></label>
+                    {{ form.email }}
+                    {% for err in form.email.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
-                {% endif %}
+                <div class="col-md-4">
+                    <label class="form-label">Contact <span class="text-danger crm-b2b-required-star" style="display:none;">*</span></label>
+                    {{ form.phone }}
+                    {% for err in form.phone.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                    <div class="form-text d-none" id="crmEditContactHint">Required for B2B. Phone must include country code (e.g. +971 50 741 2365).</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.website.label }}</label>
+                    {{ form.website }}
+                    {% for err in form.website.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Address</label>
+                    {{ form.address }}
+                    {% for err in form.address.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">City</label>
+                    {{ form.city }}
+                    {% for err in form.city.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Country</label>
+                    {{ form.country }}
+                    {% for err in form.country.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
             </div>
 
             <hr class="my-4">
@@ -171,7 +183,56 @@ $(function () {
             <h6 class="fw-semibold mb-3">
                 <i class="fas fa-briefcase me-2 text-dark"></i>Business Details
             </h6>
-            <div class="row g-3 mb-3 d-none" id="crmEditB2bDocs">
+            <div class="row g-3 mb-3">
+                <div class="col-md-4" id="crmEditTrnWrap" style="display:none;">
+                    <label class="form-label">{{ form.trn.label }} <span class="text-danger crm-b2b-required-star">*</span></label>
+                    {{ form.trn }}
+                    {% for err in form.trn.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4" id="crmEditTradeLicenseNoWrap" style="display:none;">
+                    <label class="form-label">{{ form.trade_license_number.label }} <span class="text-danger crm-b2b-required-star">*</span></label>
+                    {{ form.trade_license_number }}
+                    {% for err in form.trade_license_number.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.business_segment.id_for_label }}">{{ form.business_segment.label }} <span class="text-danger">*</span></label>
+                    {{ form.business_segment }}
+                    {% for err in form.business_segment.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.scope.label }}</label>
+                    {{ form.scope }}
+                    {% for err in form.scope.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                    <div class="form-text">Hold Ctrl/Cmd to select multiple.</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.job_type.label }}</label>
+                    {{ form.job_type }}
+                    {% for err in form.job_type.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.primary_project.id_for_label }}">{{ form.primary_project.label }}</label>
+                    {{ form.primary_project }}
+                    {% for err in form.primary_project.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Payment terms</label>
+                    {{ form.payment_terms }}
+                    {% for err in form.payment_terms.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Credit limit</label>
+                    {{ form.credit_limit }}
+                    {% for err in form.credit_limit.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4" id="crmEditKanbanWrap"{% if object.customer_type == 'customer' %} style="display:none;"{% endif %}>
+                    <label class="form-label" for="{{ form.lead_kanban_stage.id_for_label }}">{{ form.lead_kanban_stage.label }}</label>
+                    {{ form.lead_kanban_stage }}
+                    {% for err in form.lead_kanban_stage.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4 d-none" id="crmEditB2bDocs">
                 <div class="col-12">
                     <p class="small text-muted mb-0" id="crmEditB2bDocsHelp">TRN certificate and trade license uploads are optional for B2B.</p>
                 </div>
@@ -235,51 +296,24 @@ $(function () {
                     </div>
                 </div>
             </div>
-            <div class="row g-3 mb-4">
-                <div class="col-md-4" id="crmEditTrnWrap" style="display:none;">
-                    <label class="form-label">{{ form.trn.label }}</label>
-                    {{ form.trn }}
-                    {% for err in form.trn.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">{{ form.website.label }}</label>
-                    {{ form.website }}
-                    {% for err in form.website.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-            </div>
 
             <hr class="my-4">
 
             <h6 class="fw-semibold mb-3">
-                <i class="fas fa-address-card me-2 text-dark"></i>Contact Details
-            </h6>
-            <div class="row g-3 mb-4">
-                <div class="col-md-4">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" value="{{ object.email }}" placeholder="email@example.com">
-                    {% for err in form.email.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Phone</label>
-                    <input type="text" name="phone" class="form-control" value="{{ object.phone }}" placeholder="+971 XX XXX XXXX">
-                    {% for err in form.phone.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                    <div class="form-text{% if object.customer_type != 'customer' %} d-none{% endif %}" id="crmEditContactHint">For customers, enter at least one of email or phone. Phone must include country code (e.g. +971 50 741 2365).</div>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Address</label>
-                    <textarea name="address" class="form-control" rows="3" placeholder="Full Address">{{ object.address }}</textarea>
-                </div>
-            </div>
-
-            <hr class="my-4">
-
-            <h6 class="fw-semibold mb-3">
-                <i class="fas fa-sticky-note me-2 text-dark"></i>Additional Information
+                <i class="fas fa-sticky-note me-2 text-dark"></i>Notes
             </h6>
             <div class="row g-3">
                 <div class="col-12">
                     <label class="form-label">Notes</label>
-                    <textarea name="notes" class="form-control" rows="4" placeholder="Additional notes about this customer...">{{ object.notes }}</textarea>
+                    {{ form.notes }}
+                    {% for err in form.notes.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+                    </div>
+                    {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
             </div>
 
@@ -294,7 +328,6 @@ $(function () {
 </div>
 
 {% if object.pk %}
-<!-- Audit Trail -->
 <div class="card border-0 shadow-sm mt-4">
     <div class="card-header bg-transparent py-3">
         <h6 class="mb-0 fw-semibold">
@@ -303,10 +336,6 @@ $(function () {
     </div>
     <div class="card-body">
         <div class="row">
-            <div class="col-md-4">
-                <label class="form-label text-muted small">Customer Number</label>
-                <p class="fw-medium">{{ object.customer_number }}</p>
-            </div>
             <div class="col-md-4">
                 <label class="form-label text-muted small">Created</label>
                 <p class="mb-0">

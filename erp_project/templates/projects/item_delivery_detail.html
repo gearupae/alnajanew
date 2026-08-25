@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% load project_tags %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'projects:item_delivery_list' %}">Item Deliveries</a></li>
+            <li class="breadcrumb-item active">{{ delivery.item.name }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+            <h4 class="mb-1 fw-bold">{{ delivery.item.name }}</h4>
+            <span class="text-muted">{{ delivery.project.project_code }} · {{ delivery.delivered_date|date:"d/m/Y" }}</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'projects:item_delivery_list' %}" class="btn btn-light btn-sm">
+                <i class="fas fa-list me-1"></i>All deliveries
+            </a>
+            <a href="{% url 'projects:project_detail' delivery.project.pk %}" class="btn btn-light btn-sm">
+                <i class="fas fa-folder-open me-1"></i>Project
+            </a>
+            <a href="{% url 'inventory:item_detail' delivery.item.pk %}" class="btn btn-light btn-sm">
+                <i class="fas fa-box me-1"></i>Item
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0 fw-semibold">Delivery details</h6></div>
+    <div class="card-body">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <h6 class="text-muted mb-2">Project</h6>
+                <p class="mb-0">
+                    <a href="{% url 'projects:project_detail' delivery.project.pk %}">{{ delivery.project.project_code }} — {{ delivery.project.name }}</a>
+                </p>
+            </div>
+            <div class="col-md-4">
+                <h6 class="text-muted mb-2">Item</h6>
+                <p class="mb-0">
+                    <a href="{% url 'inventory:item_detail' delivery.item.pk %}">{{ delivery.item.item_code }} — {{ delivery.item.name }}</a>
+                </p>
+            </div>
+            <div class="col-md-4">
+                <h6 class="text-muted mb-2">Quantity</h6>
+                <p class="mb-0">{{ delivery.quantity|floatformat:2 }}</p>
+            </div>
+            <div class="col-md-4">
+                <h6 class="text-muted mb-2">Delivered date</h6>
+                <p class="mb-0">{{ delivery.delivered_date|date:"d/m/Y" }}</p>
+            </div>
+            <div class="col-md-4">
+                <h6 class="text-muted mb-2">Delivered by</h6>
+                <p class="mb-0">
+                    {% if delivery.delivered_by %}{{ delivery.delivered_by|staff_label }}{% else %}<span class="text-muted">—</span>{% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

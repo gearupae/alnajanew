@@ -101,57 +101,39 @@
     {% csrf_token %}
     
     <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Request Details</h6></div>
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Request details</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <div class="form-check mt-2">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                    </div>
+                    {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
                     <label class="form-label">Date <span class="text-danger">*</span></label>
                     {{ form.date }}
                     {% if form.date.errors %}<div class="text-danger small">{{ form.date.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Required By Date</label>
+                <div class="col-md-3">
+                    <label class="form-label">Required by date</label>
                     {{ form.required_by_date }}
                     {% if form.required_by_date.errors %}<div class="text-danger small">{{ form.required_by_date.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Requested By</label>
+                    <label class="form-label">Requested by</label>
+                    {% if object and object.pk %}
+                    <input type="text" class="form-control bg-light" value="{{ object.requested_by.get_full_name|default:object.requested_by.username }}" readonly>
+                    {% else %}
                     <input type="text" class="form-control bg-light" value="{{ request.user.get_full_name|default:request.user.username }}" readonly>
+                    {% endif %}
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Department</label>
                     {{ form.department }}
                     {% if form.department.errors %}<div class="text-danger small">{{ form.department.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Vendor</label>
-                    {{ form.vendor }}
-                    {% if form.vendor.errors %}<div class="text-danger small">{{ form.vendor.errors|join:", " }}</div>{% endif %}
-                </div>
-                {% if 'service_request' in form.fields %}
-                <div class="col-md-4">
-                    <label class="form-label">Service Request</label>
-                    {{ form.service_request }}
-                    {% if form.service_request.errors %}<div class="text-danger small">{{ form.service_request.errors|join:", " }}</div>{% endif %}
-                    <small class="text-muted d-block mt-1">Optional — pick an approved service request to load its lines.</small>
-                    {% if form.service_request.field.queryset.count == 0 %}
-                    <small class="text-warning d-block mt-1">
-                        <i class="fas fa-info-circle me-1"></i>No approved service requests.
-                        <a href="{% url 'service_request:sr_list' %}">Create or approve one first</a>.
-                    </small>
-                    {% endif %}
-                </div>
-                {% elif object and object.pk and object.service_request %}
-                <div class="col-md-4">
-                    <label class="form-label">Service Request</label>
-                    <p class="mb-0 pt-1">
-                        <a href="{% url 'service_request:sr_detail' object.service_request.pk %}" class="text-decoration-none fw-medium">
-                            {{ object.service_request.sr_number }}
-                        </a>
-                    </p>
-                    <small class="text-muted d-block mt-1">Set when this request was created.</small>
-                </div>
-                {% endif %}
                 <div class="col-md-4">
                     <label class="form-label">Priority</label>
                     {{ form.priority }}
@@ -165,6 +147,50 @@
                     {% endif %}
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label">Vendor</label>
+                    {{ form.vendor }}
+                    {% if form.vendor.errors %}<div class="text-danger small">{{ form.vendor.errors|join:", " }}</div>{% endif %}
+                </div>
+                {% if 'service_request' in form.fields %}
+                <div class="col-md-4">
+                    <label class="form-label">Service request</label>
+                    {{ form.service_request }}
+                    {% if form.service_request.errors %}<div class="text-danger small">{{ form.service_request.errors|join:", " }}</div>{% endif %}
+                    <small class="text-muted d-block mt-1">Optional — pick an approved service request to load its lines.</small>
+                    {% if form.service_request.field.queryset.count == 0 %}
+                    <small class="text-warning d-block mt-1">
+                        <i class="fas fa-info-circle me-1"></i>No approved service requests.
+                        <a href="{% url 'service_request:sr_list' %}">Create or approve one first</a>.
+                    </small>
+                    {% endif %}
+                </div>
+                {% elif object and object.pk and object.service_request %}
+                <div class="col-md-4">
+                    <label class="form-label">Service request</label>
+                    <p class="mb-0 pt-1">
+                        <a href="{% url 'service_request:sr_detail' object.service_request.pk %}" class="text-decoration-none fw-medium">
+                            {{ object.service_request.sr_number }}
+                        </a>
+                    </p>
+                    <small class="text-muted d-block mt-1">Set when this request was created.</small>
+                </div>
+                {% endif %}
+                {% if object and object.pk %}
+                <div class="col-md-4">
+                    <label class="form-label text-muted small">Saved total amount</label>
+                    <input type="text" class="form-control fw-semibold" value="AED {{ object.total_amount|floatformat:2 }}" readonly>
+                </div>
+                {% endif %}
+                {% if object and object.pk and object.rejection_reason %}
+                <div class="col-12">
+                    <label class="form-label">Rejection reason</label>
+                    <textarea class="form-control bg-light" rows="2" readonly>{{ object.rejection_reason }}</textarea>
+                    {% if object.status == 'returned' %}
+                    <small class="text-muted">Revision feedback from approver.</small>
+                    {% endif %}
+                </div>
+                {% endif %}
                 <div class="col-12">
                     <label class="form-label">Notes</label>
                     {{ form.notes }}
@@ -240,6 +266,13 @@
                         </tr>
                         {% endfor %}
                     </tbody>
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td colspan="5" class="text-end border-top pt-2">Total amount (live)</td>
+                            <td class="text-end border-top pt-2" id="prTotalDisplay">0.00</td>
+                            <td class="border-top"></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
@@ -401,9 +434,21 @@ function updateRowTotal(row) {
     const total = (qty * cost).toFixed(2);
     const totalCell = row.querySelector('.item-total');
     if (totalCell) totalCell.textContent = total;
+    updatePrGrandTotal();
     if (!suppressTrailingEmptyRow) {
         ensureTrailingEmptyRow();
     }
+}
+
+function updatePrGrandTotal() {
+    let sum = 0;
+    getVisiblePrRows().forEach(function (row) {
+        const qty = parseFloat(row.querySelector('.item-qty')?.value || 0) || 0;
+        const cost = parseFloat(row.querySelector('.item-cost')?.value || 0) || 0;
+        sum += qty * cost;
+    });
+    const el = document.getElementById('prTotalDisplay');
+    if (el) el.textContent = sum.toFixed(2);
 }
 
 function formatPrStock(qty) {

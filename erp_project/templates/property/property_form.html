@@ -1,32 +1,56 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
-
-{% block title %}{% if form.instance.pk %}Edit{% else %}New{% endif %} Property{% endblock %}
-
 {% block content %}
-<div class="container-fluid">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">{% if form.instance.pk %}Edit Property{% else %}New Property{% endif %}</h5>
-                </div>
-                <div class="card-body">
-                    <form method="post">
-                        {% csrf_token %}
-                        {{ form|crispy }}
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'property:property_list' %}" class="btn btn-outline-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary">Save</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'property:property_list' %}">Properties</a></li>
+            {% if form.instance.pk %}
+            <li class="breadcrumb-item"><a href="{% url 'property:property_detail' form.instance.pk %}">{{ form.instance.property_number }}</a></li>
+            <li class="breadcrumb-item active">Edit</li>
+            {% else %}
+            <li class="breadcrumb-item active">New property</li>
+            {% endif %}
+        </ol>
+    </nav>
+    <h4 class="mb-0 fw-bold">{% if form.instance.pk %}Edit property{% else %}New property{% endif %}</h4>
+</div>
+
+{% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+<form method="post" novalidate>{% csrf_token %}
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
+    <div class="card-body">
+        <div class="form-check">{{ form.is_active }}<label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label></div>
+        {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+    </div>
+</div>
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0 fw-semibold">Property details</h6></div>
+    <div class="card-body">
+        <div class="row g-3">
+            {% if form.instance.pk %}
+            <div class="col-md-4"><label class="form-label">Property number</label><input type="text" class="form-control bg-light" value="{{ form.instance.property_number }}" readonly></div>
+            {% endif %}
+            <div class="col-md-4"><label class="form-label">Name <span class="text-danger">*</span></label>{{ form.name }}{% if form.name.errors %}<div class="text-danger small">{{ form.name.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-4"><label class="form-label">Property type</label>{{ form.property_type }}{% if form.property_type.errors %}<div class="text-danger small">{{ form.property_type.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-4"><label class="form-label">Total units</label>{{ form.total_units }}{% if form.total_units.errors %}<div class="text-danger small">{{ form.total_units.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-12"><label class="form-label">Address</label>{{ form.address }}{% if form.address.errors %}<div class="text-danger small">{{ form.address.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-3"><label class="form-label">City</label>{{ form.city }}{% if form.city.errors %}<div class="text-danger small">{{ form.city.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-3"><label class="form-label">Emirate</label>{{ form.emirate }}{% if form.emirate.errors %}<div class="text-danger small">{{ form.emirate.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-3"><label class="form-label">Country</label>{{ form.country }}{% if form.country.errors %}<div class="text-danger small">{{ form.country.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-6"><label class="form-label">AR account</label>{{ form.ar_account }}{% if form.ar_account.errors %}<div class="text-danger small">{{ form.ar_account.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-12"><label class="form-label">Description</label>{{ form.description }}{% if form.description.errors %}<div class="text-danger small">{{ form.description.errors|join:", " }}</div>{% endif %}</div>
         </div>
     </div>
 </div>
+<div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">Save</button>
+    {% if form.instance.pk %}
+    <a href="{% url 'property:property_detail' form.instance.pk %}" class="btn btn-light">Cancel</a>
+    {% else %}
+    <a href="{% url 'property:property_list' %}" class="btn btn-light">Cancel</a>
+    {% endif %}
+</div>
+</form>
 {% endblock %}
-
-
-
-

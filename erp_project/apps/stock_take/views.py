@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views import View
-from django.views.generic import CreateView, ListView, TemplateView
+from django.views.generic import CreateView, DetailView, ListView, TemplateView
 
 from apps.core.mixins import PermissionRequiredMixin
 from apps.core.utils import PermissionChecker
@@ -186,6 +186,22 @@ class SessionCreateView(PermissionRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = 'New Stock Take Session'
+        return ctx
+
+
+class SessionDetailView(PermissionRequiredMixin, DetailView):
+    model = StockTakeSession
+    template_name = 'stock_take/session_detail.html'
+    context_object_name = 'session'
+    module_name = 'inventory'
+    permission_type = 'view'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        s = self.object
+        ctx['title'] = f'Stock Take — {s.client_name}'
+        ctx['can_edit'] = _can_inventory_edit(self.request.user)
+        ctx['line_count'] = s.lines.count()
         return ctx
 
 

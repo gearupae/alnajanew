@@ -28,13 +28,13 @@ class VendorForm(forms.ModelForm):
     class Meta:
         model = Vendor
         fields = [
-            'name', 'contact_person', 'email', 'phone', 'address',
-            'trn', 'website', 'trn_document', 'trade_license_document',
-            'status', 'notes',
+            'is_active', 'name', 'contact_person', 'email', 'phone', 'address',
+            'city', 'country', 'trn', 'website', 'trn_document', 'trade_license_document',
+            'payment_terms', 'credit_limit', 'status', 'notes',
         ]
         widgets = {
-            'address': forms.Textarea(attrs={'rows': 2}),
-            'notes': forms.Textarea(attrs={'rows': 2}),
+            'address': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
             'trn_document': forms.FileInput(
                 attrs={
                     'class': 'form-control form-control-sm',
@@ -51,13 +51,24 @@ class VendorForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['trn_document'].required = False
         self.fields['trade_license_document'].required = False
-        self.fields['trn'].label = 'TRN (VAT)'
+        self.fields['trn'].label = 'Tax Registration Number (TRN)'
         self.fields['website'].required = False
+        self.fields['payment_terms'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Net 30',
+        })
+        self.fields['credit_limit'].widget = forms.NumberInput(
+            attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}
+        )
+        self.fields['city'].widget.attrs.update({'class': 'form-control', 'placeholder': 'City'})
+        self.fields['country'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Country'})
         for field_name, field in self.fields.items():
-            if field_name in ('address', 'notes'):
-                field.widget.attrs['class'] = 'form-control'
+            if field_name in ('address', 'notes', 'payment_terms', 'credit_limit', 'city', 'country', 'is_active'):
+                continue
             elif field_name in ('trn_document', 'trade_license_document'):
                 continue
             elif field_name == 'status':
@@ -68,6 +79,10 @@ class VendorForm(forms.ModelForm):
                 field.widget.attrs['placeholder'] = 'VAT / TRN number'
             elif field_name == 'website':
                 field.widget.attrs['placeholder'] = 'gear-up.ae, www.gear-up.ae, or https://gear-up.ae'
+        if not self.is_bound and not self.instance.pk:
+            self.fields['is_active'].initial = True
+            if 'country' not in self.initial:
+                self.initial['country'] = 'United Arab Emirates'
 
     def clean_website(self):
         from apps.crm.utils import normalize_customer_website
@@ -82,6 +97,8 @@ class VendorForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        if self.is_bound:
+            cleaned['is_active'] = 'is_active' in self.data
         if self.data.get('trn_document-clear') in ('on', 'true', '1'):
             cleaned['trn_document'] = False
         if self.data.get('trade_license_document-clear') in ('on', 'true', '1'):
@@ -97,7 +114,7 @@ class PurchaseRequestForm(forms.ModelForm):
     class Meta:
         model = PurchaseRequest
         fields = [
-            'date', 'required_by_date', 'department', 'priority', 'status',
+            'is_active', 'date', 'required_by_date', 'department', 'priority', 'status',
             'vendor', 'service_request', 'notes',
         ]
         widgets = {
@@ -114,6 +131,8 @@ class PurchaseRequestForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         from apps.hr.models import Department
 
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         is_edit = self.instance and self.instance.pk
         if is_edit:
             for field_name in self.edit_exclude:
@@ -143,12 +162,20 @@ class PurchaseRequestForm(forms.ModelForm):
                 ).distinct()
             self.fields['service_request'].required = False
             self.fields['service_request'].empty_label = '— Optional —'
+            if not self.is_bound:
+                self.fields['is_active'].initial = True
 
         self.fields['required_by_date'].required = False
         self.fields['notes'].required = False
         if self.instance and self.instance.pk and self.instance.status not in ('draft', 'returned'):
             self.fields['status'].disabled = True
             self.fields['status'].help_text = 'Status is changed through approval workflow, not manual edit.'
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.is_bound:
+            cleaned['is_active'] = 'is_active' in self.data
+        return cleaned
 
     def clean_service_request(self):
         val = self.cleaned_data.get('service_request')
@@ -254,11 +281,14 @@ class PurchaseOrderForm(forms.ModelForm):
     
     class Meta:
         model = PurchaseOrder
-        fields = ['vendor', 'project', 'purchase_request', 'service_request', 'order_date', 'expected_delivery_date', 'status', 'notes']
+        fields = [
+            'is_active', 'vendor', 'project', 'purchase_request', 'service_request',
+            'order_date', 'expected_delivery_date', 'status', 'notes',
+        ]
         widgets = {
             'order_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'expected_delivery_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
-            'notes': forms.Textarea(attrs={'rows': 1, 'class': 'form-control'}),
+            'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
     
     # Fields to exclude when editing (source is set at creation only)
@@ -266,6 +296,8 @@ class PurchaseOrderForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         is_edit = self.instance and self.instance.pk
         
         # When editing, exclude PR/SR - source is set at creation only, avoids validation issues
@@ -273,6 +305,8 @@ class PurchaseOrderForm(forms.ModelForm):
             for f in self.edit_exclude:
                 if f in self.fields:
                     del self.fields[f]
+        elif not self.is_bound:
+            self.fields['is_active'].initial = True
         
         self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True, status='active')
         self.fields['vendor'].widget.attrs['class'] = 'form-select'
@@ -312,6 +346,12 @@ class PurchaseOrderForm(forms.ModelForm):
         self.fields['expected_delivery_date'].required = False
         self.fields['notes'].required = False
     
+    def clean(self):
+        cleaned = super().clean()
+        if self.is_bound:
+            cleaned['is_active'] = 'is_active' in self.data
+        return cleaned
+
     def clean_service_request(self):
         """Ensure empty value is None - From SR is optional."""
         val = self.cleaned_data.get('service_request')
@@ -436,7 +476,7 @@ class VendorBillForm(forms.ModelForm):
     class Meta:
         model = VendorBill
         fields = [
-            'vendor', 'project', 'purchase_order', 'goods_received',
+            'is_active', 'vendor', 'project', 'purchase_order', 'goods_received',
             'vendor_invoice_number', 'bill_date', 'due_date', 'status', 'notes',
         ]
         widgets = {
@@ -448,6 +488,8 @@ class VendorBillForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True)
         self.fields['vendor'].widget.attrs['class'] = 'form-select'
         self.fields['project'].queryset = Project.objects.filter(is_active=True).exclude(
@@ -462,14 +504,21 @@ class VendorBillForm(forms.ModelForm):
         self.fields['status'].widget.attrs['class'] = 'form-select'
         self.fields['vendor_invoice_number'].widget.attrs['class'] = 'form-control'
         self.fields['vendor_invoice_number'].required = False
+        self.fields['vendor_invoice_number'].label = 'Vendor invoice number'
         self.fields['notes'].required = False
+        self.fields['goods_received'].label = 'Goods received'
         self.fields['goods_received'].help_text = (
             "Check if this bill is for goods already received into inventory. "
             "This will debit GRN Clearing instead of Expense."
         )
+        if not self.is_bound and not self.instance.pk:
+            self.fields['is_active'].initial = True
 
     def clean(self):
         cleaned = super().clean()
+        if self.is_bound:
+            cleaned['is_active'] = 'is_active' in self.data
+            cleaned['goods_received'] = 'goods_received' in self.data
         goods_received = cleaned.get('goods_received', False)
         po = cleaned.get('purchase_order')
 
@@ -488,6 +537,23 @@ class VendorBillForm(forms.ModelForm):
             cleaned['project'] = po.project
 
         return cleaned
+
+
+class VendorBillProjectForm(forms.ModelForm):
+    """Change project assignment on a posted vendor bill without full edit."""
+
+    class Meta:
+        model = VendorBill
+        fields = ['project']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['project'].queryset = Project.objects.filter(is_active=True).exclude(
+            status='cancelled'
+        ).order_by('name')
+        self.fields['project'].required = False
+        self.fields['project'].widget.attrs['class'] = 'form-select'
+        self.fields['project'].empty_label = '— None (not charged to a project) —'
 
 
 class VendorBillItemForm(forms.ModelForm):
@@ -607,11 +673,24 @@ class ExpenseClaimForm(forms.ModelForm):
     
     class Meta:
         model = ExpenseClaim
-        fields = ['claim_date', 'description']
+        fields = ['is_active', 'claim_date', 'description']
         widgets = {
             'claim_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'description': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.is_bound and not self.instance.pk:
+            self.fields['is_active'].initial = True
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.is_bound:
+            cleaned['is_active'] = 'is_active' in self.data
+        return cleaned
 
 
 class ExpenseClaimItemForm(forms.ModelForm):
@@ -677,6 +756,7 @@ class ExpenseClaimPaymentForm(forms.Form):
     
     bank_account = forms.ModelChoiceField(
         queryset=None,
+        label='Paid from bank (Bank / Cash)',
         widget=forms.Select(attrs={'class': 'form-select'})
     )
     payment_date = forms.DateField(
@@ -702,9 +782,9 @@ class RecurringExpenseForm(forms.ModelForm):
     class Meta:
         model = RecurringExpense
         fields = [
-            'name', 'vendor', 'expense_account', 'tax_code',
+            'is_active', 'name', 'vendor', 'expense_account', 'tax_code',
             'amount', 'frequency', 'start_date', 'end_date',
-            'payment_mode', 'bank_account', 'auto_post', 'description', 'status'
+            'payment_mode', 'bank_account', 'auto_post', 'description', 'status',
         ]
         widgets = {
             'start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
@@ -715,13 +795,15 @@ class RecurringExpenseForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         from apps.finance.models import Account, TaxCode, BankAccount
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         
         # Set widget classes
         for field_name, field in self.fields.items():
             if field_name in ['vendor', 'expense_account', 'tax_code', 'frequency', 
                             'payment_mode', 'bank_account', 'status']:
                 field.widget.attrs['class'] = 'form-select'
-            elif field_name in ['auto_post']:
+            elif field_name in ['auto_post', 'is_active']:
                 field.widget.attrs['class'] = 'form-check-input'
             elif 'date' not in field_name and field_name != 'description':
                 field.widget.attrs['class'] = 'form-control'
@@ -737,9 +819,16 @@ class RecurringExpenseForm(forms.ModelForm):
         self.fields['bank_account'].required = False
         self.fields['end_date'].required = False
         self.fields['description'].required = False
+        self.fields['amount'].widget = forms.NumberInput(attrs={
+            'class': 'form-control', 'step': '0.01', 'min': '0', 'id': 'recurringAmountInput',
+        })
+        if not self.is_bound and not self.instance.pk:
+            self.fields['is_active'].initial = True
     
     def clean(self):
         cleaned_data = super().clean()
+        if self.is_bound:
+            cleaned_data['is_active'] = 'is_active' in self.data
         payment_mode = cleaned_data.get('payment_mode')
         bank_account = cleaned_data.get('bank_account')
         
@@ -766,7 +855,7 @@ class DebitNoteForm(forms.ModelForm):
     class Meta:
         model = DebitNote
         fields = [
-            'original_bill', 'issue_date', 'vendor_credit_note_ref',
+            'is_active', 'original_bill', 'issue_date', 'vendor_credit_note_ref',
             'vendor_credit_note_date', 'reason', 'reason_description',
         ]
         widgets = {
@@ -777,6 +866,8 @@ class DebitNoteForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['original_bill'].queryset = VendorBill.objects.filter(
             is_active=True,
             status__in=DebitNote.DEBITABLE_BILL_STATUSES,
@@ -784,12 +875,18 @@ class DebitNoteForm(forms.ModelForm):
         self.fields['original_bill'].widget.attrs['class'] = 'form-select'
         self.fields['reason'].widget.attrs['class'] = 'form-select'
         self.fields['vendor_credit_note_ref'].widget.attrs['class'] = 'form-control'
+        self.fields['vendor_credit_note_ref'].label = 'Vendor credit note ref'
+        self.fields['vendor_credit_note_date'].label = 'Vendor credit note date'
         if self.instance.pk and self.instance.status != 'draft':
             for field in self.fields.values():
                 field.disabled = True
+        elif not self.is_bound and not self.instance.pk:
+            self.fields['is_active'].initial = True
 
     def clean(self):
         cleaned = super().clean()
+        if self.is_bound:
+            cleaned['is_active'] = 'is_active' in self.data
         bill = cleaned.get('original_bill')
         reason = cleaned.get('reason')
         reason_desc = (cleaned.get('reason_description') or '').strip()

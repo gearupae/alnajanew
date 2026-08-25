@@ -46,61 +46,99 @@
     <div class="col-md-8">
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-header bg-white py-3">
-                <h6 class="mb-0 fw-bold"><i class="fas fa-info-circle me-2 text-primary"></i>Expense Details</h6>
+                <h6 class="mb-0 fw-bold"><i class="fas fa-info-circle me-2 text-primary"></i>Recurring expense details</h6>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <table class="table table-sm mb-0">
-                            <tr>
-                                <th class="text-muted" style="width: 150px;">Name</th>
-                                <td class="fw-bold">{{ recurring_expense.name }}</td>
-                            </tr>
-                            <tr>
-                                <th class="text-muted">Vendor</th>
-                                <td>{{ recurring_expense.vendor.name }}</td>
-                            </tr>
-                            <tr>
-                                <th class="text-muted">Expense Account</th>
-                                <td>{{ recurring_expense.expense_account.code }} - {{ recurring_expense.expense_account.name }}</td>
-                            </tr>
-                            <tr>
-                                <th class="text-muted">Tax Code</th>
-                                <td>{{ recurring_expense.tax_code.name|default:"-" }}</td>
-                            </tr>
-                        </table>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Is active</label>
+                        <p class="mb-0">{% if recurring_expense.is_active %}Yes{% else %}No{% endif %}</p>
                     </div>
-                    <div class="col-md-6">
-                        <table class="table table-sm mb-0">
-                            <tr>
-                                <th class="text-muted" style="width: 150px;">Amount (excl. VAT)</th>
-                                <td>AED {{ recurring_expense.amount|floatformat:2|intcomma }}</td>
-                            </tr>
-                            <tr>
-                                <th class="text-muted">VAT Amount</th>
-                                <td>AED {{ recurring_expense.vat_amount|floatformat:2|intcomma }}</td>
-                            </tr>
-                            <tr>
-                                <th class="text-muted">Total Amount</th>
-                                <td class="fw-bold">AED {{ recurring_expense.total_amount|floatformat:2|intcomma }}</td>
-                            </tr>
-                            <tr>
-                                <th class="text-muted">Payment Mode</th>
-                                <td>{{ recurring_expense.get_payment_mode_display }}</td>
-                            </tr>
-                            {% if recurring_expense.bank_account %}
-                            <tr>
-                                <th class="text-muted">Bank Account</th>
-                                <td>{{ recurring_expense.bank_account.name }}</td>
-                            </tr>
+                    <div class="col-md-5">
+                        <label class="form-label text-muted small">Name</label>
+                        <p class="mb-0 fw-semibold">{{ recurring_expense.name }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Status</label>
+                        <p class="mb-0">
+                            {% if recurring_expense.status == 'active' %}
+                            <span class="badge bg-success">Active</span>
+                            {% elif recurring_expense.status == 'paused' %}
+                            <span class="badge bg-warning">Paused</span>
+                            {% elif recurring_expense.status == 'completed' %}
+                            <span class="badge bg-secondary">Completed</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ recurring_expense.get_status_display }}</span>
                             {% endif %}
-                        </table>
+                        </p>
                     </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Vendor</label>
+                        <p class="mb-0">{{ recurring_expense.vendor.name }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Expense account</label>
+                        <p class="mb-0">{{ recurring_expense.expense_account.code }} — {{ recurring_expense.expense_account.name }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Tax code</label>
+                        <p class="mb-0">{% if recurring_expense.tax_code %}{{ recurring_expense.tax_code.code }} — {{ recurring_expense.tax_code.name }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Amount</label>
+                        <p class="mb-0">AED {{ recurring_expense.amount|floatformat:2|intcomma }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">VAT amount</label>
+                        <p class="mb-0">AED {{ recurring_expense.vat_amount|floatformat:2|intcomma }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Total amount</label>
+                        <p class="mb-0 fw-semibold">AED {{ recurring_expense.total_amount|floatformat:2|intcomma }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Auto post</label>
+                        <p class="mb-0">{% if recurring_expense.auto_post %}Yes{% else %}No{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Frequency</label>
+                        <p class="mb-0">{{ recurring_expense.get_frequency_display }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Start date</label>
+                        <p class="mb-0">{{ recurring_expense.start_date|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">End date</label>
+                        <p class="mb-0">{{ recurring_expense.end_date|date:"d/m/Y"|default:"Indefinite" }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Next run date</label>
+                        <p class="mb-0 fw-medium">{{ recurring_expense.next_run_date|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Payment mode</label>
+                        <p class="mb-0">{{ recurring_expense.get_payment_mode_display }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Bank account</label>
+                        <p class="mb-0">{{ recurring_expense.bank_account.name|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Last run date</label>
+                        <p class="mb-0">{{ recurring_expense.last_run_date|date:"d/m/Y"|default:"Never" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Total generated</label>
+                        <p class="mb-0 fw-medium">{{ recurring_expense.total_generated }}</p>
+                    </div>
+                    {% if recurring_expense.description %}
+                    <div class="col-12">
+                        <label class="form-label text-muted small">Description</label>
+                        <p class="mb-0">{{ recurring_expense.description|linebreaks }}</p>
+                    </div>
+                    {% endif %}
                 </div>
-                {% if recurring_expense.description %}
-                <hr>
-                <p class="mb-0"><strong>Description:</strong> {{ recurring_expense.description }}</p>
-                {% endif %}
             </div>
         </div>
         

@@ -13,11 +13,26 @@
             <h4 class="mb-1 fw-bold">{{ item.item_code }}</h4>
             <span class="text-muted">{{ item.name }}</span>
         </div>
-        <div class="d-flex gap-2">
-            {% if can_edit %}
+        <div class="d-flex gap-2 flex-wrap">
+            {% if can_approve_item %}
+            <form method="post" action="{% url 'inventory:item_approve' item.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success" onclick="return confirm('Approve this item for use?');">
+                    <i class="fas fa-check me-1"></i>Approve
+                </button>
+            </form>
+            {% endif %}
+            {% if can_reject_item %}
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectItemModal">
+                <i class="fas fa-times me-1"></i>Reject
+            </button>
+            {% endif %}
+            {% if can_edit and item.status == 'active' %}
             <a href="{% url 'inventory:stock_transfer' %}?item={{ item.pk }}" class="btn btn-outline-primary">
                 <i class="fas fa-exchange-alt me-1"></i>Transfer Stock
             </a>
+            {% endif %}
+            {% if can_edit %}
             <a href="{% url 'inventory:item_edit' item.pk %}" class="btn btn-primary">
                 <i class="fas fa-edit me-2"></i>Edit
             </a>
@@ -33,9 +48,33 @@
             <div class="card-header"><h6 class="mb-0 fw-semibold">Item Details</h6></div>
             <div class="card-body">
                 <div class="row g-4">
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Is active</h6>
+                        <p class="mb-0">{% if item.is_active %}Yes{% else %}No{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Item code</h6>
+                        <p class="mb-0 font-monospace">{{ item.item_code }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Name</h6>
+                        <p class="mb-0">{{ item.name }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Status</h6>
+                        <p class="mb-0">{{ item.get_status_display }}</p>
+                    </div>
                     <div class="col-md-4">
                         <h6 class="text-muted mb-2">Category</h6>
-                        <p class="mb-0">{{ item.category.name|default:"-" }}</p>
+                        <p class="mb-0">{{ item.category.name|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Item type</h6>
+                        <p class="mb-0">{{ item.get_item_type_display }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Unit</h6>
+                        <p class="mb-0">{{ item.unit }}</p>
                     </div>
                     <div class="col-md-4">
                         <h6 class="text-muted mb-2">Groups</h6>
@@ -49,24 +88,20 @@
                             {% endif %}
                         </p>
                     </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Type</h6>
-                        <p class="mb-0">{{ item.get_item_type_display }}</p>
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">Description</h6>
+                        <p class="mb-0">{{ item.description|default:"—" }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Unit</h6>
-                        <p class="mb-0">{{ item.unit }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Purchase Price</h6>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Purchase price</h6>
                         <p class="mb-0">AED {{ item.purchase_price|floatformat:2 }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Selling Price</h6>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Selling price</h6>
                         <p class="mb-0">AED {{ item.selling_price|floatformat:2 }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Min / Max Selling Price</h6>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Minimum selling price</h6>
                         <p class="mb-0">
                             {% if item.minimum_selling_price > 0 %}
                                 {% if item.minimum_selling_price_type == 'percent' %}
@@ -78,7 +113,11 @@
                             {% else %}
                                 —
                             {% endif %}
-                            —
+                        </p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Maximum selling price</h6>
+                        <p class="mb-0">
                             {% if item.maximum_selling_price > 0 %}
                                 {% if item.maximum_selling_price_type == 'percent' %}
                                     {{ item.maximum_selling_price|floatformat:2 }}%
@@ -91,31 +130,69 @@
                             {% endif %}
                         </p>
                     </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Tax Code</h6>
-                        <p class="mb-0">{{ item.tax_code|default:"Out of Scope (0%)" }}</p>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Minimum selling price type</h6>
+                        <p class="mb-0">{{ item.get_minimum_selling_price_type_display }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Maximum selling price type</h6>
+                        <p class="mb-0">{{ item.get_maximum_selling_price_type_display }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Minimum stock</h6>
+                        <p class="mb-0">{{ item.minimum_stock }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Track by serial</h6>
+                        <p class="mb-0">{% if item.track_by_serial %}Yes{% else %}No{% endif %}</p>
                     </div>
                     <div class="col-md-4">
-                        <h6 class="text-muted mb-2">VAT Rate</h6>
+                        <h6 class="text-muted mb-2">Tax code</h6>
+                        <p class="mb-0">{% if item.tax_code %}{{ item.tax_code.code }} — {{ item.tax_code.name }}{% else %}Out of Scope (0%){% endif %}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">VAT rate</h6>
                         <p class="mb-0">{{ item.vat_rate }}%</p>
                     </div>
                     <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Condition</h6>
+                        <h6 class="text-muted mb-2">Condition status</h6>
                         <p class="mb-0">{{ item.get_condition_status_display }}</p>
                     </div>
-                    {% if item.description %}
-                    <div class="col-12">
-                        <h6 class="text-muted mb-2">Description</h6>
-                        <p class="mb-0">{{ item.description }}</p>
-                    </div>
-                    {% endif %}
                     <div class="col-md-6">
-                        <h6 class="text-muted mb-2">Storage Location</h6>
-                        <p class="mb-0">{{ item.get_storage_shelf_label|default:"—" }}</p>
+                        <h6 class="text-muted mb-2">Condition notes</h6>
+                        <p class="mb-0">{{ item.condition_notes|default:"—" }}</p>
                     </div>
                     <div class="col-md-6">
+                        <h6 class="text-muted mb-2">Condition changed at</h6>
+                        <p class="mb-0">{% if item.condition_changed_at %}{{ item.condition_changed_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Storage location master</h6>
+                        <p class="mb-0">{{ item.storage_location_master.name|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Storage location</h6>
+                        <p class="mb-0">{{ item.storage_location|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-4">
                         <h6 class="text-muted mb-2">Barcode / Asset Code</h6>
                         <p class="mb-0 font-monospace">{{ item.barcode|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Brand</h6>
+                        <p class="mb-0">{{ item.brand|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Serial / batch number</h6>
+                        <p class="mb-0">{{ item.serial_batch_number|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Purchase date</h6>
+                        <p class="mb-0">{% if item.purchase_date %}{{ item.purchase_date|date:"d/m/Y" }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Warranty expiry</h6>
+                        <p class="mb-0">{% if item.warranty_expiry %}{{ item.warranty_expiry|date:"d/m/Y" }}{% else %}—{% endif %}</p>
                     </div>
                 </div>
             </div>
@@ -617,6 +694,30 @@
                 </div>
             </form>
         </div>
+    </div>
+</div>
+{% endif %}
+
+{% if can_reject_item %}
+<div class="modal fade" id="rejectItemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" action="{% url 'inventory:item_reject' item.pk %}">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reject item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Reason <span class="text-danger">*</span></label>
+                    <textarea name="rejection_reason" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Reject item</button>
+                </div>
+            </div>
+        </form>
     </div>
 </div>
 {% endif %}

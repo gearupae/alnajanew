@@ -14,8 +14,13 @@ from .models import EstimateItem
 def _estimate_line_base_unit_price(line: EstimateItem) -> Decimal:
     """Base price per unit for project budget (estimate base = inventory selling price)."""
     base = line.unit_price or Decimal('0')
+    if base <= 0 and line.rate and line.rate > 0:
+        base = line.rate
+    if base <= 0 and line.total and line.quantity and line.quantity > 0:
+        base = (line.total / line.quantity).quantize(Decimal('0.01'))
     if base <= 0 and line.inventory_item_id:
-        base = line.inventory_item.selling_price or Decimal('0')
+        inv = line.inventory_item
+        base = inv.selling_price or inv.purchase_price or Decimal('0')
     return base
 
 

@@ -7,19 +7,20 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q, Sum
+from django.db.models import Count, Q, Sum
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import redirect, get_object_or_404, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.views.generic import ListView, UpdateView
+from django.views.generic import DetailView, ListView, UpdateView
 
 from apps.core.mixins import PermissionRequiredMixin, UpdatePermissionMixin
 from apps.core.utils import PermissionChecker
 from apps.crm.models import Customer
 
-from .forms import ContractForm, scope_of_work_lines_for_context
+from .forms import ContractForm, ContractTypeForm, scope_of_work_lines_for_context
+from .contract_alerts import count_reminder_due_contracts
 from .models import Contract, ContractAttachment, ContractType
 
 
@@ -61,6 +62,13 @@ class ContractListView(PermissionRequiredMixin, ListView):
                 | Q(customer__name__icontains=search)
                 | Q(customer__company__icontains=search)
             )
+        status = self.request.GET.get('status')
+        if status in dict(Contract.STATUS_CHOICES):
+            qs = qs.filter(status=status)
+        if self.request.GET.get('reminder_due') == '1':
+            pks = [c.pk for c in qs if c.reminder_due() and c.status not in ('expired', 'terminated', 'draft')]
+            qs = Contract.objects.filter(pk__in=pks).select_related('customer').prefetch_related('contract_types')
+
         return qs.order_by('-created_at')
 
     def get_context_data(self, **kwargs):
@@ -74,6 +82,7 @@ class ContractListView(PermissionRequiredMixin, ListView):
         ctx['metric_active'] = all_c.filter(start_date__lte=today, end_date__gte=today).count()
         ctx['metric_expired'] = all_c.filter(end_date__lt=today).count()
         ctx['metric_expiring'] = all_c.filter(end_date__gte=today, end_date__lte=horizon).count()
+        ctx['metric_reminder_due'] = count_reminder_due_contracts(today)
         ctx['metric_recent'] = all_c.filter(created_at__date__gte=week_ago).count()
 
         type_rows = []
@@ -91,7 +100,12 @@ class ContractListView(PermissionRequiredMixin, ListView):
         ctx['today'] = today
 
         ctx['title'] = 'Contracts'
-        ctx['form'] = ContractForm()
+        initial = {}
+        customer_pk = self.request.GET.get('customer')
+        if customer_pk and str(customer_pk).isdigit():
+            initial['customer'] = int(customer_pk)
+        ctx['form'] = kwargs.get('form') or ContractForm(initial=initial)
+        ctx['open_contract_form'] = bool(customer_pk)
         ctx['can_create'] = self.request.user.is_superuser or PermissionChecker.has_permission(
             self.request.user, 'contracts', 'create'
         )
@@ -138,14 +152,41 @@ class ContractListView(PermissionRequiredMixin, ListView):
         _persist_contract_types_and_attachments(request, contract, selected, extra_names)
 
         messages.success(request, f'Contract {contract.contract_number} created.')
-        return redirect('contracts:contract_list')
+        return redirect('contracts:contract_detail', pk=contract.pk)
+
+
+class ContractDetailView(PermissionRequiredMixin, DetailView):
+    model = Contract
+    template_name = 'contracts/contract_detail.html'
+    context_object_name = 'contract'
+    module_name = 'contracts'
+    permission_type = 'view'
+
+    def get_queryset(self):
+        return Contract.objects.filter(is_active=True).select_related('customer').prefetch_related(
+            'contract_types',
+            'attachments',
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        c = self.object
+        ctx['title'] = c.contract_number
+        ctx['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'contracts', 'edit'
+        )
+        ctx['can_delete'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'contracts', 'delete'
+        )
+        ctx['reminder_due'] = c.reminder_due()
+        ctx['today'] = timezone.now().date()
+        return ctx
 
 
 class ContractUpdateView(UpdatePermissionMixin, UpdateView):
     model = Contract
     form_class = ContractForm
     template_name = 'contracts/contract_form.html'
-    success_url = reverse_lazy('contracts:contract_list')
     module_name = 'contracts'
 
     def get_queryset(self):
@@ -173,7 +214,82 @@ class ContractUpdateView(UpdatePermissionMixin, UpdateView):
         contract.save()
         _persist_contract_types_and_attachments(self.request, contract, selected, extra_names)
         messages.success(self.request, f'Contract {contract.contract_number} updated.')
-        return redirect(self.success_url)
+        return redirect('contracts:contract_detail', pk=contract.pk)
+
+
+class ContractTypeListView(PermissionRequiredMixin, ListView):
+    model = ContractType
+    template_name = 'contracts/type_list.html'
+    context_object_name = 'contract_types'
+    module_name = 'contracts'
+    permission_type = 'view'
+
+    def get_queryset(self):
+        return (
+            ContractType.objects.filter(is_active=True)
+            .annotate(contract_count=Count('contracts', filter=Q(contracts__is_active=True)))
+            .order_by('name')
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Contract Types'
+        ctx['form'] = ContractTypeForm()
+        ctx['can_create'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'contracts', 'create'
+        )
+        ctx['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'contracts', 'edit'
+        )
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'contracts', 'create')):
+            messages.error(request, 'Permission denied.')
+            return redirect('contracts:type_list')
+        form = ContractTypeForm(request.POST)
+        if form.is_valid():
+            doc_type = form.save()
+            messages.success(request, 'Contract type created.')
+            return redirect('contracts:type_detail', pk=doc_type.pk)
+        messages.error(request, 'Could not create contract type.')
+        return redirect('contracts:type_list')
+
+
+class ContractTypeDetailView(PermissionRequiredMixin, DetailView):
+    model = ContractType
+    template_name = 'contracts/type_detail.html'
+    context_object_name = 'contract_type'
+    module_name = 'contracts'
+    permission_type = 'view'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = self.object.name
+        ctx['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'contracts', 'edit'
+        )
+        ctx['linked_contracts'] = self.object.contracts.filter(is_active=True).order_by('-created_at')[:20]
+        return ctx
+
+
+class ContractTypeUpdateView(UpdatePermissionMixin, UpdateView):
+    model = ContractType
+    form_class = ContractTypeForm
+    template_name = 'contracts/type_form.html'
+    module_name = 'contracts'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Contract Type — {self.object.name}'
+        return ctx
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Contract type updated.')
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse('contracts:type_detail', kwargs={'pk': self.object.pk})
 
 
 @login_required

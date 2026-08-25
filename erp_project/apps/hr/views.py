@@ -118,6 +118,48 @@ def _sync_employee_hr_profile(employee):
     prof.save()
 
 
+def _employee_compliance_forms(employee=None, post_data=None):
+    from apps.hr.forms_extended import KSAComplianceForm, UAEComplianceForm
+    from apps.hr.models_extended import KSACompliance, UAECompliance
+
+    uc_inst = kc_inst = None
+    if employee and employee.pk:
+        uc_inst, _ = UAECompliance.objects.get_or_create(employee=employee)
+        kc_inst, _ = KSACompliance.objects.get_or_create(employee=employee)
+
+    uae_kw = {'prefix': 'uae'}
+    ksa_kw = {'prefix': 'ksa'}
+    if uc_inst:
+        uae_kw['instance'] = uc_inst
+    if kc_inst:
+        ksa_kw['instance'] = kc_inst
+    if post_data is not None:
+        return UAEComplianceForm(post_data, **uae_kw), KSAComplianceForm(post_data, **ksa_kw)
+    return UAEComplianceForm(**uae_kw), KSAComplianceForm(**ksa_kw)
+
+
+def _save_employee_compliance(employee, post_data):
+    """Validate and save UAE or KSA compliance profile based on employee.location."""
+    from apps.hr.forms_extended import KSAComplianceForm, UAEComplianceForm
+    from apps.hr.models_extended import KSACompliance, UAECompliance
+
+    location = employee.location or 'uae'
+    if location == 'ksa':
+        kc, _ = KSACompliance.objects.get_or_create(employee=employee)
+        form = KSAComplianceForm(post_data, instance=kc, prefix='ksa')
+        if not form.is_valid():
+            return False, form, 'ksa'
+        form.save()
+        return True, None, None
+
+    uc, _ = UAECompliance.objects.get_or_create(employee=employee)
+    form = UAEComplianceForm(post_data, instance=uc, prefix='uae')
+    if not form.is_valid():
+        return False, form, 'uae'
+    form.save()
+    return True, None, None
+
+
 class EmployeeListView(PermissionRequiredMixin, ListView):
     model = Employee
     template_name = 'hr/employee_list.html'
@@ -177,9 +219,7 @@ class EmployeeCreateView(CreatePermissionMixin, CreateView):
     module_name = 'hr'
 
     def _compliance_forms(self):
-        from apps.hr.forms_extended import UAEComplianceForm
-
-        return UAEComplianceForm(prefix='uae')
+        return _employee_compliance_forms(getattr(self, 'object', None))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -212,9 +252,16 @@ class EmployeeCreateView(CreatePermissionMixin, CreateView):
         # Also pass roles for reference
         context['roles'] = roles
         uae_form = kwargs.get('uae_form')
-        if uae_form is None:
-            uae_form = self._compliance_forms()
+        ksa_form = kwargs.get('ksa_form')
+        if uae_form is None or ksa_form is None:
+            uae_form, ksa_form = self._compliance_forms()
         context['uae_form'] = uae_form
+        context['ksa_form'] = ksa_form
+        context['employee_location'] = (
+            getattr(form, 'data', {}).get('location')
+            if form is not None and getattr(form, 'data', None)
+            else (getattr(self.object, 'location', None) or 'uae')
+        )
         emp = getattr(self, 'object', None)
         employee_for_bank = emp if (emp and emp.pk) else None
         context['bank_form'] = kwargs.get('bank_form') or _employee_bank_form(
@@ -228,34 +275,37 @@ class EmployeeCreateView(CreatePermissionMixin, CreateView):
         form = self.get_form()
         if not form.is_valid():
             ctx = self.get_context_data(form=form)
-            from apps.hr.forms_extended import UAEComplianceForm
-
-            ctx['uae_form'] = UAEComplianceForm(request.POST, prefix='uae')
+            uae_form, ksa_form = _employee_compliance_forms(post_data=request.POST)
+            ctx['uae_form'] = uae_form
+            ctx['ksa_form'] = ksa_form
             return self.render_to_response(ctx)
-
-        from apps.hr.forms_extended import UAEComplianceForm
-        from apps.hr.models_extended import UAECompliance
 
         try:
             with transaction.atomic():
                 employee = form.save()
                 _provision_employee_login_if_needed(request, form, employee)
-                uc, _ = UAECompliance.objects.get_or_create(employee=employee)
-                uf = UAEComplianceForm(request.POST, instance=uc, prefix='uae')
-                if not uf.is_valid():
+                ok, compliance_form, compliance_kind = _save_employee_compliance(employee, request.POST)
+                if not ok:
                     transaction.set_rollback(True)
                     ctx = self.get_context_data(form=form)
-                    ctx['uae_form'] = uf
+                    uae_form, ksa_form = _employee_compliance_forms(employee, request.POST)
+                    if compliance_kind == 'ksa':
+                        ctx['ksa_form'] = compliance_form
+                        ctx['uae_form'] = uae_form
+                    else:
+                        ctx['uae_form'] = compliance_form
+                        ctx['ksa_form'] = ksa_form
                     return self.render_to_response(ctx)
-                uf.save()
                 bf = EmployeeBankDetailForm(
                     request.POST, instance=getattr(employee, 'bank_detail', None)
                 )
                 if not bf.is_valid():
                     transaction.set_rollback(True)
                     ctx = self.get_context_data(form=form)
+                    uae_form, ksa_form = _employee_compliance_forms(employee, request.POST)
                     ctx['bank_form'] = bf
-                    ctx['uae_form'] = UAEComplianceForm(request.POST, instance=uc, prefix='uae')
+                    ctx['uae_form'] = uae_form
+                    ctx['ksa_form'] = ksa_form
                     return self.render_to_response(ctx)
                 bf.save_for_employee(employee)
                 _sync_employee_hr_profile(employee)
@@ -276,11 +326,7 @@ class EmployeeUpdateView(UpdatePermissionMixin, UpdateView):
         return reverse('hr:employee_detail', kwargs={'pk': self.object.pk})
 
     def _compliance_forms(self):
-        from apps.hr.forms_extended import UAEComplianceForm
-        from apps.hr.models_extended import UAECompliance
-
-        uc, _ = UAECompliance.objects.get_or_create(employee=self.object)
-        return UAEComplianceForm(instance=uc, prefix='uae')
+        return _employee_compliance_forms(self.object)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -316,9 +362,16 @@ class EmployeeUpdateView(UpdatePermissionMixin, UpdateView):
         # Also pass roles for reference
         context['roles'] = roles
         uae_form = kwargs.get('uae_form')
-        if uae_form is None:
-            uae_form = self._compliance_forms()
+        ksa_form = kwargs.get('ksa_form')
+        if uae_form is None or ksa_form is None:
+            uae_form, ksa_form = self._compliance_forms()
         context['uae_form'] = uae_form
+        context['ksa_form'] = ksa_form
+        context['employee_location'] = (
+            getattr(form, 'data', {}).get('location')
+            if form is not None and getattr(form, 'data', None)
+            else (getattr(self.object, 'location', None) or 'uae')
+        )
         context['bank_form'] = kwargs.get('bank_form') or _employee_bank_form(
             self.request, self.object
         )
@@ -329,36 +382,37 @@ class EmployeeUpdateView(UpdatePermissionMixin, UpdateView):
         form = self.get_form()
         if not form.is_valid():
             ctx = self.get_context_data(form=form)
-            from apps.hr.forms_extended import UAEComplianceForm
-            from apps.hr.models_extended import UAECompliance
-
-            uc, _ = UAECompliance.objects.get_or_create(employee=self.object)
-            ctx['uae_form'] = UAEComplianceForm(request.POST, instance=uc, prefix='uae')
+            uae_form, ksa_form = _employee_compliance_forms(self.object, request.POST)
+            ctx['uae_form'] = uae_form
+            ctx['ksa_form'] = ksa_form
             return self.render_to_response(ctx)
-
-        from apps.hr.forms_extended import UAEComplianceForm
-        from apps.hr.models_extended import UAECompliance
 
         try:
             with transaction.atomic():
                 employee = form.save()
                 _provision_employee_login_if_needed(request, form, employee)
-                uc, _ = UAECompliance.objects.get_or_create(employee=employee)
-                uf = UAEComplianceForm(request.POST, instance=uc, prefix='uae')
-                if not uf.is_valid():
+                ok, compliance_form, compliance_kind = _save_employee_compliance(employee, request.POST)
+                if not ok:
                     transaction.set_rollback(True)
                     ctx = self.get_context_data(form=form)
-                    ctx['uae_form'] = uf
+                    uae_form, ksa_form = _employee_compliance_forms(employee, request.POST)
+                    if compliance_kind == 'ksa':
+                        ctx['ksa_form'] = compliance_form
+                        ctx['uae_form'] = uae_form
+                    else:
+                        ctx['uae_form'] = compliance_form
+                        ctx['ksa_form'] = ksa_form
                     return self.render_to_response(ctx)
-                uf.save()
                 bf = EmployeeBankDetailForm(
                     request.POST, instance=getattr(employee, 'bank_detail', None)
                 )
                 if not bf.is_valid():
                     transaction.set_rollback(True)
                     ctx = self.get_context_data(form=form)
+                    uae_form, ksa_form = _employee_compliance_forms(employee, request.POST)
                     ctx['bank_form'] = bf
-                    ctx['uae_form'] = UAEComplianceForm(request.POST, instance=uc, prefix='uae')
+                    ctx['uae_form'] = uae_form
+                    ctx['ksa_form'] = ksa_form
                     return self.render_to_response(ctx)
                 bf.save_for_employee(employee)
                 _sync_employee_hr_profile(employee)
@@ -379,7 +433,7 @@ class EmployeeDetailView(PermissionRequiredMixin, DetailView):
 
     def get_queryset(self):
         return Employee.objects.select_related(
-            'company', 'department', 'designation', 'bank_detail'
+            'company', 'department', 'designation', 'bank_detail', 'user', 'salary_template',
         )
 
     def get_context_data(self, **kwargs):
@@ -427,6 +481,16 @@ class EmployeeDetailView(PermissionRequiredMixin, DetailView):
         else:
             context['gratuity_national_message'] = ''
 
+        from apps.documents.document_utils import entity_documents_context
+
+        context.update(
+            entity_documents_context(
+                self.request.user,
+                entity_type='employee',
+                entity_id=self.object.pk,
+                entity_name=self.object.full_name,
+            )
+        )
         return context
 
 
@@ -492,6 +556,46 @@ class DepartmentListView(PermissionRequiredMixin, ListView):
             form.save()
             messages.success(request, 'Department created.')
         return redirect('hr:department_list')
+
+
+class DepartmentDetailView(PermissionRequiredMixin, DetailView):
+    model = Department
+    template_name = 'hr/department_detail.html'
+    context_object_name = 'department'
+    module_name = 'hr'
+    permission_type = 'view'
+
+    def get_queryset(self):
+        return Department.objects.select_related('manager').annotate(
+            employee_count=Count('employees', filter=Q(employees__is_active=True))
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = self.object.name
+        context['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'hr', 'edit'
+        )
+        return context
+
+
+class DepartmentUpdateView(UpdatePermissionMixin, UpdateView):
+    model = Department
+    form_class = DepartmentForm
+    template_name = 'hr/department_form.html'
+    module_name = 'hr'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f'Edit Department: {self.object.name}'
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Department {form.instance.name} updated.')
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse('hr:department_detail', kwargs={'pk': self.object.pk})
 
 
 class DesignationListView(PermissionRequiredMixin, ListView):
@@ -579,7 +683,6 @@ class LeaveRequestCreateView(CreatePermissionMixin, CreateView):
     model = LeaveRequest
     form_class = LeaveRequestForm
     template_name = 'hr/leave_form.html'
-    success_url = reverse_lazy('hr:leave_list')
     module_name = 'hr'
     
     def get_form_kwargs(self):
@@ -640,7 +743,7 @@ class LeaveRequestCreateView(CreatePermissionMixin, CreateView):
                 f'Split leave submitted: {lr1.reference_number or lr1.pk}, {lr2.reference_number or lr2.pk}',
             )
             self.object = lr2
-            return redirect(self.get_success_url())
+            return redirect('hr:leave_detail', pk=lr2.pk)
 
         resp = super().form_valid(form)
         sync_leave_balances_for_employee(form.instance.employee_id)
@@ -648,12 +751,14 @@ class LeaveRequestCreateView(CreatePermissionMixin, CreateView):
         messages.success(self.request, f'Leave request submitted. Reference: {self.object.reference_number or self.object.pk}')
         return resp
 
+    def get_success_url(self):
+        return reverse('hr:leave_detail', kwargs={'pk': self.object.pk})
+
 
 class LeaveRequestUpdateView(UpdatePermissionMixin, UpdateView):
     model = LeaveRequest
     form_class = LeaveRequestForm
     template_name = 'hr/leave_form.html'
-    success_url = reverse_lazy('hr:leave_list')
     module_name = 'hr'
     
     def get_form_kwargs(self):
@@ -679,6 +784,9 @@ class LeaveRequestUpdateView(UpdatePermissionMixin, UpdateView):
         messages.success(self.request, 'Leave request updated successfully.')
         return resp
 
+    def get_success_url(self):
+        return reverse('hr:leave_detail', kwargs={'pk': self.object.pk})
+
 
 class LeaveRequestDetailView(PermissionRequiredMixin, DetailView):
     """View leave request details, reason, and uploaded attachment (public apply)."""
@@ -690,7 +798,9 @@ class LeaveRequestDetailView(PermissionRequiredMixin, DetailView):
     permission_type = 'view'
 
     def get_queryset(self):
-        return leave_requests_queryset_for_user(self.request.user)
+        return leave_requests_queryset_for_user(self.request.user).select_related(
+            'employee', 'leave_type', 'covering_employee', 'approved_by',
+        )
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -706,6 +816,9 @@ class LeaveRequestDetailView(PermissionRequiredMixin, DetailView):
         from apps.hr.leave_approval_rules import user_can_act_on_leave_request
 
         ctx['can_act_on_leave'] = user_can_act_on_leave_request(self.request.user, leave)
+        ctx['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'hr', 'edit'
+        )
         return ctx
 
 
@@ -973,6 +1086,7 @@ class PayrollCreateView(CreatePermissionMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Add Payroll'
+        context['is_edit'] = False
         context.update(_payroll_form_allowance_context())
         context['employee_company_map'] = {
             str(e.pk): (str(e.company_id) if e.company_id else '')
@@ -1003,7 +1117,7 @@ class PayrollCreateView(CreatePermissionMixin, CreateView):
             ensure_payroll_allowances_from_employee_template(payroll, emp)
         refresh_payroll_gross_and_allowances(payroll)
         messages.success(self.request, f'Payroll for {payroll.employee.full_name} created successfully.')
-        return redirect(self.success_url)
+        return redirect('hr:payroll_detail', pk=payroll.pk)
 
 
 class PayrollUpdateView(UpdatePermissionMixin, UpdateView):
@@ -1019,6 +1133,7 @@ class PayrollUpdateView(UpdatePermissionMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = f'Edit Payroll: {self.object.employee.full_name}'
+        context['is_edit'] = True
         context.update(_payroll_form_allowance_context(self.object))
         context['employee_company_map'] = {
             str(e.pk): (str(e.company_id) if e.company_id else '')
@@ -1046,7 +1161,7 @@ class PayrollUpdateView(UpdatePermissionMixin, UpdateView):
             ensure_payroll_allowances_from_employee_template(payroll, emp)
         refresh_payroll_gross_and_allowances(payroll)
         messages.success(self.request, f'Payroll for {payroll.employee.full_name} updated successfully.')
-        return redirect(self.success_url)
+        return redirect('hr:payroll_detail', pk=payroll.pk)
 
 
 
@@ -1071,15 +1186,28 @@ def payroll_process(request, pk):
         return redirect('hr:payroll_list')
     
     try:
-        from apps.hr.payroll_processing import apply_payroll_computations
+        from apps.hr.payroll_processing import apply_payroll_computations, validate_attendance_finalized_for_payroll
 
+        validate_attendance_finalized_for_payroll(payroll)
         apply_payroll_computations(payroll)
         payroll.refresh_from_db()
 
         journal = payroll.post_to_accounting(user=request.user)
         # Audit log with IP address
         audit_payroll_process(payroll, request.user, request=request)
-        messages.success(request, f'Payroll for {payroll.employee.full_name} processed and posted. Journal: {journal.entry_number}')
+        from apps.finance.models import FinanceSettings
+
+        if FinanceSettings.should_auto_post('payroll'):
+            messages.success(
+                request,
+                f'Payroll for {payroll.employee.full_name} processed and posted. Journal: {journal.entry_number}',
+            )
+        else:
+            messages.success(
+                request,
+                f'Payroll for {payroll.employee.full_name} processed. '
+                f'Journal {journal.entry_number} saved as draft — post manually in Finance.',
+            )
     except ValidationError as e:
         messages.error(request, str(e))
     except Exception as e:

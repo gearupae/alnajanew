@@ -23,6 +23,13 @@
     </div>
 </div>
 
+{% if pending_approval_count %}
+<div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <span><i class="fas fa-clock me-2"></i>{{ pending_approval_count }} item(s) awaiting your approval.</span>
+    <a href="?status=pending_approval" class="btn btn-sm btn-warning">Review pending</a>
+</div>
+{% endif %}
+
 <!-- Stats -->
 <div class="row g-3 mb-4">
     <div class="col-md-6">
@@ -188,6 +195,10 @@
                         <td>
                             {% if item.status == 'active' %}
                             <span class="badge badge-active">Active</span>
+                            {% elif item.status == 'pending_approval' %}
+                            <span class="badge bg-warning text-dark">Pending Approval</span>
+                            {% elif item.status == 'rejected' %}
+                            <span class="badge bg-danger">Rejected</span>
                             {% else %}
                             <span class="badge badge-inactive">Inactive</span>
                             {% endif %}

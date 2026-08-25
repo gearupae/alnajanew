@@ -569,6 +569,9 @@ class PDCCheque(BaseModel):
         self.journal_entry = journal
         self.save()
 
+        for invoice in self.rent_invoices.filter(status__in=['posted', 'partial'], is_active=True):
+            invoice.apply_payment(min(self.amount, invoice.balance))
+
         return journal
     
     def bounce(self, user, bounce_date=None, bounce_reason='', bounce_charges=Decimal('0.00')):
@@ -960,6 +963,17 @@ class RentInvoice(BaseModel):
     @property
     def balance(self):
         return self.total_amount - self.paid_amount
+
+    def apply_payment(self, amount):
+        """Record payment against this invoice (e.g. when linked PDC clears)."""
+        if amount <= 0:
+            return
+        self.paid_amount += amount
+        if self.paid_amount >= self.total_amount:
+            self.status = 'paid'
+        elif self.paid_amount > 0:
+            self.status = 'partial'
+        self.save(update_fields=['paid_amount', 'status'])
     
     def post_to_accounting(self, user=None):
         """

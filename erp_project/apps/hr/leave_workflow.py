@@ -4,8 +4,17 @@ from __future__ import annotations
 from django.utils import timezone
 
 from apps.hr import hr_notifications
-from apps.hr.leave_approval_rules import user_can_hr_approve, user_can_manager_approve
+from apps.hr.leave_approval_rules import manager_approver_for_employee, user_can_hr_approve, user_can_manager_approve
 from apps.hr.leave_balance_service import sync_leave_balances_for_employee
+
+
+def route_leave_on_submit(leave) -> None:
+    """Skip manager step when no department manager (or configured fallback) exists."""
+    if leave.status != 'pending_manager':
+        return
+    if manager_approver_for_employee(leave.employee) is None:
+        leave.status = 'pending_hr'
+        leave.save(update_fields=['status', 'updated_at'])
 
 
 def approve_leave_request(request, leave) -> tuple[bool, str]:

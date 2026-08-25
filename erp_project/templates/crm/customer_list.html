@@ -257,74 +257,56 @@
         {% csrf_token %}
         <div class="row g-3">
             <div class="col-md-3">
+                <label class="form-label">Name</label>
+                <input type="text" name="name" class="form-control" placeholder="Contact name (optional)">
+            </div>
+            <div class="col-md-3">
                 <label class="form-label">Company <span class="text-danger">*</span></label>
                 <input type="text" name="company" class="form-control" placeholder="Company Name" required>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Contact Name</label>
-                <input type="text" name="name" class="form-control" placeholder="Full Name (optional)">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Type <span class="text-danger">*</span></label>
-                {% if crm_sales_rep_only %}
-                <input type="hidden" name="customer_type" value="lead">
-                <input type="text" class="form-control" value="Lead" readonly>
-                {% else %}
-                <select name="customer_type" id="crmInlineCustomerType" class="form-select" required>
-                    <option value="lead">Lead</option>
-                    <option value="customer">Customer</option>
-                </select>
-                {% endif %}
-            </div>
-            <div class="col-md-3" id="crmInlineAssignWrap">
-                <label class="form-label">Assigned salesman <span class="text-danger">*</span></label>
-                <select name="assigned_salesperson" id="crmInlineAssignedTo" class="form-select" required>
-                    <option value="">— Select salesman —</option>
-                    {% for item in salesman_choice_options %}
-                    <option value="{{ item.id }}"{% if default_assigned_salesperson_id == item.id %} selected{% endif %}>{{ item.label }}</option>
-                    {% empty %}
-                    <option value="" disabled>No employees yet — add them under HR → Employees</option>
-                    {% endfor %}
-                </select>
-                <div class="form-text small mb-0">Lists active HR employee records. Defaults to you when linked.</div>
-            </div>
-            <div class="col-md-3" id="crmBusinessSegmentWrap">
-                <label class="form-label">Business type <span class="text-danger">*</span></label>
-                <select name="business_segment" id="crmInlineBusinessSegment" class="form-select" required>
-                    <option value="">— Select —</option>
-                    <option value="b2b">B2B</option>
-                    <option value="b2c">B2C</option>
-                </select>
-                <div class="form-text small mb-0">Select B2B or B2C.</div>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Email</label>
+                <label class="form-label">Email <span class="text-danger crm-b2b-required-star" style="display:none;">*</span></label>
                 <input type="email" name="email" id="crmInlineEmail" class="form-control" placeholder="email@example.com">
             </div>
             <div class="col-md-3">
-                <label class="form-label">Phone</label>
+                <label class="form-label">Contact <span class="text-danger crm-b2b-required-star" style="display:none;">*</span></label>
                 <input type="text" name="phone" id="crmInlinePhone" class="form-control" placeholder="+971 XX XXX XXXX">
-                <div class="form-text small mb-0 d-none" id="crmInlineContactHint">For customers, enter at least one of email or phone. Phone must include country code (e.g. +971 50 741 2365).</div>
+                <div class="form-text small mb-0 d-none" id="crmInlineContactHint">Required for B2B. Phone must include country code (e.g. +971 50 741 2365).</div>
             </div>
-            <div class="col-md-3">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-select">
-                    <option value="active">Active</option>
-                    <option value="prospect">Prospect</option>
-                    <option value="inactive">Inactive</option>
-                </select>
-            </div>
-            <div class="col-12">
+            <div class="col-md-6">
                 <label class="form-label">Address</label>
                 <textarea name="address" class="form-control" rows="2" placeholder="Full Address"></textarea>
             </div>
+            <div class="col-md-3">
+                <label class="form-label">City</label>
+                <input type="text" name="city" class="form-control" placeholder="City">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Country</label>
+                <input type="text" name="country" class="form-control" value="United Arab Emirates" placeholder="Country">
+            </div>
             <div class="col-md-3" id="crmInlineTrnWrap" style="display:none;">
-                <label class="form-label">VAT (TRN)</label>
+                <label class="form-label">VAT (TRN) <span class="text-danger">*</span></label>
                 <input type="text" name="trn" id="crmInlineTrn" class="form-control" placeholder="VAT / TRN">
+            </div>
+            <div class="col-md-3" id="crmInlineTradeLicenseNoWrap" style="display:none;">
+                <label class="form-label">Trade license number <span class="text-danger">*</span></label>
+                <input type="text" name="trade_license_number" id="crmInlineTradeLicenseNo" class="form-control" placeholder="Trade license number">
             </div>
             <div class="col-md-3">
                 <label class="form-label">Website</label>
                 <input type="text" name="website" class="form-control" placeholder="gear-up.ae, www.gear-up.ae, or https://gear-up.ae">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Scope</label>
+                <select name="scope" class="form-select" multiple size="3">
+                    <option value="ff">FF</option>
+                    <option value="fa">FA</option>
+                    <option value="em">EM</option>
+                    <option value="fls">FLS</option>
+                    <option value="mep">MEP</option>
+                </select>
+                <div class="form-text small mb-0">Hold Ctrl/Cmd to select multiple.</div>
             </div>
             <div class="col-md-3">
                 <label class="form-label">Job type</label>
@@ -336,10 +318,74 @@
                     <option value="maintenance">Maintenance</option>
                 </select>
             </div>
+            <div class="col-md-3">
+                <label class="form-label">Project</label>
+                <select name="primary_project" class="form-select">
+                    <option value="">— Select project —</option>
+                    {% for p in project_choices %}
+                    <option value="{{ p.pk }}">{{ p.project_code }} — {{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Payment terms</label>
+                <input type="text" name="payment_terms" class="form-control" value="Net 30" placeholder="Net 30">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Credit limit</label>
+                <input type="number" name="credit_limit" class="form-control" value="0.00" step="0.01" min="0">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="active">Active</option>
+                    <option value="prospect">Prospect</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Customer type <span class="text-danger">*</span></label>
+                {% if crm_sales_rep_only %}
+                <input type="hidden" name="customer_type" value="lead">
+                <input type="text" class="form-control" value="Lead" readonly>
+                {% else %}
+                <select name="customer_type" id="crmInlineCustomerType" class="form-select" required>
+                    <option value="lead">Lead</option>
+                    <option value="customer">Customer</option>
+                </select>
+                {% endif %}
+            </div>
+            <div class="col-md-3" id="crmInlineKanbanWrap">
+                <label class="form-label">Lead kanban stage</label>
+                <select name="lead_kanban_stage" id="crmInlineKanbanStage" class="form-select">
+                    <option value="">— Unassigned —</option>
+                    {% for stage in crm_kanban_stages %}
+                    <option value="{{ stage.pk }}">{{ stage.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3" id="crmInlineAssignWrap">
+                <label class="form-label">Assigned salesman <span class="text-danger">*</span></label>
+                <select name="assigned_salesperson" id="crmInlineAssignedTo" class="form-select" required>
+                    <option value="">— Select salesman —</option>
+                    {% for item in salesman_choice_options %}
+                    <option value="{{ item.id }}"{% if default_assigned_salesperson_id == item.id %} selected{% endif %}>{{ item.label }}</option>
+                    {% empty %}
+                    <option value="" disabled>No employees yet — add them under HR → Employees</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3" id="crmBusinessSegmentWrap">
+                <label class="form-label">Business type <span class="text-danger">*</span></label>
+                <select name="business_segment" id="crmInlineBusinessSegment" class="form-select" required>
+                    <option value="">— Select —</option>
+                    <option value="b2b">B2B</option>
+                    <option value="b2c">B2C</option>
+                </select>
+            </div>
             <div class="col-md-3" id="crmB2bTrnDocWrap" style="display:none;">
-                <label class="form-label">TRN certificate <span class="text-muted small">(optional)</span></label>
+                <label class="form-label">TRN document <span class="text-muted small">(optional)</span></label>
                 <input type="file" name="trn_document" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic">
-                <div class="form-text small mb-0">PDF or image.</div>
             </div>
             <div class="col-md-3" id="crmB2bLicenseDocWrap" style="display:none;">
                 <label class="form-label">Trade license <span class="text-muted small">(optional)</span></label>
@@ -348,6 +394,12 @@
             <div class="col-12">
                 <label class="form-label">Notes</label>
                 <textarea name="notes" class="form-control" rows="2" placeholder="Additional notes..."></textarea>
+            </div>
+            <div class="col-12">
+                <div class="form-check">
+                    <input type="checkbox" name="is_active" id="crmInlineIsActive" class="form-check-input" value="on" checked>
+                    <label class="form-check-label" for="crmInlineIsActive">Is active</label>
+                </div>
             </div>
         </div>
         <div class="mt-4 pt-3 border-top">
@@ -794,25 +846,36 @@
         var b2bTrn = document.getElementById('crmB2bTrnDocWrap');
         var b2bLic = document.getElementById('crmB2bLicenseDocWrap');
         var trnWrap = document.getElementById('crmInlineTrnWrap');
+        var tradeLicWrap = document.getElementById('crmInlineTradeLicenseNoWrap');
         var trnInput = document.getElementById('crmInlineTrn');
+        var tradeLicInput = document.getElementById('crmInlineTradeLicenseNo');
         var licInput = document.getElementById('crmInlineTradeLicense');
         var emailInput = document.getElementById('crmInlineEmail');
         var phoneInput = document.getElementById('crmInlinePhone');
         var contactHint = document.getElementById('crmInlineContactHint');
         var licRequired = document.getElementById('crmInlineLicenseRequired');
         var licOptional = document.getElementById('crmInlineLicenseOptional');
+        var kanbanWrap = document.getElementById('crmInlineKanbanWrap');
         var customerType = typeHidden ? typeHidden.value : (typeSel ? typeSel.value : 'lead');
         if (segWrap) segWrap.style.display = '';
         var isB2b = seg && seg.value === 'b2b';
         var isCustomer = customerType === 'customer';
+        if (kanbanWrap) kanbanWrap.style.display = isCustomer ? 'none' : '';
         if (trnWrap) trnWrap.style.display = isB2b ? '' : 'none';
+        if (tradeLicWrap) tradeLicWrap.style.display = isB2b ? '' : 'none';
         if (trnInput && !isB2b) trnInput.value = '';
+        if (tradeLicInput && !isB2b) tradeLicInput.value = '';
         if (b2bTrn) b2bTrn.style.display = isB2b ? '' : 'none';
         if (b2bLic) b2bLic.style.display = isB2b ? '' : 'none';
         if (licInput) licInput.required = false;
-        if (emailInput) emailInput.required = false;
-        if (phoneInput) phoneInput.required = false;
-        if (contactHint) contactHint.classList.toggle('d-none', !isCustomer);
+        if (emailInput) emailInput.required = isB2b;
+        if (phoneInput) phoneInput.required = isB2b;
+        if (trnInput) trnInput.required = isB2b;
+        if (tradeLicInput) tradeLicInput.required = isB2b;
+        if (contactHint) contactHint.classList.toggle('d-none', !isB2b);
+        document.querySelectorAll('#customerForm .crm-b2b-required-star').forEach(function (el) {
+            el.style.display = isB2b ? '' : 'none';
+        });
     }
     document.addEventListener('DOMContentLoaded', function () {
         var typeSel = document.getElementById('crmInlineCustomerType');

@@ -45,6 +45,18 @@
         </ul>
     </div>
     {% endif %}
+    {% if ksa_form.errors %}
+    <div class="alert alert-warning">
+        <strong>KSA compliance:</strong> please review the fields below.
+        <ul class="mb-0 mt-1 small">
+            {% for field, errors in ksa_form.errors.items %}
+                {% for error in errors %}
+                <li><strong>{{ field|title }}:</strong> {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
     {% if bank_form.errors %}
     <div class="alert alert-warning">
         <strong>Bank details:</strong> please review the fields below.
@@ -65,17 +77,30 @@
     </div>
 
     <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Personal Information</h6></div>
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
         <div class="card-body">
-            <div class="row g-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-3">
+                    <div class="form-check">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                    </div>
+                    {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+                </div>
                 <div class="col-md-3">
                     <label class="form-label" for="{{ form.employee_code.id_for_label }}">Employee code</label>
                     {{ form.employee_code }}
-                    {% if object %}
-                    <small class="text-muted d-block mt-1">You can change this code if needed.</small>
-                    {% endif %}
+                    {% if object %}<small class="text-muted d-block mt-1">Auto-generated if left blank on create.</small>{% endif %}
                     {% if form.employee_code.errors %}<div class="text-danger small mt-1">{{ form.employee_code.errors|join:", " }}</div>{% endif %}
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Employee details</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
                 {% if form.portal_role %}
                 <div class="col-md-3">
                     <label class="form-label" for="{{ form.portal_role.id_for_label }}">{{ form.portal_role.label }}</label>
@@ -85,34 +110,20 @@
                 </div>
                 {% else %}
                 <div class="col-md-3">
-                    <label class="form-label" for="{{ form.user.id_for_label }}">{{ form.user.label }}</label>
+                    <label class="form-label" for="{{ form.user.id_for_label }}">User</label>
                     {{ form.user }}
                     {% if form.user.help_text %}<small class="text-muted d-block mt-1">{{ form.user.help_text }}</small>{% endif %}
                     {% if form.user.errors %}<div class="text-danger small mt-1">{{ form.user.errors|join:", " }}</div>{% endif %}
                 </div>
                 {% endif %}
-                <div class="col-md-3"><label class="form-label" for="{{ form.first_name.id_for_label }}">First Name <span class="text-danger">*</span></label>{{ form.first_name }}{% if form.first_name.errors %}<div class="text-danger small mt-1">{{ form.first_name.errors|join:", " }}</div>{% endif %}</div>
-                <div class="col-md-3"><label class="form-label" for="{{ form.last_name.id_for_label }}">Last Name <span class="text-danger">*</span></label>{{ form.last_name }}{% if form.last_name.errors %}<div class="text-danger small mt-1">{{ form.last_name.errors|join:", " }}</div>{% endif %}</div>
+                <div class="col-md-3"><label class="form-label" for="{{ form.first_name.id_for_label }}">First name <span class="text-danger">*</span></label>{{ form.first_name }}{% if form.first_name.errors %}<div class="text-danger small mt-1">{{ form.first_name.errors|join:", " }}</div>{% endif %}</div>
+                <div class="col-md-3"><label class="form-label" for="{{ form.last_name.id_for_label }}">Last name <span class="text-danger">*</span></label>{{ form.last_name }}{% if form.last_name.errors %}<div class="text-danger small mt-1">{{ form.last_name.errors|join:", " }}</div>{% endif %}</div>
                 <div class="col-md-3"><label class="form-label" for="{{ form.email.id_for_label }}">Email <span class="text-danger">*</span></label>{{ form.email }}{% if form.email.errors %}<div class="text-danger small mt-1">{{ form.email.errors|join:", " }}</div>{% endif %}</div>
                 <div class="col-md-3"><label class="form-label" for="{{ form.phone.id_for_label }}">Phone</label>{{ form.phone }}{% if form.phone.errors %}<div class="text-danger small mt-1">{{ form.phone.errors|join:", " }}</div>{% endif %}</div>
                 <div class="col-md-3"><label class="form-label" for="{{ form.gender.id_for_label }}">Gender</label>{{ form.gender }}{% if form.gender.errors %}<div class="text-danger small mt-1">{{ form.gender.errors|join:", " }}</div>{% endif %}</div>
-                <div class="col-md-3"><label class="form-label" for="{{ form.date_of_birth.id_for_label }}">Date of Birth</label>{{ form.date_of_birth }}{% if form.date_of_birth.errors %}<div class="text-danger small mt-1">{{ form.date_of_birth.errors|join:", " }}</div>{% endif %}</div>
-                <div class="col-md-3"><label class="form-label" for="{{ form.status.id_for_label }}">Status</label>{{ form.status }}{% if form.status.errors %}<div class="text-danger small mt-1">{{ form.status.errors|join:", " }}</div>{% endif %}</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Employment Details</h6></div>
-        <div class="card-body">
-            <div class="row g-3">
                 <div class="col-md-3">
-                    <label class="form-label">Company</label>{{ form.company }}
-                    {% if form.company.errors %}<div class="text-danger small">{{ form.company.errors|join:", " }}</div>{% endif %}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Department</label>
-                    <select name="department" id="id_department" class="form-select">
+                    <label class="form-label">Department <span class="text-danger">*</span></label>
+                    <select name="department" id="id_department" class="form-select" required>
                         <option value="">-- Select Department --</option>
                         {% for dept in departments %}
                         <option value="{{ dept.pk }}" {% if form.department.value|stringformat:"s" == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
@@ -121,26 +132,37 @@
                     {% if form.department.errors %}<div class="text-danger small mt-1">{{ form.department.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Designation</label>
-                    <select name="designation" id="id_designation" class="form-select">
+                    <label class="form-label">Designation <span class="text-danger">*</span></label>
+                    <select name="designation" id="id_designation" class="form-select" required>
                         <option value="">-- Select Designation --</option>
                     </select>
-                    <small class="text-muted d-block mt-1">Designations are listed for the selected department only. ERP role auto-assigns when the role name matches (e.g. HR Manager → HR Manager role). Tune access under Settings → Roles.</small>
+                    <small class="text-muted d-block mt-1">Listed for the selected department only.</small>
                     {{ designation_options|json_script:"designation-options-data" }}
                     {% if form.designation.errors %}<div class="text-danger small mt-1">{{ form.designation.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3"><label class="form-label">Date of Joining</label>{{ form.date_of_joining }}</div>
-                <div class="col-md-3"><label class="form-label">Probation Period (Days)</label>{{ form.probation_period_days }}<small class="text-muted d-block mt-1">Default: 90 days</small></div>
+                <div class="col-md-3"><label class="form-label" for="{{ form.date_of_birth.id_for_label }}">Date of birth</label>{{ form.date_of_birth }}{% if form.date_of_birth.errors %}<div class="text-danger small mt-1">{{ form.date_of_birth.errors|join:", " }}</div>{% endif %}</div>
+                <div class="col-md-3"><label class="form-label" for="{{ form.date_of_joining.id_for_label }}">Date of joining</label>{{ form.date_of_joining }}{% if form.date_of_joining.errors %}<div class="text-danger small mt-1">{{ form.date_of_joining.errors|join:", " }}</div>{% endif %}</div>
+                <div class="col-md-3"><label class="form-label" for="{{ form.probation_period_days.id_for_label }}">Probation period days</label>{{ form.probation_period_days }}<small class="text-muted d-block mt-1">Default: 90 days</small></div>
+                <div class="col-md-3"><label class="form-label" for="{{ form.status.id_for_label }}">Status</label>{{ form.status }}{% if form.status.errors %}<div class="text-danger small mt-1">{{ form.status.errors|join:", " }}</div>{% endif %}</div>
                 <div class="col-md-3">
-                    <label class="form-label">Basic Salary <span class="text-danger">*</span></label>
+                    <label class="form-label" for="{{ form.basic_salary.id_for_label }}">Basic salary <span class="text-danger">*</span></label>
                     {{ form.basic_salary }}
                     {% if form.basic_salary.errors %}<div class="text-danger small mt-1">{{ form.basic_salary.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label" for="{{ form.salary_template.id_for_label }}">Salary Template</label>
+                    <label class="form-label" for="{{ form.salary_template.id_for_label }}">Salary template</label>
                     {{ form.salary_template }}
                     {% if form.salary_template.errors %}<div class="text-danger small mt-1">{{ form.salary_template.errors|join:", " }}</div>{% endif %}
-                    <small class="text-muted d-block mt-1">Optional. Allowances from template.</small>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ form.company.id_for_label }}">Company</label>
+                    {{ form.company }}
+                    {% if form.company.errors %}<div class="text-danger small">{{ form.company.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ form.location.id_for_label }}">Location</label>
+                    {{ form.location }}
+                    {% if form.location.errors %}<div class="text-danger small mt-1">{{ form.location.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-md-3">
                     <label class="form-label" for="{{ form.contract_type.id_for_label }}">Contract type</label>
@@ -154,9 +176,12 @@
                 <div class="col-md-3 d-flex align-items-end">
                     <div class="form-check mb-2">
                         {{ form.is_uae_national }}
-                        <label class="form-check-label" for="{{ form.is_uae_national.id_for_label }}">UAE national (GPSSA — no gratuity)</label>
+                        <label class="form-check-label" for="{{ form.is_uae_national.id_for_label }}">Is UAE national</label>
                     </div>
                 </div>
+                <div class="col-md-3"><label class="form-label" for="{{ form.emirates_id.id_for_label }}">Emirates ID</label>{{ form.emirates_id }}</div>
+                <div class="col-md-3"><label class="form-label" for="{{ form.visa_number.id_for_label }}">Visa number</label>{{ form.visa_number }}</div>
+                <div class="col-md-3"><label class="form-label" for="{{ form.visa_expiry.id_for_label }}">Visa expiry</label>{{ form.visa_expiry }}</div>
             </div>
             <div class="row g-3 mt-1">
                 <div class="col-12 col-lg-8 d-none" id="salary-template-breakdown-wrap">
@@ -204,20 +229,32 @@
         </div>
     </div>
 
-    <div class="card mb-4 border-primary border-opacity-25" id="hr-section-uae">
+    <div class="card mb-4 border-primary border-opacity-25{% if employee_location == 'ksa' %} d-none{% endif %}" id="hr-section-uae">
         <div class="card-header bg-primary bg-opacity-10"><h6 class="mb-0 fw-semibold">UAE — employee record &amp; documents</h6></div>
         <div class="card-body">
-            <p class="small text-muted">Emirates ID and visa number/expiry are stored on the employee record (shown below). Additional UAE fields are stored on the compliance profile.</p>
-            <div class="row g-3 mb-4">
-                <div class="col-md-3"><label class="form-label">Emirates ID</label>{{ form.emirates_id }}</div>
-                <div class="col-md-3"><label class="form-label">Visa Number</label>{{ form.visa_number }}</div>
-                <div class="col-md-3"><label class="form-label">Visa Expiry</label>{{ form.visa_expiry }}</div>
-            </div>
+            <p class="small text-muted">Emirates ID and visa fields are on the employee record above. Additional UAE compliance fields are stored on the profile below.</p>
             <h6 class="text-muted small text-uppercase mb-3">UAE compliance profile</h6>
             <div class="row g-3">
                 {% for field in uae_form %}
                 <div class="col-md-3">
                     <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field.errors }}
+                    {{ field }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4 border-success border-opacity-25{% if employee_location != 'ksa' %} d-none{% endif %}" id="hr-section-ksa">
+        <div class="card-header bg-success bg-opacity-10"><h6 class="mb-0 fw-semibold">KSA — compliance profile</h6></div>
+        <div class="card-body">
+            <p class="small text-muted">Iqama, work permit, GOSI, and related KSA document expiry dates for compliance tracking and payroll.</p>
+            <div class="row g-3">
+                {% for field in ksa_form %}
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {% if field.help_text %}<small class="text-muted d-block">{{ field.help_text }}</small>{% endif %}
                     {{ field.errors }}
                     {{ field }}
                 </div>
@@ -324,6 +361,24 @@
         var deptEl = document.getElementById('id_department');
         filterDesignations();
         if (deptEl) deptEl.addEventListener('change', filterDesignations);
+
+        function toggleComplianceSections() {
+            var locEl = document.getElementById('id_location');
+            var uae = document.getElementById('hr-section-uae');
+            var ksa = document.getElementById('hr-section-ksa');
+            if (!locEl || !uae || !ksa) return;
+            var loc = locEl.value || 'uae';
+            if (loc === 'ksa') {
+                uae.classList.add('d-none');
+                ksa.classList.remove('d-none');
+            } else {
+                ksa.classList.add('d-none');
+                uae.classList.remove('d-none');
+            }
+        }
+        var locEl = document.getElementById('id_location');
+        toggleComplianceSections();
+        if (locEl) locEl.addEventListener('change', toggleComplianceSections);
 
         var tplSel = document.getElementById('id_salary_template');
         var basicEl = document.getElementById('id_basic_salary');

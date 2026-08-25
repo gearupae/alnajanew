@@ -17,7 +17,27 @@
                 <div class="card-body">
                     <form method="post" id="pdcForm">
                         {% csrf_token %}
-                        
+
+                        <div class="card mb-4 border">
+                            <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
+                            <div class="card-body">
+                                <div class="form-check">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                                </div>
+                                {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        {% if form.instance.pk %}
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">PDC number</label>
+                                <input type="text" class="form-control bg-light" value="{{ form.instance.pdc_number }}" readonly>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <label class="form-label">Tenant <span class="text-danger">*</span></label>

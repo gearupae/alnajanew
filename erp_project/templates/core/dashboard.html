@@ -147,11 +147,10 @@
     </div>
 </div>
 
-{% if gatepass_expiry_alerts or fleet_expiry_alerts %}
-<div class="row g-4 mb-4 mt-4 pt-1{% if gatepass_expiry_alerts and not fleet_expiry_alerts %} d-none{% endif %}">
+{% if gatepass_expiry_alerts or fleet_expiry_alerts or document_expiry_alerts or contract_reminder_alerts %}
+<div class="row g-4 mb-4 mt-4 pt-1">
     {% if gatepass_expiry_alerts %}
-    {# Hidden on dashboard only — data still loaded; remove d-none to show again #}
-    <div class="col-12 d-none" id="dashboard-gatepass-expiry">
+    <div class="col-12" id="dashboard-gatepass-expiry">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-transparent border-0 py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <h5 class="mb-0 fw-semibold">
@@ -228,6 +227,95 @@
                 </div>
                 <div class="px-3 py-3 border-top bg-light bg-opacity-50">
                     <p class="small text-muted mb-0">Mulkiya, insurance, and other fleet documents that are expired or expiring within 10 days.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if document_expiry_alerts %}
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h5 class="mb-0 fw-semibold">
+                    <i class="fas fa-folder-open text-warning me-2"></i>Compliance document expiry
+                </h5>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="small text-muted">{{ document_expiry_alerts|length }} alert{% if document_expiry_alerts|length != 1 %}s{% endif %}</span>
+                    {% if documents_can_view %}
+                    <a href="{% url 'documents:document_list' %}?status=expiring" class="btn btn-sm btn-light">View all</a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead><tr><th>Status</th><th>Type</th><th>Entity</th><th>Expiry</th><th></th></tr></thead>
+                        <tbody>
+                            {% for row in document_expiry_alerts %}
+                            <tr>
+                                <td>
+                                    {% if row.severity == 'expired' %}<span class="badge bg-danger">Expired</span>
+                                    {% elif row.severity == 'due_today' %}<span class="badge bg-danger">Due today</span>
+                                    {% else %}<span class="badge bg-warning text-dark">Expiring</span>{% endif %}
+                                    <div class="small text-muted mt-1 mb-0">{{ row.label }}</div>
+                                </td>
+                                <td>{{ row.document_type }}</td>
+                                <td>{{ row.entity_name }} <span class="text-muted small">({{ row.entity_type }})</span></td>
+                                <td class="text-nowrap">{{ row.expiry_date|date:"d/m/Y" }}</td>
+                                <td class="text-end"><a class="btn btn-sm btn-light" href="{% url 'documents:document_detail' row.document.pk %}"><i class="fas fa-external-link-alt me-1"></i>Open</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-3 py-3 border-top bg-light bg-opacity-50">
+                    <p class="small text-muted mb-0">Trade licenses, insurance, visas, and certifications flagged by each document type's alert threshold.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if contract_reminder_alerts %}
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h5 class="mb-0 fw-semibold">
+                    <i class="fas fa-file-contract text-warning me-2"></i>Contract renewal reminders
+                </h5>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="small text-muted">{{ contract_reminder_alerts|length }} alert{% if contract_reminder_alerts|length != 1 %}s{% endif %}</span>
+                    {% if contracts_can_view %}
+                    <a href="{% url 'contracts:contract_list' %}?reminder_due=1" class="btn btn-sm btn-light">View all</a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead><tr><th>Status</th><th>Contract</th><th>Customer</th><th>End date</th><th></th></tr></thead>
+                        <tbody>
+                            {% for row in contract_reminder_alerts %}
+                            <tr>
+                                <td>
+                                    {% if row.severity == 'expired' %}<span class="badge bg-danger">Ended</span>
+                                    {% elif row.severity == 'due_today' %}<span class="badge bg-danger">Ends today</span>
+                                    {% else %}<span class="badge bg-warning text-dark">Reminder</span>{% endif %}
+                                    <div class="small text-muted mt-1 mb-0">{{ row.label }} ({{ row.remind_before_days }}d window)</div>
+                                </td>
+                                <td>
+                                    <div class="fw-medium">{{ row.name }}</div>
+                                    <div class="small text-muted font-monospace">{{ row.contract_number }}</div>
+                                </td>
+                                <td>{{ row.customer_name }}</td>
+                                <td class="text-nowrap">{{ row.end_date|date:"d/m/Y" }}</td>
+                                <td class="text-end"><a class="btn btn-sm btn-light" href="{% url 'contracts:contract_detail' row.contract.pk %}"><i class="fas fa-external-link-alt me-1"></i>Open</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-3 py-3 border-top bg-light bg-opacity-50">
+                    <p class="small text-muted mb-0">Contracts within each record's remind-before setting — action renewal before end date.</p>
                 </div>
             </div>
         </div>

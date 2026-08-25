@@ -58,95 +58,186 @@
         <!-- Request Details -->
         <div class="card mb-4">
             <div class="card-header">
-                <h6 class="mb-0 fw-semibold">Request Details</h6>
+                <h6 class="mb-0 fw-semibold">Request details</h6>
             </div>
             <div class="card-body">
                 <div class="row g-4">
-                    {% if request_obj.items.exists %}
-                    <div class="col-12">
-                        <h6 class="text-muted mb-2">Items</h6>
-                        <table class="table table-sm mb-0">
-                            <tr><th>Item</th><th class="text-end">Qty</th><th class="text-end">Unit</th></tr>
-                            {% for li in request_obj.items.all %}
-                            <tr><td>{{ li.item.name }}</td><td class="text-end">{{ li.quantity|floatformat:0 }}</td><td class="text-end">{{ li.item.unit }}</td></tr>
-                            {% endfor %}
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="col-md-6">
-                        <h6 class="text-muted mb-2">Item</h6>
-                        <p class="mb-0 fw-medium">{{ request_obj.item.name|default:"-" }}</p>
-                        <small class="text-muted">{{ request_obj.item.item_code|default:"" }}</small>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Is active</h6>
+                        <p class="mb-0">{% if request_obj.is_active %}Yes{% else %}No{% endif %}</p>
                     </div>
                     <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Quantity</h6>
-                        <p class="mb-0 fw-medium">{{ request_obj.quantity|floatformat:0 }} {{ request_obj.item.unit|default:"" }}</p>
+                        <h6 class="text-muted mb-2">Request number</h6>
+                        <p class="mb-0 font-monospace">{{ request_obj.request_number }}</p>
                     </div>
-                    {% endif %}
                     <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Request Date</h6>
+                        <h6 class="text-muted mb-2">Request date</h6>
                         <p class="mb-0">{{ request_obj.request_date|date:"d/m/Y" }}</p>
                     </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Status</h6>
+                        <p class="mb-0">{{ request_obj.get_status_display }}</p>
+                    </div>
                     <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Requested By</h6>
+                        <h6 class="text-muted mb-2">Requested by</h6>
                         <p class="mb-0">{{ request_obj.requested_by.get_full_name|default:request_obj.requested_by.username }}</p>
                     </div>
-                    {% if request_obj.department %}
                     <div class="col-md-4">
                         <h6 class="text-muted mb-2">Department</h6>
-                        <p class="mb-0">{{ request_obj.department.name }}</p>
+                        <p class="mb-0">{{ request_obj.department.name|default:"—" }}</p>
                     </div>
-                    {% endif %}
-                    {% if request_obj.project %}
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Priority</h6>
+                        <p class="mb-0">{{ request_obj.get_priority_display }}</p>
+                    </div>
                     <div class="col-md-6">
                         <h6 class="text-muted mb-2">Project</h6>
-                        <p class="mb-0 fw-medium">
-                            <a href="{% url 'projects:project_detail' request_obj.project.pk %}">{{ request_obj.project.project_code }} — {{ request_obj.project.name }}</a>
+                        <p class="mb-0">
+                            {% if request_obj.project %}
+                            <a href="{% url 'projects:project_detail' request_obj.project.pk %}" class="text-decoration-none">
+                                {{ request_obj.project.project_code }} — {{ request_obj.project.name }}
+                            </a>
+                            {% else %}
+                            —
+                            {% endif %}
                         </p>
                     </div>
-                    {% endif %}
-                    {% if request_obj.required_by_date %}
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-2">Required by date</h6>
+                        <p class="mb-0">{% if request_obj.required_by_date %}{{ request_obj.required_by_date|date:"d/m/Y" }}{% else %}—{% endif %}</p>
+                    </div>
                     <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Required By</h6>
-                        <p class="mb-0">{{ request_obj.required_by_date|date:"d/m/Y" }}</p>
+                        <h6 class="text-muted mb-2">Warehouse</h6>
+                        <p class="mb-0">
+                            {% if request_obj.warehouse %}
+                            <a href="{% url 'inventory:warehouse_detail' request_obj.warehouse.pk %}" class="text-decoration-none">
+                                {{ request_obj.warehouse.code }} — {{ request_obj.warehouse.name }}
+                            </a>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% if is_admin %}
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Unit cost</h6>
+                        <p class="mb-0">
+                            {% if request_obj.items.exists %}
+                            <span class="text-muted small">See line items</span>
+                            {% else %}
+                            AED {{ request_obj.unit_cost|floatformat:2 }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Total cost</h6>
+                        <p class="mb-0 fw-semibold">AED {{ request_obj.total_cost|floatformat:2 }}</p>
                     </div>
                     {% endif %}
-                    {% if request_obj.remarks %}
                     <div class="col-12">
-                        <h6 class="text-muted mb-2">Notes</h6>
-                        <p class="mb-0">{{ request_obj.remarks }}</p>
+                        <h6 class="text-muted mb-2">Remarks</h6>
+                        <p class="mb-0">{{ request_obj.remarks|default:"—"|linebreaksbr }}</p>
                     </div>
-                    {% endif %}
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">Admin notes</h6>
+                        <p class="mb-0">{{ request_obj.admin_notes|default:"—"|linebreaksbr }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Approved by</h6>
+                        <p class="mb-0">{% if request_obj.approved_by %}{{ request_obj.approved_by.get_full_name|default:request_obj.approved_by.username }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Approved date</h6>
+                        <p class="mb-0">{% if request_obj.approved_date %}{{ request_obj.approved_date|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Dispensed by</h6>
+                        <p class="mb-0">{% if request_obj.dispensed_by %}{{ request_obj.dispensed_by.get_full_name|default:request_obj.dispensed_by.username }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Dispensed date</h6>
+                        <p class="mb-0">{% if request_obj.dispensed_date %}{{ request_obj.dispensed_date|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-8">
+                        <h6 class="text-muted mb-2">Stock movement</h6>
+                        <p class="mb-0">
+                            {% if stock_movements %}
+                            {% for mv in stock_movements %}
+                            <a href="{% url 'inventory:movement_detail' mv.pk %}" class="text-decoration-none d-block{% if not forloop.last %} mb-1{% endif %}">
+                                {{ mv.movement_number }} — {{ mv.item.item_code }} ({{ mv.quantity }} {{ mv.item.unit }})
+                            </a>
+                            {% endfor %}
+                            {% elif request_obj.stock_movement %}
+                            <a href="{% url 'inventory:movement_detail' request_obj.stock_movement.pk %}" class="text-decoration-none">
+                                {{ request_obj.stock_movement.movement_number }}
+                            </a>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
 
-        {% if is_admin %}
-        <!-- Cost Information (Admin Only) -->
+        <!-- Line items -->
         <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="mb-0 fw-semibold">Cost Information</h6>
-            </div>
-            <div class="card-body">
-                <div class="row g-4">
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Unit Cost</h6>
-                        <p class="mb-0 fw-medium">AED {{ request_obj.unit_cost|floatformat:2 }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Total Cost</h6>
-                        <p class="mb-0 fw-bold text-primary">AED {{ request_obj.total_cost|floatformat:2 }}</p>
-                    </div>
-                    {% if request_obj.warehouse %}
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Warehouse</h6>
-                        <p class="mb-0">{{ request_obj.warehouse.name }}</p>
-                    </div>
-                    {% endif %}
+            <div class="card-header"><h6 class="mb-0 fw-semibold">Items</h6></div>
+            <div class="card-body p-0">
+                {% if request_obj.items.exists %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Item</th>
+                                <th class="text-end">Quantity</th>
+                                {% if is_admin %}<th class="text-end">Unit cost</th><th class="text-end">Total cost</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for li in request_obj.items.all %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'inventory:item_detail' li.item.pk %}" class="text-decoration-none">
+                                        {{ li.item.item_code }} — {{ li.item.name }}
+                                    </a>
+                                </td>
+                                <td class="text-end">{{ li.quantity|floatformat:0 }} {{ li.item.unit }}</td>
+                                {% if is_admin %}
+                                <td class="text-end">AED {{ li.unit_cost|floatformat:2 }}</td>
+                                <td class="text-end">AED {{ li.total_cost|floatformat:2 }}</td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
+                {% else %}
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">Item</h6>
+                            <p class="mb-0">
+                                {% if request_obj.item %}
+                                <a href="{% url 'inventory:item_detail' request_obj.item.pk %}" class="text-decoration-none">
+                                    {{ request_obj.item.item_code }} — {{ request_obj.item.name }}
+                                </a>
+                                {% else %}—{% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">Quantity</h6>
+                            <p class="mb-0">
+                                {% if request_obj.quantity is not None %}
+                                {{ request_obj.quantity|floatformat:0 }} {{ request_obj.item.unit|default:"" }}
+                                {% else %}—{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
-        {% endif %}
 
         <!-- Status History -->
         <div class="card">

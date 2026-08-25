@@ -8,7 +8,12 @@ from apps.core.models import BaseModel
 class DocumentType(BaseModel):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-    alert_days_before = models.PositiveIntegerField(default=30)  # Days before expiry to alert
+    alert_days_before = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        default=30,
+        help_text='Days before expiry to flag renewal. Leave blank to disable expiry alerts for this type.',
+    )
     
     class Meta:
         ordering = ['-created_at', '-pk']
@@ -62,7 +67,8 @@ class Document(BaseModel):
             return 'active'
         if days < 0:
             return 'expired'
-        if days <= self.document_type.alert_days_before:
+        alert_days = self.document_type.alert_days_before
+        if alert_days is not None and days <= alert_days:
             return 'expiring'
         return 'active'
     

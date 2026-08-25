@@ -525,8 +525,10 @@ class ProjectGatepass(BaseModel):
         if self.start_date and self.expiry_date and self.start_date > self.expiry_date:
             raise ValidationError('Start date must be on or before expiry date.')
         if self.project_id and self.member_id:
-            if not self.project.members.filter(pk=self.member_id).exists():
-                raise ValidationError({'member': 'Selected user must be a member of this project.'})
+            allowed = set(self.project.members.values_list('pk', flat=True))
+            allowed |= set(self.project.technicians.values_list('pk', flat=True))
+            if self.member_id not in allowed:
+                raise ValidationError({'member': 'Selected user must be a member or technician on this project.'})
 
 
 class ProjectExpense(BaseModel):

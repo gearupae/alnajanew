@@ -12,6 +12,38 @@ from apps.inventory.serial_stock import deliver_serial_items_to_project, item_av
 from apps.projects.models import Project, ProjectItemDelivery, ProjectItemLine, ProjectItemReturn
 
 
+def sync_zero_project_item_line_prices(project: Project) -> int:
+    """
+    Backfill scoped lines that were copied with zero prices from current inventory
+    master prices (selling, then purchase). Returns rows updated.
+    """
+    updated = 0
+    qs = ProjectItemLine.objects.filter(
+        project=project,
+        inventory_item__isnull=False,
+    ).select_related('inventory_item')
+    for line in qs:
+        if (line.line_net or Decimal('0')) > 0:
+            continue
+        if (line.unit_price or Decimal('0')) > 0 or (line.rate or Decimal('0')) > 0:
+            continue
+        item = line.inventory_item
+        unit = item.selling_price or item.purchase_price or Decimal('0')
+        if unit <= 0:
+            continue
+        qty = line.quantity or Decimal('0')
+        if qty <= 0:
+            continue
+        line_net = (qty * unit).quantize(Decimal('0.01'))
+        ProjectItemLine.objects.filter(pk=line.pk).update(
+            unit_price=unit,
+            rate=unit,
+            line_net=line_net,
+        )
+        updated += 1
+    return updated
+
+
 def project_item_required_qty(project: Project, item: Item):
     """Total qty of this item on the project scope (estimate lines), or None if not scoped."""
     from django.db.models import Sum
@@ -57,15 +89,15 @@ def _item_unit_cost(item: Item, *, warehouse=None) -> Decimal:
     return cost if cost and cost > 0 else Decimal('0.00')
 
 
-def _project_item_budget_unit_cost(project: Project, item: Item, *, warehouse=None) -> Decimal:
+def _resolve_project_item_unit_value(project: Project, item: Item, *, warehouse=None) -> Decimal:
     """
-    Per-unit value for budget / inventory-on-site reporting (not stock COGS).
+    Per-unit value for delivered inventory on a project.
 
     Priority:
-    1. Estimate scope base on the project (``ProjectItemLine.unit_price``) — same
-       as the estimate **Base** column; usually copied from ``Item.selling_price``.
-    2. Item master ``selling_price`` when there is no scoped line.
-    3. Never use ``purchase_price`` here (that stays on stock-out movements only).
+    1. Scoped project line rate / unit_price / line_net÷qty (quotation scope)
+    2. Item master selling_price
+    3. Stock-out unit cost for this project delivery
+    4. Item purchase_price or latest positive stock-in cost
     """
     from django.db.models import DecimalField, ExpressionWrapper, F, Sum
 
@@ -74,20 +106,54 @@ def _project_item_budget_unit_cost(project: Project, item: Item, *, warehouse=No
         inventory_item=item,
     ).aggregate(
         qty=Sum('quantity'),
-        base=Sum(
+        value_from_rate=Sum(
+            ExpressionWrapper(
+                F('quantity') * F('rate'),
+                output_field=DecimalField(max_digits=15, decimal_places=2),
+            )
+        ),
+        value_from_unit=Sum(
             ExpressionWrapper(
                 F('quantity') * F('unit_price'),
                 output_field=DecimalField(max_digits=15, decimal_places=2),
             )
         ),
+        line_net_sum=Sum('line_net'),
     )
     qty = agg['qty'] or Decimal('0')
-    base = agg['base']
-    if qty > 0 and base is not None and base > 0:
-        return (base / qty).quantize(Decimal('0.01'))
+    if qty > 0:
+        for value in (agg['value_from_rate'], agg['value_from_unit'], agg['line_net_sum']):
+            if value is not None and value > 0:
+                return (value / qty).quantize(Decimal('0.01'))
+
     if item.selling_price and item.selling_price > 0:
         return item.selling_price.quantize(Decimal('0.01'))
+
+    last_out = (
+        StockMovement.objects.filter(
+            item=item,
+            movement_type='out',
+            reference__icontains=project.project_code,
+            unit_cost__gt=0,
+        )
+        .select_related('warehouse')
+        .order_by('-movement_date', '-pk')
+        .first()
+    )
+    if last_out and last_out.unit_cost > 0:
+        return last_out.unit_cost.quantize(Decimal('0.01'))
+
+    wh = warehouse or (last_out.warehouse if last_out else None)
+    cost = item.get_issue_unit_cost(wh)
+    if cost > 0:
+        return cost.quantize(Decimal('0.01'))
+
     return Decimal('0.00')
+
+
+def _project_item_budget_unit_cost(project: Project, item: Item, *, warehouse=None) -> Decimal:
+    """Per-unit value for budget / inventory-on-site reporting."""
+    return _resolve_project_item_unit_value(project, item, warehouse=warehouse)
 
 
 def project_inventory_spend_total(project: Project) -> Decimal:
@@ -562,6 +628,7 @@ def project_item_activity_timeline(project, *, limit=40):
                 event_dt=delivery.created_at,
                 pk=delivery.pk,
             ),
+            'delivery_id': delivery.pk,
             'item_name': delivery.item.name,
             'detail': f'Qty {qty_display}',
             'by': by,

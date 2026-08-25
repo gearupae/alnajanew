@@ -66,12 +66,12 @@ urlpatterns = [
     path('reconciliations/<int:pk>/complete/', views.bankreconciliation_complete, name='bankreconciliation_complete'),
     path('reconciliations/<int:pk>/approve/', views.bankreconciliation_approve, name='bankreconciliation_approve'),
     
-    # ============ EXPENSE CLAIMS ============
-    path('expense-claims/', views.ExpenseClaimListView.as_view(), name='expenseclaim_list'),
-    path('expense-claims/create/', views.ExpenseClaimCreateView.as_view(), name='expenseclaim_create'),
-    path('expense-claims/<int:pk>/', views.ExpenseClaimDetailView.as_view(), name='expenseclaim_detail'),
-    path('expense-claims/<int:pk>/submit/', views.expenseclaim_submit, name='expenseclaim_submit'),
-    path('expense-claims/<int:pk>/approve/', views.expenseclaim_approve, name='expenseclaim_approve'),
+    # ============ EXPENSE CLAIMS (legacy — redirect to Purchase) ============
+    path('expense-claims/', views.expenseclaim_redirect_list, name='expenseclaim_list'),
+    path('expense-claims/create/', views.expenseclaim_redirect_create, name='expenseclaim_create'),
+    path('expense-claims/<int:pk>/', views.expenseclaim_redirect_detail, name='expenseclaim_detail'),
+    path('expense-claims/<int:pk>/submit/', views.expenseclaim_redirect_submit, name='expenseclaim_submit'),
+    path('expense-claims/<int:pk>/approve/', views.expenseclaim_redirect_approve, name='expenseclaim_approve'),
     
     # ============ BUDGETS ============
     path('budgets/', views.BudgetListView.as_view(), name='budget_list'),

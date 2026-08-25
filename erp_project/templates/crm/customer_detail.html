@@ -163,6 +163,12 @@
                         <p class="fw-medium info-value">{{ customer.lead_kanban_stage.name }}</p>
                     </div>
                     {% endif %}
+                    {% if customer.customer_type == 'lead' and customer.opportunity_status %}
+                    <div class="col-md-6 info-field">
+                        <label class="form-label text-muted small info-label">Opportunity status</label>
+                        <p class="fw-medium info-value">{{ customer.get_opportunity_status_display }}</p>
+                    </div>
+                    {% endif %}
                     <div class="col-md-6 info-field">
                         <label class="form-label text-muted small info-label">Assigned salesman</label>
                         <p class="fw-medium info-value">
@@ -239,7 +245,9 @@
                         </p>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label text-muted small">Trade license</label>
+                        <label class="form-label text-muted small">Trade license number</label>
+                        <p class="mb-2 fw-medium">{{ customer.trade_license_number|default:"—" }}</p>
+                        <label class="form-label text-muted small">Trade license document</label>
                         <p class="mb-0">
                             {% if customer.trade_license_document %}
                             <a href="{{ customer.trade_license_document.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-download me-1"></i>Download</a>
@@ -322,6 +330,13 @@
             </div>
         </div>
 
+        <!-- Customer Estimates -->
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-body">
+                {% include 'sales/_customer_estimates_tab.html' with customer=customer customer_estimates=customer_estimates can_create_estimate=can_create_estimate %}
+            </div>
+        </div>
+
         <!-- Customer Invoices -->
         <div class="card border-0 shadow-sm mt-4">
             <div class="card-body">
@@ -380,6 +395,65 @@
                 </div>
             </div>
         </div>
+
+        {% if show_opportunity_panel and can_edit %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="fas fa-briefcase me-2 text-primary"></i>Opportunity
+                </h6>
+                {% if customer.opportunity_status %}
+                <span class="badge {% if customer.opportunity_status == 'open' %}bg-success{% elif customer.opportunity_status == 'pending' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                    {{ customer.get_opportunity_status_display }}
+                </span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'crm:customer_detail' customer.pk %}" class="mb-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="opportunity_update">
+                    <label class="form-label text-muted small">Add update</label>
+                    <textarea name="opportunity_note" class="form-control mb-2" rows="2" placeholder="Log a call, meeting, or follow-up…"></textarea>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-comment-dots me-1"></i>Save update
+                    </button>
+                </form>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <form method="post" action="{% url 'crm:customer_detail' customer.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="opportunity_open">
+                        <button type="submit" class="btn btn-outline-success btn-sm"{% if customer.opportunity_status == 'open' %} disabled{% endif %}>
+                            <i class="fas fa-door-open me-1"></i>Open
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'crm:customer_detail' customer.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="opportunity_close">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm"{% if customer.opportunity_status == 'closed' %} disabled{% endif %}>
+                            <i class="fas fa-door-closed me-1"></i>Close
+                        </button>
+                    </form>
+                </div>
+                {% if opportunity_updates %}
+                <div class="small">
+                    <div class="text-muted mb-2">Recent updates</div>
+                    {% for u in opportunity_updates %}
+                    <div class="border rounded p-2 mb-2">
+                        <div class="d-flex justify-content-between gap-2">
+                            <span class="fw-medium">
+                                {% if u.status %}{{ u.get_status_display }}{% else %}Update{% endif %}
+                            </span>
+                            <span class="text-muted">{{ u.created_at|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        {% if u.note %}<div class="mt-1">{{ u.note|linebreaksbr }}</div>{% endif %}
+                        {% if u.created_by %}<div class="text-muted mt-1">{{ u.created_by.get_full_name|default:u.created_by.username }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Tasks -->
         {% if can_create_tasks %}
@@ -476,6 +550,10 @@
                 </div>
             </div>
         </div>
+
+        {% include 'documents/entity_documents_panel.html' %}
+
+        {% include 'contracts/customer_contracts_panel.html' %}
 
         <!-- Activity -->
         <div class="card border-0 shadow-sm mt-4 crm-activity-card">

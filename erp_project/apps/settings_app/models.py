@@ -487,6 +487,8 @@ class ApprovalConfiguration(BaseModel):
     MODULE_CHOICES = [
         ('purchase_request', 'Purchase Request'),
         ('inventory_request', 'Consumable / Inventory Request'),
+        ('inventory_item', 'Inventory Item Creation'),
+        ('inventory_adjustment', 'Inventory Stock Adjustment'),
         ('service_request', 'Service Request'),
         ('estimate', 'Sales Estimate'),
         ('project', 'Project'),
@@ -556,6 +558,9 @@ class ApprovalConfiguration(BaseModel):
                 or getattr(request_obj, 'sr_number', None)
                 or getattr(request_obj, 'pr_number', None)
                 or getattr(request_obj, 'request_number', None)
+                or getattr(request_obj, 'movement_number', None)
+                or getattr(request_obj, 'item_code', None)
+                or getattr(request_obj, 'name', None)
                 or str(request_obj.pk)
             )
             pk = getattr(request_obj, 'pk', None)
@@ -563,6 +568,8 @@ class ApprovalConfiguration(BaseModel):
                 'service_request': f'/service-request/{pk}/' if pk else '',
                 'purchase_request': f'/purchase/requests/{pk}/' if pk else '',
                 'inventory_request': f'/inventory/consumables/{pk}/' if pk else '',
+                'inventory_item': f'/inventory/items/{pk}/' if pk else '',
+                'inventory_adjustment': f'/inventory/movements/{pk}/' if pk else '',
                 'estimate': f'/sales/estimates/{pk}/' if pk else '',
                 'project': f'/projects/{pk}/' if pk else '',
                 'project_conversion': f'/projects/{pk}/' if pk else '',

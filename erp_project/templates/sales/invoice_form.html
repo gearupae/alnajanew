@@ -35,32 +35,37 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Customer <span class="text-danger">*</span></label>
                     {{ form.customer }}
                     {% if form.customer.errors %}<div class="text-danger small">{{ form.customer.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ form.estimate.id_for_label }}">Estimate</label>
+                    {{ form.estimate }}
+                    {% if form.estimate.errors %}<div class="text-danger small">{{ form.estimate.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
                     <label class="form-label">Project</label>
                     {{ form.project }}
                     {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <label class="form-label">Invoice date <span class="text-danger">*</span></label>
+                    {{ form.invoice_date }}
+                    {% if form.invoice_date.errors %}<div class="text-danger small">{{ form.invoice_date.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Due date <span class="text-danger">*</span></label>
+                    {{ form.due_date }}
+                    {% if form.due_date.errors %}<div class="text-danger small">{{ form.due_date.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
                     <label class="form-label">Status</label>
                     {{ form.status }}
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Invoice Date <span class="text-danger">*</span></label>
-                    {{ form.invoice_date }}
-                    {% if form.invoice_date.errors %}<div class="text-danger small">{{ form.invoice_date.errors|join:", " }}</div>{% endif %}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Due Date <span class="text-danger">*</span></label>
-                    {{ form.due_date }}
-                    {% if form.due_date.errors %}<div class="text-danger small">{{ form.due_date.errors|join:", " }}</div>{% endif %}
-                </div>
-                <div class="col-md-4">
+                <div class="col-12">
                     <label class="form-label">Notes</label>
                     {{ form.notes }}
                     {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors|join:", " }}</div>{% endif %}
@@ -68,6 +73,50 @@
             </div>
         </div>
     </div>
+
+    {% if object %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0 fw-semibold"><i class="fas fa-calculator me-2"></i>Saved amounts &amp; accounting</h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Subtotal</label>
+                    <input type="text" class="form-control" value="AED {{ object.subtotal|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">VAT amount</label>
+                    <input type="text" class="form-control" value="AED {{ object.vat_amount|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Total amount</label>
+                    <input type="text" class="form-control fw-semibold" value="AED {{ object.total_amount|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Paid amount</label>
+                    <input type="text" class="form-control" value="AED {{ object.paid_amount|floatformat:2 }}" readonly id="savedPaidAmount">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Balance</label>
+                    <input type="text" class="form-control fw-semibold {% if object.balance > 0 %}text-danger{% else %}text-success{% endif %}" value="AED {{ object.balance|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-muted small">Journal entry</label>
+                    {% if object.journal_entry %}
+                    <div class="input-group">
+                        <input type="text" class="form-control" value="{{ object.journal_entry.entry_number }}" readonly>
+                        <a href="{% url 'finance:journal_detail' object.journal_entry.pk %}" class="btn btn-outline-primary" target="_blank" rel="noopener">View</a>
+                    </div>
+                    {% else %}
+                    <input type="text" class="form-control" value="— Not posted yet —" readonly>
+                    {% endif %}
+                </div>
+            </div>
+            <p class="text-muted small mb-0 mt-2">Amounts below the line items table update live as you edit lines. Saved values update when you save the invoice.</p>
+        </div>
+    </div>
+    {% endif %}
     
     <!-- Line Items -->
     <div class="card mb-4">
@@ -148,21 +197,43 @@
                         <tr>
                             <td colspan="4" class="text-end fw-medium"><span id="subtotalLabel">Subtotal (excl. VAT)</span>:</td>
                             <td class="text-end fw-medium" id="subtotal">0.00</td>
-                            <td></td>
+                            <td colspan="2"></td>
                         </tr>
                         <tr>
-                            <td colspan="4" class="text-end fw-medium"><span id="vatLabel">VAT</span>:</td>
+                            <td colspan="4" class="text-end fw-medium"><span id="vatLabel">VAT amount</span>:</td>
                             <td class="text-end fw-medium" id="vatTotal">0.00</td>
-                            <td></td>
+                            <td colspan="2"></td>
                         </tr>
                         <tr>
-                            <td colspan="4" class="text-end fw-bold"><span id="grandLabel">Grand Total</span>:</td>
+                            <td colspan="4" class="text-end fw-bold"><span id="grandLabel">Total amount</span>:</td>
                             <td class="text-end fw-bold" id="grandTotal">0.00</td>
-                            <td></td>
+                            <td colspan="2"></td>
                         </tr>
+                        {% if object %}
+                        <tr>
+                            <td colspan="4" class="text-end fw-medium text-success">Paid amount:</td>
+                            <td class="text-end fw-medium text-success" id="paidAmountDisplay">{{ object.paid_amount|floatformat:2 }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr>
+                            <td colspan="4" class="text-end fw-bold">Balance:</td>
+                            <td class="text-end fw-bold {% if object.balance > 0 %}text-danger{% else %}text-success{% endif %}" id="balanceDisplay">{{ object.balance|floatformat:2 }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        {% endif %}
                     </tfoot>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body py-3">
+            <div class="form-check">
+                {{ form.is_active }}
+                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+            </div>
+            {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors|join:", " }}</div>{% endif %}
         </div>
     </div>
     
@@ -173,6 +244,7 @@
         <a href="{% url 'sales:invoice_list' %}" class="btn btn-light">Cancel</a>
     </div>
 </form>
+{% endblock %}
 
 {% block extra_js %}
 <script>
@@ -183,6 +255,7 @@ const taxCodes = [
     {% endfor %}
 ];
 const defaultTaxCodeId = {% if default_tax_code %}{{ default_tax_code.id }}{% else %}null{% endif %};
+const invoicePaidAmount = {% if object %}{{ object.paid_amount|default:0 }}{% else %}0{% endif %};
 
 let formCount = {{ items_formset.total_form_count }};
 
@@ -217,92 +290,26 @@ function syncLineVatInclusiveFlags() {
 function updateVatPricingLabels() {
     const inclusive = pricesIncludeVatEnabled();
     const unitHdr = document.getElementById('unitPriceColHeader');
-    if (unitHdr) unitHdr.textContent = inclusive ? 'Unit Price (Incl. VAT)' : 'Unit Price';
     const subLbl = document.getElementById('subtotalLabel');
     const vatLbl = document.getElementById('vatLabel');
     const grandLbl = document.getElementById('grandLabel');
-    if (inclusive) {
-        if (subLbl) subLbl.textContent = 'Taxable Amount';
-        if (vatLbl) vatLbl.textContent = 'Included VAT';
-        if (grandLbl) grandLbl.textContent = 'Gross Total';
-    } else {
-        if (subLbl) subLbl.textContent = 'Subtotal (excl. VAT)';
-        if (vatLbl) vatLbl.textContent = 'VAT';
-        if (grandLbl) grandLbl.textContent = 'Grand Total';
-    }
+    if (unitHdr) unitHdr.textContent = inclusive ? 'Unit Price (incl. VAT)' : 'Unit Price';
+    if (subLbl) subLbl.textContent = inclusive ? 'Subtotal (incl. VAT basis)' : 'Subtotal (excl. VAT)';
+    if (vatLbl) vatLbl.textContent = 'VAT amount';
+    if (grandLbl) grandLbl.textContent = 'Total amount';
 }
 
-function getTaxCodeOptions(selectedId) {
-    let options = '<option value="">-- No Tax (Out of Scope) --</option>';
-    taxCodes.forEach(tc => {
-        const selected = selectedId && parseInt(selectedId) === tc.id ? 'selected' : '';
-        options += `<option value="${tc.id}" data-rate="${tc.rate}" ${selected}>${tc.code} - ${tc.name} (${tc.rate}%)</option>`;
-    });
-    return options;
-}
-
-function addItemRow() {
-    const tbody = document.getElementById('itemsBody');
-    const newRow = document.createElement('tr');
-    newRow.className = 'item-row';
-    newRow.innerHTML = `
-        <td>
-            <input type="text" name="items-${formCount}-description" class="form-control form-control-sm" placeholder="Item description">
-        </td>
-        <td>
-            <input type="number" name="items-${formCount}-quantity" class="form-control form-control-sm item-qty" value="1" step="0.01" min="0.01" onchange="calculateRowTotal(this)">
-        </td>
-        <td>
-            <input type="number" name="items-${formCount}-unit_price" class="form-control form-control-sm item-price" value="0" step="0.01" min="0" onchange="calculateRowTotal(this)">
-        </td>
-        <td>
-            <select name="items-${formCount}-tax_code" class="form-select form-select-sm item-tax-code" onchange="calculateRowTotal(this)">
-                ${getTaxCodeOptions(defaultTaxCodeId)}
-            </select>
-        </td>
-        <td class="text-end">
-            <span class="row-vat text-muted small">0.00</span>
-        </td>
-        <td class="text-end">
-            <span class="row-total fw-medium">0.00</span>
-        </td>
-        <td class="text-center">
-            <input type="hidden" name="items-${formCount}-is_vat_inclusive" value="${pricesIncludeVatEnabled() ? 'true' : 'false'}">
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow(this)">
-                <i class="fas fa-times"></i>
-            </button>
-        </td>
-    `;
-    tbody.appendChild(newRow);
-    formCount++;
-    document.getElementById('id_items-TOTAL_FORMS').value = formCount;
-    calculateRowTotal(newRow.querySelector('.item-qty'));
-}
-
-function removeItemRow(btn) {
-    const row = btn.closest('tr');
-    const deleteCheck = row.querySelector('.delete-check');
-    if (deleteCheck) {
-        deleteCheck.checked = true;
-        row.style.display = 'none';
-    } else {
-        row.remove();
-    }
-    calculateTotals();
-}
-
-function calculateRowTotal(input) {
-    const row = input.closest('tr');
-    const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
-    const price = parseFloat(row.querySelector('.item-price').value) || 0;
-    const taxCodeSelect = row.querySelector('.item-tax-code');
-    
-    let vatRate = 0;
-    if (taxCodeSelect && taxCodeSelect.selectedOptions[0]) {
-        vatRate = parseFloat(taxCodeSelect.selectedOptions[0].dataset.rate) || 0;
-    }
-    
-    const splits = splitLineAmounts(qty * price, vatRate, pricesIncludeVatEnabled());
+function calculateRowTotal(el) {
+    const row = el.closest('tr');
+    if (!row || row.style.display === 'none') return;
+    const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
+    const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
+    const taxSelect = row.querySelector('.item-tax-code');
+    const vatRate = taxSelect && taxSelect.value
+        ? parseFloat(taxSelect.options[taxSelect.selectedIndex].dataset.rate) || 0
+        : 0;
+    const gross = qty * price;
+    const splits = splitLineAmounts(gross, vatRate, pricesIncludeVatEnabled());
     row.querySelector('.row-vat').textContent = splits.vat.toFixed(2);
     row.querySelector('.row-total').textContent = splits.gross.toFixed(2);
     calculateTotals();
@@ -311,89 +318,97 @@ function calculateRowTotal(input) {
 function calculateTotals() {
     let subtotal = 0;
     let vatTotal = 0;
-    
-    document.querySelectorAll('.item-row').forEach(row => {
+    let grandTotal = 0;
+    document.querySelectorAll('#itemsBody tr.item-row').forEach(row => {
         if (row.style.display === 'none') return;
         const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
         const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
-        const taxCodeSelect = row.querySelector('.item-tax-code');
-        
-        let vatRate = 0;
-        if (taxCodeSelect && taxCodeSelect.selectedOptions[0]) {
-            vatRate = parseFloat(taxCodeSelect.selectedOptions[0].dataset.rate) || 0;
-        }
-        
+        const taxSelect = row.querySelector('.item-tax-code');
+        const vatRate = taxSelect && taxSelect.value
+            ? parseFloat(taxSelect.options[taxSelect.selectedIndex].dataset.rate) || 0
+            : 0;
         const splits = splitLineAmounts(qty * price, vatRate, pricesIncludeVatEnabled());
         subtotal += splits.taxable;
         vatTotal += splits.vat;
+        grandTotal += splits.gross;
     });
-    
     document.getElementById('subtotal').textContent = subtotal.toFixed(2);
     document.getElementById('vatTotal').textContent = vatTotal.toFixed(2);
-    document.getElementById('grandTotal').textContent = (subtotal + vatTotal).toFixed(2);
-    updateVatPricingLabels();
+    document.getElementById('grandTotal').textContent = grandTotal.toFixed(2);
+    const balanceEl = document.getElementById('balanceDisplay');
+    if (balanceEl) {
+        const balance = grandTotal - invoicePaidAmount;
+        balanceEl.textContent = balance.toFixed(2);
+        balanceEl.classList.toggle('text-danger', balance > 0);
+        balanceEl.classList.toggle('text-success', balance <= 0);
+    }
+}
+
+function addItemRow() {
+    const tbody = document.getElementById('itemsBody');
+    const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+    const idx = parseInt(totalForms.value, 10);
+    const row = document.createElement('tr');
+    row.className = 'item-row';
+    row.innerHTML = `
+        <td><input type="text" name="items-${idx}-description" class="form-control form-control-sm" placeholder="Item description"></td>
+        <td><input type="number" name="items-${idx}-quantity" class="form-control form-control-sm item-qty" value="1" step="0.01" min="0.01" onchange="calculateRowTotal(this)"></td>
+        <td><input type="number" name="items-${idx}-unit_price" class="form-control form-control-sm item-price" value="0" step="0.01" min="0" onchange="calculateRowTotal(this)"></td>
+        <td>
+            <select name="items-${idx}-tax_code" class="form-select form-select-sm item-tax-code" onchange="calculateRowTotal(this)">
+                <option value="">-- No Tax --</option>
+                ${taxCodes.map(tc => `<option value="${tc.id}" data-rate="${tc.rate}">${tc.code} - ${tc.name} (${tc.rate}%)</option>`).join('')}
+            </select>
+        </td>
+        <td class="text-end"><span class="row-vat text-muted small">0.00</span></td>
+        <td class="text-end"><span class="row-total fw-medium">0.00</span></td>
+        <td class="text-center">
+            <input type="hidden" name="items-${idx}-is_vat_inclusive" value="${pricesIncludeVatEnabled() ? 'true' : 'false'}">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow(this)"><i class="fas fa-times"></i></button>
+        </td>`;
+    tbody.appendChild(row);
+    if (defaultTaxCodeId) {
+        const sel = row.querySelector('.item-tax-code');
+        sel.value = String(defaultTaxCodeId);
+    }
+    totalForms.value = idx + 1;
+    calculateRowTotal(row.querySelector('.item-qty'));
+}
+
+function removeItemRow(btn) {
+    const row = btn.closest('tr');
+    const del = row.querySelector('.delete-check');
+    if (del) {
+        del.checked = true;
+        row.style.display = 'none';
+    } else {
+        row.remove();
+        const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+        totalForms.value = document.querySelectorAll('#itemsBody tr.item-row:not([style*="display: none"])').length;
+    }
+    calculateTotals();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.item-row').forEach(row => {
-        const qty = row.querySelector('.item-qty');
-        if (qty) calculateRowTotal(qty);
-    });
-    syncLineVatInclusiveFlags();
     updateVatPricingLabels();
-
+    syncLineVatInclusiveFlags();
+    document.querySelectorAll('#itemsBody tr.item-row').forEach(row => {
+        if (row.style.display !== 'none') {
+            calculateRowTotal(row.querySelector('.item-qty') || row.querySelector('.item-price'));
+        }
+    });
     const vatToggle = document.getElementById('id_prices_include_vat');
     if (vatToggle) {
-        let prevVatToggle = vatToggle.checked;
         vatToggle.addEventListener('change', function() {
-            const hasLines = Array.from(document.querySelectorAll('.item-row')).some(row => {
-                if (row.style.display === 'none') return false;
-                const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
-                const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
-                return qty > 0 && price > 0;
-            });
-            if (hasLines) {
-                const ok = confirm(
-                    'Switching changes how entered prices are interpreted. Totals will recalculate. Continue?'
-                );
-                if (!ok) {
-                    vatToggle.checked = prevVatToggle;
-                    return;
-                }
-            }
-            prevVatToggle = vatToggle.checked;
+            updateVatPricingLabels();
             syncLineVatInclusiveFlags();
-            document.querySelectorAll('.item-row').forEach(row => {
-                const q = row.querySelector('.item-qty');
-                if (q) calculateRowTotal(q);
+            document.querySelectorAll('#itemsBody tr.item-row').forEach(row => {
+                if (row.style.display !== 'none') {
+                    calculateRowTotal(row.querySelector('.item-qty') || row.querySelector('.item-price'));
+                }
             });
         });
-    }
-
-    const projectOptions = {{ invoice_project_options_json|safe }};
-    const customerSelect = document.getElementById('id_customer');
-    const projectSelect = document.getElementById('id_project');
-
-    function rebuildProjectOptions() {
-        if (!projectSelect) return;
-        const customerId = customerSelect ? parseInt(customerSelect.value, 10) : null;
-        const current = projectSelect.value;
-        projectSelect.innerHTML = '<option value="">---------</option>';
-        projectOptions.forEach(p => {
-            if (customerId && p.customer_id && p.customer_id !== customerId) return;
-            const opt = document.createElement('option');
-            opt.value = String(p.id);
-            opt.textContent = p.label;
-            if (String(p.id) === current) opt.selected = true;
-            projectSelect.appendChild(opt);
-        });
-    }
-
-    if (customerSelect) {
-        customerSelect.addEventListener('change', rebuildProjectOptions);
-        rebuildProjectOptions();
     }
 });
 </script>
-{% endblock %}
 {% endblock %}

@@ -251,7 +251,7 @@ def find_customer_contact_duplicate(*, email: str = '', phone: str = '', exclude
     """
     from .models import Customer
 
-    qs = Customer.objects.all()
+    qs = Customer.objects.filter(customer_type='customer')
     if exclude_pk:
         qs = qs.exclude(pk=exclude_pk)
 
@@ -277,7 +277,7 @@ def normalize_customer_email(value: str, *, required: bool = False) -> str:
     email = (value or '').strip()
     if not email:
         if required:
-            raise ValidationError('Email is required for customers.')
+            raise ValidationError('Email is required for B2B accounts.')
         return ''
     try:
         validate_email(email)
@@ -291,7 +291,7 @@ def normalize_customer_phone(value: str, *, required: bool = False) -> str:
     phone = (value or '').strip()
     if not phone:
         if required:
-            raise ValidationError('Phone number is required for customers.')
+            raise ValidationError('Contact is required for B2B accounts.')
         return ''
     if not phone.startswith('+'):
         raise ValidationError(

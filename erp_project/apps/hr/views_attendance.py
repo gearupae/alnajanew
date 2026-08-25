@@ -20,7 +20,7 @@ from django.utils import timezone as django_timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
-from django.views.generic import DeleteView, FormView, ListView, TemplateView, UpdateView
+from django.views.generic import DeleteView, DetailView, FormView, ListView, TemplateView, UpdateView
 from django.views.generic.edit import CreateView
 
 from apps.core.mixins import CreatePermissionMixin, PermissionRequiredMixin, UpdatePermissionMixin
@@ -36,10 +36,12 @@ from apps.hr.attendance_utils import (
     month_absent_rate_pct,
     company_overtime_month,
     open_attendance_session,
+    open_attendance_session_any_date,
+    resolve_open_attendance_session,
     recalculate_summary_for_employee_month,
 )
 from apps.projects.labour_utils import infer_project_for_technician
-from apps.hr.forms_extended import AttendanceMarkForm, AttendanceSettingsForm, HolidayForm
+from apps.hr.forms_extended import AttendanceRecordForm, AttendanceSettingsForm, HolidayForm
 from apps.hr.models import Employee
 from apps.hr.models_extended import AttendanceRecord, AttendanceSettings, AttendanceSummary, Holiday
 
@@ -158,6 +160,9 @@ class AttendanceRecordListView(PermissionRequiredMixin, ListView):
         ctx['can_create'] = self.request.user.is_superuser or PermissionChecker.has_permission(
             self.request.user, 'hr', 'create'
         )
+        ctx['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'hr', 'edit'
+        )
         q = self.request.GET.copy()
         for obsolete in ('year', 'month'):
             q.pop(obsolete, None)
@@ -228,11 +233,84 @@ def attendance_record_delete(request, pk):
     return redirect(request.POST.get('next') or reverse('hr:attendance_list'))
 
 
+class AttendanceRecordDetailView(PermissionRequiredMixin, DetailView):
+    model = AttendanceRecord
+    template_name = 'hr/attendance_detail.html'
+    context_object_name = 'record'
+    module_name = 'hr'
+    permission_type = 'view'
+
+    def get_queryset(self):
+        return AttendanceRecord.objects.select_related(
+            'employee',
+            'employee__department',
+            'project',
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        rec = self.object
+        ctx['title'] = f'{rec.employee.employee_code} — {rec.date.strftime("%d/%m/%Y")}'
+        ctx['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'hr', 'edit'
+        )
+        ctx['can_delete'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'hr', 'create'
+        )
+        return ctx
+
+
+class AttendanceRecordUpdateView(UpdatePermissionMixin, UpdateView):
+    model = AttendanceRecord
+    form_class = AttendanceRecordForm
+    template_name = 'hr/attendance_form.html'
+    module_name = 'hr'
+
+    def get_context_data(self, **kwargs):
+        from apps.hr.attendance_utils import attendance_mark_blocked_for
+
+        ctx = super().get_context_data(**kwargs)
+        rec = self.object
+        ctx['title'] = f'Edit attendance — {rec.employee.employee_code}'
+        ctx['is_edit'] = True
+        ctx['snapshot'] = attendance_snapshot_today()
+        blocked, message = attendance_mark_blocked_for(rec.employee, rec.date)
+        ctx['attendance_mark_blocked'] = blocked
+        ctx['attendance_mark_blocked_message'] = message
+        return ctx
+
+    def form_valid(self, form):
+        form.instance.source = form.cleaned_data.get('source') or form.instance.source or 'manual'
+        form.save()
+        recalculate_summary_for_employee_month(
+            form.instance.employee,
+            form.instance.date.year,
+            form.instance.date.month,
+        )
+        messages.success(self.request, 'Attendance updated.')
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        for err in form.non_field_errors():
+            messages.error(self.request, err)
+        return super().form_invalid(form)
+
+    def get_success_url(self):
+        return reverse('hr:attendance_detail', kwargs={'pk': self.object.pk})
+
+
 class AttendanceMarkView(CreatePermissionMixin, FormView):
-    form_class = AttendanceMarkForm
-    template_name = 'hr/attendance_mark.html'
+    form_class = AttendanceRecordForm
+    template_name = 'hr/attendance_form.html'
     success_url = reverse_lazy('hr:attendance_list')
     module_name = 'hr'
+
+    def get(self, request, *args, **kwargs):
+        rid = request.GET.get('record')
+        if rid and str(rid).isdigit():
+            rec = get_object_or_404(AttendanceRecord, pk=int(rid), is_active=True)
+            return redirect('hr:attendance_edit', pk=rec.pk)
+        return super().get(request, *args, **kwargs)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -273,6 +351,8 @@ class AttendanceMarkView(CreatePermissionMixin, FormView):
         form.save()
         recalculate_summary_for_employee_month(form.instance.employee, form.instance.date.year, form.instance.date.month)
         messages.success(self.request, 'Attendance saved.')
+        if form.instance.pk:
+            return HttpResponseRedirect(reverse('hr:attendance_detail', kwargs={'pk': form.instance.pk}))
         return super().form_valid(form)
 
     def form_invalid(self, form):
@@ -285,10 +365,13 @@ class AttendanceMarkView(CreatePermissionMixin, FormView):
 
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = 'Mark attendance'
+        ctx['is_edit'] = False
         ctx['snapshot'] = attendance_snapshot_today()
         ctx['can_mark_all'] = self.request.user.is_superuser or PermissionChecker.has_permission(
             self.request.user, 'hr', 'create'
         )
+        ctx['attendance_mark_blocked'] = False
+        ctx['attendance_mark_blocked_message'] = ''
         form = ctx.get('form')
         blocked = False
         message = ''
@@ -781,6 +864,20 @@ def _resolve_technician_project_for_punch(employee: Employee, raw_project_id):
     return project, None
 
 
+def _attendance_session_status(employee: Employee, when=None):
+    """Open punch state for an employee (today first, then any open session)."""
+    when = when or django_timezone.localtime()
+    d = when.date()
+    open_sess = resolve_open_attendance_session(employee, d)
+    return {
+        'open_session': open_sess is not None,
+        'date': open_sess.date.isoformat() if open_sess else d.isoformat(),
+        'check_in': open_sess.check_in.isoformat() if open_sess and open_sess.check_in else None,
+        'check_out': open_sess.check_out.isoformat() if open_sess and open_sess.check_out else None,
+        'project_id': open_sess.project_id if open_sess else None,
+    }
+
+
 def _punch_record_json(rec: AttendanceRecord, action: str):
     open_sess = open_attendance_session(rec.employee, rec.date)
     display = open_sess or rec
@@ -808,7 +905,7 @@ def _perform_attendance_punch(*, employee: Employee, action: str, when, lat, lng
     if action == 'check_in':
         if bulk_present_blocks_punch(employee, d):
             return False, bulk_present_block_message()
-        if open_attendance_session(employee, d):
+        if open_attendance_session(employee, d) or open_attendance_session_any_date(employee):
             return False, 'Already clocked in. Clock out first.'
         overlap = attendance_overlap_message(employee, d, t, check_out=None)
         if overlap:
@@ -830,13 +927,13 @@ def _perform_attendance_punch(*, employee: Employee, action: str, when, lat, lng
         recalculate_summary_for_employee_month(employee, d.year, d.month)
         return True, rec
 
-    open_sess = open_attendance_session(employee, d)
+    open_sess = resolve_open_attendance_session(employee, d)
     if not open_sess:
         return False, 'Clock in first.'
 
     overlap = attendance_overlap_message(
         employee,
-        d,
+        open_sess.date,
         open_sess.check_in,
         t,
         exclude_pk=open_sess.pk,
@@ -853,6 +950,19 @@ def _perform_attendance_punch(*, employee: Employee, action: str, when, lat, lng
 
 
 @require_GET
+def attendance_session_status(request):
+    """JSON: open clock-in session for employee code (public punch page)."""
+    code = (request.GET.get('code') or '').strip()
+    if not code:
+        return JsonResponse({'ok': False, 'error': 'Employee code is required.'}, status=400)
+    emp = Employee.objects.filter(employee_code__iexact=code, is_active=True).first()
+    if not emp:
+        return JsonResponse({'ok': False, 'error': 'Employee not found.'}, status=404)
+    when = _parse_client_datetime(request.GET.get('client_time'))
+    return JsonResponse({'ok': True, **_attendance_session_status(emp, when)})
+
+
+@require_GET
 def attendance_technician_projects(request):
     """JSON: projects where employee (by code) is assigned as technician. For public punch project picker."""
     from apps.projects.labour_utils import active_technician_projects
@@ -863,8 +973,10 @@ def attendance_technician_projects(request):
     emp = Employee.objects.filter(employee_code__iexact=code, is_active=True).first()
     if not emp:
         return JsonResponse({'ok': False, 'error': 'Employee not found.'}, status=404)
+    when = _parse_client_datetime(request.GET.get('client_time'))
+    session = _attendance_session_status(emp, when)
     if not emp.user_id:
-        return JsonResponse({'ok': True, 'projects': []})
+        return JsonResponse({'ok': True, 'projects': [], **session})
     from apps.projects.labour_utils import active_technician_projects
 
     rows = (
@@ -872,7 +984,7 @@ def attendance_technician_projects(request):
         .order_by('-start_date', '-id')
         .values('id', 'project_code', 'name')
     )
-    return JsonResponse({'ok': True, 'projects': list(rows)})
+    return JsonResponse({'ok': True, 'projects': list(rows), **session})
 
 
 @method_decorator(ensure_csrf_cookie, name='dispatch')
@@ -921,7 +1033,12 @@ def attendance_public_punch(request):
         project=project if action == 'check_in' else None,
     )
     if not ok:
-        return JsonResponse({'ok': False, 'error': result}, status=400)
+        payload = {'ok': False, 'error': result}
+        if result == 'Already clocked in. Clock out first.':
+            payload.update(_attendance_session_status(emp, when))
+        elif result == 'Clock in first.':
+            payload['open_session'] = False
+        return JsonResponse(payload, status=400)
     return JsonResponse(_punch_record_json(result, action))
 
 
@@ -950,5 +1067,10 @@ def attendance_self_punch(request):
         project=project if action == 'check_in' else None,
     )
     if not ok:
-        return JsonResponse({'ok': False, 'error': result}, status=400)
+        payload = {'ok': False, 'error': result}
+        if result == 'Already clocked in. Clock out first.':
+            payload.update(_attendance_session_status(emp, when))
+        elif result == 'Clock in first.':
+            payload['open_session'] = False
+        return JsonResponse(payload, status=400)
     return JsonResponse(_punch_record_json(result, action))

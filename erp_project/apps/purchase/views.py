@@ -30,7 +30,7 @@ from .models import (
 from .forms import (
     VendorForm, PurchaseRequestForm, PurchaseRequestItemFormSet,
     PurchaseOrderForm, PurchaseOrderItemFormSet,
-    VendorBillForm, VendorBillItemFormSet,
+    VendorBillForm, VendorBillProjectForm, VendorBillItemFormSet,
     ExpenseClaimForm, ExpenseClaimItemFormSet, ExpenseClaimPaymentForm,
     RecurringExpenseForm
 )
@@ -45,12 +45,14 @@ def _active_inventory_items_data():
     from apps.inventory.serial_stock import annotate_item_available_stock
 
     rows = annotate_item_available_stock(
-        Item.objects.filter(is_active=True, status='active')
+        Item.usable()
     ).order_by('name')
     return [
         {
             'id': r.pk,
             'label': str(r),
+            'name': r.name,
+            'item_code': r.item_code,
             'unit': (r.unit or 'pcs').strip(),
             'purchase_price': str(r.purchase_price),
             'current_stock': str(r.total_stock_calc or Decimal('0.00')),
@@ -189,6 +191,16 @@ class VendorUpdateView(UpdatePermissionMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = f'Edit Vendor: {self.object.name}'
+        from apps.documents.document_utils import entity_documents_context
+
+        context.update(
+            entity_documents_context(
+                self.request.user,
+                entity_type='vendor',
+                entity_id=self.object.pk,
+                entity_name=self.object.name,
+            )
+        )
         return context
     
     def form_valid(self, form):
@@ -270,6 +282,7 @@ class PurchaseRequestCreateView(CreatePermissionMixin, CreateView):
     
     def get_initial(self):
         initial = super().get_initial()
+        initial.setdefault('date', date.today())
         sr_id = self.request.GET.get('sr')
         if sr_id:
             initial['service_request'] = sr_id
@@ -743,14 +756,19 @@ def pr_items_json(request, pk):
     """Return PR items as JSON for AJAX requests."""
     pr = get_object_or_404(PurchaseRequest, pk=pk)
     items = []
-    for item in pr.items.all():
+    for item in pr.items.select_related('inventory_item__tax_code').all():
+        vat_rate = Decimal('0.00')
+        tax_code_id = None
+        if item.inventory_item_id and item.inventory_item.tax_code_id:
+            tax_code_id = item.inventory_item.tax_code_id
+            vat_rate = item.inventory_item.tax_code.rate
         items.append({
             'description': item.description,
             'quantity': str(item.quantity),
             'estimated_price': str(item.estimated_price),
-            # Use estimated_price as unit_price, and default VAT to 5%
             'unit_price': str(item.estimated_price),
-            'vat_rate': '5.00',
+            'vat_rate': str(vat_rate.quantize(Decimal('0.01'))),
+            'tax_code_id': tax_code_id,
             'inventory_item_id': item.inventory_item_id,
         })
     return JsonResponse({
@@ -834,6 +852,7 @@ class PurchaseOrderCreateView(CreatePermissionMixin, CreateView):
     
     def get_initial(self):
         initial = super().get_initial()
+        initial.setdefault('order_date', date.today())
         sr_id = self.request.GET.get('sr')
         if sr_id:
             initial['service_request'] = sr_id
@@ -1344,6 +1363,10 @@ def po_send_email(request, pk):
     except Exception as exc:
         return JsonResponse({'ok': False, 'error': f'Could not send email: {exc}'}, status=502)
 
+    if po.status in ('draft', 'confirmed'):
+        po.status = 'sent'
+        po.save(update_fields=['status', 'updated_at'])
+
     return JsonResponse({'ok': True, 'message': 'Email sent.'})
 
 
@@ -1408,6 +1431,9 @@ class VendorBillCreateView(CreatePermissionMixin, CreateView):
 
     def get_initial(self):
         initial = super().get_initial()
+        today = date.today()
+        initial.setdefault('bill_date', today)
+        initial.setdefault('due_date', today)
         po_id = self.request.GET.get('po')
         if po_id:
             initial['purchase_order'] = po_id
@@ -1432,6 +1458,7 @@ class VendorBillCreateView(CreatePermissionMixin, CreateView):
                 context['items_formset'] = VendorBillItemFormSet()
         else:
             context['items_formset'] = kwargs['items_formset']
+        context['bill_inventory_items_data'] = _active_inventory_items_data()
         return context
     
     def post(self, request, *args, **kwargs):
@@ -1511,6 +1538,7 @@ class VendorBillUpdateView(UpdatePermissionMixin, UpdateView):
                 context['items_formset'] = VendorBillItemFormSet(instance=self.object)
         else:
             context['items_formset'] = kwargs['items_formset']
+        context['bill_inventory_items_data'] = _active_inventory_items_data()
         return context
     
     def post(self, request, *args, **kwargs):
@@ -1574,6 +1602,9 @@ class VendorBillDetailView(PermissionRequiredMixin, DetailView):
         has_permission = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'purchase', 'edit')
         # Only allow editing draft bills
         context['can_edit'] = has_permission and self.object.status == 'draft'
+        context['can_change_project'] = has_permission and self.object.status != 'draft'
+        if context['can_change_project']:
+            context['project_form'] = VendorBillProjectForm(instance=self.object)
         # Allow posting draft bills
         context['can_post'] = has_permission and self.object.status == 'draft' and self.object.total_amount > 0
         context['can_create_debit_note'] = (
@@ -1635,6 +1666,51 @@ def bill_post(request, pk):
     except Exception as e:
         messages.error(request, f'Error posting bill: {e}')
     
+    return redirect('purchase:bill_detail', pk=pk)
+
+
+@login_required
+@require_POST
+def bill_update_project(request, pk):
+    """Update project on a posted vendor bill without changing accounting lines."""
+    from apps.core.audit import audit_bill_project_update
+
+    bill = get_object_or_404(VendorBill, pk=pk, is_active=True)
+
+    if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'purchase', 'edit')):
+        messages.error(request, 'Permission denied.')
+        return redirect('purchase:bill_detail', pk=pk)
+
+    if bill.status == 'draft':
+        messages.error(request, 'Use Edit to change the project on a draft bill.')
+        return redirect('purchase:bill_detail', pk=pk)
+
+    form = VendorBillProjectForm(request.POST, instance=bill)
+    if not form.is_valid():
+        messages.error(request, 'Invalid project selection.')
+        return redirect('purchase:bill_detail', pk=pk)
+
+    old_project = bill.project
+    new_project = form.cleaned_data['project']
+    if old_project == new_project:
+        messages.info(request, 'Project is unchanged.')
+        return redirect('purchase:bill_detail', pk=pk)
+
+    try:
+        bill.update_project_assignment(new_project, user=request.user)
+        audit_bill_project_update(bill, request.user, old_project, new_project, request=request)
+        if new_project:
+            messages.success(
+                request,
+                f'Project updated to {new_project.project_code} — {new_project.name}.',
+            )
+        else:
+            messages.success(request, 'Project removed from this bill.')
+    except ValidationError as e:
+        messages.error(request, str(e))
+    except Exception as e:
+        messages.error(request, f'Error updating project: {e}')
+
     return redirect('purchase:bill_detail', pk=pk)
 
 
@@ -1705,6 +1781,11 @@ class ExpenseClaimCreateView(CreatePermissionMixin, CreateView):
         else:
             context['items_formset'] = ExpenseClaimItemFormSet()
         return context
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.setdefault('claim_date', date.today())
+        return initial
     
     def form_valid(self, form):
         context = self.get_context_data()
@@ -1942,6 +2023,11 @@ class RecurringExpenseCreateView(CreatePermissionMixin, CreateView):
         context['title'] = 'Create Recurring Expense'
         context['today'] = date.today().isoformat()
         return context
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.setdefault('start_date', date.today())
+        return initial
     
     def form_valid(self, form):
         self.object = form.save()

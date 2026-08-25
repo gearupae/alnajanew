@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load hr_extras %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
     <h4 class="fw-bold mb-0">Leave calendar</h4>
@@ -10,19 +11,28 @@
         <div class="col-auto"><button type="submit" class="btn btn-primary btn-sm">Apply</button></div>
     </form>
 </div>
-<p class="small text-muted mb-3">Approved leave only. Fri/Sat weekend shading matches UAE standard.</p>
+<p class="small text-muted mb-3">
+    <span class="badge bg-info text-dark me-1">Approved</span>
+    <span class="badge bg-warning text-dark me-1">Pending approval</span>
+    <span class="badge bg-secondary me-1">Public holiday</span>
+    Fri/Sat weekend shading matches UAE standard.
+</p>
 <div class="table-responsive">
 <table class="table table-bordered table-sm text-center">
 {% for week in calendar_weeks %}
-<tr>{% for day in week %}<td class="{% if day == 0 %}bg-light{% endif %}">
-{% if day %}<div class="fw-semibold">{{ day }}</div>{% endif %}
-{% for lr in approved_leaves %}
-{% if lr.start_date.year == year and lr.start_date.month == month %}
-{% if day >= lr.start_date.day and day <= lr.end_date.day %}
-<div class="badge bg-info text-dark small my-1">{{ lr.employee.full_name|truncatechars:12 }} · {{ lr.leave_type.name|truncatechars:10 }}</div>
-{% endif %}
-{% endif %}
+<tr>{% for day in week %}<td class="{% if day == 0 %}bg-light{% endif %} align-top" style="min-width: 7rem;">
+{% if day %}
+<div class="fw-semibold mb-1">{{ day }}</div>
+{% for hol in holidays_by_day|get_item:day %}
+<div class="badge bg-secondary small my-1 d-block">{{ hol.name|truncatechars:14 }}</div>
 {% endfor %}
+{% for lr in pending_by_day|get_item:day %}
+<div class="badge bg-warning text-dark small my-1 d-block">{{ lr.employee.full_name|truncatechars:12 }} · {{ lr.leave_type.name|truncatechars:10 }}</div>
+{% endfor %}
+{% for lr in approved_by_day|get_item:day %}
+<div class="badge bg-info text-dark small my-1 d-block">{{ lr.employee.full_name|truncatechars:12 }} · {{ lr.leave_type.name|truncatechars:10 }}</div>
+{% endfor %}
+{% endif %}
 </td>{% endfor %}</tr>
 {% endfor %}
 </table>

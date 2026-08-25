@@ -26,6 +26,17 @@
     {% endif %}
 
     <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
+        <div class="card-body">
+            <div class="form-check">
+                {{ form.is_active }}
+                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+            </div>
+            {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-4">
         <div class="card-header"><h6 class="mb-0 fw-semibold">Payroll details</h6></div>
         <div class="card-body">
             <div class="row g-3">
@@ -42,10 +53,6 @@
                 <div class="col-md-6">
                     <label class="form-label">Month <span class="text-danger">*</span></label>
                     {{ form.month }}
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Status</label>
-                    {{ form.status }}
                 </div>
             </div>
         </div>
@@ -138,8 +145,63 @@
     </div>
 
     <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
+    {% if is_edit and object %}
+    <a href="{% url 'hr:payroll_detail' object.pk %}" class="btn btn-light">Cancel</a>
+    {% else %}
     <a href="{% url 'hr:payroll_list' %}" class="btn btn-light">Cancel</a>
+    {% endif %}
 </form>
+
+{% if is_edit and object %}
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0 fw-semibold">Calculated &amp; workflow (read-only)</h6></div>
+    <div class="card-body">
+        <p class="small text-muted mb-3">Allowances, gross, net, status, and journal entries are updated when payroll is processed or paid.</p>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label text-muted">Payslip email sent</label>
+                <input type="text" class="form-control bg-light" readonly value="{% if object.payslip_email_sent %}Yes{% else %}No{% endif %}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted">Allowances</label>
+                <input type="text" class="form-control bg-light" readonly value="AED {{ object.allowances|floatformat:2 }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted">Gross salary</label>
+                <input type="text" class="form-control bg-light" readonly value="AED {{ object.gross_salary|floatformat:2 }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted">Net salary</label>
+                <input type="text" class="form-control bg-light" readonly value="AED {{ object.net_salary|floatformat:2 }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted">Status</label>
+                <input type="text" class="form-control bg-light" readonly value="{{ object.get_status_display }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted">Journal entry</label>
+                <input type="text" class="form-control bg-light" readonly value="{% if object.journal_entry %}{{ object.journal_entry.entry_number }}{% else %}—{% endif %}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted">Payment journal entry</label>
+                <input type="text" class="form-control bg-light" readonly value="{% if object.payment_journal_entry %}{{ object.payment_journal_entry.entry_number }}{% else %}—{% endif %}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted">Paid from bank</label>
+                <input type="text" class="form-control bg-light" readonly value="{% if object.paid_from_bank %}{{ object.paid_from_bank.name }}{% else %}—{% endif %}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted">Paid date</label>
+                <input type="text" class="form-control bg-light" readonly value="{% if object.paid_date %}{{ object.paid_date|date:'d/m/Y' }}{% else %}—{% endif %}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted">Payment reference</label>
+                <input type="text" class="form-control bg-light" readonly value="{{ object.payment_reference|default:'—' }}">
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

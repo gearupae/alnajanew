@@ -16,6 +16,76 @@ from apps.sales.models import Estimate
 from apps.settings_app.models import AuditLog
 
 
+def _build_lead_salesperson_performance(
+    active_leads,
+    leads_with_value,
+    period_lead_ids,
+    start_date,
+    end_date,
+):
+    """Per-salesperson lead counts, pipeline value, and conversions."""
+    rows = []
+    entries = [
+        {'id': emp.pk, 'label': salesperson_display_name(emp)}
+        for emp in get_sales_employee_queryset()
+    ]
+    entries.append({'id': None, 'label': 'Unassigned'})
+
+    conversion_filter = (
+        Q(changes__action='converted_to_customer')
+        | Q(changes__converted_to_customer=True)
+        | Q(changes__action='kanban_won')
+    )
+    period_leads = Customer.objects.filter(pk__in=period_lead_ids, customer_type='lead')
+
+    for entry in entries:
+        if entry['id'] is None:
+            sp_leads = active_leads.filter(assigned_salesperson__isnull=True)
+            sp_value_qs = leads_with_value.filter(assigned_salesperson__isnull=True)
+            sp_period_ids = list(
+                period_leads.filter(assigned_salesperson__isnull=True).values_list('pk', flat=True)
+            )
+        else:
+            sp_leads = active_leads.filter(assigned_salesperson_id=entry['id'])
+            sp_value_qs = leads_with_value.filter(assigned_salesperson_id=entry['id'])
+            sp_period_ids = list(
+                period_leads.filter(assigned_salesperson_id=entry['id']).values_list('pk', flat=True)
+            )
+
+        pipeline = (
+            sp_value_qs.aggregate(total=Coalesce(Sum('latest_estimate_value'), Decimal('0.00')))['total']
+            or Decimal('0.00')
+        )
+        converted = 0
+        if sp_period_ids:
+            converted = (
+                AuditLog.objects.filter(
+                    model='Customer',
+                    timestamp__date__gte=start_date,
+                    timestamp__date__lte=end_date,
+                    record_id__in=[str(pk) for pk in sp_period_ids],
+                )
+                .filter(conversion_filter)
+                .values('record_id')
+                .distinct()
+                .count()
+            )
+
+        lead_count = sp_leads.count()
+        rows.append({
+            'label': entry['label'],
+            'lead_count': lead_count,
+            'pipeline_value': pipeline,
+            'converted_count': converted,
+            'conversion_rate_pct': int((converted / lead_count) * 100) if lead_count else 0,
+            'won_count': sp_leads.filter(lead_kanban_stage__converts_to_customer=True).count(),
+            'lost_count': sp_leads.filter(lead_kanban_stage__slug='lost').count(),
+        })
+
+    rows.sort(key=lambda r: (r['pipeline_value'], r['lead_count']), reverse=True)
+    return [row for row in rows if row['lead_count'] or row['converted_count']] or rows[:1]
+
+
 def _apply_lead_filters(qs, *, stage='', salesperson='', lead_status=''):
     if lead_status:
         qs = qs.filter(status=lead_status)
@@ -110,16 +180,35 @@ def build_lead_report(
 
     unassigned_count = active_leads.filter(lead_kanban_stage__isnull=True).count()
 
-    converted_logs = AuditLog.objects.filter(
-        model='Customer',
-        timestamp__date__gte=start_date,
-        timestamp__date__lte=end_date,
-    ).filter(
-        Q(changes__action='converted_to_customer')
-        | Q(changes__converted_to_customer=True)
-        | Q(changes__action='kanban_won')
+    period_lead_ids = list(leads_created.values_list('pk', flat=True))
+    converted_count = (
+        AuditLog.objects.filter(
+            model='Customer',
+            timestamp__date__gte=start_date,
+            timestamp__date__lte=end_date,
+            record_id__in=[str(pk) for pk in period_lead_ids],
+        )
+        .filter(
+            Q(changes__action='converted_to_customer')
+            | Q(changes__converted_to_customer=True)
+            | Q(changes__action='kanban_won')
+        )
+        .values('record_id')
+        .distinct()
+        .count()
     )
-    converted_count = converted_logs.count()
+
+    conversion_rate_pct = 0
+    if total_leads := leads_created.filter(customer_type='lead').count():
+        conversion_rate_pct = int((converted_count / total_leads) * 100)
+
+    salesperson_performance = _build_lead_salesperson_performance(
+        active_leads,
+        leads_with_value,
+        period_lead_ids,
+        start_date,
+        end_date,
+    )
 
     lead_details = []
     for lead in (
@@ -168,6 +257,8 @@ def build_lead_report(
         'total_leads_created': leads_created.filter(customer_type='lead').count(),
         'active_leads_count': active_leads.count(),
         'converted_count': converted_count,
+        'conversion_rate_pct': conversion_rate_pct,
+        'salesperson_performance': salesperson_performance,
         'pipeline_value': pipeline_value,
         'estimate_value_in_period': estimate_value_in_period,
         'stage_rows': stage_rows,

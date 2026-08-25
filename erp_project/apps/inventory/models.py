@@ -182,8 +182,10 @@ class Item(BaseModel):
     ]
     
     STATUS_CHOICES = [
+        ('pending_approval', 'Pending Approval'),
         ('active', 'Active'),
         ('inactive', 'Inactive'),
+        ('rejected', 'Rejected'),
     ]
     
     CONDITION_CHOICES = [
@@ -314,9 +316,33 @@ class Item(BaseModel):
     serial_batch_number = models.CharField(max_length=120, blank=True, default='')
     purchase_date = models.DateField(null=True, blank=True)
     warranty_expiry = models.DateField(null=True, blank=True)
+
+    # Creation approval workflow
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='submitted_inventory_items',
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_inventory_items',
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
     
     class Meta:
         ordering = ['-created_at', '-pk']
+
+    @classmethod
+    def usable(cls):
+        """Approved items available for estimates, POs, and stock transactions."""
+        return cls.objects.filter(is_active=True, status='active')
 
     def requires_whole_quantity(self) -> bool:
         if self.track_by_serial:
@@ -430,6 +456,13 @@ class Item(BaseModel):
                 dup = dup.exclude(pk=self.pk)
             if dup.exists():
                 raise ValidationError({'name': 'An item with this name already exists. Use a unique name.'})
+        barcode = (self.barcode or '').strip()
+        if barcode:
+            dup_bc = Item.objects.filter(barcode__iexact=barcode, is_active=True)
+            if self.pk:
+                dup_bc = dup_bc.exclude(pk=self.pk)
+            if dup_bc.exists():
+                raise ValidationError({'barcode': 'An item with this barcode already exists.'})
         min_sp = self.get_effective_minimum_selling_price()
         max_sp = self.get_effective_maximum_selling_price()
         if min_sp > 0 and max_sp > 0 and min_sp > max_sp:
@@ -720,6 +753,37 @@ class StockMovement(BaseModel):
         related_name='stock_movements'
     )
     posted = models.BooleanField(default=False)
+
+    APPROVAL_STATUS_CHOICES = [
+        ('executed', 'Executed'),
+        ('pending', 'Pending Approval'),
+        ('rejected', 'Rejected'),
+    ]
+    approval_status = models.CharField(
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        default='executed',
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='submitted_stock_movements',
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_stock_movements',
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+    stock_applied = models.BooleanField(
+        default=False,
+        help_text='True after quantity has been updated on approve/execute.',
+    )
     
     class Meta:
         ordering = ['-movement_date', '-created_at']
@@ -740,7 +804,7 @@ class StockMovement(BaseModel):
         
         super().save(*args, **kwargs)
 
-    def execute(self, user=None, allow_zero_cost=False):
+    def execute(self, user=None, allow_zero_cost=False, from_approval=False):
         """
         Atomic execution: update stock quantity AND post to GL together.
         In perpetual inventory, quantity and GL must always be in sync.
@@ -748,6 +812,13 @@ class StockMovement(BaseModel):
         """
         from django.db import transaction as db_transaction
         from apps.finance.models import FiscalYear
+
+        if self.approval_status == 'pending' and not from_approval:
+            raise ValidationError('This movement is pending approval.')
+        if self.approval_status == 'rejected':
+            raise ValidationError('This movement was rejected.')
+        if self.stock_applied:
+            raise ValidationError('This movement has already been applied to stock.')
 
         FiscalYear.validate_posting_allowed(self.movement_date)
 
@@ -766,8 +837,11 @@ class StockMovement(BaseModel):
 
         with db_transaction.atomic():
             self.update_stock()
+            self.stock_applied = True
             if self.total_cost > 0:
                 self.post_to_accounting(user=user)
+            self.approval_status = 'executed'
+            self.save(update_fields=['stock_applied', 'approval_status', 'posted', 'journal_entry', 'updated_at'])
 
     def update_stock(self):
         """Update stock levels based on movement type."""

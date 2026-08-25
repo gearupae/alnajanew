@@ -4,11 +4,14 @@
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb mb-2">
             <li class="breadcrumb-item"><a href="{% url 'hr:leave_list' %}">Leave requests</a></li>
-            <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+            <li class="breadcrumb-item active" aria-current="page">{{ leave.reference_number|default:leave.pk }}</li>
         </ol>
     </nav>
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
-        <h4 class="mb-0 fw-bold">{{ title }}</h4>
+        <div>
+            <h4 class="mb-1 fw-bold">{{ leave.employee.full_name }}</h4>
+            <span class="text-muted">{{ leave.leave_type.name }} · {{ leave.start_date|date:"d/m/Y" }} → {{ leave.end_date|date:"d/m/Y" }}</span>
+        </div>
         <div class="d-flex flex-wrap gap-2 align-items-center">
             {% if can_act_on_leave %}
             <form method="post" action="{% url 'hr:leave_approve' leave.pk %}" class="d-inline">
@@ -17,68 +20,127 @@
             </form>
             <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectLeaveModalDetail" data-reject-url="{% url 'hr:leave_reject' leave.pk %}"><i class="fas fa-times me-1"></i>Reject</button>
             {% endif %}
-            {% if has_attachment %}
-            <a href="{% url 'hr:leave_attachment' leave.pk %}" class="btn btn-outline-primary btn-sm">
-                <i class="fas fa-download me-1"></i>Download attachment
-            </a>
+            <a href="{% url 'hr:leave_list' %}" class="btn btn-light btn-sm">All requests</a>
+            {% if can_edit %}
+            <a href="{% url 'hr:leave_edit' leave.pk %}" class="btn btn-primary btn-sm"><i class="fas fa-edit me-1"></i>Edit</a>
             {% endif %}
-            <a href="{% url 'hr:leave_list' %}" class="btn btn-light btn-sm">Back to list</a>
         </div>
     </div>
 </div>
 
 <div class="row g-4">
-    <div class="col-lg-7">
+    <div class="col-lg-8">
         <div class="card mb-4">
-            <div class="card-header"><h6 class="mb-0 fw-semibold">Request details</h6></div>
+            <div class="card-header"><h6 class="mb-0 fw-semibold">Leave details</h6></div>
             <div class="card-body">
-                <dl class="row mb-0">
-                    <dt class="col-sm-4 text-muted">Reference</dt>
-                    <dd class="col-sm-8">{{ leave.reference_number|default:"—" }}</dd>
-                    <dt class="col-sm-4 text-muted">Employee</dt>
-                    <dd class="col-sm-8">{{ leave.employee.full_name }}</dd>
-                    {% if leave.covering_employee %}
-                    <dt class="col-sm-4 text-muted">Reliever</dt>
-                    <dd class="col-sm-8">{{ leave.covering_employee.full_name }}</dd>
-                    {% endif %}
-                    <dt class="col-sm-4 text-muted">Leave type</dt>
-                    <dd class="col-sm-8">{{ leave.leave_type.name }}</dd>
-                    <dt class="col-sm-4 text-muted">Dates</dt>
-                    <dd class="col-sm-8">{{ leave.start_date|date:"d M Y" }} → {{ leave.end_date|date:"d M Y" }}</dd>
-                    <dt class="col-sm-4 text-muted">Working days</dt>
-                    <dd class="col-sm-8">{{ leave.requested_working_days }}</dd>
-                    <dt class="col-sm-4 text-muted">Status</dt>
-                    <dd class="col-sm-8">{{ leave.get_status_display }}</dd>
-                    {% if leave.submitted_publicly %}
-                    <dt class="col-sm-4 text-muted">Source</dt>
-                    <dd class="col-sm-8"><span class="badge bg-info text-dark">Public application</span></dd>
-                    {% endif %}
-                    {% if leave.reason %}
-                    <dt class="col-sm-4 text-muted">Reason</dt>
-                    <dd class="col-sm-8">{{ leave.reason|linebreaksbr }}</dd>
-                    {% endif %}
-                    {% if leave.rejection_reason %}
-                    <dt class="col-sm-4 text-muted">Rejection note</dt>
-                    <dd class="col-sm-8 text-danger">{{ leave.rejection_reason|linebreaksbr }}</dd>
-                    {% endif %}
-                </dl>
+                <div class="row g-4">
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Is active</h6>
+                        <p class="mb-0">{% if leave.is_active %}Yes{% else %}No{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Employee</h6>
+                        <p class="mb-0"><a href="{% url 'hr:employee_detail' leave.employee.pk %}">{{ leave.employee.full_name }}</a></p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Leave type</h6>
+                        <p class="mb-0">{{ leave.leave_type.name }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Start date</h6>
+                        <p class="mb-0">{{ leave.start_date|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">End date</h6>
+                        <p class="mb-0">{{ leave.end_date|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">Reason</h6>
+                        <p class="mb-0">{% if leave.reason %}{{ leave.reason|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Status</h6>
+                        <p class="mb-0">{{ leave.get_status_display }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Approved by</h6>
+                        <p class="mb-0">{% if leave.approved_by %}{{ leave.approved_by.get_full_name|default:leave.approved_by.username }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Approved at</h6>
+                        <p class="mb-0">{% if leave.approved_at %}{{ leave.approved_at|date:"d/m/Y H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Rejection reason</h6>
+                        <p class="mb-0">{% if leave.rejection_reason %}{{ leave.rejection_reason|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Medical certificate uploaded</h6>
+                        <p class="mb-0">{% if leave.medical_certificate_uploaded %}Yes{% else %}No{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Medical certificate</h6>
+                        <p class="mb-0">
+                            {% if has_attachment %}
+                            <a href="{% url 'hr:leave_attachment' leave.pk %}">Download</a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Covering employee</h6>
+                        <p class="mb-0">
+                            {% if leave.covering_employee %}
+                            <a href="{% url 'hr:employee_detail' leave.covering_employee.pk %}">{{ leave.covering_employee.full_name }}</a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Return date</h6>
+                        <p class="mb-0">{% if leave.return_date %}{{ leave.return_date|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Is half day</h6>
+                        <p class="mb-0">{% if leave.is_half_day %}Yes{% else %}No{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Start time</h6>
+                        <p class="mb-0">{% if leave.start_time %}{{ leave.start_time|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">End time</h6>
+                        <p class="mb-0">{% if leave.end_time %}{{ leave.end_time|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Requested working days</h6>
+                        <p class="mb-0">{{ leave.requested_working_days|floatformat:2 }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Reference number</h6>
+                        <p class="mb-0 font-monospace">{{ leave.reference_number|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Submitted publicly</h6>
+                        <p class="mb-0">{% if leave.submitted_publicly %}Yes{% else %}No{% endif %}</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-lg-5">
+    <div class="col-lg-4">
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-semibold">Attachment</h6>
+                <h6 class="mb-0 fw-semibold">Medical certificate</h6>
                 {% if has_attachment %}<span class="badge bg-success">Uploaded</span>{% else %}<span class="badge bg-secondary">None</span>{% endif %}
             </div>
             <div class="card-body">
                 {% if has_attachment %}
-                <p class="text-muted small mb-3">
-                    Submitted with this request (e.g. medical certificate from the public leave form).
-                </p>
                 <div class="d-flex flex-wrap gap-2 mb-3">
                     <a href="{% url 'hr:leave_attachment' leave.pk %}?preview=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-external-link-alt me-1"></i>Open in new tab
+                        <i class="fas fa-external-link-alt me-1"></i>Open
                     </a>
                     <a href="{% url 'hr:leave_attachment' leave.pk %}" class="btn btn-primary btn-sm">
                         <i class="fas fa-download me-1"></i>Download
@@ -86,17 +148,17 @@
                 </div>
                 {% if attachment_is_image %}
                 <div class="border rounded p-2 bg-light text-center">
-                    <img src="{% url 'hr:leave_attachment' leave.pk %}?preview=1" alt="Attachment" class="img-fluid rounded" style="max-height: 420px;">
+                    <img src="{% url 'hr:leave_attachment' leave.pk %}?preview=1" alt="Medical certificate" class="img-fluid rounded" style="max-height: 420px;">
                 </div>
                 {% elif attachment_is_pdf %}
                 <div class="ratio ratio-4x3 border rounded overflow-hidden bg-dark bg-opacity-10">
                     <iframe src="{% url 'hr:leave_attachment' leave.pk %}?preview=1" title="PDF preview" class="border-0"></iframe>
                 </div>
                 {% else %}
-                <p class="small text-muted mb-0">Preview is not available for this file type. Use Open or Download.</p>
+                <p class="small text-muted mb-0">Preview not available for this file type.</p>
                 {% endif %}
                 {% else %}
-                <p class="text-muted mb-0">No file was uploaded for this request.</p>
+                <p class="text-muted mb-0">No file uploaded.</p>
                 {% endif %}
             </div>
         </div>
@@ -114,7 +176,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <label class="form-label" for="id_rejection_reason_detail">Reason <span class="text-muted">(optional)</span></label>
+                    <label class="form-label" for="id_rejection_reason_detail">Rejection reason <span class="text-muted">(optional)</span></label>
                     <textarea name="rejection_reason" id="id_rejection_reason_detail" class="form-control" rows="3" placeholder="Explain why this request is rejected"></textarea>
                 </div>
                 <div class="modal-footer">

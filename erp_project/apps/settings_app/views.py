@@ -602,7 +602,14 @@ class CrmKanbanSettingsView(PermissionRequiredMixin, TemplateView):
         return ctx
 
     def post(self, request, *args, **kwargs):
+        from django.utils.text import slugify
         from apps.crm.models import CrmLeadKanbanStage
+
+        def _stage_slug(raw, fallback_name=''):
+            slug = slugify((raw or '').strip())[:80]
+            if not slug:
+                slug = slugify(fallback_name)[:80] or 'stage'
+            return slug
 
         action = request.POST.get('action')
         if action == 'add':
@@ -611,14 +618,31 @@ class CrmKanbanSettingsView(PermissionRequiredMixin, TemplateView):
                 messages.error(request, 'Stage name is required.')
                 return redirect('settings:crm_kanban')
             sort_order = int(request.POST.get('sort_order') or 0)
-            CrmLeadKanbanStage.objects.create(name=name, sort_order=sort_order)
-            messages.success(request, 'Stage added.')
+            slug = _stage_slug(request.POST.get('slug'), name)
+            if CrmLeadKanbanStage.objects.filter(slug=slug).exists():
+                messages.error(request, f'Slug “{slug}” is already in use.')
+                return redirect('settings:crm_kanban')
+            stage = CrmLeadKanbanStage.objects.create(
+                name=name,
+                slug=slug,
+                sort_order=sort_order,
+                is_active=request.POST.get('is_active') == 'on',
+                converts_to_customer=request.POST.get('converts_to_customer') == 'on',
+                tracks_opportunity=request.POST.get('tracks_opportunity') == 'on',
+            )
+            messages.success(request, f'Stage “{stage.name}” added.')
         elif action == 'save' and request.POST.get('stage_id'):
             s = get_object_or_404(CrmLeadKanbanStage, pk=int(request.POST['stage_id']))
             s.name = (request.POST.get('name') or '').strip()[:80] or s.name
+            slug = _stage_slug(request.POST.get('slug'), s.name)
+            if CrmLeadKanbanStage.objects.filter(slug=slug).exclude(pk=s.pk).exists():
+                messages.error(request, f'Slug “{slug}” is already in use.')
+                return redirect('settings:crm_kanban')
+            s.slug = slug
             s.sort_order = int(request.POST.get('sort_order') or 0)
             s.is_active = request.POST.get('is_active') == 'on'
             s.converts_to_customer = request.POST.get('converts_to_customer') == 'on'
+            s.tracks_opportunity = request.POST.get('tracks_opportunity') == 'on'
             s.save()
             messages.success(request, f'Stage “{s.name}” saved.')
         elif action == 'delete' and request.POST.get('stage_id'):

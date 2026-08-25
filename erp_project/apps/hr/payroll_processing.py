@@ -77,6 +77,19 @@ def _month_first(d: date) -> date:
     return date(d.year, d.month, 1)
 
 
+def validate_attendance_finalized_for_payroll(payroll):
+    """Block payroll processing until the employee's monthly attendance summary is finalized."""
+    from django.core.exceptions import ValidationError
+
+    month_start = _month_first(payroll.month)
+    summary = AttendanceSummary.objects.filter(employee=payroll.employee, month=month_start).first()
+    if not summary or not summary.is_finalized:
+        raise ValidationError(
+            f'Attendance summary for {payroll.employee.full_name} '
+            f'({month_start.strftime("%B %Y")}) must be finalized before processing payroll.'
+        )
+
+
 def _years_of_service(join: date | None, as_of: date) -> Decimal:
     from apps.hr.uae_gratuity import years_of_service_decimal
 

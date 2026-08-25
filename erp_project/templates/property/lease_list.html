@@ -105,13 +105,6 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-4">
-                <label class="form-label">Lease Type</label>
-                <select name="lease_type" class="form-select">
-                    <option value="residential">Residential</option>
-                    <option value="commercial">Commercial</option>
-                </select>
-            </div>
             <div class="col-md-3">
                 <label class="form-label">Start Date <span class="text-danger">*</span></label>
                 <input type="date" name="start_date" class="form-control" required>
@@ -125,8 +118,8 @@
                 <input type="number" name="annual_rent" class="form-control" step="0.01" required>
             </div>
             <div class="col-md-3">
-                <label class="form-label">No. of Cheques</label>
-                <input type="number" name="num_cheques" class="form-control" value="1" min="1" max="12">
+                <label class="form-label">Number of cheques</label>
+                <input type="number" name="number_of_cheques" class="form-control" value="1" min="1" max="12">
             </div>
             <div class="col-md-4">
                 <label class="form-label">Security Deposit</label>

@@ -47,12 +47,32 @@ class MonthInput(forms.DateInput):
 class DepartmentForm(forms.ModelForm):
     class Meta:
         model = Department
-        fields = ['name', 'code', 'manager']
-    
+        fields = ['is_active', 'name', 'code', 'manager']
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
+
+        User = get_user_model()
+        self.fields['manager'].queryset = User.objects.filter(is_active=True).order_by(
+            'first_name', 'last_name', 'username'
+        )
+        self.fields['manager'].required = False
+        self.fields['manager'].empty_label = '— None —'
+
         for name, field in self.fields.items():
+            if name == 'is_active':
+                continue
             field.widget.attrs['class'] = 'form-select' if name == 'manager' else 'form-control'
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.data:
+            cleaned['is_active'] = 'is_active' in self.data
+        return cleaned
 
 
 class DesignationForm(forms.ModelForm):
@@ -71,6 +91,7 @@ class EmployeeForm(forms.ModelForm):
     class Meta:
         model = Employee
         fields = [
+            'is_active',
             'employee_code',
             'user',
             'first_name',
@@ -80,13 +101,14 @@ class EmployeeForm(forms.ModelForm):
             'gender',
             'department',
             'designation',
-            'company',
             'date_of_birth',
             'date_of_joining',
             'probation_period_days',
             'status',
             'basic_salary',
             'salary_template',
+            'company',
+            'location',
             'contract_type',
             'termination_type',
             'is_uae_national',
@@ -95,7 +117,9 @@ class EmployeeForm(forms.ModelForm):
             'visa_expiry',
         ]
         labels = {
-            'user': 'ERP login',
+            'user': 'User',
+            'is_uae_national': 'Is UAE national',
+            'probation_period_days': 'Probation period days',
         }
         widgets = {
             # Match contracts/finance: explicit form-control + ISO format for HTML5 date inputs
@@ -115,6 +139,11 @@ class EmployeeForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
         
         # Filter to only show active departments
         department_queryset = Department.objects.filter(is_active=True)
@@ -208,13 +237,14 @@ class EmployeeForm(forms.ModelForm):
                 'status',
                 'gender',
                 'company',
+                'location',
                 'user',
                 'portal_role',
                 'contract_type',
                 'termination_type',
             ]:
                 field.widget.attrs['class'] = 'form-select'
-            elif name == 'is_uae_national':
+            elif name in ('is_uae_national', 'is_active'):
                 field.widget.attrs['class'] = 'form-check-input'
             elif name in ('date_of_birth', 'date_of_joining', 'visa_expiry'):
                 field.input_formats = ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']
@@ -223,6 +253,8 @@ class EmployeeForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        if self.data:
+            cleaned['is_active'] = 'is_active' in self.data
         dept = cleaned.get('department')
         desig = cleaned.get('designation')
         if dept and desig and desig.department_id != dept.pk:
@@ -267,7 +299,10 @@ class EmployeeForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        instance.location = 'uae'
+        if not instance.location:
+            instance.location = 'uae'
+        if instance.status == 'terminated':
+            instance.is_active = False
         if commit:
             instance.save()
         return instance
@@ -364,16 +399,23 @@ class LeaveRequestForm(forms.ModelForm):
 
     class Meta:
         model = LeaveRequest
-        fields = ['employee', 'leave_type', 'covering_employee', 'start_date', 'end_date', 'reason', 'medical_certificate']
+        fields = [
+            'is_active', 'employee', 'leave_type', 'covering_employee',
+            'start_date', 'end_date', 'is_half_day', 'start_time', 'end_time',
+            'reason', 'medical_certificate',
+        ]
         widgets = {
             'start_date': forms.DateInput(attrs={'type': 'date'}),
             'end_date': forms.DateInput(attrs={'type': 'date'}),
+            'start_time': forms.TimeInput(attrs={'type': 'time'}),
+            'end_time': forms.TimeInput(attrs={'type': 'time'}),
             'reason': forms.Textarea(attrs={'rows': 2}),
             'medical_certificate': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
         labels = {
-            'covering_employee': 'Reliever',
-            'medical_certificate': 'Attachment (e.g. medical certificate)',
+            'covering_employee': 'Covering employee',
+            'medical_certificate': 'Medical certificate',
+            'is_half_day': 'Is half day',
         }
 
     def __init__(self, *args, **kwargs):
@@ -406,8 +448,14 @@ class LeaveRequestForm(forms.ModelForm):
             'first_name', 'last_name'
         )
         self.fields['covering_employee'].required = False
-        self.fields['covering_employee'].empty_label = '— Reliever (optional) —'
+        self.fields['covering_employee'].empty_label = '— None —'
         self.fields['covering_employee'].widget.attrs['class'] = 'form-select'
+
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
+        self.fields['is_half_day'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
 
         if self.user and not self.is_admin:
             try:
@@ -420,10 +468,12 @@ class LeaveRequestForm(forms.ModelForm):
         for name, field in self.fields.items():
             if name in ['employee', 'leave_type', 'covering_employee']:
                 field.widget.attrs.setdefault('class', 'form-select')
+            elif name in ('is_active', 'is_half_day'):
+                field.widget.attrs.setdefault('class', 'form-check-input')
             elif name == 'medical_certificate':
                 field.widget.attrs.setdefault('class', 'form-control')
             elif name != 'overflow_action':
-                field.widget.attrs['class'] = 'form-control'
+                field.widget.attrs.setdefault('class', 'form-control')
 
     def clean(self):
         from apps.hr.leave_context_service import (
@@ -433,6 +483,9 @@ class LeaveRequestForm(forms.ModelForm):
         )
 
         cleaned_data = super().clean()
+        if self.data:
+            cleaned_data['is_active'] = 'is_active' in self.data
+            cleaned_data['is_half_day'] = 'is_half_day' in self.data
         start_date = cleaned_data.get('start_date')
         end_date = cleaned_data.get('end_date')
         leave_type = cleaned_data.get('leave_type')
@@ -479,6 +532,14 @@ class LeaveRequestForm(forms.ModelForm):
             raise forms.ValidationError({'covering_employee': 'Reliever cannot be the same employee as the applicant.'})
 
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if instance.medical_certificate:
+            instance.medical_certificate_uploaded = True
+        if commit:
+            instance.save()
+        return instance
 
 
 class PublicLeaveApplicationForm(forms.Form):
@@ -573,7 +634,7 @@ class PublicLeaveApplicationForm(forms.Form):
 class PayrollForm(forms.ModelForm):
     class Meta:
         model = Payroll
-        fields = ['employee', 'company', 'month', 'basic_salary', 'deductions', 'status']
+        fields = ['is_active', 'employee', 'company', 'month', 'basic_salary', 'deductions']
         widgets = {
             'month': MonthInput(attrs={'type': 'month'}),
         }
@@ -582,6 +643,11 @@ class PayrollForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         from apps.settings_app.models import Company
 
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
+
         self.fields['employee'].queryset = Employee.objects.filter(is_active=True).order_by('first_name', 'last_name')
         self.fields['employee'].empty_label = '-- Select Employee --'
         self.fields['company'].queryset = Company.objects.filter(is_active=True).order_by('name')
@@ -589,7 +655,9 @@ class PayrollForm(forms.ModelForm):
         self.fields['company'].empty_label = '(From employee)'
 
         for name, field in self.fields.items():
-            if name in ['employee', 'status', 'company']:
+            if name == 'is_active':
+                continue
+            if name in ['employee', 'company']:
                 field.widget.attrs['class'] = 'form-select'
             else:
                 field.widget.attrs['class'] = 'form-control'
@@ -626,6 +694,10 @@ class PayrollForm(forms.ModelForm):
     
     def clean(self):
         cleaned_data = super().clean()
+        if self.data:
+            cleaned_data['is_active'] = 'is_active' in self.data
+        elif not self.instance.pk:
+            cleaned_data['is_active'] = True
         return cleaned_data
 
     def save(self, commit=True):

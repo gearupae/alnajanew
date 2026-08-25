@@ -30,57 +30,222 @@ $(function () {
     <nav aria-label="breadcrumb"><ol class="breadcrumb mb-2"><li class="breadcrumb-item"><a href="{% url 'projects:project_list' %}">Projects</a></li><li class="breadcrumb-item active">{{ title }}</li></ol></nav>
     <h4 class="mb-0 fw-bold">{{ title }}</h4>
 </div>
-<div class="card">
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-            {% if form.non_field_errors %}
-            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-            {% endif %}
-            {% if object %}
-            {% if object.conversion_approval_status == 'pending' and object.status == 'draft' %}
-            <div class="alert alert-warning mb-3"><i class="fas fa-clock me-1"></i>Conversion from quotation is <strong>pending approval</strong>. Status remains <strong>Draft</strong> until an approver clicks <strong>Approve conversion</strong> on the project page.</div>
-            {% elif object.edit_approval_status == 'pending' %}
-            <div class="alert alert-warning mb-0"><i class="fas fa-clock me-1"></i>Completion is pending approver sign-off. Status will remain <strong>{{ object.get_status_display }}</strong> until approved.</div>
-            {% elif object.edit_approval_status == 'rejected' %}
-            <div class="alert alert-danger mb-0"><i class="fas fa-times-circle me-1"></i>Your last completion request was rejected. Set status to <strong>Completed</strong> again to resubmit.</div>
-            {% else %}
-            <div class="alert alert-info mb-0"><i class="fas fa-info-circle me-1"></i>Choosing <strong>Completed</strong> here only <strong>requests</strong> completion — status stays as-is until the project approver clicks <strong>Approve completion</strong> on the project page.</div>
-            {% endif %}
-            {% endif %}
+
+{% if form.non_field_errors %}
+<div class="alert alert-danger">{{ form.non_field_errors }}</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    {% if object %}
+    {% if object.conversion_approval_status == 'pending' and object.status == 'draft' %}
+    <div class="alert alert-warning mb-3"><i class="fas fa-clock me-1"></i>Conversion from quotation is <strong>pending approval</strong>. Status remains <strong>Draft</strong> until an approver clicks <strong>Approve conversion</strong> on the project page.</div>
+    {% elif object.edit_approval_status == 'pending' %}
+    <div class="alert alert-warning mb-3"><i class="fas fa-clock me-1"></i>Completion is pending approver sign-off. Status will remain <strong>{{ object.get_status_display }}</strong> until approved.</div>
+    {% elif object.edit_approval_status == 'rejected' %}
+    <div class="alert alert-danger mb-3"><i class="fas fa-times-circle me-1"></i>Your last completion request was rejected. Set status to <strong>Completed</strong> again to resubmit.</div>
+    {% else %}
+    <div class="alert alert-info mb-3"><i class="fas fa-info-circle me-1"></i>Choosing <strong>Completed</strong> here only <strong>requests</strong> completion — status stays as-is until the project approver clicks <strong>Approve completion</strong> on the project page.</div>
+    {% endif %}
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
+        <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6"><label class="form-label">Project Name <span class="text-danger">*</span></label>{{ form.name }}{% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}</div>
-                <div class="col-md-3"><label class="form-label">Customer</label>{{ form.customer }}{% if form.customer.errors %}<div class="text-danger small">{{ form.customer.errors }}</div>{% endif %}</div>
-                <div class="col-md-3"><label class="form-label">Manager</label>{{ form.manager }}{% if form.manager.errors %}<div class="text-danger small">{{ form.manager.errors }}</div>{% endif %}</div>
-                <div class="col-md-3"><label class="form-label">Status</label>{{ form.status }}{% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}</div>
-                <div class="col-md-3"><label class="form-label">Start Date</label>{{ form.start_date }}{% if form.start_date.errors %}<div class="text-danger small">{{ form.start_date.errors }}</div>{% endif %}</div>
-                <div class="col-md-3"><label class="form-label">End Date</label>{{ form.end_date }}{% if form.end_date.errors %}<div class="text-danger small">{{ form.end_date.errors }}</div>{% endif %}</div>
-                <div class="col-md-3"><label class="form-label">Budget</label>{{ form.budget }}{% if form.budget.errors %}<div class="text-danger small">{{ form.budget.errors }}</div>{% endif %}</div>
-                <div class="col-md-3"><label class="form-label">Estimated cost</label>{{ form.estimated_cost }}{% if form.estimated_cost.errors %}<div class="text-danger small">{{ form.estimated_cost.errors }}</div>{% endif %}</div>
+                <div class="col-md-3">
+                    <div class="form-check mt-2">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                    </div>
+                    {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                {% if object %}
+                <div class="col-md-3">
+                    <label class="form-label">Project code</label>
+                    <input type="text" class="form-control bg-light" value="{{ object.project_code }}" readonly>
+                </div>
+                {% endif %}
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Project details</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    {{ form.name }}
+                    {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Customer</label>
+                    {{ form.customer }}
+                    {% if form.customer.errors %}<div class="text-danger small">{{ form.customer.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Manager</label>
+                    {{ form.manager }}
+                    {% if form.manager.errors %}<div class="text-danger small">{{ form.manager.errors }}</div>{% endif %}
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Description</label>
+                    {{ form.description }}
+                    {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Start date</label>
+                    {{ form.start_date }}
+                    {% if form.start_date.errors %}<div class="text-danger small">{{ form.start_date.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End date</label>
+                    {{ form.end_date }}
+                    {% if form.end_date.errors %}<div class="text-danger small">{{ form.end_date.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Billing type</label>
+                    {{ form.billing_type }}
+                    {% if form.billing_type.errors %}<div class="text-danger small">{{ form.billing_type.errors }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Financials</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Budget</label>
+                    {{ form.budget }}
+                    {% if form.budget.errors %}<div class="text-danger small">{{ form.budget.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Estimated cost</label>
+                    {{ form.estimated_cost }}
+                    {% if form.estimated_cost.errors %}<div class="text-danger small">{{ form.estimated_cost.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Contract value</label>
+                    {{ form.contract_value }}
+                    {% if form.contract_value.errors %}<div class="text-danger small">{{ form.contract_value.errors }}</div>{% endif %}
+                </div>
+                {% if object %}
+                <div class="col-md-3">
+                    <label class="form-label">Total expenses</label>
+                    <input type="text" class="form-control bg-light" value="AED {{ object.total_expenses|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Total revenue</label>
+                    <input type="text" class="form-control bg-light" value="AED {{ object.total_revenue|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Total billed</label>
+                    <input type="text" class="form-control bg-light" value="AED {{ object.total_billed|floatformat:2 }}" readonly>
+                </div>
+                {% endif %}
+                <div class="col-md-6">
+                    <label class="form-label">Expense account</label>
+                    {{ form.expense_account }}
+                    {% if form.expense_account.errors %}<div class="text-danger small">{{ form.expense_account.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Revenue account</label>
+                    {{ form.revenue_account }}
+                    {% if form.revenue_account.errors %}<div class="text-danger small">{{ form.revenue_account.errors }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if object %}
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Approval workflow</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Conversion approval status</label>
+                    <input type="text" class="form-control bg-light" value="{{ object.get_conversion_approval_status_display }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Conversion approval submitted at</label>
+                    <input type="text" class="form-control bg-light" value="{% if object.conversion_approval_submitted_at %}{{ object.conversion_approval_submitted_at|date:'d/m/Y H:i' }}{% else %}—{% endif %}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Conversion approval submitted by</label>
+                    <input type="text" class="form-control bg-light" value="{% if object.conversion_approval_submitted_by %}{{ object.conversion_approval_submitted_by.get_full_name|default:object.conversion_approval_submitted_by.username }}{% else %}—{% endif %}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Conversion approval rejection reason</label>
+                    <input type="text" class="form-control bg-light" value="{{ object.conversion_approval_rejection_reason|default:'—' }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Edit approval status</label>
+                    <input type="text" class="form-control bg-light" value="{{ object.get_edit_approval_status_display }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Edit approval submitted at</label>
+                    <input type="text" class="form-control bg-light" value="{% if object.edit_approval_submitted_at %}{{ object.edit_approval_submitted_at|date:'d/m/Y H:i' }}{% else %}—{% endif %}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Edit approval submitted by</label>
+                    <input type="text" class="form-control bg-light" value="{% if object.edit_approval_submitted_by %}{{ object.edit_approval_submitted_by.get_full_name|default:object.edit_approval_submitted_by.username }}{% else %}—{% endif %}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Edit approval rejection reason</label>
+                    <input type="text" class="form-control bg-light" value="{{ object.edit_approval_rejection_reason|default:'—' }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Operation access status</label>
+                    <input type="text" class="form-control bg-light" value="{{ object.get_operation_access_status_display }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Operation access submitted at</label>
+                    <input type="text" class="form-control bg-light" value="{% if object.operation_access_submitted_at %}{{ object.operation_access_submitted_at|date:'d/m/Y H:i' }}{% else %}—{% endif %}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Operation access submitted by</label>
+                    <input type="text" class="form-control bg-light" value="{% if object.operation_access_submitted_by %}{{ object.operation_access_submitted_by.get_full_name|default:object.operation_access_submitted_by.username }}{% else %}—{% endif %}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Operation access rejection reason</label>
+                    <input type="text" class="form-control bg-light" value="{{ object.operation_access_rejection_reason|default:'—' }}" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Team</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
                 <div class="col-12">
                     <label class="form-label" for="{{ form.members.id_for_label }}">Members</label>
                     {{ form.members }}
                     {% if form.members.errors %}<div class="text-danger small">{{ form.members.errors }}</div>{% endif %}
-                    <div class="form-text">All user accounts (inactive accounts sort after active). HR-only profiles still need a linked user to assign here.</div>
                 </div>
                 <div class="col-12">
                     <label class="form-label" for="{{ form.technicians.id_for_label }}">Technicians</label>
                     {{ form.technicians }}
                     {% if form.technicians.errors %}<div class="text-danger small">{{ form.technicians.errors }}</div>{% endif %}
-                    <div class="form-text">Same list as Members.</div>
                 </div>
-                <div class="col-12"><label class="form-label">Description</label>{{ form.description }}{% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}</div>
             </div>
-            <div class="mt-4">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
-                <a href="{% url 'projects:project_list' %}" class="btn btn-light">Cancel</a>
-            </div>
-        </form>
+        </div>
     </div>
-</div>
+
+    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
+    {% if object %}
+    <a href="{% url 'projects:project_detail' object.pk %}" class="btn btn-light">Cancel</a>
+    {% else %}
+    <a href="{% url 'projects:project_list' %}" class="btn btn-light">Cancel</a>
+    {% endif %}
+</form>
 {% endblock %}
-
-
-
-
-

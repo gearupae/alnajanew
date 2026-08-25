@@ -15,6 +15,7 @@ urlpatterns = [
     
     # Warehouses
     path('warehouses/', views.WarehouseListView.as_view(), name='warehouse_list'),
+    path('warehouses/<int:pk>/', views.WarehouseDetailView.as_view(), name='warehouse_detail'),
     path('warehouses/<int:pk>/edit/', views.WarehouseUpdateView.as_view(), name='warehouse_edit'),
     path('warehouses/<int:pk>/delete/', views.warehouse_delete, name='warehouse_delete'),
     
@@ -27,9 +28,12 @@ urlpatterns = [
     path('items/<int:pk>/register-serials/', views.item_register_on_hand_serials, name='item_register_serials'),
     path('items/<int:pk>/edit/', views.ItemUpdateView.as_view(), name='item_edit'),
     path('items/<int:pk>/delete/', views.item_delete, name='item_delete'),
+    path('items/<int:pk>/approve/', views.item_approve, name='item_approve'),
+    path('items/<int:pk>/reject/', views.item_reject, name='item_reject'),
     
     # Stock
     path('stock/', views.StockListView.as_view(), name='stock_list'),
+    path('stock/<int:pk>/', views.StockDetailView.as_view(), name='stock_detail'),
     path('stock/adjustment/', views.stock_adjustment, name='stock_adjustment'),
     
     # Movements
@@ -37,6 +41,8 @@ urlpatterns = [
     path('movements/export/', views.movement_export_excel, name='movement_export'),
     path('movements/<int:pk>/', views.movement_detail, name='movement_detail'),
     path('movements/<int:pk>/post/', views.movement_post_to_accounting, name='movement_post'),
+    path('movements/<int:pk>/approve/', views.movement_approve, name='movement_approve'),
+    path('movements/<int:pk>/reject/', views.movement_reject, name='movement_reject'),
     
     # Stock Transfers
     path('transfers/', views.stock_transfer, name='stock_transfer'),

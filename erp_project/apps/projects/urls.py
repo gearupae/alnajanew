@@ -10,6 +10,9 @@ urlpatterns = [
     path('', views.ProjectListView.as_view(), name='project_list'),
     path('create/', views.ProjectCreateView.as_view(), name='project_create'),
     path('tasks/', views.TaskListView.as_view(), name='task_list'),
+    path('tasks/create/', views.TaskCreateView.as_view(), name='task_create'),
+    path('tasks/<int:pk>/', views.TaskDetailView.as_view(), name='task_detail'),
+    path('tasks/<int:pk>/edit/', views.TaskUpdateView.as_view(), name='task_edit'),
     path('<int:pk>/report/pdf/', views.project_report_pdf, name='project_report_pdf'),
     path('<int:project_pk>/gatepass/<int:pk>/delete/', views.project_gatepass_delete, name='project_gatepass_delete'),
     path('<int:pk>/', views.ProjectDetailView.as_view(), name='project_detail'),
@@ -35,6 +38,11 @@ urlpatterns = [
     path('expenses/<int:pk>/approve/', views.expense_approve, name='expense_approve'),
     path('expenses/<int:pk>/reject/', views.expense_reject, name='expense_reject'),
     path('expenses/<int:pk>/post/', views.expense_post_to_accounting, name='expense_post'),
+
+    # Project item deliveries
+    path('item-deliveries/', views.ItemDeliveryListView.as_view(), name='item_delivery_list'),
+    path('item-deliveries/create/', views.ItemDeliveryCreateView.as_view(), name='item_delivery_create'),
+    path('item-deliveries/<int:pk>/', views.ItemDeliveryDetailView.as_view(), name='item_delivery_detail'),
 ]
 
 

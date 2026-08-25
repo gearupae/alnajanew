@@ -6,7 +6,7 @@
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb mb-2">
             <li class="breadcrumb-item"><a href="{% url 'purchase:vendor_list' %}">Vendors</a></li>
-            <li class="breadcrumb-item active">{{ title }}</li>
+            <li class="breadcrumb-item active">{% if object.pk %}{{ object.name }}{% else %}{{ title }}{% endif %}</li>
         </ol>
     </nav>
     <h4 class="mb-0 fw-bold">{{ title }}</h4>
@@ -16,50 +16,77 @@
     <div class="card-body">
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
-            <div class="row g-3">
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+            <h6 class="fw-semibold mb-3"><i class="fas fa-id-card me-2 text-dark"></i>Account</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="form-check mt-2">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                    </div>
+                    {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    {{ form.status }}
+                    {% for err in form.status.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+            </div>
+
+            <h6 class="fw-semibold mb-3"><i class="fas fa-industry me-2 text-dark"></i>Vendor details</h6>
+            <div class="row g-3 mb-4">
                 <div class="col-md-6">
-                    <label class="form-label">Vendor Name <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control" value="{{ object.name }}" required>
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    {{ form.name }}
                     {% for err in form.name.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Contact Person</label>
-                    <input type="text" name="contact_person" class="form-control" value="{{ object.contact_person }}">
+                    <label class="form-label">Contact person</label>
+                    {{ form.contact_person }}
                     {% for err in form.contact_person.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" value="{{ object.email }}">
+                    {{ form.email }}
                     {% for err in form.email.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Phone</label>
-                    <input type="text" name="phone" class="form-control" value="{{ object.phone }}">
+                    {{ form.phone }}
                     {% for err in form.phone.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Status</label>
-                    <select name="status" class="form-select">
-                        <option value="active" {% if object.status == 'active' %}selected{% endif %}>Active</option>
-                        <option value="inactive" {% if object.status == 'inactive' %}selected{% endif %}>Inactive</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label" for="{{ form.trn.id_for_label }}">{{ form.trn.label }}</label>
-                    {{ form.trn }}
-                    {% for err in form.trn.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label" for="{{ form.website.id_for_label }}">{{ form.website.label }}</label>
+                    <label class="form-label">Website</label>
                     {{ form.website }}
                     {% for err in form.website.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-12">
                     <label class="form-label">Address</label>
-                    <textarea name="address" class="form-control" rows="2">{{ object.address }}</textarea>
+                    {{ form.address }}
+                    {% for err in form.address.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label">City</label>
+                    {{ form.city }}
+                    {% for err in form.city.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Country</label>
+                    {{ form.country }}
+                    {% for err in form.country.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tax Registration Number (TRN)</label>
+                    {{ form.trn }}
+                    {% for err in form.trn.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+            </div>
+
+            <h6 class="fw-semibold mb-3"><i class="fas fa-file-alt me-2 text-dark"></i>Documents</h6>
+            <div class="row g-3 mb-4">
                 <div class="col-md-6">
-                    <label class="form-label" for="{{ form.trn_document.id_for_label }}">{{ form.trn_document.label }}</label>
+                    <label class="form-label">TRN document</label>
                     {% if object.trn_document %}
                     <div class="d-flex align-items-center gap-2 mb-2 p-2 bg-light rounded border">
                         <i class="fas fa-file-alt text-secondary"></i>
@@ -77,7 +104,7 @@
                     {% for err in form.trn_document.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label" for="{{ form.trade_license_document.id_for_label }}">{{ form.trade_license_document.label }}</label>
+                    <label class="form-label">Trade license</label>
                     {% if object.trade_license_document %}
                     <div class="d-flex align-items-center gap-2 mb-2 p-2 bg-light rounded border">
                         <i class="fas fa-file-alt text-secondary"></i>
@@ -94,11 +121,31 @@
                     {{ form.trade_license_document }}
                     {% for err in form.trade_license_document.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
+            </div>
+
+            <h6 class="fw-semibold mb-3"><i class="fas fa-coins me-2 text-dark"></i>Commercial terms</h6>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Payment terms</label>
+                    {{ form.payment_terms }}
+                    {% for err in form.payment_terms.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Credit limit</label>
+                    {{ form.credit_limit }}
+                    {% for err in form.credit_limit.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
                 <div class="col-12">
                     <label class="form-label">Notes</label>
-                    <textarea name="notes" class="form-control" rows="2">{{ object.notes }}</textarea>
+                    {{ form.notes }}
+                    {% for err in form.notes.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
             </div>
+
+            {% if object %}
+            {% include 'documents/entity_documents_panel.html' %}
+            {% endif %}
+
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
                 <a href="{% url 'purchase:vendor_list' %}" class="btn btn-light">Cancel</a>

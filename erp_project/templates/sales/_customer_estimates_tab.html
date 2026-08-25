@@ -1,0 +1,54 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h6 class="mb-0 fw-semibold">
+        <i class="fas fa-file-invoice me-2 text-primary"></i>Estimates
+    </h6>
+    {% if can_create_estimate %}
+    <a href="{% url 'sales:estimate_create' %}?customer={{ customer.pk }}" class="btn btn-sm btn-primary">
+        <i class="fas fa-plus me-1"></i>Create Estimate
+    </a>
+    {% endif %}
+</div>
+
+{% if customer_estimates %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+            <tr>
+                <th>Estimate #</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th class="text-end">Total</th>
+                <th class="text-center">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for estimate in customer_estimates %}
+            <tr>
+                <td class="text-nowrap">
+                    <a href="{% url 'sales:estimate_detail' estimate.pk %}" class="fw-medium text-decoration-none">
+                        {{ estimate.display_estimate_number }}
+                    </a>
+                </td>
+                <td class="text-nowrap">{{ estimate.date|date:"d/m/Y" }}</td>
+                <td>
+                    <span class="badge bg-secondary">{{ estimate.get_status_display }}</span>
+                </td>
+                <td class="text-end text-nowrap">{{ estimate.total_amount|floatformat:2 }}</td>
+                <td class="text-center">
+                    <a href="{% url 'sales:estimate_detail' estimate.pk %}" class="btn btn-action btn-outline-info" title="View">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-muted small mb-0">No estimates recorded for this customer.</p>
+{% if can_create_estimate %}
+<a href="{% url 'sales:estimate_create' %}?customer={{ customer.pk }}" class="btn btn-sm btn-outline-primary mt-2">
+    <i class="fas fa-plus me-1"></i>Create Estimate
+</a>
+{% endif %}
+{% endif %}

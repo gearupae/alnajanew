@@ -32,6 +32,14 @@
         <div class="text-muted small">Count date</div>
         <div class="fw-semibold">{{ session.session_date|date:"d/m/Y" }}</div>
       </div>
+      <div class="col-md-4">
+        <div class="text-muted small">Status</div>
+        <div class="fw-semibold">{{ session.get_status_display }}</div>
+      </div>
+      <div class="col-md-4">
+        <div class="text-muted small">Completed at</div>
+        <div class="fw-semibold">{% if session.completed_at %}{{ session.completed_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</div>
+      </div>
       <div class="col-12">
         <p class="text-muted small mb-0">Use <strong>Export PDF</strong> for a printable copy with company logo and period start / end.</p>
       </div>

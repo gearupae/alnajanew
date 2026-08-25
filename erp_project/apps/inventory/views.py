@@ -206,6 +206,23 @@ class WarehouseUpdateView(UpdatePermissionMixin, UpdateView):
         return super().form_valid(form)
 
 
+class WarehouseDetailView(PermissionRequiredMixin, DetailView):
+    model = Warehouse
+    template_name = 'inventory/warehouse_detail.html'
+    context_object_name = 'warehouse'
+    module_name = 'inventory'
+    permission_type = 'view'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f'Warehouse: {self.object.name}'
+        context['can_edit'] = (
+            self.request.user.is_superuser
+            or PermissionChecker.has_permission(self.request.user, 'inventory', 'edit')
+        )
+        return context
+
+
 @login_required
 def warehouse_delete(request, pk):
     warehouse = get_object_or_404(Warehouse, pk=pk)
@@ -264,6 +281,10 @@ class ItemListView(PermissionRequiredMixin, ListView):
         elif group.isdigit():
             queryset = queryset.filter(item_groups__pk=int(group)).distinct()
 
+        item_status = self.request.GET.get('status')
+        if item_status:
+            queryset = queryset.filter(status=item_status)
+
         return queryset
 
     def get_queryset(self):
@@ -282,6 +303,7 @@ class ItemListView(PermissionRequiredMixin, ListView):
         context['title'] = 'Items'
         context['categories'] = Category.objects.filter(is_active=True).order_by('name')
         context['type_choices'] = Item.TYPE_CHOICES
+        context['status_choices'] = Item.STATUS_CHOICES
         context['can_create'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'inventory', 'create')
         context['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'inventory', 'edit')
         context['can_delete'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'inventory', 'delete')
@@ -310,6 +332,9 @@ class ItemListView(PermissionRequiredMixin, ListView):
         context['low_stock_filter_url'] = '?' + low_stock_q.urlencode()
 
         context['item_groups'] = list(ItemGroup.objects.all().order_by('name'))
+        from .inventory_approval_rules import pending_items_for_user
+        context['pending_approval_items'] = pending_items_for_user(self.request.user)
+        context['pending_approval_count'] = len(context['pending_approval_items'])
         
         return context
 
@@ -721,7 +746,7 @@ def item_group_manage(request):
         )
         member_ids = memberships.values_list('item_id', flat=True)
         available_items = (
-            Item.objects.filter(is_active=True, status='active')
+            Item.usable()
             .exclude(pk__in=member_ids)
             .order_by('item_code', 'name')[:500]
         )
@@ -816,8 +841,31 @@ class ItemCreateView(CreatePermissionMixin, CreateView):
         return context
     
     def form_valid(self, form):
-        messages.success(self.request, f'Item {form.instance.name} created.')
-        return super().form_valid(form)
+        from django.utils import timezone
+        from apps.settings_app.models import ApprovalConfiguration
+        from .inventory_approval_rules import item_creation_approval_enabled, user_is_item_approver
+
+        self.object = form.save(commit=False)
+        self.object.submitted_by = self.request.user
+        self.object.submitted_at = timezone.now()
+
+        if item_creation_approval_enabled() and not user_is_item_approver(self.request.user):
+            self.object.status = 'pending_approval'
+            self.object.save()
+            form.save_m2m()
+            ApprovalConfiguration.notify_approver(self.object, 'inventory_item')
+            messages.success(
+                self.request,
+                f'Item "{self.object.name}" submitted for approval.',
+            )
+        else:
+            self.object.status = 'active'
+            self.object.approved_by = self.request.user
+            self.object.approved_at = timezone.now()
+            self.object.save()
+            form.save_m2m()
+            messages.success(self.request, f'Item {self.object.name} created.')
+        return redirect(self.success_url)
 
 
 class ItemUpdateView(UpdatePermissionMixin, UpdateView):
@@ -888,6 +936,9 @@ class ItemDetailView(PermissionRequiredMixin, DetailView):
             'condition_status': self.object.condition_status
         })
         context['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'inventory', 'edit')
+        from .inventory_approval_rules import user_can_act_on_item
+        context['can_approve_item'] = user_can_act_on_item(self.request.user, self.object)
+        context['can_reject_item'] = context['can_approve_item']
         context['item_serial_numbers'] = (
             ItemSerialNumber.objects.filter(item=self.object, is_active=True)
             .select_related('assigned_project', 'warehouse', 'delivered_by')
@@ -941,6 +992,48 @@ def item_delete(request, pk):
     return redirect('inventory:item_list')
 
 
+@login_required
+@require_POST
+def item_approve(request, pk):
+    from django.utils import timezone
+    from .inventory_approval_rules import user_can_act_on_item
+
+    item = get_object_or_404(Item, pk=pk, is_active=True)
+    if not user_can_act_on_item(request.user, item):
+        messages.error(request, 'Permission denied.')
+        return redirect('inventory:item_detail', pk=pk)
+
+    item.status = 'active'
+    item.approved_by = request.user
+    item.approved_at = timezone.now()
+    item.rejection_reason = ''
+    item.save(update_fields=['status', 'approved_by', 'approved_at', 'rejection_reason', 'updated_at'])
+    messages.success(request, f'Item "{item.name}" approved and is now active.')
+    return redirect('inventory:item_detail', pk=pk)
+
+
+@login_required
+@require_POST
+def item_reject(request, pk):
+    from .inventory_approval_rules import user_can_act_on_item
+
+    item = get_object_or_404(Item, pk=pk, is_active=True)
+    if not user_can_act_on_item(request.user, item):
+        messages.error(request, 'Permission denied.')
+        return redirect('inventory:item_detail', pk=pk)
+
+    reason = (request.POST.get('rejection_reason') or '').strip()
+    if not reason:
+        messages.error(request, 'Rejection reason is required.')
+        return redirect('inventory:item_detail', pk=pk)
+
+    item.status = 'rejected'
+    item.rejection_reason = reason
+    item.save(update_fields=['status', 'rejection_reason', 'updated_at'])
+    messages.success(request, f'Item "{item.name}" rejected.')
+    return redirect('inventory:item_detail', pk=pk)
+
+
 # ============ STOCK VIEWS ============
 
 class StockListView(PermissionRequiredMixin, ListView):
@@ -975,6 +1068,26 @@ class StockListView(PermissionRequiredMixin, ListView):
         context['title'] = 'Stock Levels'
         context['warehouses'] = Warehouse.objects.filter(is_active=True, status='active').order_by('name')
         context['can_adjust'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'inventory', 'edit')
+        return context
+
+
+class StockDetailView(PermissionRequiredMixin, DetailView):
+    model = Stock
+    template_name = 'inventory/stock_detail.html'
+    context_object_name = 'stock'
+    module_name = 'inventory'
+    permission_type = 'view'
+
+    def get_queryset(self):
+        return Stock.objects.select_related('item', 'warehouse')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f'Stock: {self.object.item.item_code}'
+        context['can_adjust'] = (
+            self.request.user.is_superuser
+            or PermissionChecker.has_permission(self.request.user, 'inventory', 'edit')
+        )
         return context
 
 
@@ -1032,7 +1145,30 @@ def stock_adjustment(request):
                         created_by=request.user,
                     )
 
-                    # Atomic: update quantity + post GL together
+                    from apps.settings_app.models import ApprovalConfiguration
+                    from .inventory_approval_rules import (
+                        adjustment_approval_enabled,
+                        user_is_adjustment_approver,
+                    )
+
+                    needs_approval = (
+                        movement_type in ('adjustment_plus', 'adjustment_minus')
+                        and adjustment_approval_enabled()
+                        and not user_is_adjustment_approver(request.user)
+                    )
+
+                    if needs_approval:
+                        movement.approval_status = 'pending'
+                        movement.submitted_by = request.user
+                        movement.save(update_fields=['approval_status', 'submitted_by'])
+                        ApprovalConfiguration.notify_approver(movement, 'inventory_adjustment')
+                        messages.success(
+                            request,
+                            f'Adjustment submitted for approval ({movement.movement_number}). '
+                            f'Stock will update after approval.',
+                        )
+                        return redirect('inventory:movement_detail', pk=movement.pk)
+
                     movement.execute(user=request.user)
 
                     new_quantity = Stock.objects.filter(
@@ -1054,6 +1190,12 @@ def stock_adjustment(request):
                 })
     else:
         form = StockAdjustmentForm()
+        item_id = request.GET.get('item')
+        warehouse_id = request.GET.get('warehouse')
+        if item_id:
+            form.fields['item'].initial = item_id
+        if warehouse_id:
+            form.fields['warehouse'].initial = warehouse_id
     
     # Get items and warehouses for template context
     items = Item.objects.filter(is_active=True).order_by('name')
@@ -1097,6 +1239,10 @@ class MovementListView(PermissionRequiredMixin, ListView):
             queryset = queryset.filter(posted=True)
         elif posted == '0':
             queryset = queryset.filter(posted=False)
+
+        approval_status = self.request.GET.get('approval_status')
+        if approval_status:
+            queryset = queryset.filter(approval_status=approval_status)
         
         return queryset
     
@@ -1128,6 +1274,10 @@ def movement_post_to_accounting(request, pk):
     if movement.posted:
         messages.warning(request, f'Movement {movement.movement_number} already posted to accounting.')
         return redirect('inventory:movement_list')
+
+    if movement.approval_status == 'pending':
+        messages.error(request, 'Adjustment must be approved before posting to accounting.')
+        return redirect('inventory:movement_detail', pk=pk)
     
     if movement.total_cost <= 0:
         messages.error(request, f'Movement {movement.movement_number} has no cost value. Update cost before posting.')
@@ -1140,6 +1290,50 @@ def movement_post_to_accounting(request, pk):
         messages.error(request, f'Error posting to accounting: {str(e)}')
     
     return redirect('inventory:movement_list')
+
+
+@login_required
+@require_POST
+def movement_approve(request, pk):
+    from django.utils import timezone
+    from .inventory_approval_rules import user_can_act_on_adjustment
+
+    movement = get_object_or_404(StockMovement, pk=pk, is_active=True)
+    if not user_can_act_on_adjustment(request.user, movement):
+        messages.error(request, 'Permission denied.')
+        return redirect('inventory:movement_detail', pk=pk)
+
+    try:
+        movement.approved_by = request.user
+        movement.approved_at = timezone.now()
+        movement.save(update_fields=['approved_by', 'approved_at', 'updated_at'])
+        movement.execute(user=request.user, from_approval=True)
+        messages.success(request, f'Adjustment {movement.movement_number} approved and applied to stock.')
+    except Exception as exc:
+        messages.error(request, f'Could not approve adjustment: {exc}')
+    return redirect('inventory:movement_detail', pk=pk)
+
+
+@login_required
+@require_POST
+def movement_reject(request, pk):
+    from .inventory_approval_rules import user_can_act_on_adjustment
+
+    movement = get_object_or_404(StockMovement, pk=pk, is_active=True)
+    if not user_can_act_on_adjustment(request.user, movement):
+        messages.error(request, 'Permission denied.')
+        return redirect('inventory:movement_detail', pk=pk)
+
+    reason = (request.POST.get('rejection_reason') or '').strip()
+    if not reason:
+        messages.error(request, 'Rejection reason is required.')
+        return redirect('inventory:movement_detail', pk=pk)
+
+    movement.approval_status = 'rejected'
+    movement.rejection_reason = reason
+    movement.save(update_fields=['approval_status', 'rejection_reason', 'updated_at'])
+    messages.success(request, f'Adjustment {movement.movement_number} rejected.')
+    return redirect('inventory:movement_detail', pk=pk)
 
 
 @login_required
@@ -1292,12 +1486,22 @@ def movement_detail(request, pk):
         pk=pk
     )
     
+    from .inventory_approval_rules import user_can_act_on_adjustment
+
     context = {
         'title': f'Movement: {movement.movement_number}',
         'movement': movement,
-        'can_post': not movement.posted and movement.total_cost > 0 and (
-            request.user.is_superuser or PermissionChecker.has_permission(request.user, 'inventory', 'edit')
+        'can_post': (
+            not movement.posted
+            and movement.total_cost > 0
+            and movement.approval_status == 'executed'
+            and (
+                request.user.is_superuser
+                or PermissionChecker.has_permission(request.user, 'inventory', 'edit')
+            )
         ),
+        'can_approve_movement': user_can_act_on_adjustment(request.user, movement),
+        'can_reject_movement': user_can_act_on_adjustment(request.user, movement),
     }
     
     if movement.journal_entry:
@@ -1641,6 +1845,10 @@ def consumable_request_detail(request, pk):
             and consumable_request.requested_by == user
         ),
         'requires_project_delivery': consumable_request.uses_project_item_flow(),
+        'stock_movements': StockMovement.objects.filter(
+            reference__icontains=consumable_request.request_number,
+            movement_type='out',
+        ).select_related('item', 'warehouse').order_by('-movement_date', '-created_at'),
     }
     
     # For admin: show approve/dispense forms

@@ -71,6 +71,12 @@
     <form method="post">
         {% csrf_token %}
         <div class="row g-3">
+            <div class="col-md-12">
+                <div class="form-check">
+                    <input type="checkbox" name="is_active" class="form-check-input" id="propertyIsActive" checked>
+                    <label class="form-check-label" for="propertyIsActive">Is active</label>
+                </div>
+            </div>
             <div class="col-md-4">
                 <label class="form-label">Property Name <span class="text-danger">*</span></label>
                 <input type="text" name="name" class="form-control" required>
@@ -152,7 +158,11 @@
                         <td>{{ property.city }}</td>
                         <td class="text-center">{{ property.total_units }}</td>
                         <td>
+                            {% if property.is_active %}
                             <span class="badge badge-active">Active</span>
+                            {% else %}
+                            <span class="badge badge-inactive">Inactive</span>
+                            {% endif %}
                         </td>
                         <td class="text-center">
                             <a href="{% url 'property:property_detail' property.pk %}" class="btn btn-action btn-outline-info" title="View">

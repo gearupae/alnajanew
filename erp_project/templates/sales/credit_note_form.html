@@ -25,35 +25,85 @@
             {% endif %}
 
             <div class="row g-3">
+                {% if object %}
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <input type="text" class="form-control" value="{{ object.get_status_display }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Credit type</label>
+                    <input type="text" class="form-control" value="{{ object.get_credit_type_display }}" readonly id="creditTypeDisplay">
+                </div>
+                {% endif %}
                 <div class="col-md-6">
-                    <label class="form-label">Original Invoice <span class="text-danger">*</span></label>
+                    <label class="form-label">Original invoice <span class="text-danger">*</span></label>
                     {{ form.original_invoice }}
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Customer</label>
-                    <input type="text" class="form-control" id="customerDisplay" readonly value="{{ customer_name|default:'' }}">
+                    <input type="text" class="form-control" id="customerDisplay" readonly value="{% if object %}{{ object.customer.display_name }}{% else %}{{ customer_name|default:'' }}{% endif %}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Customer TRN</label>
-                    <input type="text" class="form-control" id="customerTrnDisplay" readonly value="{{ customer_trn|default:'' }}">
+                    <input type="text" class="form-control" id="customerTrnDisplay" readonly value="{% if object %}{{ object.customer_trn }}{% else %}{{ customer_trn|default:'' }}{% endif %}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Issue Date <span class="text-danger">*</span></label>
+                    <label class="form-label">Issue date <span class="text-danger">*</span></label>
                     {{ form.issue_date }}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Trigger Event Date <span class="text-danger">*</span></label>
+                    <label class="form-label">Trigger event date <span class="text-danger">*</span></label>
                     {{ form.trigger_event_date }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Late issuance</label>
+                    <input type="text" class="form-control" id="lateIssuanceDisplay" readonly value="{% if object %}{% if object.late_issuance %}Yes{% else %}No{% endif %}{% else %}—{% endif %}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Reason <span class="text-danger">*</span></label>
                     {{ form.reason }}
                 </div>
                 <div class="col-md-12" id="reasonOtherWrap">
-                    <label class="form-label">Reason Description</label>
+                    <label class="form-label">Reason description</label>
                     {{ form.reason_description }}
                 </div>
             </div>
+
+            {% if object %}
+            <div class="row g-3 mt-2 pt-3 border-top">
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Saved subtotal</label>
+                    <input type="text" class="form-control" value="AED {{ object.subtotal|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Saved VAT amount</label>
+                    <input type="text" class="form-control" value="AED {{ object.vat_amount|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Saved total</label>
+                    <input type="text" class="form-control fw-semibold" value="AED {{ object.total|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Remaining invoice value</label>
+                    <input type="text" class="form-control" value="AED {{ object.remaining_invoice_value|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-muted small">Journal entry</label>
+                    {% if object.journal_entry %}
+                    <div class="input-group">
+                        <input type="text" class="form-control" value="{{ object.journal_entry.entry_number }}" readonly>
+                        <a href="{% url 'finance:journal_detail' object.journal_entry.pk %}" class="btn btn-outline-primary" target="_blank" rel="noopener">View</a>
+                    </div>
+                    {% else %}
+                    <input type="text" class="form-control" value="— Not posted yet —" readonly>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-muted small">Approved by</label>
+                    <input type="text" class="form-control" value="{% if object.approved_by %}{{ object.approved_by.get_full_name|default:object.approved_by.username }}{% else %}—{% endif %}" readonly>
+                </div>
+            </div>
+            {% endif %}
 
             <div class="mt-4 mb-2 d-flex justify-content-between flex-wrap gap-2">
                 <h6 class="mb-0 fw-semibold">Credit</h6>
@@ -140,18 +190,30 @@
 
             <div class="border rounded p-3 bg-light">
                 <div class="row text-end small gy-1">
-                    <div class="col-8 col-md-10">Subtotal (excl. VAT)</div>
+                    <div class="col-8 col-md-10">Subtotal</div>
                     <div class="col-4 col-md-2 fw-medium" id="subtotalDisplay">0.00</div>
-                    <div class="col-8 col-md-10">VAT</div>
+                    <div class="col-8 col-md-10">VAT amount</div>
                     <div class="col-4 col-md-2 fw-medium" id="vatDisplay">0.00</div>
                     <div class="col-8 col-md-10 fw-bold">Total</div>
                     <div class="col-4 col-md-2 fw-bold" id="grandTotalDisplay">0.00</div>
-                    <div class="col-8 col-md-10 border-top pt-2 mt-1">Remaining after this CN</div>
+                    <div class="col-8 col-md-10 border-top pt-2 mt-1">Remaining invoice value (after this CN)</div>
                     <div class="col-4 col-md-2 border-top pt-2 mt-1 fw-bold" id="remainingAfterDisplay">—</div>
+                    {% if not object %}
+                    <div class="col-8 col-md-10">Credit type (preview)</div>
+                    <div class="col-4 col-md-2" id="creditTypePreview">—</div>
+                    {% endif %}
                 </div>
             </div>
 
             <div id="lateWarningBox" class="alert alert-warning py-2 small d-none">{{ fta_late_warning }}</div>
+
+            <div class="border rounded p-3 mb-4">
+                <div class="form-check">
+                    {{ form.is_active }}
+                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                </div>
+                {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+            </div>
 
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary" id="saveBtn"><i class="fas fa-save me-2"></i>Save Credit Note</button>
@@ -212,15 +274,19 @@
     }
 
     function checkLate() {
+        const lateDisplay = document.getElementById('lateIssuanceDisplay');
         if (!issueInput || !triggerInput || !lateBox) return;
         const i = new Date(issueInput.value);
         const t = new Date(triggerInput.value);
         if (!issueInput.value || !triggerInput.value || isNaN(i) || isNaN(t)) {
             lateBox.classList.add('d-none');
+            if (lateDisplay) lateDisplay.value = '—';
             return;
         }
         const days = Math.floor((i - t) / (1000 * 60 * 60 * 24));
-        lateBox.classList.toggle('d-none', days <= 14);
+        const isLate = days > 14;
+        lateBox.classList.toggle('d-none', !isLate);
+        if (lateDisplay) lateDisplay.value = isLate ? 'Yes' : 'No';
     }
 
     function calcLineTotal(qty, price, vat, inclusive) {
@@ -264,14 +330,19 @@
         document.getElementById('vatDisplay').textContent = vat.toFixed(2);
         document.getElementById('grandTotalDisplay').textContent = grand.toFixed(2);
         const afterEl = document.getElementById('remainingAfterDisplay');
+        const creditTypePreview = document.getElementById('creditTypePreview');
         if (remainingCap == null || Number.isNaN(remainingCap)) {
             afterEl.textContent = '—';
+            if (creditTypePreview) creditTypePreview.textContent = '—';
             if (saveBtn) saveBtn.disabled = false;
             return;
         }
         const after = remainingCap - grand;
         afterEl.textContent = after.toFixed(2);
         afterEl.classList.toggle('text-danger', after < -0.001);
+        if (creditTypePreview) {
+            creditTypePreview.textContent = (grand > 0 && Math.abs(grand - remainingCap) < 0.01) ? 'Full' : (grand > 0 ? 'Partial' : '—');
+        }
         if (saveBtn) saveBtn.disabled = after < -0.001 || grand <= 0;
     }
 

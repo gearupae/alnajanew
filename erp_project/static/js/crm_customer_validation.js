@@ -8,17 +8,25 @@
         return (value || '').trim();
     }
 
-    function isCustomerType(form) {
-        var hidden = form.querySelector('input[name="customer_type"][type="hidden"]');
-        if (hidden) return hidden.value === 'customer';
-        var sel = form.querySelector('[name="customer_type"]');
-        return sel ? sel.value === 'customer' : false;
+    function isB2bSegment(form) {
+        return form.querySelector('[name="business_segment"]')?.value === 'b2b';
     }
 
-    function validatePhoneFormat(value) {
+    function validateEmail(value, required) {
+        var email = trim(value);
+        if (!email) {
+            return required ? 'Email is required for B2B accounts.' : '';
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return 'Enter a valid email address.';
+        }
+        return '';
+    }
+
+    function validatePhoneFormat(value, required) {
         var phone = trim(value);
         if (!phone) {
-            return '';
+            return required ? 'Contact is required for B2B accounts.' : '';
         }
         if (!phone.startsWith('+')) {
             return 'Include country code starting with + (e.g. +971 50 741 2365).';
@@ -29,29 +37,6 @@
         var digits = phone.replace(/\D/g, '');
         if (digits.length < 10 || digits.length > 15) {
             return 'Enter a valid phone number with country code (10–15 digits, e.g. +971 50 741 2365).';
-        }
-        return '';
-    }
-
-    function validateEmail(value) {
-        var email = trim(value);
-        if (!email) {
-            return '';
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            return 'Enter a valid email address.';
-        }
-        return '';
-    }
-
-    function validateCustomerContact(form) {
-        if (!isCustomerType(form)) {
-            return '';
-        }
-        var email = trim(form.querySelector('[name="email"]')?.value);
-        var phone = trim(form.querySelector('[name="phone"]')?.value);
-        if (!email && !phone) {
-            return 'Enter an email or phone number for customers.';
         }
         return '';
     }
@@ -124,13 +109,14 @@
     function validateField(form, input) {
         if (!input || !input.name) return true;
         var message = '';
+        var b2b = isB2bSegment(form);
 
         switch (input.name) {
             case 'phone':
-                message = validatePhoneFormat(input.value);
+                message = validatePhoneFormat(input.value, b2b);
                 break;
             case 'email':
-                message = validateEmail(input.value);
+                message = validateEmail(input.value, b2b);
                 break;
             case 'website':
                 message = validateWebsite(input.value);
@@ -144,41 +130,57 @@
             case 'assigned_salesperson':
                 message = validateAssignedSalesperson(input.value);
                 break;
+            case 'trn':
+                if (b2b && !trim(input.value)) {
+                    message = 'VAT (TRN) number is required for B2B accounts.';
+                }
+                break;
+            case 'trade_license_number':
+                if (b2b && !trim(input.value)) {
+                    message = 'Trade license number is required for B2B accounts.';
+                }
+                break;
             default:
                 return true;
         }
         return setFieldValidity(input, message);
     }
 
-    function applyCustomerContactRequirement(form) {
-        var message = validateCustomerContact(form);
-        if (!message) {
+    function applyB2bRequirements(form) {
+        if (!isB2bSegment(form)) {
+            ['email', 'phone', 'trn', 'trade_license_number'].forEach(function (name) {
+                var input = form.querySelector('[name="' + name + '"]');
+                if (input) setFieldValidity(input, '');
+            });
             return true;
         }
-        var emailInput = form.querySelector('[name="email"]');
-        var phoneInput = form.querySelector('[name="phone"]');
         var ok = true;
-        if (emailInput && !trim(emailInput.value)) {
-            setFieldValidity(emailInput, message);
-            ok = false;
-        }
-        if (phoneInput && !trim(phoneInput.value)) {
-            setFieldValidity(phoneInput, message);
-            ok = false;
-        }
+        var checks = [
+            ['email', 'Email is required for B2B accounts.'],
+            ['phone', 'Contact is required for B2B accounts.'],
+            ['trn', 'VAT (TRN) number is required for B2B accounts.'],
+            ['trade_license_number', 'Trade license number is required for B2B accounts.'],
+        ];
+        checks.forEach(function (pair) {
+            var input = form.querySelector('[name="' + pair[0] + '"]');
+            if (input && !trim(input.value)) {
+                setFieldValidity(input, pair[1]);
+                ok = false;
+            }
+        });
         return ok;
     }
 
     function validateForm(form) {
         var ok = true;
-        var names = ['company', 'business_segment', 'assigned_salesperson', 'email', 'phone', 'website'];
+        var names = ['company', 'business_segment', 'assigned_salesperson', 'email', 'phone', 'website', 'trn', 'trade_license_number'];
         names.forEach(function (name) {
             var input = form.querySelector('[name="' + name + '"]');
             if (input && !validateField(form, input)) {
                 ok = false;
             }
         });
-        if (!applyCustomerContactRequirement(form)) {
+        if (!applyB2bRequirements(form)) {
             ok = false;
         }
         if (!form.checkValidity()) {
@@ -191,7 +193,7 @@
         if (!form || form.dataset.crmValidationAttached === '1') return;
         form.dataset.crmValidationAttached = '1';
 
-        var liveFields = ['phone', 'email', 'website', 'company', 'business_segment', 'assigned_salesperson'];
+        var liveFields = ['phone', 'email', 'website', 'company', 'business_segment', 'assigned_salesperson', 'trn', 'trade_license_number'];
         liveFields.forEach(function (name) {
             var input = form.querySelector('[name="' + name + '"]');
             if (!input) return;
@@ -204,18 +206,16 @@
         });
 
         var typeSel = form.querySelector('[name="customer_type"]');
-        var typeHidden = form.querySelector('input[name="customer_type"][type="hidden"]');
-        function revalidateContactFields() {
-            ['email', 'phone'].forEach(function (name) {
+        var segSel = form.querySelector('[name="business_segment"]');
+        function revalidateB2bFields() {
+            ['email', 'phone', 'trn', 'trade_license_number'].forEach(function (name) {
                 var input = form.querySelector('[name="' + name + '"]');
                 if (input) validateField(form, input);
             });
-            applyCustomerContactRequirement(form);
+            applyB2bRequirements(form);
         }
-        if (typeSel) typeSel.addEventListener('change', revalidateContactFields);
-        if (typeHidden) {
-            /* fixed customer type — no listener needed */
-        }
+        if (typeSel) typeSel.addEventListener('change', revalidateB2bFields);
+        if (segSel) segSel.addEventListener('change', revalidateB2bFields);
 
         form.addEventListener('submit', function (e) {
             if (!validateForm(form)) {

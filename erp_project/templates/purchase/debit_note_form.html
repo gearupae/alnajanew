@@ -25,29 +25,42 @@
             </div>
 
             <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="form-check mt-2">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                    </div>
+                    {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors }}</div>{% endif %}
+                </div>
+                {% if object %}
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <input type="text" class="form-control" value="{{ object.get_status_display }}" readonly>
+                </div>
+                {% endif %}
                 <div class="col-md-6">
-                    <label class="form-label">Original Bill <span class="text-danger">*</span></label>
+                    <label class="form-label">Original bill <span class="text-danger">*</span></label>
                     {{ form.original_bill }}
                     {% if form.original_bill.errors %}<div class="text-danger small">{{ form.original_bill.errors }}</div>{% endif %}
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Vendor</label>
-                    <input type="text" class="form-control" id="vendorDisplay" readonly value="{{ vendor_name|default:'' }}">
+                    <input type="text" class="form-control" id="vendorDisplay" readonly value="{% if object %}{{ object.vendor.name }}{% else %}{{ vendor_name|default:'' }}{% endif %}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Vendor TRN</label>
-                    <input type="text" class="form-control" id="vendorTrnDisplay" readonly value="{{ vendor_trn|default:'' }}">
+                    <input type="text" class="form-control" id="vendorTrnDisplay" readonly value="{% if object %}{{ object.vendor_trn }}{% else %}{{ vendor_trn|default:'' }}{% endif %}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Issue Date <span class="text-danger">*</span></label>
+                    <label class="form-label">Issue date <span class="text-danger">*</span></label>
                     {{ form.issue_date }}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Vendor Credit Note Ref <span class="text-danger">*</span></label>
+                    <label class="form-label">Vendor credit note ref <span class="text-danger">*</span></label>
                     {{ form.vendor_credit_note_ref }}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Vendor Credit Note Date <span class="text-danger">*</span></label>
+                    <label class="form-label">Vendor credit note date <span class="text-danger">*</span></label>
                     {{ form.vendor_credit_note_date }}
                 </div>
                 <div class="col-md-3">
@@ -55,11 +68,51 @@
                     {{ form.reason }}
                 </div>
                 <div class="col-md-12" id="reasonOtherWrap">
-                    <label class="form-label">Reason Description</label>
+                    <label class="form-label">Reason description</label>
                     {{ form.reason_description }}
                     {% if form.reason_description.errors %}<div class="text-danger small">{{ form.reason_description.errors }}</div>{% endif %}
                 </div>
             </div>
+
+            {% if object %}
+            <div class="row g-3 mt-2 pt-3 border-top">
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Saved subtotal</label>
+                    <input type="text" class="form-control" value="AED {{ object.subtotal|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Saved VAT amount</label>
+                    <input type="text" class="form-control" value="AED {{ object.vat_amount|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Saved total</label>
+                    <input type="text" class="form-control fw-semibold" value="AED {{ object.total|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Remaining bill value</label>
+                    <input type="text" class="form-control" value="AED {{ object.remaining_bill_value|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-muted small">Journal entry</label>
+                    {% if object.journal_entry %}
+                    <div class="input-group">
+                        <input type="text" class="form-control" value="{{ object.journal_entry.entry_number }}" readonly>
+                        <a href="{% url 'finance:journal_detail' object.journal_entry.pk %}" class="btn btn-outline-primary" target="_blank" rel="noopener">View</a>
+                    </div>
+                    {% else %}
+                    <input type="text" class="form-control" value="— Not posted yet —" readonly>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-muted small">Approved by</label>
+                    <input type="text" class="form-control" value="{% if object.approved_by %}{{ object.approved_by.get_full_name|default:object.approved_by.username }}{% else %}—{% endif %}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-muted small">Approved at</label>
+                    <input type="text" class="form-control" value="{% if object.approved_at %}{{ object.approved_at|date:'d/m/Y H:i' }}{% else %}—{% endif %}" readonly>
+                </div>
+            </div>
+            {% endif %}
 
             <div class="mt-4 mb-2 d-flex justify-content-between flex-wrap gap-2">
                 <h6 class="mb-0 fw-semibold">Debit</h6>
@@ -148,13 +201,13 @@
 
             <div class="border rounded p-3 bg-light">
                 <div class="row text-end small gy-1">
-                    <div class="col-8 col-md-10">Subtotal (excl. VAT)</div>
+                    <div class="col-8 col-md-10">Subtotal</div>
                     <div class="col-4 col-md-2 fw-medium" id="subtotalDisplay">0.00</div>
-                    <div class="col-8 col-md-10">VAT</div>
+                    <div class="col-8 col-md-10">VAT amount</div>
                     <div class="col-4 col-md-2 fw-medium" id="vatDisplay">0.00</div>
                     <div class="col-8 col-md-10 fw-bold">Total</div>
                     <div class="col-4 col-md-2 fw-bold" id="grandTotalDisplay">0.00</div>
-                    <div class="col-8 col-md-10 border-top pt-2 mt-1">Remaining after this DN</div>
+                    <div class="col-8 col-md-10 border-top pt-2 mt-1">Remaining bill value (after this DN)</div>
                     <div class="col-4 col-md-2 border-top pt-2 mt-1 fw-bold" id="remainingAfterDisplay">—</div>
                 </div>
             </div>

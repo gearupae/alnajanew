@@ -24,20 +24,30 @@
     <form method="post">
         {% csrf_token %}
         <div class="row g-3">
-            <div class="col-md-4">
-                <label class="form-label">Category Name <span class="text-danger">*</span></label>
+            <div class="col-md-2">
+                <div class="form-check mt-4">
+                    <input type="checkbox" name="is_active" id="categoryInlineIsActive" class="form-check-input" value="on" checked>
+                    <label class="form-check-label" for="categoryInlineIsActive">Is active</label>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Code</label>
+                <input type="text" name="code" class="form-control" placeholder="Auto-generated if blank">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Name <span class="text-danger">*</span></label>
                 <input type="text" name="name" class="form-control" required>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Parent Category</label>
+                <label class="form-label">Parent</label>
                 <select name="parent" class="form-select">
-                    <option value="">None (Root Category)</option>
+                    <option value="">None (root category)</option>
                     {% for cat in categories %}
                     <option value="{{ cat.id }}">{{ cat.name }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-12">
                 <label class="form-label">Description</label>
                 <input type="text" name="description" class="form-control">
             </div>
@@ -59,6 +69,8 @@
                         <th>Code</th>
                         <th>Name</th>
                         <th>Parent</th>
+                        <th>Description</th>
+                        <th>Active</th>
                         <th>Items</th>
                         <th class="text-center" width="100">Actions</th>
                     </tr>
@@ -68,7 +80,9 @@
                     <tr>
                         <td class="fw-medium">{{ category.code }}</td>
                         <td>{{ category.name }}</td>
-                        <td>{{ category.parent.name|default:"-" }}</td>
+                        <td>{{ category.parent.name|default:"—" }}</td>
+                        <td class="small text-muted">{{ category.description|default:"—"|truncatewords:12 }}</td>
+                        <td>{% if category.is_active %}Yes{% else %}No{% endif %}</td>
                         <td>{{ category.items.count }}</td>
                         <td class="text-center">
                             {% if can_edit %}
@@ -85,7 +99,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
+                        <td colspan="7" class="text-center py-5 text-muted">
                             <i class="fas fa-folder fa-3x mb-3 d-block"></i>
                             No categories found
                         </td>
@@ -97,8 +111,3 @@
     </div>
 </div>
 {% endblock %}
-
-
-
-
-

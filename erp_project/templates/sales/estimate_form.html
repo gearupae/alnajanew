@@ -344,6 +344,16 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
+                {% if object %}
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <input type="text" class="form-control" value="{{ object.get_status_display }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Public view count</label>
+                    <input type="text" class="form-control" value="{{ object.public_view_count }}" readonly>
+                </div>
+                {% endif %}
                 <div class="col-md-4">
                     <label class="form-label">Customer <span class="text-danger">*</span></label>
                     {{ form.customer }}
@@ -357,6 +367,17 @@
                 <div class="col-md-4">
                     <label class="form-label">Prepared by</label>
                     {{ form.prepared_by }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.project.id_for_label }}">Project</label>
+                    {{ form.project }}
+                    {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.scope.id_for_label }}">Scope</label>
+                    {{ form.scope }}
+                    {% if form.scope.errors %}<div class="text-danger small">{{ form.scope.errors|join:", " }}</div>{% endif %}
+                    <small class="text-muted d-block">Hold Ctrl/Cmd to select multiple (legacy tags).</small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" for="{{ form.type_of_occupancy.id_for_label }}">Type of occupancy</label>
@@ -382,6 +403,87 @@
                     <label class="form-label">Valid Until</label>
                     {{ form.valid_until }}
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {% if object %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0 fw-semibold"><i class="fas fa-tasks me-2"></i>Approval &amp; workflow</h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label text-muted small">Edit approval status</label>
+                    <input type="text" class="form-control" value="{{ object.get_edit_approval_status_display }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-muted small">Edit approval submitted at</label>
+                    <input type="text" class="form-control" value="{% if object.edit_approval_submitted_at %}{{ object.edit_approval_submitted_at|date:'d/m/Y H:i' }}{% else %}—{% endif %}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-muted small">Edit approval submitted by</label>
+                    <input type="text" class="form-control" value="{% if object.edit_approval_submitted_by %}{{ object.edit_approval_submitted_by.get_full_name|default:object.edit_approval_submitted_by.username }}{% else %}—{% endif %}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-muted small">Revision count</label>
+                    <input type="text" class="form-control" value="{{ object.revision_count }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-muted small">Approval requested by</label>
+                    <input type="text" class="form-control" value="{% if object.approval_requested_by %}{{ object.approval_requested_by.get_full_name|default:object.approval_requested_by.username }}{% else %}—{% endif %}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label text-muted small">Awaiting resubmit revision</label>
+                    <input type="text" class="form-control" value="{% if object.awaiting_resubmit_revision %}Yes{% else %}No{% endif %}" readonly>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-muted small">Rejection reason</label>
+                    <textarea class="form-control" rows="2" readonly>{{ object.rejection_reason|default:"—" }}</textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-muted small">Edit approval rejection reason</label>
+                    <textarea class="form-control" rows="2" readonly>{{ object.edit_approval_rejection_reason|default:"—" }}</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0 fw-semibold"><i class="fas fa-calculator me-2"></i>Saved totals</h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Subtotal</label>
+                    <input type="text" class="form-control" value="AED {{ object.subtotal|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">VAT amount</label>
+                    <input type="text" class="form-control" value="AED {{ object.vat_amount|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Discount applied</label>
+                    <input type="text" class="form-control" value="AED {{ object.discount_applied|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Total amount</label>
+                    <input type="text" class="form-control fw-semibold" value="AED {{ object.total_amount|floatformat:2 }}" readonly>
+                </div>
+            </div>
+            <p class="text-muted small mb-0 mt-2">Totals recalculate when you save line items. Live preview appears below the line items table.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0 fw-semibold"><i class="fas fa-percent me-2"></i>Discount &amp; PDF options</h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Discount type</label>
                     {{ form.discount_type }}
@@ -391,30 +493,41 @@
                     {{ form.discount_value }}
                     <small class="text-muted d-block">Use % or fixed amount based on type</small>
                 </div>
-                <div class="col-12 mt-1">
-                    <div class="row g-3 align-items-center">
-                        <div class="col-md-4">
-                            <div class="form-check form-switch mb-0">
-                                {{ form.show_rates_on_pdf }}
-                                <label class="form-check-label" for="{{ form.show_rates_on_pdf.id_for_label }}">Show rates &amp; line totals on PDF</label>
-                            </div>
-                            {% if form.show_rates_on_pdf.errors %}<div class="text-danger small">{{ form.show_rates_on_pdf.errors|join:", " }}</div>{% endif %}
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-check form-switch mb-0">
-                                {{ form.show_group_totals_on_pdf }}
-                                <label class="form-check-label" for="{{ form.show_group_totals_on_pdf.id_for_label }}">Show group totals on PDF</label>
-                            </div>
-                            {% if form.show_group_totals_on_pdf.errors %}<div class="text-danger small">{{ form.show_group_totals_on_pdf.errors|join:", " }}</div>{% endif %}
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-check form-switch mb-0">
-                                {{ form.show_brand_name_on_pdf }}
-                                <label class="form-check-label" for="{{ form.show_brand_name_on_pdf.id_for_label }}">Show brand name</label>
-                            </div>
-                            {% if form.show_brand_name_on_pdf.errors %}<div class="text-danger small">{{ form.show_brand_name_on_pdf.errors|join:", " }}</div>{% endif %}
-                        </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check form-switch mb-2">
+                        {% if prices_include_vat_editable %}
+                        {{ form.prices_include_vat }}
+                        <label class="form-check-label" for="id_prices_include_vat">Prices include VAT</label>
+                        {% elif object %}
+                        {% if object.prices_include_vat %}<input type="hidden" name="prices_include_vat" value="on">{% endif %}
+                        <input class="form-check-input" type="checkbox" id="id_prices_include_vat" disabled {% if object.prices_include_vat %}checked{% endif %}>
+                        <label class="form-check-label text-muted" for="id_prices_include_vat">Prices include VAT</label>
+                        {% else %}
+                        {{ form.prices_include_vat }}
+                        <label class="form-check-label" for="id_prices_include_vat">Prices include VAT</label>
+                        {% endif %}
                     </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check form-switch mb-0">
+                        {{ form.show_rates_on_pdf }}
+                        <label class="form-check-label" for="{{ form.show_rates_on_pdf.id_for_label }}">Show rates on PDF</label>
+                    </div>
+                    {% if form.show_rates_on_pdf.errors %}<div class="text-danger small">{{ form.show_rates_on_pdf.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check form-switch mb-0">
+                        {{ form.show_group_totals_on_pdf }}
+                        <label class="form-check-label" for="{{ form.show_group_totals_on_pdf.id_for_label }}">Show group totals on PDF</label>
+                    </div>
+                    {% if form.show_group_totals_on_pdf.errors %}<div class="text-danger small">{{ form.show_group_totals_on_pdf.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check form-switch mb-0">
+                        {{ form.show_brand_name_on_pdf }}
+                        <label class="form-check-label" for="{{ form.show_brand_name_on_pdf.id_for_label }}">Show brand name on PDF</label>
+                    </div>
+                    {% if form.show_brand_name_on_pdf.errors %}<div class="text-danger small">{{ form.show_brand_name_on_pdf.errors|join:", " }}</div>{% endif %}
                 </div>
             </div>
         </div>
@@ -462,19 +575,6 @@
             </div>
         </div>
         <div class="card-body p-0">
-            <div class="px-3 pt-3 pb-2 border-bottom bg-light">
-                <div class="form-check form-switch mb-0">
-                    {% if prices_include_vat_editable %}
-                    {{ form.prices_include_vat }}
-                    <label class="form-check-label" for="id_prices_include_vat">Prices include VAT</label>
-                    {% else %}
-                    {% if object.prices_include_vat %}<input type="hidden" name="prices_include_vat" value="on">{% endif %}
-                    <input class="form-check-input" type="checkbox" id="id_prices_include_vat" disabled
-                           {% if object.prices_include_vat %}checked{% endif %}>
-                    <label class="form-check-label text-muted" for="id_prices_include_vat">Prices include VAT</label>
-                    {% endif %}
-                </div>
-            </div>
             <p class="text-muted small px-3 pt-3 mb-2 mb-md-3">
                 <strong>Scope of work:</strong> choosing a main group loads all of its sub-groups and items below (group name = sub-group on each line).
                 <strong>How each line is calculated:</strong>
@@ -554,7 +654,6 @@
         </div>
     </div>
     
-    {% if object %}
     <div class="card mb-4">
         <div class="card-header">
             <h6 class="mb-0 fw-semibold"><i class="fas fa-comment me-2"></i>Client note</h6>
@@ -570,7 +669,6 @@
             {{ form.client_note }}
         </div>
     </div>
-    {% endif %}
 
     <div class="card mb-4">
         <div class="card-header">
@@ -619,6 +717,16 @@
         </div>
     </div>
     
+    <div class="card mb-4">
+        <div class="card-body py-3">
+            <div class="form-check">
+                {{ form.is_active }}
+                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+            </div>
+            {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+        </div>
+    </div>
+
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">
             <i class="fas fa-save me-2"></i>Save Estimate

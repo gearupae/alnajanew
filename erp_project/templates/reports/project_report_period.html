@@ -146,6 +146,35 @@
     </div>
 </div>
 
+{% if financial_totals %}
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card period-report-kpi h-100">
+            <div class="card-body py-3">
+                <div class="small text-muted">Total contract value</div>
+                <div class="fw-bold fs-5">AED {{ financial_totals.contract_value|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card period-report-kpi h-100">
+            <div class="card-body py-3">
+                <div class="small text-muted">Invoiced / received</div>
+                <div class="fw-bold fs-5">AED {{ financial_totals.invoiced_amount|floatformat:2|intcomma }} / <span class="text-success">{{ financial_totals.received_amount|floatformat:2|intcomma }}</span></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card period-report-kpi h-100">
+            <div class="card-body py-3">
+                <div class="small text-muted">Actual cost / gross margin</div>
+                <div class="fw-bold fs-5">AED {{ financial_totals.actual_expense|floatformat:2|intcomma }} / <span class="{% if financial_totals.gross_margin >= 0 %}text-success{% else %}text-danger{% endif %}">{{ financial_totals.gross_margin|floatformat:2|intcomma }}</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if groups %}
     {% for group in groups %}
     <div class="period-report-group">
@@ -166,6 +195,11 @@
                         <th>Site engineer</th>
                         <th>Op. manager</th>
                         <th>Tasks</th>
+                        <th class="text-end">Contract</th>
+                        <th class="text-end">Invoiced</th>
+                        <th class="text-end">Received</th>
+                        <th class="text-end">Actual cost</th>
+                        <th class="text-end">Margin</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -181,6 +215,11 @@
                         <td class="small">{{ row.site_engineer_label }}</td>
                         <td class="small">{{ row.operation_manager_label }}</td>
                         <td class="text-nowrap">{{ row.completed_tasks }}/{{ row.total_tasks }} <span class="text-muted">({{ row.task_progress_percent }}%)</span></td>
+                        <td class="text-end text-nowrap">AED {{ row.contract_value|floatformat:0|intcomma }}</td>
+                        <td class="text-end text-nowrap">AED {{ row.invoiced_amount|floatformat:0|intcomma }}</td>
+                        <td class="text-end text-nowrap text-success">AED {{ row.received_amount|floatformat:0|intcomma }}</td>
+                        <td class="text-end text-nowrap">AED {{ row.actual_expense|floatformat:0|intcomma }}</td>
+                        <td class="text-end text-nowrap {% if row.gross_margin >= 0 %}text-success{% else %}text-danger{% endif %}">AED {{ row.gross_margin|floatformat:0|intcomma }}</td>
                         <td>
                             {% if row.status == 'completed' %}<span class="badge bg-success">{{ row.status_display }}</span>
                             {% elif row.status == 'in_progress' %}<span class="badge bg-primary">{{ row.status_display }}</span>
@@ -210,6 +249,11 @@
                         <th>Site engineer</th>
                         <th>Op. manager</th>
                         <th>Tasks</th>
+                        <th class="text-end">Contract</th>
+                        <th class="text-end">Invoiced</th>
+                        <th class="text-end">Received</th>
+                        <th class="text-end">Actual cost</th>
+                        <th class="text-end">Margin</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -225,6 +269,11 @@
                         <td class="small">{{ row.site_engineer_label }}</td>
                         <td class="small">{{ row.operation_manager_label }}</td>
                         <td class="text-nowrap">{{ row.completed_tasks }}/{{ row.total_tasks }} <span class="text-muted">({{ row.task_progress_percent }}%)</span></td>
+                        <td class="text-end text-nowrap">AED {{ row.contract_value|floatformat:0|intcomma }}</td>
+                        <td class="text-end text-nowrap">AED {{ row.invoiced_amount|floatformat:0|intcomma }}</td>
+                        <td class="text-end text-nowrap text-success">AED {{ row.received_amount|floatformat:0|intcomma }}</td>
+                        <td class="text-end text-nowrap">AED {{ row.actual_expense|floatformat:0|intcomma }}</td>
+                        <td class="text-end text-nowrap {% if row.gross_margin >= 0 %}text-success{% else %}text-danger{% endif %}">AED {{ row.gross_margin|floatformat:0|intcomma }}</td>
                         <td>
                             {% if row.status == 'completed' %}<span class="badge bg-success">{{ row.status_display }}</span>
                             {% elif row.status == 'in_progress' %}<span class="badge bg-primary">{{ row.status_display }}</span>

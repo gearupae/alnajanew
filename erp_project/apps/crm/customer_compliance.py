@@ -21,11 +21,45 @@ def b2b_compliance_missing_labels(customer) -> list[str]:
     missing = []
     if not (getattr(customer, 'trn', None) or '').strip():
         missing.append('VAT (TRN) number')
+    if not (getattr(customer, 'trade_license_number', None) or '').strip():
+        missing.append('Trade license number')
     if not _file_uploaded(getattr(customer, 'trn_document', None)):
         missing.append('TRN document')
     if not _file_uploaded(getattr(customer, 'trade_license_document', None)):
         missing.append('Trade license document')
     return missing
+
+
+def customer_b2b_required_missing(
+    *,
+    business_segment,
+    email='',
+    phone='',
+    trn='',
+    trade_license_number='',
+) -> list[tuple[str, str]]:
+    """(field_name, label) pairs missing for B2B accounts."""
+    if (business_segment or '').strip().lower() != 'b2b':
+        return []
+    missing: list[tuple[str, str]] = []
+    if not (email or '').strip():
+        missing.append(('email', 'Email'))
+    if not (phone or '').strip():
+        missing.append(('phone', 'Contact'))
+    if not (trn or '').strip():
+        missing.append(('trn', 'VAT (TRN) number'))
+    if not (trade_license_number or '').strip():
+        missing.append(('trade_license_number', 'Trade license number'))
+    return missing
+
+
+def customer_contact_missing_labels(*, email, phone, customer_type=None, business_segment='') -> list[str]:
+    """Deprecated helper — use customer_b2b_required_missing."""
+    return [label for _field, label in customer_b2b_required_missing(
+        business_segment=business_segment,
+        email=email,
+        phone=phone,
+    ) if label in ('Email', 'Contact')]
 
 
 def b2b_has_compliance_for_project_conversion(customer) -> bool:

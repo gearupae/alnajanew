@@ -23,6 +23,10 @@ class CrmLeadKanbanStage(models.Model):
         default=False,
         help_text='If checked, leads dropped in the “Won” zone become customers.',
     )
+    tracks_opportunity = models.BooleanField(
+        default=False,
+        help_text='Leads in this stage track opportunity status (Open / Pending / Close) and updates.',
+    )
 
     class Meta:
         ordering = ['sort_order', 'id']
@@ -152,6 +156,25 @@ class Customer(BaseModel):
         verbose_name='Trade license',
         help_text='Optional. Trade license (PDF or image) for B2B.',
     )
+    trade_license_number = models.CharField(
+        max_length=120,
+        blank=True,
+        verbose_name='Trade license number',
+        help_text='Trade license number for B2B customers.',
+    )
+    OPPORTUNITY_STATUS_CHOICES = [
+        ('', '—'),
+        ('open', 'Open'),
+        ('pending', 'Pending'),
+        ('closed', 'Closed'),
+    ]
+    opportunity_status = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        choices=OPPORTUNITY_STATUS_CHOICES,
+        help_text='Lead opportunity lifecycle when in a pipeline stage that tracks opportunities.',
+    )
     notes = models.TextField(blank=True)
     
     class Meta:
@@ -212,6 +235,40 @@ class Customer(BaseModel):
             return ''
         from apps.crm.utils import salesperson_display_name
         return salesperson_display_name(self.assigned_salesperson)
+
+    @property
+    def tracks_opportunity(self):
+        if self.customer_type != 'lead':
+            return False
+        stage = self.lead_kanban_stage
+        return bool(stage and stage.tracks_opportunity)
+
+
+class CrmOpportunityUpdate(BaseModel):
+    """User-authored opportunity note / status change on a lead."""
+
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('pending', 'Pending'),
+        ('closed', 'Closed'),
+    ]
+
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name='opportunity_updates',
+    )
+    note = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, blank=True, default='')
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'CRM opportunity update'
+        verbose_name_plural = 'CRM opportunity updates'
+
+    def __str__(self):
+        label = self.get_status_display() if self.status else 'Update'
+        return f'{self.customer.customer_number}: {label}'
 
 
 class CustomerPublicUpload(BaseModel):

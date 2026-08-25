@@ -20,12 +20,17 @@ import json
 from apps.core.mixins import CreatePermissionMixin, UpdatePermissionMixin
 from .models import (
     Property, Unit, Tenant, Lease, PDCCheque,
-    PDCAllocation, PDCAllocationLine, PDCBankMatch, AmbiguousMatchLog
+    PDCAllocation, PDCAllocationLine, PDCBankMatch, AmbiguousMatchLog,
+    RentInvoice, SecurityDeposit,
 )
 from .forms import (
     PropertyForm, UnitForm, TenantForm, LeaseForm, PDCChequeForm,
     PDCDepositForm, PDCClearForm, PDCBounceForm, PDCAllocationForm,
-    PDCAllocationLineForm, BankStatementMatchForm, BulkPDCForm
+    PDCAllocationLineForm, BankStatementMatchForm, BulkPDCForm,
+    RentInvoiceForm, SecurityDepositReceiveForm, SecurityDepositRefundForm,
+)
+from .property_billing import (
+    sync_unit_occupancy, generate_rent_invoices_for_lease, ensure_security_deposit_record,
 )
 
 
@@ -59,6 +64,7 @@ class PropertyListView(LoginRequiredMixin, ListView):
         
         property_obj = Property.objects.create(
             name=name,
+            is_active='is_active' in request.POST,
             property_type=request.POST.get('property_type', 'residential'),
             total_units=request.POST.get('total_units', 0) or 0,
             address=request.POST.get('address', ''),
@@ -67,7 +73,7 @@ class PropertyListView(LoginRequiredMixin, ListView):
             created_by=request.user
         )
         messages.success(request, f'Property "{property_obj.name}" created successfully.')
-        return redirect('property:property_list')
+        return redirect('property:property_detail', pk=property_obj.pk)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -81,16 +87,20 @@ class PropertyCreateView(CreatePermissionMixin, LoginRequiredMixin, CreateView):
     model = Property
     form_class = PropertyForm
     template_name = 'property/property_form.html'
-    success_url = reverse_lazy('property:property_list')
     permission_required = 'property.add_property'
+
+    def get_success_url(self):
+        return reverse('property:property_detail', kwargs={'pk': self.object.pk})
 
 
 class PropertyUpdateView(UpdatePermissionMixin, LoginRequiredMixin, UpdateView):
     model = Property
     form_class = PropertyForm
     template_name = 'property/property_form.html'
-    success_url = reverse_lazy('property:property_list')
     permission_required = 'property.change_property'
+
+    def get_success_url(self):
+        return reverse('property:property_detail', kwargs={'pk': self.object.pk})
 
 
 class PropertyDetailView(LoginRequiredMixin, DetailView):
@@ -102,6 +112,50 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['units'] = self.object.units.filter(is_active=True)
         return context
+
+
+class UnitDetailView(LoginRequiredMixin, DetailView):
+    model = Unit
+    template_name = 'property/unit_detail.html'
+    context_object_name = 'unit'
+
+    def get_queryset(self):
+        return Unit.objects.filter(is_active=True).select_related('property')
+
+
+class UnitCreateView(CreatePermissionMixin, LoginRequiredMixin, CreateView):
+    model = Unit
+    form_class = UnitForm
+    template_name = 'property/unit_form.html'
+    permission_required = 'property.add_property'
+
+    def dispatch(self, request, *args, **kwargs):
+        self.property_obj = get_object_or_404(Property, pk=kwargs['property_id'], is_active=True)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_initial(self):
+        return {'property': self.property_obj}
+
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        self.object = form.save()
+        messages.success(self.request, f'Unit {self.object.unit_number} created.')
+        return redirect('property:property_detail', pk=self.property_obj.pk)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['property_obj'] = self.property_obj
+        return context
+
+
+class UnitUpdateView(UpdatePermissionMixin, LoginRequiredMixin, UpdateView):
+    model = Unit
+    form_class = UnitForm
+    template_name = 'property/unit_form.html'
+    permission_required = 'property.change_property'
+
+    def get_success_url(self):
+        return reverse('property:unit_detail', kwargs={'pk': self.object.pk})
 
 
 # =============================================================================
@@ -138,6 +192,7 @@ class TenantListView(LoginRequiredMixin, ListView):
         
         tenant = Tenant.objects.create(
             name=name,
+            is_active='is_active' in request.POST,
             email=request.POST.get('email', ''),
             phone=request.POST.get('phone', ''),
             mobile=request.POST.get('mobile', ''),
@@ -150,7 +205,7 @@ class TenantListView(LoginRequiredMixin, ListView):
             created_by=request.user
         )
         messages.success(request, f'Tenant "{tenant.name}" created successfully.')
-        return redirect('property:tenant_list')
+        return redirect('property:tenant_detail', pk=tenant.pk)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -164,16 +219,20 @@ class TenantCreateView(CreatePermissionMixin, LoginRequiredMixin, CreateView):
     model = Tenant
     form_class = TenantForm
     template_name = 'property/tenant_form.html'
-    success_url = reverse_lazy('property:tenant_list')
     permission_required = 'property.add_tenant'
+
+    def get_success_url(self):
+        return reverse('property:tenant_detail', kwargs={'pk': self.object.pk})
 
 
 class TenantUpdateView(UpdatePermissionMixin, LoginRequiredMixin, UpdateView):
     model = Tenant
     form_class = TenantForm
     template_name = 'property/tenant_form.html'
-    success_url = reverse_lazy('property:tenant_list')
     permission_required = 'property.change_tenant'
+
+    def get_success_url(self):
+        return reverse('property:tenant_detail', kwargs={'pk': self.object.pk})
 
 
 class TenantDetailView(LoginRequiredMixin, DetailView):
@@ -185,6 +244,8 @@ class TenantDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['leases'] = self.object.leases.filter(is_active=True)
         context['pdc_cheques'] = self.object.pdc_cheques.filter(is_active=True).order_by('cheque_date')
+        context['rent_invoices'] = self.object.rent_invoices.filter(is_active=True).order_by('-invoice_date')
+        context['security_deposits'] = self.object.security_deposits.filter(is_active=True).order_by('-created_at')
         context['outstanding_balance'] = self.object.outstanding_balance
         return context
 
@@ -258,46 +319,59 @@ class LeaseCreateView(LoginRequiredMixin, CreateView):
             lease = Lease.objects.create(
                 tenant=tenant,
                 unit=unit,
-                lease_type=request.POST.get('lease_type', 'residential'),
                 start_date=start_date,
                 end_date=end_date,
                 annual_rent=Decimal(annual_rent),
-                num_cheques=request.POST.get('num_cheques', 1) or 1,
+                number_of_cheques=int(request.POST.get('number_of_cheques') or request.POST.get('num_cheques') or 1),
                 security_deposit=Decimal(request.POST.get('security_deposit', 0) or 0),
                 ejari_number=request.POST.get('ejari_number', ''),
                 status=request.POST.get('status', 'draft'),
-                created_by=request.user
+                created_by=request.user,
             )
             
-            # Mark unit as occupied
-            if unit:
+            # Mark unit as occupied when lease is active
+            if unit and lease.status == 'active':
                 unit.status = 'occupied'
-                unit.save()
+                unit.save(update_fields=['status'])
+            
+            if lease.security_deposit > 0:
+                ensure_security_deposit_record(lease, request.user)
             
             messages.success(request, f'Lease {lease.lease_number} created successfully.')
+            return redirect('property:lease_detail', pk=lease.pk)
         except Tenant.DoesNotExist:
             messages.error(request, 'Selected tenant not found.')
         except Unit.DoesNotExist:
             messages.error(request, 'Selected unit not found.')
         except Exception as e:
             messages.error(request, f'Error creating lease: {str(e)}')
-        
+
         return redirect('property:lease_list')
-    
+
     def form_valid(self, form):
         form.instance.created_by = self.request.user
-        return super().form_valid(form)
+        self.object = form.save()
+        sync_unit_occupancy(self.object)
+        if self.object.security_deposit > 0:
+            ensure_security_deposit_record(self.object, self.request.user)
+        messages.success(self.request, f'Lease {self.object.lease_number} created successfully.')
+        return redirect('property:lease_detail', pk=self.object.pk)
 
 
 class LeaseUpdateView(LoginRequiredMixin, UpdateView):
     model = Lease
     form_class = LeaseForm
     template_name = 'property/lease_form.html'
-    success_url = reverse_lazy('property:lease_list')
-    
+
     def form_valid(self, form):
+        old = Lease.objects.get(pk=self.object.pk)
+        old_unit = old.unit
+        self.object = form.save()
+        sync_unit_occupancy(self.object, old_unit=old_unit, old_status=old.status)
+        if self.object.security_deposit > 0:
+            ensure_security_deposit_record(self.object, self.request.user)
         messages.success(self.request, 'Lease updated successfully.')
-        return super().form_valid(form)
+        return redirect('property:lease_detail', pk=self.object.pk)
 
 
 class LeaseDetailView(LoginRequiredMixin, DetailView):
@@ -308,6 +382,11 @@ class LeaseDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['pdc_cheques'] = self.object.pdc_cheques.filter(is_active=True).order_by('cheque_date')
+        context['rent_invoices'] = self.object.rent_invoices.filter(is_active=True).order_by('-invoice_date')
+        context['security_deposits'] = self.object.security_deposits.filter(is_active=True).order_by('-created_at')
+        context['deposit_receive_form'] = SecurityDepositReceiveForm()
+        context['deposit_refund_form'] = SecurityDepositRefundForm()
+        context['today'] = date.today().isoformat()
         return context
 
 
@@ -432,6 +511,7 @@ class PDCCreateView(LoginRequiredMixin, CreateView):
             with transaction.atomic():
                 pdc = PDCCheque.objects.create(
                     tenant=tenant,
+                    is_active='is_active' in request.POST,
                     cheque_number=cheque_number,
                     bank_name=bank_name,
                     cheque_date=cheque_date,
@@ -443,27 +523,35 @@ class PDCCreateView(LoginRequiredMixin, CreateView):
                 )
                 journal = pdc.post_received_journal(request.user)
             messages.success(request, f'PDC {pdc.pdc_number} created. Journal: {journal.entry_number}')
+            return redirect('property:pdc_detail', pk=pdc.pk)
         except Tenant.DoesNotExist:
             messages.error(request, 'Selected tenant not found.')
         except Exception as e:
             messages.error(request, f'Error creating PDC: {str(e)}')
-        
+
         return redirect('property:pdc_list')
-    
+
     def form_valid(self, form):
         form.instance.received_by = self.request.user
         form.instance.created_by = self.request.user
         with transaction.atomic():
-            response = super().form_valid(form)
+            self.object = form.save()
             journal = self.object.post_received_journal(self.request.user)
         messages.success(self.request, f'PDC created. Journal: {journal.entry_number}')
-        return response
+        return redirect('property:pdc_detail', pk=self.object.pk)
 
 
 class PDCDetailView(LoginRequiredMixin, DetailView):
     model = PDCCheque
     template_name = 'property/pdc_detail.html'
     context_object_name = 'pdc'
+
+    def get_queryset(self):
+        return PDCCheque.objects.select_related(
+            'tenant', 'lease', 'deposited_to_bank', 'received_by', 'deposited_by',
+            'reconciled_by', 'journal_entry', 'pdc_control_journal', 'bounce_journal',
+            'replaced_by', 'bank_statement_line',
+        )
     
     def get_context_data(self, **kwargs):
         from apps.finance.models import BankAccount
@@ -613,9 +701,152 @@ def bulk_pdc_create(request):
             except Exception as e:
                 messages.error(request, f'Error creating PDCs: {str(e)}')
     else:
-        form = BulkPDCForm()
+        initial = {}
+        lease_id = request.GET.get('lease')
+        if lease_id:
+            try:
+                initial['lease'] = Lease.objects.get(pk=lease_id, is_active=True)
+            except Lease.DoesNotExist:
+                pass
+        form = BulkPDCForm(initial=initial)
     
     return render(request, 'property/bulk_pdc_form.html', {'form': form})
+
+
+# =============================================================================
+# Rent Invoices & Security Deposits
+# =============================================================================
+
+@login_required
+def rent_invoice_create(request, lease_id=None):
+    """Create a rent invoice, optionally prefilled from a lease."""
+    lease = None
+    if lease_id:
+        lease = get_object_or_404(Lease, pk=lease_id, is_active=True)
+    elif request.GET.get('lease'):
+        lease = get_object_or_404(Lease, pk=request.GET.get('lease'), is_active=True)
+
+    if request.method == 'POST':
+        form = RentInvoiceForm(request.POST, lease=lease)
+        if form.is_valid():
+            invoice = form.save(commit=False)
+            invoice.created_by = request.user
+            invoice.save()
+            messages.success(request, f'Rent invoice {invoice.invoice_number} created.')
+            return redirect('property:rent_invoice_detail', pk=invoice.pk)
+    else:
+        form = RentInvoiceForm(lease=lease)
+
+    return render(request, 'property/rent_invoice_form.html', {'form': form, 'lease': lease})
+
+
+class RentInvoiceDetailView(LoginRequiredMixin, DetailView):
+    model = RentInvoice
+    template_name = 'property/rent_invoice_detail.html'
+    context_object_name = 'invoice'
+
+    def get_queryset(self):
+        return RentInvoice.objects.filter(is_active=True).select_related(
+            'tenant', 'lease', 'unit', 'pdc', 'journal_entry'
+        )
+
+
+@login_required
+def rent_invoice_post(request, pk):
+    """Post a draft rent invoice to accounting."""
+    invoice = get_object_or_404(RentInvoice, pk=pk, is_active=True)
+    if request.method != 'POST':
+        return redirect('property:rent_invoice_detail', pk=pk)
+    try:
+        with transaction.atomic():
+            journal = invoice.post_to_accounting(request.user)
+        messages.success(request, f'Invoice posted. Journal: {journal.entry_number}')
+    except Exception as e:
+        messages.error(request, str(e))
+    return redirect('property:rent_invoice_detail', pk=pk)
+
+
+@login_required
+def generate_lease_rent_invoices(request, lease_id):
+    """Generate draft rent invoices from the lease payment schedule."""
+    lease = get_object_or_404(Lease, pk=lease_id, is_active=True)
+    if request.method != 'POST':
+        return redirect('property:lease_detail', pk=lease_id)
+    try:
+        created = generate_rent_invoices_for_lease(lease, request.user)
+        if created:
+            messages.success(request, f'{len(created)} rent invoice(s) created.')
+        else:
+            messages.info(request, 'All rent invoices for this lease already exist.')
+    except Exception as e:
+        messages.error(request, str(e))
+    return redirect('property:lease_detail', pk=lease_id)
+
+
+@login_required
+def security_deposit_create(request, lease_id):
+    """Create a pending security deposit record for a lease."""
+    lease = get_object_or_404(Lease, pk=lease_id, is_active=True)
+    if request.method != 'POST':
+        return redirect('property:lease_detail', pk=lease_id)
+    if lease.security_deposit <= 0:
+        messages.error(request, 'This lease has no security deposit amount.')
+        return redirect('property:lease_detail', pk=lease_id)
+    try:
+        deposit = ensure_security_deposit_record(lease, request.user)
+        messages.success(request, f'Security deposit {deposit.deposit_number} ready for receipt.')
+    except Exception as e:
+        messages.error(request, str(e))
+    return redirect('property:lease_detail', pk=lease_id)
+
+
+@login_required
+def security_deposit_receive(request, pk):
+    """Record receipt of a security deposit."""
+    deposit = get_object_or_404(SecurityDeposit, pk=pk, is_active=True)
+    if request.method != 'POST':
+        return redirect('property:lease_detail', pk=deposit.lease_id)
+    form = SecurityDepositReceiveForm(request.POST, deposit=deposit)
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                journal = deposit.receive(
+                    bank_account=form.cleaned_data['bank_account'],
+                    user=request.user,
+                    receive_date=form.cleaned_data['receive_date'],
+                    amount=form.cleaned_data.get('amount') or deposit.amount,
+                )
+            messages.success(request, f'Deposit received. Journal: {journal.entry_number}')
+        except Exception as e:
+            messages.error(request, str(e))
+    else:
+        messages.error(request, 'Invalid deposit receipt form.')
+    return redirect('property:lease_detail', pk=deposit.lease_id)
+
+
+@login_required
+def security_deposit_refund(request, pk):
+    """Refund or partially forfeit a security deposit."""
+    deposit = get_object_or_404(SecurityDeposit, pk=pk, is_active=True)
+    if request.method != 'POST':
+        return redirect('property:lease_detail', pk=deposit.lease_id)
+    form = SecurityDepositRefundForm(request.POST)
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                journal = deposit.refund(
+                    user=request.user,
+                    refund_date=form.cleaned_data['refund_date'],
+                    refund_amount=form.cleaned_data['refund_amount'],
+                    forfeit_amount=form.cleaned_data.get('forfeit_amount') or Decimal('0.00'),
+                    reason=form.cleaned_data.get('reason', ''),
+                )
+            messages.success(request, f'Deposit refund processed. Journal: {journal.entry_number}')
+        except Exception as e:
+            messages.error(request, str(e))
+    else:
+        messages.error(request, 'Invalid refund form.')
+    return redirect('property:lease_detail', pk=deposit.lease_id)
 
 
 # =============================================================================

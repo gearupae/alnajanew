@@ -4,7 +4,8 @@ CRM Forms
 from django import forms
 from django.core.exceptions import ValidationError
 
-from .models import Customer
+from .models import Customer, CrmLeadKanbanStage
+from .customer_compliance import customer_b2b_required_missing
 from .utils import (
     find_customer_contact_duplicate,
     get_crm_project_queryset,
@@ -35,32 +36,57 @@ class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
         fields = [
-            'name', 'email', 'phone', 'company', 'address',
+            'is_active', 'name', 'email', 'phone', 'company', 'address', 'city', 'country',
             'trn', 'website', 'scope', 'job_type', 'primary_project',
-            'assigned_salesperson',
-            'status', 'customer_type', 'business_segment', 'trn_document', 'trade_license_document',
-            'notes',
+            'payment_terms', 'credit_limit', 'status', 'customer_type', 'lead_kanban_stage',
+            'assigned_salesperson', 'business_segment', 'trade_license_number',
+            'trn_document', 'trade_license_document', 'notes',
         ]
 
     def __init__(self, *args, projects_queryset=None, user=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         qs = projects_queryset if projects_queryset is not None else get_crm_project_queryset()
-        if self.instance.pk:
-            self.fields.pop('primary_project', None)
-        else:
-            self.fields['primary_project'].queryset = qs
-            self.fields['primary_project'].required = False
-            self.fields['primary_project'].empty_label = '— Select project —'
-            self.fields['primary_project'].label_from_instance = project_choice_label
-            self.fields['primary_project'].widget.attrs['class'] = 'form-select'
-            self.fields['primary_project'].label = 'Project'
+        self.fields['primary_project'].queryset = qs
+        self.fields['primary_project'].required = False
+        self.fields['primary_project'].empty_label = '— Select project —'
+        self.fields['primary_project'].label_from_instance = project_choice_label
+        self.fields['primary_project'].widget.attrs['class'] = 'form-select'
+        self.fields['primary_project'].label = 'Project'
+
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+
         self.fields['scope'].label = 'Scope'
         self.fields['business_segment'].required = True
         self.fields['business_segment'].widget.attrs['class'] = 'form-select'
         self.fields['business_segment'].label = 'Business type'
         self.fields['trn_document'].required = False
         self.fields['trade_license_document'].required = False
+
+        self.fields['lead_kanban_stage'].queryset = CrmLeadKanbanStage.objects.filter(
+            is_active=True,
+            converts_to_customer=False,
+        ).order_by('sort_order', 'id')
+        self.fields['lead_kanban_stage'].required = False
+        self.fields['lead_kanban_stage'].empty_label = '— Unassigned —'
+        self.fields['lead_kanban_stage'].widget.attrs['class'] = 'form-select'
+        self.fields['lead_kanban_stage'].label = 'Lead kanban stage'
+
+        self.fields['payment_terms'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Net 30',
+        })
+        self.fields['credit_limit'].widget = forms.NumberInput(
+            attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}
+        )
+        self.fields['city'].widget.attrs.update({'class': 'form-control', 'placeholder': 'City'})
+        self.fields['country'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Country'})
+        self.fields['trade_license_number'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Trade license number',
+        })
+        self.fields['trade_license_number'].label = 'Trade license number'
 
         include_salesperson_id = None
         if self.instance.pk and self.instance.assigned_salesperson_id:
@@ -75,17 +101,26 @@ class CustomerForm(forms.ModelForm):
         self.fields['assigned_salesperson'].label = 'Assigned salesman'
         self.fields['name'].required = False
         self.fields['company'].required = True
+        self.fields['email'].required = False
+        self.fields['phone'].required = False
+        self.fields['phone'].label = 'Contact'
 
         if user and not self.instance.pk:
             emp = get_sales_employee_for_user(user)
             if emp and 'assigned_salesperson' not in self.initial:
                 self.initial['assigned_salesperson'] = emp.pk
+            if 'country' not in self.initial:
+                self.initial['country'] = 'United Arab Emirates'
 
         if self.instance.pk:
             self.initial['scope'] = list(self.instance.scope or [])
 
         for field_name, field in self.fields.items():
-            if field_name in ('scope', 'primary_project', 'business_segment', 'assigned_salesperson'):
+            if field_name in (
+                'scope', 'primary_project', 'business_segment', 'assigned_salesperson',
+                'lead_kanban_stage', 'is_active', 'payment_terms', 'credit_limit',
+                'city', 'country',
+            ):
                 continue
             if field_name in ('trn_document', 'trade_license_document'):
                 field.widget = forms.FileInput(
@@ -129,19 +164,31 @@ class CustomerForm(forms.ModelForm):
         return (raw or 'lead').strip()
 
     def clean_email(self):
+        seg = ''
+        if self.data:
+            seg = (self.data.get('business_segment') or '').strip().lower()
+        elif self.instance.pk:
+            seg = (self.instance.business_segment or '').strip().lower()
+        required = seg == 'b2b'
         try:
             return normalize_customer_email(
                 self.cleaned_data.get('email'),
-                required=False,
+                required=required,
             )
         except ValidationError as exc:
             raise forms.ValidationError(exc.messages[0] if exc.messages else str(exc))
 
     def clean_phone(self):
+        seg = ''
+        if self.data:
+            seg = (self.data.get('business_segment') or '').strip().lower()
+        elif self.instance.pk:
+            seg = (self.instance.business_segment or '').strip().lower()
+        required = seg == 'b2b'
         try:
             return normalize_customer_phone(
                 self.cleaned_data.get('phone'),
-                required=False,
+                required=required,
             )
         except ValidationError as exc:
             raise forms.ValidationError(exc.messages[0] if exc.messages else str(exc))
@@ -183,34 +230,45 @@ class CustomerForm(forms.ModelForm):
 
         ctype = self._effective_customer_type()
         if ctype == 'customer':
-            email = cleaned.get('email') or ''
-            phone = cleaned.get('phone') or ''
-            if not email and not phone:
-                msg = 'Enter an email or phone number for customers.'
-                self.add_error('email', msg)
-                self.add_error('phone', msg)
-            else:
-                duplicate, matched_field = find_customer_contact_duplicate(
-                    email=email,
-                    phone=phone,
-                    exclude_pk=self.instance.pk if self.instance.pk else None,
-                )
-                if duplicate:
-                    label = duplicate.company or duplicate.name or duplicate.customer_number
-                    if matched_field == 'email':
-                        self.add_error(
-                            'email',
-                            f'An account with this email already exists ({duplicate.customer_number} — {label}).',
-                        )
-                    else:
-                        self.add_error(
-                            'phone',
-                            f'An account with this phone number already exists ({duplicate.customer_number} — {label}).',
-                        )
+            cleaned['lead_kanban_stage'] = None
+
+        email = cleaned.get('email') or ''
+        phone = cleaned.get('phone') or ''
+
+        if seg == 'b2b':
+            for field_name, label in customer_b2b_required_missing(
+                business_segment=seg,
+                email=email,
+                phone=phone,
+                trn=cleaned.get('trn') or '',
+                trade_license_number=cleaned.get('trade_license_number') or '',
+            ):
+                self.add_error(field_name, f'{label} is required for B2B accounts.')
+
+        if ctype == 'customer' and (email or phone):
+            duplicate, matched_field = find_customer_contact_duplicate(
+                email=email,
+                phone=phone,
+                exclude_pk=self.instance.pk if self.instance.pk else None,
+            )
+            if duplicate:
+                label = duplicate.company or duplicate.name or duplicate.customer_number
+                if matched_field == 'email':
+                    self.add_error(
+                        'email',
+                        f'An account with this email already exists ({duplicate.customer_number} — {label}).',
+                    )
+                else:
+                    self.add_error(
+                        'phone',
+                        f'An account with this phone number already exists ({duplicate.customer_number} — {label}).',
+                    )
 
         if seg == 'b2c':
             cleaned['trn'] = ''
+            cleaned['trade_license_number'] = ''
         elif seg == 'b2b':
+            cleaned['trade_license_number'] = (cleaned.get('trade_license_number') or '').strip()
             if self.data.get('trn_document-clear') in ('on', 'true', '1'):
                 cleaned['trn_document'] = False
             if self.data.get('trade_license_document-clear') in ('on', 'true', '1'):

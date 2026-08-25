@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'inventory:stock_list' %}">Stock</a></li>
+            <li class="breadcrumb-item active">{{ stock.item.item_code }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-1 fw-bold">{{ stock.item.item_code }} @ {{ stock.warehouse.name }}</h4>
+            <span class="text-muted">{{ stock.item.name }}</span>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'inventory:item_detail' stock.item.pk %}" class="btn btn-outline-secondary btn-sm">View item</a>
+            {% if can_adjust %}
+            <a href="{% url 'inventory:stock_adjustment' %}?item={{ stock.item.pk }}&warehouse={{ stock.warehouse.pk }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-exchange-alt me-1"></i>Adjust stock
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h6 class="mb-0 fw-semibold">Stock details</h6></div>
+    <div class="card-body">
+        <div class="row g-4">
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Is active</h6>
+                <p class="mb-0">{% if stock.is_active %}Yes{% else %}No{% endif %}</p>
+            </div>
+            <div class="col-md-5">
+                <h6 class="text-muted mb-2">Item</h6>
+                <p class="mb-0">
+                    <a href="{% url 'inventory:item_detail' stock.item.pk %}" class="text-decoration-none">
+                        {{ stock.item.item_code }} — {{ stock.item.name }}
+                    </a>
+                </p>
+            </div>
+            <div class="col-md-4">
+                <h6 class="text-muted mb-2">Warehouse</h6>
+                <p class="mb-0">
+                    <a href="{% url 'inventory:warehouse_detail' stock.warehouse.pk %}" class="text-decoration-none">
+                        {{ stock.warehouse.code }} — {{ stock.warehouse.name }}
+                    </a>
+                </p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Quantity</h6>
+                <p class="mb-0 fs-5 fw-semibold {% if stock.quantity < stock.item.minimum_stock %}text-danger{% endif %}">
+                    {{ stock.quantity }} {{ stock.item.unit }}
+                </p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Minimum stock (item)</h6>
+                <p class="mb-0">{{ stock.item.minimum_stock }} {{ stock.item.unit }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Stock status</h6>
+                <p class="mb-0">
+                    {% if stock.quantity < stock.item.minimum_stock %}
+                    <span class="badge badge-inactive">Low stock</span>
+                    {% else %}
+                    <span class="badge badge-active">OK</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        <p class="text-muted small mt-4 mb-0">
+            Quantity is updated by purchase receipts, stock adjustments, transfers, and consumable dispense — not edited directly on this record.
+        </p>
+    </div>
+</div>
+{% endblock %}

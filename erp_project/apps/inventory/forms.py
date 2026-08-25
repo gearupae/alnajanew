@@ -51,36 +51,69 @@ class TaxCodeSelect(forms.Select):
 class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
-        fields = ['name', 'parent', 'description']
+        fields = ['is_active', 'name', 'code', 'parent', 'description']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 2}),
+            'code': forms.TextInput(attrs={'placeholder': 'Auto-generated if left blank'}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
         for field_name, field in self.fields.items():
             if field_name == 'parent':
                 field.widget.attrs['class'] = 'form-select'
-            else:
+            elif field_name != 'is_active':
                 field.widget.attrs['class'] = 'form-control'
-        self.fields['parent'].queryset = Category.objects.filter(is_active=True).order_by('name')
+        parent_qs = Category.objects.filter(is_active=True).order_by('name')
+        if self.instance.pk:
+            parent_qs = parent_qs.exclude(pk=self.instance.pk)
+        self.fields['parent'].queryset = parent_qs
+        self.fields['parent'].required = False
+        self.fields['parent'].empty_label = 'None (root category)'
+        self.fields['code'].required = False
+        self.fields['description'].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.data:
+            cleaned['is_active'] = 'is_active' in self.data
+        return cleaned
 
 
 class WarehouseForm(forms.ModelForm):
     class Meta:
         model = Warehouse
-        fields = ['name', 'address', 'contact_person', 'phone', 'status']
+        fields = ['is_active', 'name', 'code', 'address', 'contact_person', 'phone', 'status']
         widgets = {
             'address': forms.Textarea(attrs={'rows': 2}),
+            'code': forms.TextInput(attrs={'placeholder': 'Auto-generated if left blank'}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
         for field_name, field in self.fields.items():
             if field_name == 'status':
                 field.widget.attrs['class'] = 'form-select'
-            else:
+            elif field_name != 'is_active':
                 field.widget.attrs['class'] = 'form-control'
+        self.fields['code'].required = False
+        self.fields['address'].required = False
+        self.fields['contact_person'].required = False
+        self.fields['phone'].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.data:
+            cleaned['is_active'] = 'is_active' in self.data
+        return cleaned
 
 
 class ItemForm(forms.ModelForm):
@@ -96,13 +129,13 @@ class ItemForm(forms.ModelForm):
     class Meta:
         model = Item
         fields = [
-            'name', 'description', 'category', 'item_groups', 'item_type', 'status',
+            'is_active', 'name', 'description', 'category', 'item_groups', 'item_type', 'status',
             'purchase_price', 'selling_price',
             'minimum_selling_price', 'minimum_selling_price_type',
             'maximum_selling_price', 'maximum_selling_price_type',
             'unit', 'minimum_stock', 'tax_code',
             'condition_status', 'condition_notes', 'track_by_serial',
-            'storage_location_master', 'barcode',
+            'storage_location_master', 'storage_location', 'barcode',
             'brand', 'serial_batch_number', 'purchase_date', 'warranty_expiry',
         ]
         widgets = {
@@ -135,6 +168,10 @@ class ItemForm(forms.ModelForm):
         from apps.finance.models import TaxCode
         self._user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
         for field_name, field in self.fields.items():
             if field_name in ['category', 'item_type', 'status', 'tax_code', 'condition_status', 'storage_location_master', 'item_groups']:
                 if field_name == 'item_groups':
@@ -153,9 +190,10 @@ class ItemForm(forms.ModelForm):
                 field.widget = forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'e.g., Assigned to John, Bay 3 / Sent for repair on...'})
             elif field_name in ('purchase_date', 'warranty_expiry'):
                 field.widget.attrs['class'] = 'form-control'
-            elif field_name == 'track_by_serial':
+            elif field_name in ('track_by_serial', 'is_active'):
                 field.widget.attrs['class'] = 'form-check-input'
-                field.widget.attrs['role'] = 'switch'
+                if field_name == 'track_by_serial':
+                    field.widget.attrs['role'] = 'switch'
             else:
                 field.widget.attrs['class'] = 'form-control'
         self.fields['category'].queryset = Category.objects.filter(is_active=True).order_by('name')
@@ -163,8 +201,13 @@ class ItemForm(forms.ModelForm):
         self.fields['item_groups'].required = False
         self.fields['storage_location_master'].queryset = StorageLocation.objects.filter(is_active=True)
         self.fields['storage_location_master'].required = False
-        self.fields['storage_location_master'].label = 'Storage Location'
-        self.fields['storage_location_master'].empty_label = '— Select location —'
+        self.fields['storage_location_master'].label = 'Storage location master'
+        self.fields['storage_location_master'].empty_label = '— Select preset —'
+        self.fields['storage_location'].required = False
+        self.fields['storage_location'].label = 'Storage location'
+        self.fields['storage_location'].widget = forms.TextInput(
+            attrs={'class': 'form-control', 'placeholder': 'Shelf, rack, or free-text location'}
+        )
         self.fields['barcode'].required = False
         self.fields['brand'].required = False
         self.fields['serial_batch_number'].required = False
@@ -195,7 +238,31 @@ class ItemForm(forms.ModelForm):
             default_tax_code = TaxCode.objects.filter(is_active=True, is_default=True).first()
             if default_tax_code:
                 self.fields['tax_code'].initial = default_tax_code
+            if 'status' in self.fields:
+                del self.fields['status']
     
+    def clean_name(self):
+        name = (self.cleaned_data.get('name') or '').strip()
+        if not name:
+            return name
+        dup = Item.objects.filter(name__iexact=name, is_active=True)
+        if self.instance.pk:
+            dup = dup.exclude(pk=self.instance.pk)
+        if dup.exists():
+            raise forms.ValidationError('An item with this name already exists.')
+        return name
+
+    def clean_barcode(self):
+        barcode = (self.cleaned_data.get('barcode') or '').strip()
+        if not barcode:
+            return ''
+        dup = Item.objects.filter(barcode__iexact=barcode, is_active=True)
+        if self.instance.pk:
+            dup = dup.exclude(pk=self.instance.pk)
+        if dup.exists():
+            raise forms.ValidationError('An item with this barcode already exists.')
+        return barcode
+
     def clean_purchase_price(self):
         val = self.cleaned_data.get('purchase_price')
         from decimal import Decimal
@@ -228,6 +295,8 @@ class ItemForm(forms.ModelForm):
     def clean(self):
         from decimal import Decimal
         cleaned = super().clean()
+        if self.data:
+            cleaned['is_active'] = 'is_active' in self.data
         track = cleaned.get('track_by_serial')
         item_type = cleaned.get('item_type')
         if track and item_type == 'service':
@@ -284,7 +353,7 @@ class StockAdjustmentForm(forms.Form):
         super().__init__(*args, **kwargs)
         # Set querysets fresh each time form is instantiated
         # Show all active items - user can adjust stock for any item
-        self.fields['item'].queryset = Item.objects.filter(is_active=True).order_by('name')
+        self.fields['item'].queryset = Item.usable().order_by('name')
         self.fields['warehouse'].queryset = Warehouse.objects.filter(is_active=True, status='active').order_by('name')
     quantity = forms.DecimalField(
         max_digits=15,
@@ -333,20 +402,25 @@ class ConsumableRequestForm(forms.ModelForm):
     """
     class Meta:
         model = ConsumableRequest
-        fields = ['department', 'project', 'priority', 'required_by_date', 'remarks']
+        fields = ['is_active', 'department', 'project', 'priority', 'required_by_date', 'remarks']
         widgets = {
             'department': forms.Select(attrs={'class': 'form-select'}),
             'project': forms.Select(attrs={'class': 'form-select'}),
             'priority': forms.Select(attrs={'class': 'form-select'}),
             'required_by_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'remarks': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Optional notes'}),
+            'remarks': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Optional remarks'}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from apps.hr.models import Department
         from apps.projects.models import Project
 
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
+        self.fields['remarks'].label = 'Remarks'
         self.fields['department'].queryset = Department.objects.filter(is_active=True)
         self.fields['department'].required = False
         self.fields['project'].queryset = Project.objects.filter(is_active=True).order_by(
@@ -357,6 +431,12 @@ class ConsumableRequestForm(forms.ModelForm):
         self.fields['required_by_date'].required = False
         self.fields['remarks'].required = False
 
+    def clean(self):
+        cleaned = super().clean()
+        if self.data:
+            cleaned['is_active'] = 'is_active' in self.data
+        return cleaned
+
 
 class ConsumableRequestItemForm(forms.ModelForm):
     class Meta:
@@ -365,9 +445,7 @@ class ConsumableRequestItemForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['item'].queryset = Item.objects.filter(
-            is_active=True, item_type='product', status='active'
-        ).order_by('name')
+        self.fields['item'].queryset = Item.usable().filter(item_type='product').order_by('name')
         self.fields['item'].widget.attrs['class'] = 'form-select'
         self.fields['quantity'].widget.attrs.update({
             'class': 'form-control',
@@ -524,9 +602,7 @@ class StockTransferForm(forms.Form):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['item'].queryset = Item.objects.filter(
-            is_active=True, item_type='product', status='active'
-        ).order_by('name')
+        self.fields['item'].queryset = Item.usable().filter(item_type='product').order_by('name')
         self.fields['from_warehouse'].queryset = Warehouse.objects.filter(
             is_active=True, status='active'
         ).order_by('name')

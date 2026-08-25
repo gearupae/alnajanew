@@ -1,5 +1,37 @@
 {% extends 'base.html' %}
 
+{% block extra_css %}
+<style>
+#billItemsTable td:first-child .select2-container {
+    width: 100% !important;
+}
+#billItemsTable td:first-child .select2-selection--single {
+    min-height: 31px;
+    font-size: 0.875rem;
+}
+#billItemsTable td:first-child .select2-selection__rendered {
+    padding-left: 0.35rem;
+    line-height: 1.5;
+}
+.bill-inventory-select2-dropdown {
+    min-width: 18rem !important;
+    z-index: 1060;
+}
+.bill-inventory-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+#billItemsTable {
+    table-layout: fixed;
+}
+#billItemsTable:not(.bill-po-mode) .po-qty-col {
+    display: none;
+}
+#billItemsTable .bill-qty-col {
+    width: 8%;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <nav aria-label="breadcrumb">
@@ -46,13 +78,40 @@
     {% if preselect_po %}<input type="hidden" name="return_po" value="{{ preselect_po }}">{% endif %}
     
     <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Bill Details</h6></div>
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Bill details</h6></div>
         <div class="card-body">
             <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="form-check mt-2">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                    </div>
+                    {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Bill date <span class="text-danger">*</span></label>
+                    {{ form.bill_date }}
+                    {% if form.bill_date.errors %}<div class="text-danger small">{{ form.bill_date.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Due date <span class="text-danger">*</span></label>
+                    {{ form.due_date }}
+                    {% if form.due_date.errors %}<div class="text-danger small">{{ form.due_date.errors|join:", " }}</div>{% endif %}
+                </div>
                 <div class="col-md-4">
                     <label class="form-label">Vendor <span class="text-danger">*</span></label>
                     {{ form.vendor }}
                     {% if form.vendor.errors %}<div class="text-danger small">{{ form.vendor.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Purchase order</label>
+                    {{ form.purchase_order }}
+                    {% if form.purchase_order.errors %}<div class="text-danger small">{{ form.purchase_order.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Vendor invoice number</label>
+                    {{ form.vendor_invoice_number }}
+                    {% if form.vendor_invoice_number.errors %}<div class="text-danger small">{{ form.vendor_invoice_number.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Project</label>
@@ -61,39 +120,51 @@
                     <small class="text-muted d-block mt-1">After you post this bill, the amount appears under this project and counts against its budget.</small>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Vendor Invoice #</label>
-                    {{ form.vendor_invoice_number }}
-                    {% if form.vendor_invoice_number.errors %}<div class="text-danger small">{{ form.vendor_invoice_number.errors|join:", " }}</div>{% endif %}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">From PO</label>
-                    {{ form.purchase_order }}
-                    {% if form.purchase_order.errors %}<div class="text-danger small">{{ form.purchase_order.errors|join:", " }}</div>{% endif %}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Bill Date <span class="text-danger">*</span></label>
-                    {{ form.bill_date }}
-                    {% if form.bill_date.errors %}<div class="text-danger small">{{ form.bill_date.errors|join:", " }}</div>{% endif %}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Due Date <span class="text-danger">*</span></label>
-                    {{ form.due_date }}
-                    {% if form.due_date.errors %}<div class="text-danger small">{{ form.due_date.errors|join:", " }}</div>{% endif %}
-                </div>
-                <div class="col-md-4">
                     <label class="form-label">Status</label>
                     {{ form.status }}
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-12">
-                    <div class="form-check">
+                <div class="col-md-4">
+                    <div class="form-check mt-4">
                         {{ form.goods_received }}
-                        <label class="form-check-label" for="{{ form.goods_received.id_for_label }}">
-                            Goods received (GRN-matched bill)
-                        </label>
+                        <label class="form-check-label" for="{{ form.goods_received.id_for_label }}">Goods received</label>
                     </div>
                     <small class="text-muted d-block">{{ form.goods_received.help_text }}</small>
                     {% if form.goods_received.errors %}<div class="text-danger small">{{ form.goods_received.errors|join:", " }}</div>{% endif %}
+                </div>
+                {% if object and object.pk %}
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Saved subtotal</label>
+                    <input type="text" class="form-control" value="AED {{ object.subtotal|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Saved VAT amount</label>
+                    <input type="text" class="form-control" value="AED {{ object.vat_amount|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Saved total amount</label>
+                    <input type="text" class="form-control fw-semibold" value="AED {{ object.total_amount|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Paid amount</label>
+                    <input type="text" class="form-control text-success" value="AED {{ object.paid_amount|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-muted small">Journal entry</label>
+                    {% if object.journal_entry %}
+                    <div class="input-group">
+                        <input type="text" class="form-control" value="{{ object.journal_entry.entry_number }}" readonly>
+                        <a href="{% url 'finance:journal_detail' object.journal_entry.pk %}" class="btn btn-outline-primary" target="_blank" rel="noopener">View</a>
+                    </div>
+                    {% else %}
+                    <input type="text" class="form-control" value="— Not posted yet —" readonly>
+                    {% endif %}
+                </div>
+                {% endif %}
+                <div class="col-12">
+                    <label class="form-label">Notes</label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors|join:", " }}</div>{% endif %}
                 </div>
             </div>
             <div id="poBillingAlert" class="alert alert-info d-none mt-3 mb-0 small"></div>
@@ -113,28 +184,29 @@
                 <table class="table mb-0" id="billItemsTable">
                     <thead>
                         <tr>
-                            <th style="min-width:28%">Description</th>
+                            <th style="min-width:28%">Item</th>
                             <th class="text-center text-nowrap po-qty-col" style="width:7%">Received</th>
-                            <th class="text-center text-nowrap po-qty-col" style="width:8%">Bill qty</th>
+                            <th class="text-center text-nowrap bill-qty-col" style="width:8%">Qty</th>
                             <th class="text-center text-nowrap po-qty-col" style="width:8%">Total billed</th>
                             <th style="width:10%">Unit price</th>
                             <th style="width:18%">Tax code</th>
                             <th class="text-end" style="width:8%">VAT</th>
-                            <th class="text-end" style="width:9%">Total</th>
+                            <th class="text-end" style="width:9%">Line total</th>
                             <th style="width:4%"></th>
                         </tr>
                     </thead>
                     <tbody id="itemsBody">
                         {% for item_form in items_formset %}
                         <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %} data-max-billable="">
-                            <td>
+                            <td class="bill-item-cell">
                                 {{ item_form.id }}
                                 {{ item_form.purchase_order_item }}
-                                <input type="text" name="{{ item_form.prefix }}-description" class="form-control form-control-sm" 
-                                       value="{{ item_form.description.value|default:'' }}" placeholder="Item description">
+                                <select class="form-select form-select-sm bill-inventory-select" aria-label="Search inventory item"></select>
+                                <input type="hidden" name="{{ item_form.prefix }}-description" class="bill-description-input"
+                                       value="{{ item_form.description.value|default:'' }}">
                             </td>
                             <td class="text-center po-qty-col"><span class="item-received-qty text-muted">—</span></td>
-                            <td>
+                            <td class="bill-qty-col">
                                 <input type="number" name="{{ item_form.prefix }}-quantity" class="form-control form-control-sm item-qty text-center" 
                                        value="{{ item_form.quantity.value|default:1 }}" step="0.01" min="0.01" onchange="calculateRowTotal(this)">
                                 <small class="text-muted item-billable-hint d-none"></small>
@@ -173,17 +245,17 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="7" class="text-end">Subtotal:</td>
+                            <td colspan="5" class="text-end bill-footer-label">Subtotal (live):</td>
                             <td class="text-end fw-medium" id="subtotal">0.00</td>
                             <td></td>
                         </tr>
                         <tr>
-                            <td colspan="7" class="text-end">VAT:</td>
+                            <td colspan="5" class="text-end bill-footer-label">VAT amount (live):</td>
                             <td class="text-end fw-medium" id="vatTotal">0.00</td>
                             <td></td>
                         </tr>
                         <tr>
-                            <td colspan="7" class="text-end fw-bold">Total:</td>
+                            <td colspan="5" class="text-end bill-footer-label fw-bold">Total amount (live):</td>
                             <td class="text-end fw-bold" id="grandTotal">0.00</td>
                             <td></td>
                         </tr>
@@ -224,6 +296,7 @@
 </form>
 
 {% block extra_js %}
+{{ bill_inventory_items_data|json_script:"bill-inventory-items-data" }}
 <script>
 // Tax Code data for JavaScript
 const taxCodes = [
@@ -236,8 +309,195 @@ const preselectPoId = {% if preselect_po %}'{{ preselect_po }}'{% else %}null{% 
 const billExcludeBillId = {% if object.pk %}{{ object.pk }}{% else %}null{% endif %};
 const billReceivedMode = {% if bill_received_mode != '0' %}true{% else %}false{% endif %};
 const formWasPosted = {% if form_was_posted %}true{% else %}false{% endif %};
+const BILL_INVENTORY_ITEMS = JSON.parse(document.getElementById('bill-inventory-items-data').textContent);
+const BILL_CUSTOM_PREFIX = 'custom:';
 
 let formCount = {{ items_formset.total_form_count }};
+
+function escapeHtml(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;');
+}
+
+function billCustomTagId(text) {
+    return BILL_CUSTOM_PREFIX + String(text || '').trim();
+}
+
+function isBillCustomTagId(val) {
+    return String(val || '').indexOf(BILL_CUSTOM_PREFIX) === 0;
+}
+
+function getBillInventoryOptions(selectedId) {
+    const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
+    let html = '<option value=""></option>';
+    if (isBillCustomTagId(selected)) {
+        html += '<option value="' + escapeHtml(selected) + '" selected>' +
+            escapeHtml(selected.slice(BILL_CUSTOM_PREFIX.length)) + '</option>';
+    }
+    if (!Array.isArray(BILL_INVENTORY_ITEMS) || !BILL_INVENTORY_ITEMS.length) {
+        return html;
+    }
+    BILL_INVENTORY_ITEMS.forEach(function (row) {
+        const sel = selected && selected === String(row.id) ? ' selected' : '';
+        html += '<option value="' + row.id + '"' + sel + '>' + escapeHtml(row.label || '') + '</option>';
+    });
+    return html;
+}
+
+function resolveBillSelectValue(desc, invId) {
+    if (invId != null && invId !== '') {
+        return String(invId);
+    }
+    const text = (desc || '').trim();
+    if (text) {
+        const matched = guessInventoryIdFromDescription(text);
+        if (matched) {
+            return matched;
+        }
+        return billCustomTagId(text);
+    }
+    return '';
+}
+
+function syncBillDescriptionFromSelect(selectEl, row, options) {
+    const forcePrice = !!(options && options.forcePrice);
+    const descInput = row.querySelector('.bill-description-input');
+    const val = selectEl.value || '';
+    if (!descInput) {
+        return;
+    }
+    if (!val) {
+        descInput.value = '';
+        return;
+    }
+    if (isBillCustomTagId(val)) {
+        descInput.value = val.slice(BILL_CUSTOM_PREFIX.length);
+        return;
+    }
+    const meta = BILL_INVENTORY_ITEMS.find(function (x) { return String(x.id) === String(val); });
+    if (!meta) {
+        descInput.value = '';
+        return;
+    }
+    descInput.value = meta.name || meta.label || '';
+    const price = row.querySelector('.item-price');
+    if (price) {
+        const cur = parseFloat(price.value);
+        if (forcePrice || !cur || cur === 0) {
+            const p = parseFloat(meta.purchase_price);
+            price.value = (isNaN(p) ? 0 : p).toFixed(2);
+        }
+    }
+    const qtyInput = row.querySelector('.item-qty');
+    if (qtyInput) {
+        calculateRowTotal(qtyInput);
+    }
+}
+
+function guessInventoryIdFromDescription(desc) {
+    if (!desc) return '';
+    const d = desc.trim().toLowerCase();
+    if (!d) return '';
+    for (let i = 0; i < BILL_INVENTORY_ITEMS.length; i++) {
+        const row = BILL_INVENTORY_ITEMS[i];
+        if ((row.name || '').toLowerCase() === d) return String(row.id);
+        if ((row.label || '').toLowerCase() === d) return String(row.id);
+    }
+    for (let j = 0; j < BILL_INVENTORY_ITEMS.length; j++) {
+        const row2 = BILL_INVENTORY_ITEMS[j];
+        const name = (row2.name || '').toLowerCase();
+        if (name && (d.indexOf(name) !== -1 || name.indexOf(d) !== -1)) return String(row2.id);
+    }
+    return '';
+}
+
+function destroyBillInventorySelect2(selectEl) {
+    if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
+    const $el = $(selectEl);
+    $el.off('change.billInv select2:select.billInv select2:clear.billInv');
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+}
+
+function applyBillInventoryDefaults(selectEl, row, options) {
+    syncBillDescriptionFromSelect(selectEl, row, options);
+}
+
+function bindBillInventorySelectHandlers(selectEl) {
+    if (!selectEl || typeof $ === 'undefined') return;
+    const $el = $(selectEl);
+    $el.off('change.billInv select2:select.billInv select2:clear.billInv');
+    $el.on('change.billInv select2:select.billInv select2:clear.billInv', function () {
+        const row = selectEl.closest('tr');
+        syncBillDescriptionFromSelect(selectEl, row, { forcePrice: false });
+    });
+}
+
+function initBillInventorySelect2(selectEl, selectedId) {
+    if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
+    const current = selectedId != null && selectedId !== '' ? String(selectedId) : (selectEl.value || '');
+    destroyBillInventorySelect2(selectEl);
+    selectEl.innerHTML = getBillInventoryOptions(current);
+    const $el = $(selectEl);
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search item or type custom description…',
+        allowClear: true,
+        tags: true,
+        dropdownParent: $(document.body),
+        minimumResultsForSearch: 0,
+        dropdownAutoWidth: true,
+        dropdownCssClass: 'bill-inventory-select2-dropdown',
+        createTag: function (params) {
+            const term = $.trim(params.term);
+            if (!term) {
+                return null;
+            }
+            const lower = term.toLowerCase();
+            const exists = BILL_INVENTORY_ITEMS.some(function (row) {
+                return (row.label || '').toLowerCase() === lower ||
+                    (row.name || '').toLowerCase() === lower ||
+                    (row.item_code || '').toLowerCase() === lower;
+            });
+            if (exists) {
+                return null;
+            }
+            return { id: billCustomTagId(term), text: term, newTag: true };
+        },
+        language: {
+            noResults: function () { return 'Press Enter to use as custom description'; },
+        },
+    });
+    if (current) {
+        $el.val(current).trigger('change.select2');
+    }
+    bindBillInventorySelectHandlers(selectEl);
+}
+
+function initBillRowInventorySelect(row, inventoryItemId) {
+    const selectEl = row.querySelector('.bill-inventory-select');
+    if (!selectEl) return;
+    const descInput = row.querySelector('.bill-description-input');
+    const selectValue = resolveBillSelectValue(
+        descInput ? descInput.value : '',
+        inventoryItemId != null && inventoryItemId !== '' ? inventoryItemId : ''
+    );
+    initBillInventorySelect2(selectEl, selectValue || null);
+    if (selectValue) {
+        syncBillDescriptionFromSelect(selectEl, row, { forcePrice: false });
+    }
+}
+
+function initAllBillInventorySelect2() {
+    document.querySelectorAll('#itemsBody .item-row').forEach(function (row) {
+        if (row.style.display === 'none') return;
+        initBillRowInventorySelect(row);
+    });
+}
 
 function getTaxCodeOptions(selectedId) {
     let options = '<option value="">-- No Tax (Out of Scope) --</option>';
@@ -307,8 +567,13 @@ function clampBillQtyInput(qtyInput) {
 }
 
 function setPoQtyColumnsVisible(show) {
-    document.querySelectorAll('.po-qty-col').forEach(function (el) {
-        el.style.display = show ? '' : 'none';
+    const table = document.getElementById('billItemsTable');
+    if (table) {
+        table.classList.toggle('bill-po-mode', !!show);
+    }
+    const footerSpan = show ? 7 : 5;
+    document.querySelectorAll('#billItemsTable tfoot .bill-footer-label').forEach(function (el) {
+        el.colSpan = footerSpan;
     });
 }
 
@@ -343,7 +608,7 @@ function applyPoQtyCells(row, receivedQty, totalBilledQty, maxBillable, requires
     }
 }
 
-function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId = null, poItemId = '', maxBillable = '', receivedQty = '', totalBilledQty = '', requiresWholeQty = false) {
+function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId = null, poItemId = '', maxBillable = '', receivedQty = '', totalBilledQty = '', requiresWholeQty = false, inventoryItemId = '') {
     const tbody = document.getElementById('itemsBody');
     const newRow = document.createElement('tr');
     newRow.className = 'item-row';
@@ -365,10 +630,11 @@ function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId
         ? `<small class="text-muted item-billable-hint d-block">Max ${formatQty(maxBillable, whole)}</small>`
         : `<small class="text-muted item-billable-hint d-none"></small>`;
     const qtyMaxAttr = maxBillable !== '' ? ` max="${maxBillable}"` : '';
+    const safeDesc = escapeHtml(description).replace(/"/g, '&quot;');
     newRow.innerHTML = `
-        <td>${poItemField}<input type="text" name="items-${formCount}-description" class="form-control form-control-sm" value="${description.replace(/"/g, '&quot;')}" placeholder="Item description"></td>
+        <td class="bill-item-cell">${poItemField}<select class="form-select form-select-sm bill-inventory-select" aria-label="Search inventory item"></select><input type="hidden" name="items-${formCount}-description" class="bill-description-input" value="${safeDesc}"></td>
         <td class="text-center po-qty-col"><span class="item-received-qty text-muted">${receivedDisplay}</span></td>
-        <td><input type="number" name="items-${formCount}-quantity" class="form-control form-control-sm item-qty text-center" value="${quantity}" step="${qtyStep}" min="${qtyMin}" inputmode="${qtyInputMode}"${qtyMaxAttr} onchange="calculateRowTotal(this)" onblur="clampBillQtyInput(this); calculateRowTotal(this);">${billableHint}</td>
+        <td class="bill-qty-col"><input type="number" name="items-${formCount}-quantity" class="form-control form-control-sm item-qty text-center" value="${quantity}" step="${qtyStep}" min="${qtyMin}" inputmode="${qtyInputMode}"${qtyMaxAttr} onchange="calculateRowTotal(this)" onblur="clampBillQtyInput(this); calculateRowTotal(this);">${billableHint}</td>
         <td class="text-center po-qty-col"><span class="item-total-billed-qty text-muted">${billedDisplay}</span></td>
         <td><input type="number" name="items-${formCount}-unit_price" class="form-control form-control-sm item-price" value="${unitPrice}" step="0.01" min="0" onchange="calculateRowTotal(this)"></td>
         <td><select name="items-${formCount}-tax_code" class="form-select form-select-sm item-tax-code" onchange="calculateRowTotal(this)">${getTaxCodeOptions(taxCodeId || defaultTaxCodeId)}</select></td>
@@ -377,6 +643,7 @@ function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow(this)"><i class="fas fa-times"></i></button></td>
     `;
     tbody.appendChild(newRow);
+    initBillRowInventorySelect(newRow, inventoryItemId);
     formCount++;
     document.getElementById('id_items-TOTAL_FORMS').value = formCount;
     const qtyInput = newRow.querySelector('.item-qty');
@@ -446,6 +713,7 @@ function enrichExistingRowsFromPo(poId) {
 
 function loadPOItems(poId) {
     if (!poId) {
+        document.querySelectorAll('#itemsBody .bill-inventory-select').forEach(destroyBillInventorySelect2);
         const tbody = document.getElementById('itemsBody');
         tbody.innerHTML = '';
         formCount = 0;
@@ -459,6 +727,7 @@ function loadPOItems(poId) {
     fetch(poItemsUrl(poId, true))
         .then(response => response.json())
         .then(data => {
+            document.querySelectorAll('#itemsBody .bill-inventory-select').forEach(destroyBillInventorySelect2);
             const tbody = document.getElementById('itemsBody');
             tbody.innerHTML = '';
             formCount = 0;
@@ -474,7 +743,8 @@ function loadPOItems(poId) {
                         item.quantity_billable || '',
                         item.quantity_received || '',
                         item.quantity_billed || '',
-                        item.requires_whole_quantity
+                        item.requires_whole_quantity,
+                        item.inventory_item_id || ''
                     );
                 });
                 setPoQtyColumnsVisible(true);
@@ -508,12 +778,13 @@ function loadPOItems(poId) {
 }
 
 function reindexItemRows() {
+    document.querySelectorAll('#itemsBody .bill-inventory-select').forEach(destroyBillInventorySelect2);
     const rows = Array.from(document.querySelectorAll('#itemsBody .item-row')).filter(
         row => row.style.display !== 'none'
     );
     rows.forEach(function (row, index) {
         row.querySelectorAll('input, select, textarea').forEach(function (el) {
-            if (!el.name) return;
+            if (!el.name || el.classList.contains('bill-inventory-select')) return;
             el.name = el.name.replace(/items-\d+-/, 'items-' + index + '-');
             if (el.id) {
                 el.id = el.id.replace(/id_items-\d+-/, 'id_items-' + index + '-');
@@ -525,10 +796,13 @@ function reindexItemRows() {
     if (totalInput) {
         totalInput.value = formCount;
     }
+    initAllBillInventorySelect2();
 }
 
 function removeItemRow(btn) {
     const row = btn.closest('tr');
+    const invSel = row.querySelector('.bill-inventory-select');
+    if (invSel) destroyBillInventorySelect2(invSel);
     const deleteCheck = row.querySelector('.delete-check');
     if (deleteCheck) {
         deleteCheck.checked = true;
@@ -613,6 +887,7 @@ function syncPOHeaderFromSelection(poId) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    initAllBillInventorySelect2();
     document.querySelectorAll('.item-row').forEach(row => {
         const qty = row.querySelector('.item-qty');
         if (qty) {
@@ -627,6 +902,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const billForm = document.querySelector('form[method="post"]');
     if (billForm) {
         billForm.addEventListener('submit', function (e) {
+            document.querySelectorAll('#itemsBody .item-row').forEach(function (row) {
+                if (row.style.display === 'none') return;
+                const sel = row.querySelector('.bill-inventory-select');
+                if (sel) {
+                    syncBillDescriptionFromSelect(sel, row, { forcePrice: false });
+                }
+            });
             reindexItemRows();
             let invalid = false;
             document.querySelectorAll('.item-row .item-qty').forEach(function (qtyInput) {

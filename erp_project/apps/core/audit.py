@@ -372,6 +372,24 @@ def audit_bill_post(bill, user, request=None):
     )
 
 
+def audit_bill_project_update(bill, user, old_project, new_project, request=None):
+    """Log project reassignment on a posted vendor bill."""
+    log_finance_audit(
+        user=user,
+        action='update',
+        entity_type='Bill',
+        entity_id=bill.pk,
+        reference_number=bill.bill_number,
+        amount_after=bill.total_amount,
+        details={
+            'field': 'project',
+            'old_project': str(old_project) if old_project else None,
+            'new_project': str(new_project) if new_project else None,
+        },
+        request=request,
+    )
+
+
 # ============================================
 # EXPENSE CLAIM AUDIT
 # ============================================

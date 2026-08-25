@@ -126,17 +126,48 @@ class LeaveCalendarView(PermissionRequiredMixin, TemplateView):
         from calendar import monthrange
 
         last = date(y, m, monthrange(y, m)[1])
-        qs = LeaveRequest.objects.filter(
-            is_active=True,
-            status='approved',
-            start_date__lte=last,
-            end_date__gte=first,
-        ).select_related('employee', 'leave_type')
-        if dept_id and str(dept_id).isdigit():
-            qs = qs.filter(employee__department_id=int(dept_id))
-        if emp_id and str(emp_id).isdigit():
-            qs = qs.filter(employee_id=int(emp_id))
-        ctx['approved_leaves'] = qs
+        days_in_month = monthrange(y, m)[1]
+
+        def _leave_qs(statuses):
+            qs = LeaveRequest.objects.filter(
+                is_active=True,
+                status__in=statuses,
+                start_date__lte=last,
+                end_date__gte=first,
+            ).select_related('employee', 'leave_type')
+            if dept_id and str(dept_id).isdigit():
+                qs = qs.filter(employee__department_id=int(dept_id))
+            if emp_id and str(emp_id).isdigit():
+                qs = qs.filter(employee_id=int(emp_id))
+            return qs
+
+        approved_leaves = list(_leave_qs(['approved']))
+        pending_leaves = list(_leave_qs(['pending_manager', 'pending_hr']))
+
+        approved_by_day = {d: [] for d in range(1, days_in_month + 1)}
+        pending_by_day = {d: [] for d in range(1, days_in_month + 1)}
+        for lr in approved_leaves:
+            for d in range(1, days_in_month + 1):
+                cell = date(y, m, d)
+                if lr.start_date <= cell <= lr.end_date:
+                    approved_by_day[d].append(lr)
+        for lr in pending_leaves:
+            for d in range(1, days_in_month + 1):
+                cell = date(y, m, d)
+                if lr.start_date <= cell <= lr.end_date:
+                    pending_by_day[d].append(lr)
+
+        from apps.hr.models_extended import Holiday
+
+        holidays = Holiday.objects.filter(date__gte=first, date__lte=last).order_by('date', 'name')
+        holidays_by_day = {d: [] for d in range(1, days_in_month + 1)}
+        for hol in holidays:
+            if hol.date.month == m and hol.date.year == y:
+                holidays_by_day[hol.date.day].append(hol)
+
+        ctx['approved_by_day'] = approved_by_day
+        ctx['pending_by_day'] = pending_by_day
+        ctx['holidays_by_day'] = holidays_by_day
         from apps.hr.models import Department
 
         ctx['filter_departments'] = Department.objects.filter(is_active=True).order_by('name')
@@ -302,8 +333,8 @@ class PublicLeaveApplyView(TemplateView):
                 lr1.medical_certificate = request.FILES['medical_certificate']
                 lr1.medical_certificate_uploaded = True
                 lr1.save()
-            hr_notifications.notify_hr_public_leave_submitted(lr1)
-            hr_notifications.notify_hr_public_leave_submitted(lr2)
+            hr_notifications.notify_department_manager(lr1)
+            hr_notifications.notify_department_manager(lr2)
             request.session['public_leave_refs'] = [
                 str(lr1.reference_number or lr1.pk),
                 str(lr2.reference_number or lr2.pk),
@@ -327,7 +358,7 @@ class PublicLeaveApplyView(TemplateView):
             lr.save()
         lr.refresh_from_db()
         sync_leave_balances_for_employee(emp.pk)
-        hr_notifications.notify_hr_public_leave_submitted(lr)
+        hr_notifications.notify_department_manager(lr)
         request.session['public_leave_refs'] = [str(lr.reference_number or lr.pk)]
         return redirect('hr:public_leave_done')
 

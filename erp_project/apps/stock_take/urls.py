@@ -9,6 +9,7 @@ urlpatterns = [
     path('camera/<uuid:token>/scan/', views.public_record_scan, name='public_record_scan'),
     path('', views.SessionListView.as_view(), name='session_list'),
     path('sessions/new/', views.SessionCreateView.as_view(), name='session_create'),
+    path('sessions/<int:pk>/detail/', views.SessionDetailView.as_view(), name='session_detail'),
     path('sessions/<int:pk>/', views.ScanView.as_view(), name='session_scan'),
     path(
         'sessions/<int:pk>/expected-template.xlsx',

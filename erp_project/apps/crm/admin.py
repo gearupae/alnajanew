@@ -1,10 +1,19 @@
 from django.contrib import admin
-from .models import Customer, CustomerPublicUpload, CrmLeadKanbanStage
+from .models import Customer, CustomerPublicUpload, CrmLeadKanbanStage, CrmOpportunityUpdate
+
+
+@admin.register(CrmOpportunityUpdate)
+class CrmOpportunityUpdateAdmin(admin.ModelAdmin):
+    list_display = ['customer', 'status', 'created_at', 'created_by', 'is_active']
+    list_filter = ['status', 'is_active', 'created_at']
+    search_fields = ['customer__customer_number', 'customer__name', 'note']
+    raw_id_fields = ['customer']
+    readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
 
 
 @admin.register(CrmLeadKanbanStage)
 class CrmLeadKanbanStageAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug', 'sort_order', 'is_active', 'converts_to_customer']
+    list_display = ['name', 'slug', 'sort_order', 'is_active', 'converts_to_customer', 'tracks_opportunity']
     list_filter = ['is_active', 'converts_to_customer']
     search_fields = ['name', 'slug']
     ordering = ['sort_order', 'id']
@@ -57,6 +66,7 @@ class CustomerAdmin(admin.ModelAdmin):
             'fields': (
                 'trn',
                 'trn_document',
+                'trade_license_number',
                 'trade_license_document',
                 'website',
                 'job_type',
@@ -66,7 +76,7 @@ class CustomerAdmin(admin.ModelAdmin):
             )
         }),
         ('Status', {
-            'fields': ('status', 'is_active', 'notes')
+            'fields': ('status', 'opportunity_status', 'is_active', 'notes')
         }),
         ('Audit Trail', {
             'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),

@@ -9,6 +9,8 @@ from apps.settings_app.models import Notification
 from apps.core.utils import PermissionChecker
 from apps.projects.gatepass_alerts import get_gatepass_dashboard_alerts
 from apps.fleet.fleet_alerts import get_fleet_dashboard_alerts
+from apps.documents.document_alerts import get_documents_dashboard_alerts
+from apps.contracts.contract_alerts import get_contract_dashboard_alerts
 
 
 @login_required
@@ -124,8 +126,16 @@ def dashboard(request):
 
     context['gatepass_expiry_alerts'] = get_gatepass_dashboard_alerts(request.user)
     context['fleet_expiry_alerts'] = get_fleet_dashboard_alerts(request.user)
+    context['document_expiry_alerts'] = get_documents_dashboard_alerts(request.user)
+    context['contract_reminder_alerts'] = get_contract_dashboard_alerts(request.user)
     context['fleet_can_edit'] = request.user.is_superuser or PermissionChecker.has_permission(
         request.user, 'fleet', 'edit'
+    )
+    context['documents_can_view'] = request.user.is_superuser or PermissionChecker.has_permission(
+        request.user, 'documents', 'view'
+    )
+    context['contracts_can_view'] = request.user.is_superuser or PermissionChecker.has_permission(
+        request.user, 'contracts', 'view'
     )
 
     return render(request, 'core/dashboard.html', context)

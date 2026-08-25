@@ -6,10 +6,38 @@ from apps.settings_app.models import CompanySettings
 from .models import Contract, ContractType
 
 
+class ContractTypeForm(forms.ModelForm):
+    class Meta:
+        model = ContractType
+        fields = ['is_active', 'name', 'slug']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
+        self.fields['slug'].required = False
+        self.fields['slug'].help_text = 'Optional; auto-generated from name when left blank.'
+        for name, field in self.fields.items():
+            if name == 'is_active':
+                continue
+            field.widget.attrs['class'] = 'form-control'
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.data:
+            cleaned['is_active'] = 'is_active' in self.data
+        elif not self.instance.pk:
+            cleaned['is_active'] = True
+        return cleaned
+
+
 class ContractForm(forms.ModelForm):
     class Meta:
         model = Contract
         fields = [
+            'is_active',
             'customer',
             'name',
             'contract_value',
@@ -42,6 +70,12 @@ class ContractForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
+            self.fields['status'].initial = 'draft'
+
         self.fields['customer'].queryset = Customer.objects.filter(is_active=True).order_by('name', 'company')
         self.fields['customer'].required = False
         self.fields['customer'].empty_label = '— No customer —'
@@ -60,6 +94,10 @@ class ContractForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        if self.data:
+            cleaned['is_active'] = 'is_active' in self.data
+        elif not self.instance.pk:
+            cleaned['is_active'] = True
         start = cleaned.get('start_date')
         end = cleaned.get('end_date')
         if start and end and end < start:

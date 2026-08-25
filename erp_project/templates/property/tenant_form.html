@@ -1,32 +1,61 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
-
-{% block title %}{% if form.instance.pk %}Edit{% else %}New{% endif %} Tenant{% endblock %}
-
 {% block content %}
-<div class="container-fluid">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">{% if form.instance.pk %}Edit Tenant{% else %}New Tenant{% endif %}</h5>
-                </div>
-                <div class="card-body">
-                    <form method="post">
-                        {% csrf_token %}
-                        {{ form|crispy }}
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'property:tenant_list' %}" class="btn btn-outline-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary">Save</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'property:tenant_list' %}">Tenants</a></li>
+            {% if form.instance.pk %}
+            <li class="breadcrumb-item"><a href="{% url 'property:tenant_detail' form.instance.pk %}">{{ form.instance.tenant_number }}</a></li>
+            <li class="breadcrumb-item active">Edit</li>
+            {% else %}
+            <li class="breadcrumb-item active">New tenant</li>
+            {% endif %}
+        </ol>
+    </nav>
+    <h4 class="mb-0 fw-bold">{% if form.instance.pk %}Edit tenant{% else %}New tenant{% endif %}</h4>
+</div>
+
+{% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+<form method="post" novalidate>{% csrf_token %}
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
+    <div class="card-body">
+        <div class="form-check">{{ form.is_active }}<label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label></div>
+        {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+    </div>
+</div>
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0 fw-semibold">Tenant details</h6></div>
+    <div class="card-body">
+        <div class="row g-3">
+            {% if form.instance.pk %}
+            <div class="col-md-4"><label class="form-label">Tenant number</label><input type="text" class="form-control bg-light" value="{{ form.instance.tenant_number }}" readonly></div>
+            {% endif %}
+            <div class="col-md-4"><label class="form-label">Name <span class="text-danger">*</span></label>{{ form.name }}{% if form.name.errors %}<div class="text-danger small">{{ form.name.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-4"><label class="form-label">Company</label>{{ form.company }}{% if form.company.errors %}<div class="text-danger small">{{ form.company.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-4"><label class="form-label">Email</label>{{ form.email }}{% if form.email.errors %}<div class="text-danger small">{{ form.email.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-4"><label class="form-label">Phone</label>{{ form.phone }}{% if form.phone.errors %}<div class="text-danger small">{{ form.phone.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-4"><label class="form-label">Mobile</label>{{ form.mobile }}{% if form.mobile.errors %}<div class="text-danger small">{{ form.mobile.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-4"><label class="form-label">Emirates ID</label>{{ form.emirates_id }}{% if form.emirates_id.errors %}<div class="text-danger small">{{ form.emirates_id.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-4"><label class="form-label">Trade license</label>{{ form.trade_license }}{% if form.trade_license.errors %}<div class="text-danger small">{{ form.trade_license.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-4"><label class="form-label">Tax Registration Number</label>{{ form.trn }}{% if form.trn.errors %}<div class="text-danger small">{{ form.trn.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-12"><label class="form-label">Address</label>{{ form.address }}{% if form.address.errors %}<div class="text-danger small">{{ form.address.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-4"><label class="form-label">City</label>{{ form.city }}{% if form.city.errors %}<div class="text-danger small">{{ form.city.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-4"><label class="form-label">Country</label>{{ form.country }}{% if form.country.errors %}<div class="text-danger small">{{ form.country.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-4"><label class="form-label">Status</label>{{ form.status }}{% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-md-6"><label class="form-label">AR account</label>{{ form.ar_account }}{% if form.ar_account.errors %}<div class="text-danger small">{{ form.ar_account.errors|join:", " }}</div>{% endif %}</div>
+            <div class="col-12"><label class="form-label">Notes</label>{{ form.notes }}{% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors|join:", " }}</div>{% endif %}</div>
         </div>
     </div>
 </div>
+<div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">Save</button>
+    {% if form.instance.pk %}
+    <a href="{% url 'property:tenant_detail' form.instance.pk %}" class="btn btn-light">Cancel</a>
+    {% else %}
+    <a href="{% url 'property:tenant_list' %}" class="btn btn-light">Cancel</a>
+    {% endif %}
+</div>
+</form>
 {% endblock %}
-
-
-
-

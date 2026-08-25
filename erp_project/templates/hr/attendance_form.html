@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% block extra_css %}
+<style>
+    .att-mark-blocked-banner {
+        display: block;
+        background: #fff3cd;
+        border: 2px solid #ffc107;
+        border-radius: 0.5rem;
+        color: #664d03;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+    }
+    .att-mark-blocked-banner[hidden] {
+        display: none !important;
+    }
+    .att-mark-blocked-banner strong {
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 0.35rem;
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header mb-3">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'hr:attendance_list' %}">Attendance</a></li>
+            {% if is_edit and object %}
+            <li class="breadcrumb-item"><a href="{% url 'hr:attendance_detail' object.pk %}">{{ object.employee.employee_code }} — {{ object.date|date:"d/m/Y" }}</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active">{{ title }}</li>
+        </ol>
+    </nav>
+    <h4 class="mb-1 fw-bold">{{ title }}</h4>
+    <p class="text-muted mb-0">{% if is_edit %}Update attendance record{% else %}Record attendance for one employee and day{% endif %}</p>
+</div>
+
+{% if snapshot %}
+<div class="alert alert-light border mb-3 py-2">
+    <strong>Today:</strong>
+    Present {{ snapshot.present }} · Absent {{ snapshot.absent }} · Late {{ snapshot.late }} · Not marked {{ snapshot.not_marked }}
+</div>
+{% endif %}
+
+{% if not is_edit and can_mark_all %}
+<form method="post" action="{% url 'hr:attendance_mark_all_present' %}" class="d-inline mb-3 me-2"
+      onsubmit="return confirm('Mark all active employees present for today (working days only)?');">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-success btn-sm"><i class="fas fa-users me-1"></i>Mark all present</button>
+</form>
+{% endif %}
+
+{% if form.non_field_errors %}
+<div class="alert alert-danger mb-3">
+    {% for error in form.non_field_errors %}
+    <div><i class="fas fa-exclamation-circle me-2"></i>{{ error }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div id="att-bulk-block-alert" class="att-mark-blocked-banner mb-3"{% if not attendance_mark_blocked %} hidden{% endif %}>
+    <strong><i class="fas fa-exclamation-triangle me-2"></i>Attendance already marked for this day</strong>
+    <span id="att-bulk-block-text">{% if attendance_mark_blocked %}{{ attendance_mark_blocked_message }}{% else %}Attendance for this day is already marked for this employee (via Mark all present). You cannot add or change it here.{% endif %}</span>
+</div>
+
+<div id="att-mini-summary" class="small text-muted mb-3 d-none"></div>
+
+<form method="post" id="attendance-mark-form" novalidate>
+    {% csrf_token %}
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
+        <div class="card-body">
+            <div class="form-check">
+                {{ form.is_active }}
+                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+            </div>
+            {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Attendance details</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.employee.id_for_label }}">Employee <span class="text-danger">*</span></label>
+                    {{ form.employee }}
+                    {% if form.employee.errors %}<div class="text-danger small">{{ form.employee.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.date.id_for_label }}">Date <span class="text-danger">*</span></label>
+                    {{ form.date }}
+                    {% if form.date.errors %}<div class="text-danger small">{{ form.date.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ form.check_in.id_for_label }}">Check in</label>
+                    {{ form.check_in }}
+                    {% if form.check_in.errors %}<div class="text-danger small">{{ form.check_in.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ form.check_out.id_for_label }}">Check out</label>
+                    {{ form.check_out }}
+                    {% if form.check_out.errors %}<div class="text-danger small">{{ form.check_out.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ form.status.id_for_label }}">Status</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="{{ form.overtime_type.id_for_label }}">Overtime type</label>
+                    {{ form.overtime_type }}
+                    {% if form.overtime_type.errors %}<div class="text-danger small">{{ form.overtime_type.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.project.id_for_label }}">Project</label>
+                    {{ form.project }}
+                    {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
+                </div>
+                {% if not is_edit %}
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.source.id_for_label }}">Source</label>
+                    {{ form.source }}
+                    {% if form.source.errors %}<div class="text-danger small">{{ form.source.errors|join:", " }}</div>{% endif %}
+                </div>
+                {% endif %}
+                <div class="col-12">
+                    <label class="form-label" for="{{ form.notes.id_for_label }}">Notes</label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors|join:", " }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if is_edit and object %}
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Location &amp; calculated values</h6></div>
+        <div class="card-body">
+            <p class="small text-muted mb-3">Geo coordinates come from public/self-service punch. Hours and late minutes are recalculated on save.</p>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label text-muted">Check in latitude</label>
+                    <input type="text" class="form-control bg-light" readonly value="{% if object.check_in_latitude is not None %}{{ object.check_in_latitude }}{% else %}—{% endif %}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted">Check in longitude</label>
+                    <input type="text" class="form-control bg-light" readonly value="{% if object.check_in_longitude is not None %}{{ object.check_in_longitude }}{% else %}—{% endif %}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted">Check out latitude</label>
+                    <input type="text" class="form-control bg-light" readonly value="{% if object.check_out_latitude is not None %}{{ object.check_out_latitude }}{% else %}—{% endif %}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted">Check out longitude</label>
+                    <input type="text" class="form-control bg-light" readonly value="{% if object.check_out_longitude is not None %}{{ object.check_out_longitude }}{% else %}—{% endif %}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted">Working hours</label>
+                    <input type="text" class="form-control bg-light" readonly value="{% if object.working_hours is not None %}{{ object.working_hours }}{% else %}—{% endif %}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted">Late minutes</label>
+                    <input type="text" class="form-control bg-light" readonly value="{{ object.late_minutes }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted">Overtime hours</label>
+                    <input type="text" class="form-control bg-light" readonly value="{{ object.overtime_hours }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted">Source</label>
+                    <input type="text" class="form-control bg-light" readonly value="{{ object.get_source_display }}">
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" id="attendance-mark-save"{% if attendance_mark_blocked %} disabled{% endif %}>Save</button>
+        {% if is_edit and object %}
+        <a href="{% url 'hr:attendance_detail' object.pk %}" class="btn btn-light">Cancel</a>
+        {% else %}
+        <a href="{% url 'hr:attendance_list' %}" class="btn btn-light">Cancel</a>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+  var emp = document.getElementById('id_employee');
+  var dt = document.getElementById('id_date');
+  var box = document.getElementById('att-mini-summary');
+  var blockAlert = document.getElementById('att-bulk-block-alert');
+  var blockText = document.getElementById('att-bulk-block-text');
+  var saveBtn = document.getElementById('attendance-mark-save');
+  var form = document.getElementById('attendance-mark-form');
+  var defaultBlockedMsg = 'Attendance for this day is already marked for this employee (via Mark all present). You cannot add or change it here.';
+  var isEdit = {{ is_edit|yesno:"true,false" }};
+
+  function normalizeDateInput(val) {
+    if (!val) return '';
+    val = String(val).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    var us = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (us) {
+      return us[3] + '-' + String(us[1]).padStart(2, '0') + '-' + String(us[2]).padStart(2, '0');
+    }
+    return val;
+  }
+
+  function showBlocked(message) {
+    if (blockAlert) blockAlert.hidden = false;
+    if (blockText) blockText.textContent = message || defaultBlockedMsg;
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.title = message || defaultBlockedMsg;
+    }
+  }
+
+  function hideBlocked() {
+    if (blockAlert) blockAlert.hidden = true;
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.title = '';
+    }
+  }
+
+  function fetchCtx() {
+    if (isEdit || !emp || !dt || !emp.value || !dt.value) {
+      if (box) box.classList.add('d-none');
+      return;
+    }
+    var dateParam = normalizeDateInput(dt.value);
+    var url = '{% url "hr:attendance_record_lookup" %}?employee_id=' + encodeURIComponent(emp.value) + '&date=' + encodeURIComponent(dateParam);
+    fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) return;
+        if (data.month && box) {
+          box.classList.remove('d-none');
+          box.innerHTML = '<strong>This month:</strong> Present ' + data.month.present + ' · Absent ' + data.month.absent + ' · Late ' + data.month.late + ' · Hours ' + data.month.hours;
+        }
+        var blocked = !!(data.bulk_present_blocked || (data.record && data.record.source === 'bulk_present'));
+        if (blocked) {
+          showBlocked(data.blocked_message || defaultBlockedMsg);
+        } else {
+          hideBlocked();
+        }
+        if (data.record) {
+          var cin = document.getElementById('id_check_in');
+          var cout = document.getElementById('id_check_out');
+          var st = document.getElementById('id_status');
+          var notes = document.getElementById('id_notes');
+          var src = document.getElementById('id_source');
+          var ott = document.getElementById('id_overtime_type');
+          var prj = document.getElementById('id_project');
+          if (cin && data.record.check_in) cin.value = data.record.check_in.slice(0, 5);
+          if (cout && data.record.check_out) cout.value = data.record.check_out.slice(0, 5);
+          if (st) st.value = data.record.status;
+          if (ott && data.record.overtime_type) ott.value = data.record.overtime_type;
+          if (notes) notes.value = data.record.notes || '';
+          if (src) src.value = data.record.source || 'manual';
+          if (prj) prj.value = data.record.project_id ? String(data.record.project_id) : '';
+          if (blocked) showBlocked(data.blocked_message || defaultBlockedMsg);
+        }
+      })
+      .catch(function () {});
+  }
+
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      if (blockAlert && !blockAlert.hidden) {
+        e.preventDefault();
+        alert(blockText && blockText.textContent ? blockText.textContent : defaultBlockedMsg);
+      }
+    });
+  }
+  if (!isEdit) {
+    if (emp) emp.addEventListener('change', fetchCtx);
+    if (dt) {
+      dt.addEventListener('change', fetchCtx);
+      dt.addEventListener('blur', fetchCtx);
+    }
+    fetchCtx();
+    window.setTimeout(fetchCtx, 400);
+  }
+})();
+</script>
+{% endblock %}

@@ -112,6 +112,49 @@ def _collected_totals(start_date, end_date, salesperson=''):
     return {'count': count, 'total': total, 'payments': payments_agg, 'receipts': receipts_agg}
 
 
+def _build_revenue_by_customer(*, invoice_qs, payment_qs, receipt_qs):
+    """Aggregate invoiced and collected amounts by customer."""
+    from collections import defaultdict
+
+    by_customer = defaultdict(
+        lambda: {
+            'customer_name': '',
+            'invoiced_total': Decimal('0.00'),
+            'collected_total': Decimal('0.00'),
+            'invoice_count': 0,
+        }
+    )
+
+    for inv in invoice_qs:
+        if not inv.customer_id:
+            continue
+        row = by_customer[inv.customer_id]
+        row['customer_name'] = inv.customer.name
+        row['invoiced_total'] += inv.total_amount or Decimal('0.00')
+        row['invoice_count'] += 1
+
+    for pay in payment_qs:
+        if pay.party_type != 'customer':
+            continue
+        cid = pay.party_id
+        row = by_customer[cid]
+        if not row['customer_name']:
+            row['customer_name'] = pay.party_name or '—'
+        row['collected_total'] += pay.amount or Decimal('0.00')
+
+    for adv in receipt_qs:
+        if not adv.customer_id:
+            continue
+        row = by_customer[adv.customer_id]
+        if not row['customer_name']:
+            row['customer_name'] = adv.customer.name
+        row['collected_total'] += adv.total_amount or Decimal('0.00')
+
+    rows = list(by_customer.values())
+    rows.sort(key=lambda r: r['invoiced_total'], reverse=True)
+    return rows[:100]
+
+
 def _build_salesperson_performance(*, start_date, end_date, selected_salesperson=''):
     rows = []
     entries = [
@@ -395,6 +438,12 @@ def build_sales_report(*, start_date, end_date, salesperson=''):
         None,
     )
 
+    revenue_by_customer = _build_revenue_by_customer(
+        invoice_qs=invoice_qs,
+        payment_qs=payment_qs,
+        receipt_qs=receipt_qs,
+    )
+
     return {
         'start_date': start_date,
         'end_date': end_date,
@@ -403,6 +452,7 @@ def build_sales_report(*, start_date, end_date, salesperson=''):
         'is_current_month': is_current_month,
         'salesperson_performance': salesperson_performance,
         'selected_salesperson_performance': selected_performance,
+        'revenue_by_customer': revenue_by_customer,
         'sales_alerts': sales_alerts,
         'invoiced': invoiced,
         'invoiced_paid': invoiced_paid,

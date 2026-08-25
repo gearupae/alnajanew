@@ -1,0 +1,52 @@
+{% if can_view_documents %}
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h6 class="mb-0 fw-semibold"><i class="fas fa-folder-open me-2 text-dark"></i>Compliance documents</h6>
+        {% if can_create_document %}
+        <a href="{{ entity_document_create_url }}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-plus me-1"></i>Add document
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body pt-0">
+        {% if entity_documents_expired or entity_documents_expiring %}
+        <div class="alert alert-warning py-2 small mb-3">
+            {% if entity_documents_expired %}<span class="me-2"><strong>{{ entity_documents_expired }}</strong> expired</span>{% endif %}
+            {% if entity_documents_expiring %}<span><strong>{{ entity_documents_expiring }}</strong> expiring soon</span>{% endif %}
+        </div>
+        {% endif %}
+        {% if entity_documents %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Type</th>
+                        <th>Reference</th>
+                        <th>Expiry</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in entity_documents %}
+                    <tr>
+                        <td>{{ doc.document_type.name }}</td>
+                        <td>{{ doc.document_number|default:"—" }}</td>
+                        <td class="{% if doc.is_expired %}text-danger{% elif doc.is_expiring_soon %}text-warning{% endif %}">{{ doc.expiry_date|date:"d/m/Y" }}</td>
+                        <td>
+                            {% if doc.is_expired %}<span class="badge bg-danger">Expired</span>
+                            {% elif doc.is_expiring_soon %}<span class="badge bg-warning text-dark">Expiring</span>
+                            {% else %}<span class="badge bg-success">Active</span>{% endif %}
+                        </td>
+                        <td class="text-end"><a href="{% url 'documents:document_detail' doc.pk %}" class="btn btn-sm btn-light">Open</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted small mb-0">No compliance documents linked yet (trade license, insurance, visa, certifications).</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

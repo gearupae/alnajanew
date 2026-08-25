@@ -337,6 +337,8 @@ class ComplianceDashboardView(PermissionRequiredMixin, TemplateView):
                         uc.passport_expiry,
                         uc.labour_card_expiry,
                         uc.medical_insurance_expiry,
+                        uc.iloe_insurance_expiry,
+                        uc.unified_number_expiry,
                     ):
                         if dt:
                             bands.append(expiry_band(dt))
@@ -346,6 +348,7 @@ class ComplianceDashboardView(PermissionRequiredMixin, TemplateView):
                     kc.work_permit_expiry,
                     kc.medical_insurance_expiry,
                     kc.passport_expiry,
+                    kc.muqeem_expiry,
                 ):
                     if dt:
                         bands.append(expiry_band(dt))
@@ -549,6 +552,9 @@ def payroll_bulk_process_month(request):
     err = []
     for pr in qs:
         try:
+            from apps.hr.payroll_processing import validate_attendance_finalized_for_payroll
+
+            validate_attendance_finalized_for_payroll(pr)
             apply_payroll_computations(pr)
             pr.refresh_from_db()
             pr.post_to_accounting(user=request.user)
@@ -969,7 +975,7 @@ class SelfServicePayslipsView(LoginRequiredMixin, ListView):
 
 class SelfServiceAttendanceView(LoginRequiredMixin, RedirectView):
     permanent = False
-    pattern_name = 'hr:attendance_records_self'
+    pattern_name = 'hr:self_service_profile'
 
 
 class SelfServiceDocumentsView(LoginRequiredMixin, TemplateView):

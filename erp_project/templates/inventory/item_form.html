@@ -58,11 +58,36 @@
     {% endif %}
     
     <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="form-check mt-2">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                    </div>
+                    {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                {% if form.instance.pk %}
+                <div class="col-md-3">
+                    <label class="form-label">Item code</label>
+                    <input type="text" class="form-control bg-light" value="{{ form.instance.item_code }}" readonly>
+                </div>
+                {% endif %}
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    {{ form.status }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
         <div class="card-header"><h6 class="mb-0 fw-semibold">Basic Information</h6></div>
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">Item Name <span class="text-danger">*</span></label>
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
                     {{ form.name }}
                 </div>
                 <div class="col-md-3">
@@ -70,7 +95,7 @@
                     {{ form.category }}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Type</label>
+                    <label class="form-label">Item type</label>
                     {{ form.item_type }}
                 </div>
                 <div class="col-12">
@@ -145,21 +170,24 @@
                     {{ form.unit }}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Minimum Stock Level</label>
+                    <label class="form-label">Minimum stock</label>
                     {{ form.minimum_stock }}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Status</label>
-                    {{ form.status }}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Condition</label>
+                    <label class="form-label">Condition status</label>
                     {{ form.condition_status }}
                 </div>
-                <div class="col-md-9">
-                    <label class="form-label">Condition Notes</label>
+                <div class="col-md-6">
+                    <label class="form-label">Condition notes</label>
                     {{ form.condition_notes }}
                 </div>
+                {% if form.instance.pk %}
+                <div class="col-md-3">
+                    <label class="form-label">Condition changed at</label>
+                    <input type="text" class="form-control bg-light" readonly
+                           value="{% if form.instance.condition_changed_at %}{{ form.instance.condition_changed_at|date:'d/m/Y H:i' }}{% else %}—{% endif %}">
+                </div>
+                {% endif %}
                 <div class="col-12">
                     <div class="form-check form-switch ps-0">
                         {{ form.track_by_serial }}
@@ -223,13 +251,19 @@
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">Storage Location</label>
+                    <label class="form-label">Storage location master</label>
                     <div class="input-group">
                         {{ form.storage_location_master }}
                         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addLocationModal" title="Add location" aria-label="Add location">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
+                    <small class="text-muted">Optional preset from the locations master list</small>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Storage location</label>
+                    {{ form.storage_location }}
+                    <small class="text-muted">Free-text shelf or rack when no preset is selected</small>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Barcode / Asset Code</label>
@@ -241,6 +275,19 @@
                     </div>
                     <small class="text-muted">Manual entry, camera scan (when supported), or a USB scanner (keyboard wedge).</small>
                 </div>
+                {% if form.instance.pk %}
+                <div class="col-md-6">
+                    <label class="form-label">QR code</label>
+                    {% if form.instance.qr_code %}
+                    <div class="d-flex align-items-center gap-3">
+                        <img src="{{ form.instance.qr_code.url }}" alt="QR code" class="border rounded p-1 bg-white" style="max-width:120px;">
+                        <small class="text-muted">Generated automatically when the item is saved.</small>
+                    </div>
+                    {% else %}
+                    <input type="text" class="form-control bg-light" value="Generated on save" readonly>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

@@ -132,9 +132,11 @@
                         <th>Item</th>
                         <th>Warehouse</th>
                         <th>Type</th>
+                        <th>Source</th>
                         <th class="text-end">Qty</th>
-                        <th class="text-end">Value</th>
-                        <th>Status</th>
+                        <th class="text-end">Total cost</th>
+                        <th>Posted</th>
+                        <th>Active</th>
                         <th class="text-center">Actions</th>
                     </tr>
                 </thead>
@@ -147,7 +149,7 @@
                             </a>
                         </td>
                         <td>{{ movement.movement_date|date:"d/m/Y" }}</td>
-                        <td>{{ movement.item.name }}</td>
+                        <td>{{ movement.item.item_code }}<br><small class="text-muted">{{ movement.item.name }}</small></td>
                         <td>{{ movement.warehouse.name }}</td>
                         <td>
                             {% if movement.movement_type == 'in' %}
@@ -164,22 +166,22 @@
                             <span class="badge bg-secondary">{{ movement.get_movement_type_display }}</span>
                             {% endif %}
                         </td>
+                        <td class="small">{{ movement.get_source_display }}</td>
                         <td class="text-end">{{ movement.quantity }}</td>
                         <td class="text-end">{{ movement.total_cost|floatformat:2 }}</td>
                         <td>
-                            {% if movement.posted %}
-                            <span class="badge badge-active"><i class="fas fa-check me-1"></i>Posted</span>
-                            {% elif movement.total_cost > 0 %}
-                            <span class="badge badge-warning"><i class="fas fa-clock me-1"></i>Pending</span>
-                            {% else %}
-                            <span class="badge bg-secondary">No Cost</span>
-                            {% endif %}
+                            {% if movement.approval_status == 'pending' %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                            {% elif movement.approval_status == 'rejected' %}
+                            <span class="badge bg-danger">Rejected</span>
+                            {% elif movement.posted %}Yes{% else %}No{% endif %}
                         </td>
+                        <td>{% if movement.is_active %}Yes{% else %}No{% endif %}</td>
                         <td class="text-center">
                             <a href="{% url 'inventory:movement_detail' movement.pk %}" class="btn btn-sm btn-light" title="View Details">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            {% if can_post and not movement.posted and movement.total_cost > 0 %}
+                            {% if can_post and not movement.posted and movement.total_cost > 0 and movement.approval_status == 'executed' %}
                             <a href="{% url 'inventory:movement_post' movement.pk %}" class="btn btn-sm btn-primary" title="Post to GL" onclick="return confirm('Post this movement to accounting?')">
                                 <i class="fas fa-book"></i>
                             </a>
@@ -193,7 +195,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center py-5 text-muted">
+                        <td colspan="11" class="text-center py-5 text-muted">
                             <i class="fas fa-exchange-alt fa-3x mb-3 d-block"></i>
                             No movements found
                         </td>

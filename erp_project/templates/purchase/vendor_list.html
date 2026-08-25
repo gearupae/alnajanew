@@ -73,40 +73,62 @@
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="row g-3">
-            <div class="col-md-4">
-                <label class="form-label">Vendor Name <span class="text-danger">*</span></label>
+            <div class="col-md-3">
+                <div class="form-check mt-4">
+                    <input type="checkbox" name="is_active" id="vendorInlineIsActive" class="form-check-input" value="on" checked>
+                    <label class="form-check-label" for="vendorInlineIsActive">Is active</label>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Name <span class="text-danger">*</span></label>
                 <input type="text" name="name" class="form-control" required>
             </div>
-            <div class="col-md-4">
-                <label class="form-label">Contact Person</label>
+            <div class="col-md-3">
+                <label class="form-label">Contact person</label>
                 <input type="text" name="contact_person" class="form-control">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Phone</label>
+                <input type="text" name="phone" class="form-control">
+            </div>
+            <div class="col-md-3">
                 <label class="form-label">Status</label>
                 <select name="status" class="form-select">
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                 </select>
             </div>
-            <div class="col-md-4">
-                <label class="form-label">Email</label>
-                <input type="email" name="email" class="form-control">
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Phone</label>
-                <input type="text" name="phone" class="form-control">
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">TRN (VAT)</label>
-                <input type="text" name="trn" class="form-control" placeholder="VAT / TRN number">
-            </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">Website</label>
                 <input type="text" name="website" class="form-control" placeholder="gear-up.ae, www.gear-up.ae, or https://gear-up.ae">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <label class="form-label">Address</label>
-                <input type="text" name="address" class="form-control">
+                <textarea name="address" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">City</label>
+                <input type="text" name="city" class="form-control" placeholder="City">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Country</label>
+                <input type="text" name="country" class="form-control" value="United Arab Emirates" placeholder="Country">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Tax Registration Number (TRN)</label>
+                <input type="text" name="trn" class="form-control" placeholder="VAT / TRN number">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Payment terms</label>
+                <input type="text" name="payment_terms" class="form-control" value="Net 30" placeholder="Net 30">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Credit limit</label>
+                <input type="number" name="credit_limit" class="form-control" step="0.01" min="0" value="0.00">
             </div>
             <div class="col-md-4">
                 <label class="form-label">TRN document</label>
@@ -115,6 +137,10 @@
             <div class="col-md-4">
                 <label class="form-label">Trade license</label>
                 <input type="file" name="trade_license_document" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic">
+            </div>
+            <div class="col-12">
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" rows="2"></textarea>
             </div>
         </div>
         <div class="mt-3">

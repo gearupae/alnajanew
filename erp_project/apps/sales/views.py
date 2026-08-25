@@ -128,6 +128,24 @@ def _estimate_save_success_message(
             msg += f' Resubmitted as revision {estimate.revision_label}.'
     return msg
 
+
+def _apply_estimate_edit_approval_if_needed(request, estimate, result=None):
+    """Queue non-approver estimate edits when Settings → Approval Configuration is active."""
+    if result and result.resubmitted_for_approval:
+        return result
+    from apps.settings_app.document_edit_approval import apply_after_document_edit
+
+    apply_after_document_edit(
+        request,
+        module='estimate',
+        obj=estimate,
+        amount_accessor=lambda est: est.total_amount,
+    )
+    estimate.refresh_from_db()
+    if result is not None and estimate.edit_approval_status == 'pending':
+        result.edit_pending = True
+    return result
+
 def _inventory_item_estimate_json(item):
     """Serialize inventory item bounds as effective AED amounts for estimate line validation."""
     return {
@@ -150,7 +168,7 @@ def _inventory_items_for_estimate_json(limit=2000):
 
     return [
         _inventory_item_estimate_json(item)
-        for item in Item.objects.filter(is_active=True, status='active').order_by('item_code', 'pk')[:limit]
+        for item in Item.usable().order_by('item_code', 'pk')[:limit]
     ]
 
 
@@ -669,6 +687,9 @@ class EstimateCreateView(CreatePermissionMixin, CreateView):
             initial['terms_and_conditions'] = terms
         initial['prices_include_vat'] = default_prices_include_vat()
         initial['show_brand_name_on_pdf'] = True
+        customer_pk = self.request.GET.get('customer')
+        if customer_pk and str(customer_pk).isdigit():
+            initial['customer'] = int(customer_pk)
         return initial
 
     def get_form(self, form_class=None):
@@ -875,6 +896,8 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
                     amount_affecting_changes=True,
                 )
                 self.object.refresh_from_db()
+                _apply_estimate_edit_approval_if_needed(request, self.object, result)
+                self.object.refresh_from_db()
                 _clear_estimate_revision_session(request, self.object.pk)
                 _clear_stale_estimate_revision_flag(self.object)
                 detail_url = redirect('sales:estimate_detail', pk=self.object.pk)
@@ -966,6 +989,8 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
                 has_changes=True,
                 amount_affecting_changes=amount_affecting_changes,
             )
+            self.object.refresh_from_db()
+            _apply_estimate_edit_approval_if_needed(self.request, self.object, result)
             self.object.refresh_from_db()
 
         _clear_estimate_revision_session(self.request, self.object.pk)
@@ -1493,11 +1518,13 @@ def estimate_cancel_revision(request, pk):
 
 
 @login_required
+@require_POST
 def estimate_convert_to_invoice(request, pk):
     """Convert a quotation-won estimate to invoice."""
     estimate = get_object_or_404(Estimate, pk=pk)
 
     from .approval_rules import user_can_convert_estimate_follow_on
+    from .estimate_conversion import copy_estimate_lines_to_invoice
 
     if not user_can_convert_estimate_follow_on(request.user, estimate):
         messages.error(
@@ -1529,21 +1556,8 @@ def estimate_convert_to_invoice(request, pk):
         notes=estimate.notes,
         prices_include_vat=estimate.prices_include_vat,
     )
-    
-    # Copy items (use final rate as invoice unit price)
-    for item in estimate.items.all():
-        InvoiceItem.objects.create(
-            invoice=invoice,
-            description=item.description,
-            quantity=item.quantity,
-            unit_price=item.rate,
-            tax_code=item.tax_code,
-            vat_rate=item.vat_rate,
-            is_vat_inclusive=item.is_vat_inclusive,
-        )
-    
-    sync_document_line_vat_flags(invoice)
-    invoice.calculate_totals()
+
+    copy_estimate_lines_to_invoice(estimate, invoice)
     if estimate.project_id:
         from .invoice_project_link import save_invoice_project_link
         save_invoice_project_link(invoice, estimate.project)
@@ -2393,10 +2407,7 @@ def estimate_set_status(request, pk):
 def inventory_item_json(request, pk):
     """JSON for populating estimate line from inventory item."""
     from apps.inventory.models import Item
-    item = get_object_or_404(
-        Item.objects.filter(is_active=True, status='active'),
-        pk=pk,
-    )
+    item = get_object_or_404(Item.usable(), pk=pk)
     return JsonResponse({
         'id': item.pk,
         'item_code': item.item_code,
@@ -2500,7 +2511,13 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
         initial['invoice_date'] = date.today()
         project_pk = self.request.GET.get('project')
         if project_pk:
-            initial['project'] = project_pk
+            from apps.projects.models import Project
+
+            proj = Project.objects.filter(pk=project_pk, is_active=True).only('customer_id').first()
+            if proj:
+                initial['project'] = proj.pk
+                if proj.customer_id:
+                    initial['customer'] = proj.customer_id
         estimate_pk = self.request.GET.get('estimate')
         if estimate_pk:
             initial['estimate'] = estimate_pk

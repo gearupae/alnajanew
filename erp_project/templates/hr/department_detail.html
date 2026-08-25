@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'hr:department_list' %}">Departments</a></li>
+            <li class="breadcrumb-item active">{{ department.name }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+            <h4 class="mb-1 fw-bold">{{ department.name }}</h4>
+            <span class="text-muted font-monospace">{{ department.code }}</span>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'hr:department_list' %}" class="btn btn-light btn-sm">All departments</a>
+            {% if can_edit %}
+            <a href="{% url 'hr:department_edit' department.pk %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-edit me-1"></i>Edit
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0 fw-semibold">Department details</h6></div>
+    <div class="card-body">
+        <div class="row g-4">
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Is active</h6>
+                <p class="mb-0">{% if department.is_active %}Yes{% else %}No{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Name</h6>
+                <p class="mb-0">{{ department.name }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Code</h6>
+                <p class="mb-0 font-monospace">{{ department.code }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Manager</h6>
+                <p class="mb-0">{{ department.manager.get_full_name|default:department.manager.username|default:"—" }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Employees</h6>
+                <p class="mb-0">{{ department.employee_count|default:department.employees.count }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

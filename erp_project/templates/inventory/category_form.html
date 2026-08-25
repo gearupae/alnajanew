@@ -11,41 +11,60 @@
     <h4 class="mb-0 fw-bold">{{ title }}</h4>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
+<form method="post">
+    {% csrf_token %}
+    {% if form.errors %}
+    <div class="alert alert-danger mb-3">
+        {% for field in form %}
+            {% if field.errors %}<div><strong>{{ field.label }}:</strong> {{ field.errors|join:", " }}</div>{% endif %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Category details</h6></div>
+        <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label">Category Name <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control" value="{{ object.name }}" required>
+                <div class="col-md-3">
+                    <div class="form-check mt-2">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                    </div>
+                    {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Code</label>
+                    {% if object.pk %}
+                    <input type="text" class="form-control bg-light" value="{{ object.code }}" readonly>
+                    {% else %}
+                    {{ form.code }}
+                    <small class="text-muted">Leave blank to auto-generate</small>
+                    {% endif %}
+                    {% for err in form.code.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Parent Category</label>
-                    <select name="parent" class="form-select">
-                        <option value="">None (Root Category)</option>
-                        {% for cat in form.fields.parent.queryset %}
-                        {% if cat.pk != object.pk %}
-                        <option value="{{ cat.id }}" {% if object.parent_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
-                        {% endif %}
-                        {% endfor %}
-                    </select>
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    {{ form.name }}
+                    {% for err in form.name.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Parent</label>
+                    {{ form.parent }}
+                    {% for err in form.parent.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-12">
                     <label class="form-label">Description</label>
-                    <textarea name="description" class="form-control" rows="2">{{ object.description }}</textarea>
+                    {{ form.description }}
+                    {% for err in form.description.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
             </div>
-            <div class="mt-4">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
-                <a href="{% url 'inventory:category_list' %}" class="btn btn-light">Cancel</a>
-            </div>
-        </form>
+        </div>
     </div>
-</div>
+
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
+        <a href="{% url 'inventory:category_list' %}" class="btn btn-light">Cancel</a>
+    </div>
+</form>
 {% endblock %}
-
-
-
-
-

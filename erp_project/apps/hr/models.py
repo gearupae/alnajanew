@@ -357,7 +357,7 @@ class Payroll(BaseModel):
         Cr Salary Payable (net salary)
         Cr Other Deductions (if any)
         """
-        from apps.finance.models import JournalEntry, JournalEntryLine, Account, AccountType, AccountMapping, FiscalYear
+        from apps.finance.models import JournalEntry, JournalEntryLine, Account, AccountType, AccountMapping, FiscalYear, FinanceSettings
         from django.core.exceptions import ValidationError
 
         if self.status != 'draft':
@@ -424,7 +424,8 @@ class Payroll(BaseModel):
             )
         
         journal.calculate_totals()
-        journal.post(user)
+        if FinanceSettings.should_auto_post('payroll'):
+            journal.post(user)
         
         self.journal_entry = journal
         self.status = 'processed'
@@ -473,7 +474,7 @@ class Payroll(BaseModel):
             reference=reference or f"PAY-PAYROLL-{self.pk}",
             description=f"Salary Payment: {self.employee.full_name} - {self.month.strftime('%B %Y')}",
             entry_type='standard',
-            source_module='payment',
+            source_module='payroll',
         )
         
         # Debit Salary Payable (clear liability)

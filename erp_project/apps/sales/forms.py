@@ -23,6 +23,18 @@ User = get_user_model()
 class EstimateForm(forms.ModelForm):
     """Form for creating/editing estimates."""
 
+    scope = forms.MultipleChoiceField(
+        choices=Estimate.SCOPE_CHOICES,
+        required=False,
+        label='Scope',
+        widget=forms.SelectMultiple(
+            attrs={
+                'class': 'form-select',
+                'size': '4',
+            }
+        ),
+    )
+
     scope_of_work = forms.ChoiceField(
         required=False,
         label='Scope of work',
@@ -33,8 +45,8 @@ class EstimateForm(forms.ModelForm):
     class Meta:
         model = Estimate
         fields = [
-            'customer', 'assigned_to', 'prepared_by',
-            'type_of_occupancy', 'type_of_work', 'scope_of_work',
+            'is_active', 'customer', 'assigned_to', 'prepared_by', 'project',
+            'scope', 'type_of_occupancy', 'type_of_work', 'scope_of_work',
             'date', 'valid_until',
             'discount_type', 'discount_value', 'prices_include_vat',
             'show_rates_on_pdf', 'show_group_totals_on_pdf',
@@ -74,8 +86,14 @@ class EstimateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['customer'].queryset = Customer.objects.filter(is_active=True)
         self.fields['customer'].widget.attrs['class'] = 'form-select'
+        self.fields['project'].queryset = Project.objects.filter(is_active=True).order_by('-created_at')
+        self.fields['project'].required = False
+        self.fields['project'].empty_label = '— Select project —'
+        self.fields['project'].widget.attrs['class'] = 'form-select'
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name', 'username')
         self.fields['assigned_to'].widget.attrs['class'] = 'form-select'
         self.fields['assigned_to'].required = False
@@ -112,18 +130,27 @@ class EstimateForm(forms.ModelForm):
         self.fields['prices_include_vat'].required = False
         if not self.instance.pk and not self.is_bound:
             self.fields['show_brand_name_on_pdf'].initial = True
+            self.fields['is_active'].initial = True
+
+        if self.instance.pk:
+            self.initial['scope'] = list(self.instance.scope or [])
 
     def clean(self):
         cleaned_data = super().clean()
         # Bootstrap switches omit unchecked boxes from POST; force explicit booleans.
         if self.is_bound:
             for field_name in (
+                'is_active',
                 'show_rates_on_pdf',
                 'show_group_totals_on_pdf',
                 'show_brand_name_on_pdf',
                 'prices_include_vat',
             ):
                 cleaned_data[field_name] = field_name in self.data
+        project = cleaned_data.get('project')
+        customer = cleaned_data.get('customer')
+        if project and customer and project.customer_id and project.customer_id != customer.pk:
+            self.add_error('project', 'Selected project belongs to a different customer.')
         return cleaned_data
 
     def save(self, commit=True):
@@ -175,7 +202,7 @@ class EstimateItemForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         from apps.inventory.models import Item
 
-        self.fields['inventory_item'].queryset = Item.objects.filter(is_active=True, status='active').order_by('name')
+        self.fields['inventory_item'].queryset = Item.usable().order_by('name')
         self.fields['inventory_item'].required = False
         self.fields['inventory_item'].empty_label = '-- Select from inventory --'
         self.fields['description'].required = False
@@ -327,7 +354,10 @@ class InvoiceForm(forms.ModelForm):
     
     class Meta:
         model = Invoice
-        fields = ['customer', 'estimate', 'invoice_date', 'due_date', 'status', 'notes', 'prices_include_vat']
+        fields = [
+            'is_active', 'customer', 'estimate', 'invoice_date', 'due_date',
+            'status', 'notes', 'prices_include_vat',
+        ]
         widgets = {
             'invoice_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'due_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
@@ -339,9 +369,16 @@ class InvoiceForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['customer'].queryset = Customer.objects.filter(is_active=True)
         self.fields['customer'].widget.attrs['class'] = 'form-select'
         self.fields['customer'].widget.attrs['id'] = 'id_customer'
+        self.fields['estimate'].queryset = Estimate.objects.filter(is_active=True).select_related('customer').order_by('-created_at')
+        self.fields['estimate'].required = False
+        self.fields['estimate'].empty_label = '— No linked estimate —'
+        self.fields['estimate'].widget.attrs['class'] = 'form-select'
+        self.fields['estimate'].label_from_instance = lambda est: f'{est.display_estimate_number} — {est.customer.display_name}'
         self.fields['status'].widget.attrs['class'] = 'form-select'
         self.fields['notes'].required = False
         self.fields['prices_include_vat'].label = 'Prices include VAT'
@@ -359,10 +396,13 @@ class InvoiceForm(forms.ModelForm):
             linked = get_invoice_project(self.instance)
             if linked:
                 self.fields['project'].initial = linked.pk
+        elif not self.is_bound:
+            self.fields['is_active'].initial = True
 
     def clean(self):
         cleaned = super().clean()
         if self.is_bound:
+            cleaned['is_active'] = 'is_active' in self.data
             cleaned['prices_include_vat'] = 'prices_include_vat' in self.data
         customer = cleaned.get('customer')
         project = cleaned.get('project')
@@ -442,7 +482,7 @@ class CreditNoteForm(forms.ModelForm):
     class Meta:
         model = CreditNote
         fields = [
-            'original_invoice', 'issue_date', 'trigger_event_date',
+            'is_active', 'original_invoice', 'issue_date', 'trigger_event_date',
             'reason', 'reason_description',
         ]
         widgets = {
@@ -453,6 +493,8 @@ class CreditNoteForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['original_invoice'].queryset = Invoice.objects.filter(
             is_active=True,
             status__in=CreditNote.CREDITABLE_INVOICE_STATUSES,
@@ -463,9 +505,13 @@ class CreditNoteForm(forms.ModelForm):
         if self.instance.pk and self.instance.status != 'draft':
             for field in self.fields.values():
                 field.disabled = True
+        elif not self.is_bound and not self.instance.pk:
+            self.fields['is_active'].initial = True
 
     def clean(self):
         cleaned = super().clean()
+        if self.is_bound:
+            cleaned['is_active'] = 'is_active' in self.data
         invoice = cleaned.get('original_invoice')
         issue_date = cleaned.get('issue_date')
         trigger_date = cleaned.get('trigger_event_date')

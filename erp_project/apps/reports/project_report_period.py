@@ -18,6 +18,7 @@ from apps.projects.member_roles import (
     user_role_label,
 )
 from apps.projects.models import Project
+from apps.projects.project_list_metrics import annotate_project_list_queryset, enrich_projects_for_list
 from apps.sales.models import Estimate
 
 User = get_user_model()
@@ -44,20 +45,12 @@ def _base_queryset(start_date, end_date):
         'assigned_to',
         'assigned_to__employee_profile',
     )
-    return (
+    return annotate_project_list_queryset(
         projects_in_period(start_date, end_date)
         .select_related('customer', 'manager', 'manager__employee_profile')
         .prefetch_related(
             Prefetch('estimates', queryset=estimate_qs),
             'members__employee_profile__designation',
-        )
-        .annotate(
-            total_tasks_count=Count('tasks', filter=Q(tasks__is_active=True), distinct=True),
-            completed_tasks_count=Count(
-                'tasks',
-                filter=Q(tasks__is_active=True, tasks__status='completed'),
-                distinct=True,
-            ),
         )
         .order_by('-start_date', '-created_at', '-pk')
     )
@@ -67,11 +60,19 @@ def _project_row(project) -> dict:
     salesman_user = resolve_salesman_user(project)
     site_engineer = resolve_site_engineer_from_members(project)
     operation_manager = resolve_operation_manager_from_members(project)
-    total = project.total_tasks_count or 0
-    completed = project.completed_tasks_count or 0
+    total = getattr(project, 'tasks_total_count', None) or 0
+    completed = getattr(project, 'tasks_completed_count', None) or 0
     progress = Decimal('0')
     if total:
         progress = (Decimal(completed) / Decimal(total) * Decimal('100')).quantize(Decimal('0.1'))
+
+    contract_value = getattr(project, 'list_contract_value', project.contract_value or Decimal('0'))
+    estimated_expense = getattr(project, 'list_estimated_expense', Decimal('0'))
+    actual_expense = getattr(project, 'list_actual_expense', Decimal('0'))
+    invoiced_amount = getattr(project, 'list_invoiced_amount', Decimal('0'))
+    received_amount = getattr(project, 'list_received_amount', Decimal('0'))
+    balance_amount = getattr(project, 'list_balance_amount', Decimal('0'))
+    gross_margin = received_amount - actual_expense
 
     return {
         'pk': project.pk,
@@ -94,6 +95,13 @@ def _project_row(project) -> dict:
         'total_tasks': total,
         'completed_tasks': completed,
         'task_progress_percent': progress,
+        'contract_value': contract_value,
+        'estimated_expense': estimated_expense,
+        'actual_expense': actual_expense,
+        'invoiced_amount': invoiced_amount,
+        'received_amount': received_amount,
+        'balance_amount': balance_amount,
+        'gross_margin': gross_margin,
     }
 
 
@@ -183,7 +191,9 @@ def build_project_report_period(
     if status:
         qs = qs.filter(status=status)
 
-    all_rows = [_project_row(p) for p in qs]
+    projects = list(qs)
+    enrich_projects_for_list(projects)
+    all_rows = [_project_row(p) for p in projects]
     rows = _filter_rows(
         all_rows,
         salesman=salesman,
@@ -193,6 +203,17 @@ def build_project_report_period(
 
     status_counts = _status_summary(rows)
     groups = _group_rows(rows, group_by)
+
+    zero = Decimal('0.00')
+    financial_totals = {
+        'contract_value': sum((r['contract_value'] for r in rows), zero),
+        'estimated_expense': sum((r['estimated_expense'] for r in rows), zero),
+        'actual_expense': sum((r['actual_expense'] for r in rows), zero),
+        'invoiced_amount': sum((r['invoiced_amount'] for r in rows), zero),
+        'received_amount': sum((r['received_amount'] for r in rows), zero),
+        'balance_amount': sum((r['balance_amount'] for r in rows), zero),
+        'gross_margin': sum((r['gross_margin'] for r in rows), zero),
+    }
 
     return {
         'start_date': start_date,
@@ -216,4 +237,5 @@ def build_project_report_period(
         'planning_count': status_counts.get('planning', 0),
         'on_hold_count': status_counts.get('on_hold', 0),
         'cancelled_count': status_counts.get('cancelled', 0),
+        'financial_totals': financial_totals,
     }

@@ -119,6 +119,22 @@ def pending_conversion_projects_for_user(user):
     return [p for p in qs if user_can_approve_project_conversion(user, p)]
 
 
+def pending_operation_access_projects_for_user(user):
+    """Projects awaiting operation-access approval that this user can action."""
+    from apps.core.visibility import filter_projects_for_user
+    from .models import Project
+
+    if not user_is_project_operation_access_approver(user):
+        return []
+    qs = (
+        Project.objects.filter(is_active=True, operation_access_status='pending')
+        .select_related('customer', 'manager', 'operation_access_submitted_by')
+        .order_by('-operation_access_submitted_at', '-pk')
+    )
+    qs = filter_projects_for_user(qs, user)
+    return [p for p in qs if user_can_approve_project_operation_access(user, p)]
+
+
 def user_can_approve_project_completion(user, project) -> bool:
     if not user or not user.is_authenticated:
         return False

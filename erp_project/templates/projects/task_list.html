@@ -126,6 +126,11 @@
         <a href="{% url 'projects:project_list' %}" class="btn btn-light btn-sm">
             <i class="fas fa-project-diagram me-1"></i>All Projects
         </a>
+        {% if can_edit %}
+        <a href="{% url 'projects:task_create' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i>Create Task
+        </a>
+        {% endif %}
     </div>
 </div>
 
@@ -186,7 +191,7 @@
         <div class="kanban-col-body" data-drop-status="pending">
             {% for task in tasks_kanban_pending %}
             <div class="kanban-card {% if not can_edit %}kanban-card--readonly{% endif %}" draggable="{% if can_edit %}true{% else %}false{% endif %}" data-task-id="{{ task.pk }}" data-current-status="pending">
-                <div class="kanban-card-title">{{ task.name }}</div>
+                <div class="kanban-card-title"><a href="{% url 'projects:task_detail' task.pk %}" class="text-reset text-decoration-none">{{ task.name }}</a></div>
                 <div class="kanban-card-meta">
                     {% include 'projects/includes/task_context_link.html' %}
                     · {{ task.start_date|date:"d/m/Y"|default:"—" }} → {{ task.due_date|date:"d/m/Y"|default:"—" }}
@@ -202,7 +207,7 @@
         <div class="kanban-col-body" data-drop-status="in_progress">
             {% for task in tasks_kanban_progress %}
             <div class="kanban-card {% if not can_edit %}kanban-card--readonly{% endif %}" draggable="{% if can_edit %}true{% else %}false{% endif %}" data-task-id="{{ task.pk }}" data-current-status="in_progress">
-                <div class="kanban-card-title">{{ task.name }}</div>
+                <div class="kanban-card-title"><a href="{% url 'projects:task_detail' task.pk %}" class="text-reset text-decoration-none">{{ task.name }}</a></div>
                 <div class="kanban-card-meta">
                     {% include 'projects/includes/task_context_link.html' %}
                     · {{ task.start_date|date:"d/m/Y"|default:"—" }} → {{ task.due_date|date:"d/m/Y"|default:"—" }}
@@ -218,7 +223,7 @@
         <div class="kanban-col-body" data-drop-status="completed">
             {% for task in tasks_kanban_done %}
             <div class="kanban-card {% if not can_edit %}kanban-card--readonly{% endif %}" draggable="{% if can_edit %}true{% else %}false{% endif %}" data-task-id="{{ task.pk }}" data-current-status="completed">
-                <div class="kanban-card-title">{{ task.name }}</div>
+                <div class="kanban-card-title"><a href="{% url 'projects:task_detail' task.pk %}" class="text-reset text-decoration-none">{{ task.name }}</a></div>
                 <div class="kanban-card-meta">
                     {% include 'projects/includes/task_context_link.html' %}
                     · {{ task.start_date|date:"d/m/Y"|default:"—" }} → {{ task.due_date|date:"d/m/Y"|default:"—" }}
@@ -243,9 +248,11 @@
                         <th class="col-task">Task</th>
                         <th class="col-description">Description</th>
                         <th>Assigned</th>
+                        <th>Priority</th>
                         <th>Status</th>
                         <th>Start</th>
                         <th>End</th>
+                        <th>Est. hrs</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -273,7 +280,7 @@
                             </div>
                         </td>
                         <td class="col-task">
-                            <span class="task-tooltip-target text-truncate d-block" title="{{ task.name|escape }}">{{ task.name }}</span>
+                            <a href="{% url 'projects:task_detail' task.pk %}" class="task-tooltip-target text-truncate d-block fw-medium text-decoration-none" title="{{ task.name|escape }}">{{ task.name }}</a>
                         </td>
                         <td class="col-description">
                             {% if task.description %}
@@ -301,6 +308,15 @@
                             {% endif %}
                         </td>
                         <td>
+                            {% if task.priority == 'high' %}
+                            <span class="badge badge-inactive fw-normal">High</span>
+                            {% elif task.priority == 'medium' %}
+                            <span class="badge fw-normal" style="background:#fef3c7;color:#92400e;">Medium</span>
+                            {% else %}
+                            <span class="badge bg-secondary fw-normal">Low</span>
+                            {% endif %}
+                        </td>
+                        <td>
                             {% if can_edit %}
                             <form method="post" action="{% url 'projects:task_set_status' task.pk %}" class="task-status-inline">
                                 {% csrf_token %}
@@ -323,7 +339,9 @@
                         </td>
                         <td>{{ task.start_date|date:"d/m/Y"|default:"—" }}</td>
                         <td>{{ task.due_date|date:"d/m/Y"|default:"—" }}</td>
+                        <td>{{ task.estimated_hours|floatformat:2 }}</td>
                         <td class="text-end text-nowrap">
+                            <a href="{% url 'projects:task_detail' task.pk %}" class="btn btn-action btn-outline-secondary btn-sm" title="View task"><i class="fas fa-eye"></i></a>
                             {% if can_edit and task.status != 'completed' %}
                             <form method="post" action="{% url 'projects:task_set_status' task.pk %}" class="d-inline">
                                 {% csrf_token %}
@@ -341,7 +359,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">No tasks found.</td>
+                        <td colspan="10" class="text-center py-5 text-muted">No tasks found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

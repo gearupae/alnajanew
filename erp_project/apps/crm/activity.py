@@ -74,6 +74,8 @@ def _describe_customer_audit(log, stage_names: dict[str, str]) -> tuple[str, str
     field_labels = {
         'assigned_salesperson': 'Assigned salesman',
         'business_segment': 'Business type',
+        'opportunity_status': 'Opportunity status',
+        'trade_license_number': 'Trade license number',
         'trn': 'VAT (TRN)',
         'name': 'Contact name',
         'company': 'Company',
@@ -236,6 +238,24 @@ def get_customer_activity_feed(customer: Customer, *, limit: int = 50) -> list[C
                 user_label='Public upload',
                 icon='fa-cloud-upload-alt',
                 icon_bg='bg-secondary',
+            )
+        )
+
+    status_labels = dict(Customer.OPPORTUNITY_STATUS_CHOICES)
+    for opp in customer.opportunity_updates.filter(is_active=True).select_related('created_by').order_by('-created_at')[:limit]:
+        if opp.status:
+            title = f'Opportunity {status_labels.get(opp.status, opp.status)}'
+        else:
+            title = 'Opportunity update'
+        detail = (opp.note or '').strip()
+        items.append(
+            CustomerActivityItem(
+                timestamp=timezone.localtime(opp.created_at),
+                title=title,
+                detail=detail,
+                user_label=_user_label(opp.created_by),
+                icon='fa-briefcase',
+                icon_bg='bg-primary' if opp.status == 'open' else 'bg-secondary',
             )
         )
 

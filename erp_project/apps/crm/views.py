@@ -13,7 +13,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from django.db.models import Q, Count
 import json
 
-from .models import Customer, CustomerPublicUpload, CrmLeadKanbanStage
+from .models import Customer, CustomerPublicUpload, CrmLeadKanbanStage, CrmOpportunityUpdate
 from .forms import CustomerForm
 from apps.core.visibility import crm_show_my_leads_label, filter_customers_for_user
 from .utils import (
@@ -319,8 +319,14 @@ def crm_kanban_move(request):
     except (TypeError, ValueError):
         return JsonResponse({'error': 'Invalid customer_id.'}, status=400)
 
-    # Won / convert
-    if stage_raw in ('won', '__won__', True):
+    # Won / convert (string/bool only — never treat numeric stage pk 1 as won)
+    if isinstance(stage_raw, bool) and stage_raw is True:
+        is_won = True
+    elif isinstance(stage_raw, str):
+        is_won = stage_raw.strip().lower() in ('won', '__won__')
+    else:
+        is_won = False
+    if is_won:
         won = CrmLeadKanbanStage.objects.filter(
             is_active=True,
             converts_to_customer=True,
@@ -381,13 +387,18 @@ def crm_kanban_move(request):
         return JsonResponse({'error': 'Invalid pipeline stage.'}, status=400)
 
     cust.lead_kanban_stage = stage
+    if stage.tracks_opportunity and not cust.opportunity_status:
+        cust.opportunity_status = 'pending'
     cust.save()
     log_action(
         request.user,
         'update',
         'Customer',
         pk,
-        {'lead_kanban_stage': stage.slug},
+        {
+            'lead_kanban_stage': stage.slug,
+            **({'opportunity_status': 'pending'} if stage.tracks_opportunity else {}),
+        },
     )
     return JsonResponse({'ok': True})
 
@@ -549,10 +560,17 @@ class CustomerDetailView(PermissionRequiredMixin, DetailView):
         )
 
     def post(self, request, *args, **kwargs):
-        if request.POST.get('action') != 'create_task':
-            return HttpResponseNotAllowed(['GET'])
-
+        action = request.POST.get('action')
         self.object = self.get_object()
+
+        if action == 'create_task':
+            return self._post_create_task(request)
+        if action in ('opportunity_update', 'opportunity_open', 'opportunity_close'):
+            return self._post_opportunity_action(request, action)
+
+        return HttpResponseNotAllowed(['GET'])
+
+    def _post_create_task(self, request):
         if not (
             request.user.is_superuser
             or PermissionChecker.has_permission(request.user, 'projects', 'create')
@@ -609,6 +627,66 @@ class CustomerDetailView(PermissionRequiredMixin, DetailView):
                 f'{created_count} tasks created for "{form.cleaned_data["name"]}".',
             )
         return redirect('crm:customer_detail', pk=self.object.pk)
+
+    def _post_opportunity_action(self, request, action):
+        if not (
+            request.user.is_superuser
+            or PermissionChecker.has_permission(request.user, 'crm', 'edit')
+        ):
+            messages.error(request, 'Permission denied.')
+            return redirect('crm:customer_detail', pk=self.object.pk)
+
+        customer = self.object
+        if customer.customer_type != 'lead':
+            messages.error(request, 'Opportunity updates apply to leads only.')
+            return redirect('crm:customer_detail', pk=customer.pk)
+
+        if not customer.tracks_opportunity and not customer.opportunity_status:
+            messages.error(request, 'Move this lead to a pipeline stage that tracks opportunities first.')
+            return redirect('crm:customer_detail', pk=customer.pk)
+
+        note = (request.POST.get('opportunity_note') or '').strip()
+        old_status = customer.opportunity_status or ''
+        if action == 'opportunity_open':
+            new_status = 'open'
+        elif action == 'opportunity_close':
+            new_status = 'closed'
+        else:
+            new_status = old_status or 'pending'
+
+        if action == 'opportunity_update' and not note:
+            messages.error(request, 'Enter an update note.')
+            return redirect('crm:customer_detail', pk=customer.pk)
+
+        if new_status != old_status:
+            customer.opportunity_status = new_status
+            customer.save(update_fields=['opportunity_status', 'updated_at', 'updated_by'])
+
+        CrmOpportunityUpdate.objects.create(
+            customer=customer,
+            note=note,
+            status=new_status if new_status != old_status or action != 'opportunity_update' else '',
+            created_by=request.user,
+        )
+
+        log_action(
+            request.user,
+            'update',
+            'Customer',
+            customer.pk,
+            {
+                'opportunity_status': new_status if new_status != old_status else old_status,
+                'opportunity_update': note[:200],
+            },
+        )
+
+        if action == 'opportunity_open':
+            messages.success(request, 'Opportunity marked Open.')
+        elif action == 'opportunity_close':
+            messages.success(request, 'Opportunity closed.')
+        else:
+            messages.success(request, 'Opportunity update saved.')
+        return redirect('crm:customer_detail', pk=customer.pk)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -643,13 +721,27 @@ class CustomerDetailView(PermissionRequiredMixin, DetailView):
             self.object.public_uploads.filter(is_active=True).order_by('-created_at')
         )
         context['customer_activity'] = get_customer_activity_feed(self.object)
+        context['opportunity_updates'] = (
+            self.object.opportunity_updates.filter(is_active=True).select_related('created_by')[:20]
+        )
+        context['show_opportunity_panel'] = (
+            self.object.customer_type == 'lead'
+            and (self.object.tracks_opportunity or self.object.opportunity_status)
+        )
         from apps.core.visibility import filter_estimates_for_user, filter_projects_for_user
         from apps.sales.models import Estimate, Invoice
 
-        context['estimate_count'] = filter_estimates_for_user(
-            Estimate.objects.filter(customer=self.object, is_active=True),
+        customer_estimates = filter_estimates_for_user(
+            Estimate.objects.filter(customer=self.object, is_active=True).order_by(
+                '-date', '-pk'
+            ),
             self.request.user,
-        ).count()
+        )
+        context['estimate_count'] = customer_estimates.count()
+        context['customer_estimates'] = customer_estimates
+        context['can_create_estimate'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'sales', 'create'
+        )
         context['invoice_count'] = Invoice.objects.filter(
             customer=self.object, is_active=True
         ).count()
@@ -669,6 +761,20 @@ class CustomerDetailView(PermissionRequiredMixin, DetailView):
             self.object.projects.filter(is_active=True),
             self.request.user,
         ).count()
+        from apps.documents.document_utils import entity_documents_context
+
+        customer_name = (self.object.company or self.object.name or '').strip()
+        context.update(
+            entity_documents_context(
+                self.request.user,
+                entity_type='customer',
+                entity_id=self.object.pk,
+                entity_name=customer_name,
+            )
+        )
+        from apps.contracts.customer_contracts import customer_contracts_context
+
+        context.update(customer_contracts_context(self.request.user, self.object))
         return context
 
 
@@ -696,6 +802,10 @@ class CustomerUpdateView(UpdatePermissionMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context['title'] = f'Edit Customer: {self.object.name}'
         context['project_choices'] = get_crm_project_queryset(self.request.user)
+        context['crm_kanban_stages'] = CrmLeadKanbanStage.objects.filter(
+            is_active=True,
+            converts_to_customer=False,
+        ).order_by('sort_order', 'id')
         return context
     
     def form_valid(self, form):

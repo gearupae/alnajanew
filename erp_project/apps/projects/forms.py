@@ -75,8 +75,10 @@ class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
         fields = [
-            'name', 'description', 'customer', 'manager', 'status',
-            'start_date', 'end_date', 'budget', 'estimated_cost', 'members', 'technicians',
+            'is_active', 'name', 'description', 'customer', 'manager', 'status',
+            'start_date', 'end_date', 'billing_type', 'budget', 'estimated_cost',
+            'contract_value', 'expense_account', 'revenue_account',
+            'members', 'technicians',
         ]
         widgets = {
             'start_date': forms.DateInput(attrs={'type': 'date'}),
@@ -89,9 +91,15 @@ class ProjectForm(forms.ModelForm):
                 attrs={'class': 'form-select select2-technicians', 'data-placeholder': 'Search by name or employee code…'}
             ),
         }
-    
+
     def __init__(self, *args, **kwargs):
+        from apps.finance.models import Account
+
         super().__init__(*args, **kwargs)
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
         staff_qs = project_staff_select_queryset()
         manager_qs = User.objects.filter(is_active=True).order_by('first_name', 'last_name', 'username')
         self.fields['manager'].queryset = manager_qs
@@ -103,15 +111,26 @@ class ProjectForm(forms.ModelForm):
         self.fields['technicians'].required = False
         self.fields['technicians'].label = 'Technicians'
         self.fields['technicians'].label_from_instance = project_staff_choice_label
+        self.fields['expense_account'].queryset = Account.objects.filter(
+            is_active=True, account_type__in=['expense', 'cogs']
+        )
+        self.fields['expense_account'].required = False
+        self.fields['expense_account'].empty_label = '— Use default —'
+        self.fields['revenue_account'].queryset = Account.objects.filter(
+            is_active=True, account_type='income'
+        )
+        self.fields['revenue_account'].required = False
+        self.fields['revenue_account'].empty_label = '— Use default —'
         for name, field in self.fields.items():
-            if name in ['customer', 'manager', 'status']:
+            if name in ['customer', 'manager', 'status', 'billing_type', 'expense_account', 'revenue_account']:
                 field.widget.attrs['class'] = 'form-select'
-            elif name in ('members', 'technicians'):
-                pass  # class set on widget
+            elif name in ('members', 'technicians', 'is_active'):
+                pass
             else:
                 field.widget.attrs['class'] = 'form-control'
         self.fields['budget'].widget.attrs.setdefault('step', '0.01')
         self.fields['estimated_cost'].widget.attrs.setdefault('step', '0.01')
+        self.fields['contract_value'].widget.attrs.setdefault('step', '0.01')
 
         from .conversion_approval import project_awaiting_conversion_approval
 
@@ -120,6 +139,12 @@ class ProjectForm(forms.ModelForm):
             self.fields['status'].help_text = (
                 'Status stays Draft until a configured approver approves the conversion from quotation.'
             )
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.data:
+            cleaned['is_active'] = 'is_active' in self.data
+        return cleaned
 
     def clean_status(self):
         from .conversion_approval import project_awaiting_conversion_approval
@@ -200,39 +225,96 @@ class TaskForm(forms.ModelForm):
     class Meta:
         model = Task
         fields = [
-            'name', 'description', 'assigned_to', 'status', 'priority',
-            'start_date', 'due_date', 'estimated_hours',
+            'is_active', 'project', 'customer', 'name', 'description',
+            'assigned_to', 'status', 'priority', 'start_date', 'due_date',
+            'estimated_hours',
         ]
         widgets = {
             'start_date': forms.DateInput(attrs={'type': 'date'}),
             'due_date': forms.DateInput(attrs={'type': 'date'}),
-            'description': forms.Textarea(attrs={'rows': 2}),
-            'estimated_hours': forms.NumberInput(attrs={'step': '1', 'min': '0'}),
+            'description': forms.Textarea(attrs={'rows': 3}),
+            'estimated_hours': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
         }
-    
+
     def __init__(self, *args, project=None, customer=None, **kwargs):
         self.project = project
         self.customer = customer
         super().__init__(*args, **kwargs)
-        # Filter assigned_to to active users only
+
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
+
+        self.fields['customer'].label = 'Customer / lead'
+        self.fields['project'].queryset = (
+            Project.objects.filter(is_active=True).order_by('project_code', 'name')
+        )
+        self.fields['customer'].queryset = (
+            Customer.objects.filter(is_active=True).order_by('customer_number', 'name')
+        )
+        self.fields['project'].required = False
+        self.fields['customer'].required = False
+        self.fields['project'].empty_label = '-- None --'
+        self.fields['customer'].empty_label = '-- None --'
+
         self.fields['assigned_to'].queryset = (
             User.objects.filter(is_active=True)
             .select_related('employee_profile')
             .order_by('first_name', 'last_name', 'username')
         )
+        self.fields['assigned_to'].required = False
         self.fields['assigned_to'].empty_label = '-- Unassigned --'
         self.fields['assigned_to'].label_from_instance = project_staff_choice_label
         self.fields['due_date'].label = 'End date'
+        self.fields['start_date'].label = 'Start date'
+        self.fields['estimated_hours'].label = 'Estimated hours'
+
         for name, field in self.fields.items():
-            if name in ['assigned_to', 'status', 'priority']:
+            if name == 'is_active':
+                continue
+            if name in ['assigned_to', 'status', 'priority', 'project', 'customer']:
                 field.widget.attrs['class'] = 'form-select'
             else:
                 field.widget.attrs['class'] = 'form-control'
 
+        if project is not None:
+            self.fields['project'].initial = project.pk
+            self.fields['project'].disabled = True
+            if project.customer_id:
+                self.fields['customer'].initial = project.customer_id
+                self.fields['customer'].disabled = True
+        elif customer is not None:
+            self.fields['customer'].initial = customer.pk
+            self.fields['customer'].disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.data:
+            cleaned['is_active'] = 'is_active' in self.data
+
+        if self.project is not None:
+            cleaned['project'] = self.project
+            if self.project.customer_id:
+                cleaned['customer'] = self.project.customer
+        elif self.customer is not None:
+            cleaned['customer'] = self.customer
+
+        start = cleaned.get('start_date')
+        end = cleaned.get('due_date')
+        if start and end and start > end:
+            raise ValidationError('Start date must be on or before end date.')
+
+        if not cleaned.get('project') and not cleaned.get('customer'):
+            raise ValidationError('Task must be linked to a project or a customer/lead.')
+        return cleaned
+
     def _post_clean(self):
         if self.project is not None:
             self.instance.project = self.project
-        if self.customer is not None:
+            if self.project.customer_id:
+                self.instance.customer = self.project.customer
+        elif self.customer is not None:
             self.instance.customer = self.customer
         super()._post_clean()
 
@@ -251,10 +333,15 @@ class ProjectGatepassForm(forms.ModelForm):
         self.project = project
         super().__init__(*args, **kwargs)
         if project is not None:
-            self.fields['member'].queryset = project.members.all().order_by(
+            from django.contrib.auth import get_user_model
+
+            User = get_user_model()
+            team_ids = set(project.members.values_list('pk', flat=True))
+            team_ids |= set(project.technicians.values_list('pk', flat=True))
+            self.fields['member'].queryset = User.objects.filter(pk__in=team_ids).order_by(
                 'first_name', 'last_name', 'username'
             )
-        self.fields['member'].label = 'Team member'
+        self.fields['member'].label = 'Team member / technician'
         self.fields['expiry_date'].label = 'Expiry date'
         for name, field in self.fields.items():
             if name == 'member':
@@ -265,8 +352,10 @@ class ProjectGatepassForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         if self.project and cleaned.get('member'):
-            if not self.project.members.filter(pk=cleaned['member'].pk).exists():
-                raise ValidationError('Selected member must belong to this project.')
+            allowed = set(self.project.members.values_list('pk', flat=True))
+            allowed |= set(self.project.technicians.values_list('pk', flat=True))
+            if cleaned['member'].pk not in allowed:
+                raise ValidationError('Selected person must belong to this project team.')
         start = cleaned.get('start_date')
         end = cleaned.get('expiry_date')
         if start and end and start > end:
@@ -279,19 +368,22 @@ class ProjectExpenseForm(forms.ModelForm):
     class Meta:
         model = ProjectExpense
         fields = [
-            'project', 'category', 'description', 'expense_date',
-            'amount', 'vat_amount', 'vendor', 'invoice_reference',
-            'expense_account'
+            'is_active', 'project', 'category', 'description', 'expense_date',
+            'amount', 'vat_amount', 'vendor', 'invoice_reference', 'expense_account',
         ]
         widgets = {
             'expense_date': forms.DateInput(attrs={'type': 'date'}),
-            'description': forms.Textarea(attrs={'rows': 2}),
+            'description': forms.Textarea(attrs={'rows': 3}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        # Active projects that can still incur expenses (exclude cancelled only)
+
+        self.fields['is_active'].label = 'Is active'
+        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if not self.instance.pk:
+            self.fields['is_active'].initial = True
+
         estimate_qs = (
             Estimate.objects.filter(is_active=True)
             .select_related('customer')
@@ -307,29 +399,47 @@ class ProjectExpenseForm(forms.ModelForm):
         self.fields['project'].label_from_instance = project_expense_choice_label
         self.fields['project'].widget.attrs['class'] = 'form-select select2-project'
         self.fields['project'].widget.attrs['data-placeholder'] = 'Search by code or customer…'
-        
-        # Filter active vendors
+
         self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True)
         self.fields['vendor'].required = False
-        
-        # Filter expense accounts
+
         self.fields['expense_account'].queryset = Account.objects.filter(
             is_active=True,
-            account_type__in=['expense', 'cogs']
+            account_type__in=['expense', 'cogs'],
         )
         self.fields['expense_account'].required = False
         self.fields['expense_account'].empty_label = '-- Use Default --'
-        
+
         for name, field in self.fields.items():
+            if name == 'is_active':
+                continue
             if name in ['category', 'vendor', 'expense_account']:
                 field.widget.attrs['class'] = 'form-select'
             elif name == 'project':
-                pass  # class set above
+                pass
             else:
                 field.widget.attrs['class'] = 'form-control'
-        
+
         self.fields['amount'].widget.attrs['step'] = '0.01'
         self.fields['vat_amount'].widget.attrs['step'] = '0.01'
+
+        if self.instance.pk and self.instance.vendor_bill_id:
+            for field_name in ('project', 'amount', 'vat_amount', 'vendor', 'invoice_reference'):
+                self.fields[field_name].disabled = True
+                self.fields[field_name].help_text = 'Managed from the linked vendor bill.'
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.data:
+            cleaned['is_active'] = 'is_active' in self.data
+
+        if self.instance.pk and self.instance.vendor_bill_id:
+            cleaned['project'] = self.instance.project
+            cleaned['amount'] = self.instance.amount
+            cleaned['vat_amount'] = self.instance.vat_amount
+            cleaned['vendor'] = self.instance.vendor
+            cleaned['invoice_reference'] = self.instance.invoice_reference
+        return cleaned
 
 
 class ProjectItemDeliveryForm(forms.Form):
@@ -347,20 +457,48 @@ class ProjectItemDeliveryForm(forms.Form):
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '1'}),
     )
     delivered_date = forms.DateField(
+        label='Delivered date',
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
     )
 
     def __init__(self, *args, project=None, **kwargs):
         self.project = project
         super().__init__(*args, **kwargs)
+
+        if project is None:
+            self.fields['project'] = forms.ModelChoiceField(
+                queryset=(
+                    Project.objects.filter(is_active=True)
+                    .exclude(status='cancelled')
+                    .order_by('project_code', 'name')
+                ),
+                widget=forms.Select(attrs={'class': 'form-select select2-project'}),
+                empty_label='Select project…',
+            )
+        else:
+            project_field = forms.ModelChoiceField(
+                queryset=Project.objects.filter(pk=project.pk),
+                initial=project.pk,
+                widget=forms.Select(attrs={'class': 'form-select'}),
+            )
+            project_field.disabled = True
+            self.fields['project'] = project_field
+
         qs = Item.objects.filter(is_active=True, item_type='product').order_by('name')
-        if project:
+        active_project = project
+        if active_project is None and self.data.get('project'):
+            try:
+                active_project = Project.objects.filter(pk=self.data.get('project')).first()
+            except (ValueError, TypeError):
+                active_project = None
+
+        if active_project:
             from .item_delivery import project_has_scoped_inventory_lines, project_item_remaining_qty
 
-            if project_has_scoped_inventory_lines(project):
+            if project_has_scoped_inventory_lines(active_project):
                 item_ids = (
                     ProjectItemLine.objects.filter(
-                        project=project,
+                        project=active_project,
                         inventory_item__isnull=False,
                     )
                     .values_list('inventory_item_id', flat=True)
@@ -368,13 +506,18 @@ class ProjectItemDeliveryForm(forms.Form):
                 )
                 deliverable_ids = [
                     pk for pk in item_ids
-                    if (project_item_remaining_qty(project, Item.objects.get(pk=pk)) or Decimal('0')) > 0
+                    if (project_item_remaining_qty(active_project, Item.objects.get(pk=pk)) or Decimal('0')) > 0
                 ]
                 qs = qs.filter(pk__in=deliverable_ids) if deliverable_ids else Item.objects.none()
         self.fields['item'].queryset = qs
 
     def clean(self):
         cleaned = super().clean()
+        if self.project is None:
+            self.project = cleaned.get('project')
+        if not self.project:
+            raise forms.ValidationError('Project is required.')
+
         item = cleaned.get('item')
         qty = cleaned.get('quantity')
         if self.project and item and qty is not None:
@@ -392,6 +535,7 @@ class ProjectItemDeliveryForm(forms.Form):
                     'quantity',
                     f'Project requires {required} × {item.name}; {delivered} delivered. Max {remaining} more.',
                 )
+        cleaned['project'] = self.project
         return cleaned
 
 

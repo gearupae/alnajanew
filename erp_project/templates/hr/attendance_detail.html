@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'hr:attendance_list' %}">Attendance</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ record.employee.employee_code }} — {{ record.date|date:"d/m/Y" }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+            <h4 class="mb-1 fw-bold">{{ record.employee.full_name }}</h4>
+            <span class="text-muted">{{ record.date|date:"d/m/Y" }} · {{ record.get_status_display }}</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <a href="{% url 'hr:attendance_list' %}" class="btn btn-light btn-sm">All records</a>
+            {% if can_edit %}
+            <a href="{% url 'hr:attendance_edit' record.pk %}" class="btn btn-primary btn-sm"><i class="fas fa-edit me-1"></i>Edit</a>
+            {% endif %}
+            {% if can_delete %}
+            <form method="post" action="{% url 'hr:attendance_record_delete' record.pk %}" class="d-inline" onsubmit="return confirm('Delete this attendance record?');">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'hr:attendance_list' %}">
+                <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash me-1"></i>Delete</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0 fw-semibold">Attendance record</h6></div>
+    <div class="card-body">
+        <div class="row g-4">
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Is active</h6>
+                <p class="mb-0">{% if record.is_active %}Yes{% else %}No{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Employee</h6>
+                <p class="mb-0"><a href="{% url 'hr:employee_detail' record.employee.pk %}">{{ record.employee.full_name }}</a></p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Date</h6>
+                <p class="mb-0">{{ record.date|date:"d/m/Y" }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Check in</h6>
+                <p class="mb-0">{% if record.check_in %}{{ record.check_in|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Check out</h6>
+                <p class="mb-0">{% if record.check_out %}{{ record.check_out|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Check in latitude</h6>
+                <p class="mb-0 font-monospace">{% if record.check_in_latitude is not None %}{{ record.check_in_latitude }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Check in longitude</h6>
+                <p class="mb-0 font-monospace">{% if record.check_in_longitude is not None %}{{ record.check_in_longitude }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Check out latitude</h6>
+                <p class="mb-0 font-monospace">{% if record.check_out_latitude is not None %}{{ record.check_out_latitude }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Check out longitude</h6>
+                <p class="mb-0 font-monospace">{% if record.check_out_longitude is not None %}{{ record.check_out_longitude }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Status</h6>
+                <p class="mb-0">{{ record.get_status_display }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Source</h6>
+                <p class="mb-0">{{ record.get_source_display }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Project</h6>
+                <p class="mb-0">
+                    {% if record.project %}
+                    <a href="{% url 'projects:project_detail' record.project.pk %}">{{ record.project.project_code }} — {{ record.project.name }}</a>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Working hours</h6>
+                <p class="mb-0">{% if record.working_hours is not None %}{{ record.working_hours }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Late minutes</h6>
+                <p class="mb-0">{{ record.late_minutes }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Overtime hours</h6>
+                <p class="mb-0">{{ record.overtime_hours }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Overtime type</h6>
+                <p class="mb-0">{{ record.get_overtime_type_display }}</p>
+            </div>
+            <div class="col-12">
+                <h6 class="text-muted mb-2">Notes</h6>
+                <p class="mb-0">{% if record.notes %}{{ record.notes|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

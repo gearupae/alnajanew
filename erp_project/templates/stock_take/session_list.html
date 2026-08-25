@@ -19,17 +19,21 @@
             <table class="table table-hover mb-0 align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th>Client</th>
+                        <th>Client name</th>
                         <th>Location</th>
-                        <th>Date</th>
+                        <th>Session date</th>
                         <th>Status</th>
+                        <th>Completed at</th>
+                        <th>Notes</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for s in sessions %}
                     <tr>
-                        <td class="fw-medium">{{ s.client_name }}</td>
+                        <td class="fw-medium">
+                            <a href="{% url 'stock_take:session_detail' s.pk %}" class="text-decoration-none">{{ s.client_name }}</a>
+                        </td>
                         <td>{{ s.location }}</td>
                         <td>{{ s.session_date|date:"d/m/Y" }}</td>
                         <td>
@@ -39,21 +43,26 @@
                             <span class="badge bg-success">Completed</span>
                             {% endif %}
                         </td>
+                        <td>{% if s.completed_at %}{{ s.completed_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+                        <td class="small text-muted">{{ s.notes|default:"—"|truncatewords:10 }}</td>
                         <td class="text-end text-nowrap">
+                            <a href="{% url 'stock_take:session_detail' s.pk %}" class="btn btn-sm btn-outline-secondary me-1" title="Details">
+                                <i class="fas fa-eye"></i>
+                            </a>
                             {% if s.status == 'in_progress' %}
-                            <a href="{% url 'stock_take:session_scan' s.pk %}" class="btn btn-primary">
+                            <a href="{% url 'stock_take:session_scan' s.pk %}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-barcode me-1"></i>Open
                             </a>
                             {% else %}
-                            <a href="{% url 'stock_take:session_report' s.pk %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-file-alt me-1"></i>View report
+                            <a href="{% url 'stock_take:session_report' s.pk %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-file-alt me-1"></i>Report
                             </a>
                             {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
+                        <td colspan="7" class="text-center py-5 text-muted">
                             No sessions yet.{% if can_edit %} Create one to begin a stock take.{% endif %}
                         </td>
                     </tr>

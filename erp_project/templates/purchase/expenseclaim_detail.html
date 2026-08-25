@@ -103,7 +103,7 @@
                     {% csrf_token %}
                     <div class="row">
                         <div class="col-md-4 mb-3">
-                            <label class="form-label">Bank Account <span class="text-danger">*</span></label>
+                            <label class="form-label">Paid from bank (Bank / Cash) <span class="text-danger">*</span></label>
                             {{ payment_form.bank_account }}
                         </div>
                         <div class="col-md-3 mb-3">
@@ -192,13 +192,29 @@
     <div class="col-md-4">
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-header bg-white py-3">
-                <h6 class="mb-0 fw-bold"><i class="fas fa-info-circle me-2 text-primary"></i>Claim Details</h6>
+                <h6 class="mb-0 fw-bold"><i class="fas fa-info-circle me-2 text-primary"></i>Claim details</h6>
             </div>
             <div class="card-body">
-                <table class="table table-sm mb-0">
-                    <tr>
-                        <th class="text-muted">Status</th>
-                        <td>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Is active</label>
+                        <p class="mb-0">{% if claim.is_active %}Yes{% else %}No{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Claim number</label>
+                        <p class="mb-0 fw-medium">{{ claim.claim_number }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Employee</label>
+                        <p class="mb-0">{{ claim.employee.get_full_name|default:claim.employee.username }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Claim date</label>
+                        <p class="mb-0">{{ claim.claim_date|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Status</label>
+                        <p class="mb-0">
                             {% if claim.status == 'draft' %}
                             <span class="badge bg-secondary">Draft</span>
                             {% elif claim.status == 'submitted' %}
@@ -209,70 +225,70 @@
                             <span class="badge bg-danger">Rejected</span>
                             {% elif claim.status == 'paid' %}
                             <span class="badge bg-primary">Paid</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ claim.get_status_display }}</span>
                             {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Employee</th>
-                        <td>{{ claim.employee.get_full_name|default:claim.employee.username }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Claim Date</th>
-                        <td>{{ claim.claim_date|date:"d/m/Y" }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Total Amount</th>
-                        <td class="fw-bold">AED {{ claim.total_amount|floatformat:2|intcomma }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Claimable VAT</th>
-                        <td>AED {{ claim.total_vat|floatformat:2|intcomma }}</td>
-                    </tr>
-                    {% if claim.approved_by %}
-                    <tr>
-                        <th class="text-muted">Approved By</th>
-                        <td>{{ claim.approved_by.get_full_name|default:claim.approved_by.username }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Approved On</th>
-                        <td>{{ claim.approved_date|date:"d/m/Y H:i" }}</td>
-                    </tr>
+                        </p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Total amount</label>
+                        <p class="mb-0 fw-semibold">AED {{ claim.total_amount|floatformat:2|intcomma }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Total VAT</label>
+                        <p class="mb-0">AED {{ claim.total_vat|floatformat:2|intcomma }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Approved by</label>
+                        <p class="mb-0">{% if claim.approved_by %}{{ claim.approved_by.get_full_name|default:claim.approved_by.username }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Approved date</label>
+                        <p class="mb-0">{% if claim.approved_date %}{{ claim.approved_date|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Journal entry</label>
+                        <p class="mb-0">
+                            {% if claim.journal_entry %}
+                            <a href="{% url 'finance:journal_detail' claim.journal_entry.pk %}" class="text-decoration-none">{{ claim.journal_entry.entry_number }}</a>
+                            {% else %}—{% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Payment journal entry</label>
+                        <p class="mb-0">
+                            {% if claim.payment_journal_entry %}
+                            <a href="{% url 'finance:journal_detail' claim.payment_journal_entry.pk %}" class="text-decoration-none">{{ claim.payment_journal_entry.entry_number }}</a>
+                            {% else %}—{% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Paid from bank</label>
+                        <p class="mb-0">{% if claim.paid_from_bank %}{{ claim.paid_from_bank.name }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Paid date</label>
+                        <p class="mb-0">{% if claim.paid_date %}{{ claim.paid_date|date:"d/m/Y" }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Payment reference</label>
+                        <p class="mb-0">{{ claim.payment_reference|default:"—" }}</p>
+                    </div>
+                    {% if claim.rejection_reason %}
+                    <div class="col-12">
+                        <label class="form-label text-muted small">Rejection reason</label>
+                        <p class="mb-0 text-danger">{{ claim.rejection_reason|linebreaks }}</p>
+                    </div>
                     {% endif %}
-                    {% if claim.paid_date %}
-                    <tr>
-                        <th class="text-muted">Paid On</th>
-                        <td>{{ claim.paid_date|date:"d/m/Y" }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Payment Ref</th>
-                        <td>{{ claim.payment_reference|default:"-" }}</td>
-                    </tr>
+                    {% if claim.description %}
+                    <div class="col-12">
+                        <label class="form-label text-muted small">Description</label>
+                        <p class="mb-0">{{ claim.description|linebreaks }}</p>
+                    </div>
                     {% endif %}
-                </table>
+                </div>
             </div>
         </div>
-        
-        {% if claim.rejection_reason %}
-        <div class="card border-0 shadow-sm mb-3 border-danger">
-            <div class="card-header bg-danger text-white py-3">
-                <h6 class="mb-0 fw-bold"><i class="fas fa-ban me-2"></i>Rejection Reason</h6>
-            </div>
-            <div class="card-body">
-                {{ claim.rejection_reason }}
-            </div>
-        </div>
-        {% endif %}
-        
-        {% if claim.description %}
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white py-3">
-                <h6 class="mb-0 fw-bold"><i class="fas fa-sticky-note me-2 text-primary"></i>Description</h6>
-            </div>
-            <div class="card-body">
-                {{ claim.description }}
-            </div>
-        </div>
-        {% endif %}
         
         <!-- Accounting Flow Info -->
         <div class="card border-0 shadow-sm mt-3">

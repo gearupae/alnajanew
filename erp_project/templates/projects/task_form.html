@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load project_tags %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'projects:task_list' %}">Tasks</a></li>
+            <li class="breadcrumb-item active">{{ title }}</li>
+        </ol>
+    </nav>
+    <h4 class="mb-0 fw-bold">{{ title }}</h4>
+</div>
+
+{% if form.non_field_errors %}
+<div class="alert alert-danger">{{ form.non_field_errors }}</div>
+{% endif %}
+
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
+        <div class="card-body">
+            <div class="form-check">
+                {{ form.is_active }}
+                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+            </div>
+            {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Task details</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.project.id_for_label }}">Project</label>
+                    {{ form.project }}
+                    {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.customer.id_for_label }}">Customer / lead</label>
+                    {{ form.customer }}
+                    {% if form.customer.errors %}<div class="text-danger small">{{ form.customer.errors|join:", " }}</div>{% endif %}
+                    <div class="form-text">Link to a project or a CRM customer/lead (at least one required).</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.name.id_for_label }}">Name <span class="text-danger">*</span></label>
+                    {{ form.name }}
+                    {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.assigned_to.id_for_label }}">Assigned to</label>
+                    {{ form.assigned_to }}
+                    {% if form.assigned_to.errors %}<div class="text-danger small">{{ form.assigned_to.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.status.id_for_label }}">Status</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.priority.id_for_label }}">Priority</label>
+                    {{ form.priority }}
+                    {% if form.priority.errors %}<div class="text-danger small">{{ form.priority.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.estimated_hours.id_for_label }}">Estimated hours</label>
+                    {{ form.estimated_hours }}
+                    {% if form.estimated_hours.errors %}<div class="text-danger small">{{ form.estimated_hours.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.start_date.id_for_label }}">Start date</label>
+                    {{ form.start_date }}
+                    {% if form.start_date.errors %}<div class="text-danger small">{{ form.start_date.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.due_date.id_for_label }}">End date</label>
+                    {{ form.due_date }}
+                    {% if form.due_date.errors %}<div class="text-danger small">{{ form.due_date.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="{{ form.description.id_for_label }}">Description</label>
+                    {{ form.description }}
+                    {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors|join:", " }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Save</button>
+        {% if object %}
+        <a href="{% url 'projects:task_detail' object.pk %}" class="btn btn-light">Cancel</a>
+        {% else %}
+        <a href="{% url 'projects:task_list' %}" class="btn btn-light">Cancel</a>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}

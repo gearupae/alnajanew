@@ -2,167 +2,186 @@
 
 {% block content %}
 <div class="page-header">
-    <h4 class="mb-1 fw-bold">{{ title }}</h4>
-    <p class="text-muted mb-0">Enter project expense details</p>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'projects:expense_list' %}">Project Expenses</a></li>
+            <li class="breadcrumb-item active">{{ title }}</li>
+        </ol>
+    </nav>
+    <h4 class="mb-0 fw-bold">{{ title }}</h4>
 </div>
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-body">
-                <form method="post" novalidate>
-                    {% csrf_token %}
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Project <span class="text-danger">*</span></label>
-                            {{ form.project }}
-                            {% if form.project.errors %}
-                            <div class="text-danger small mt-1">{{ form.project.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
-                            {{ form.category }}
-                            {% if form.category.errors %}
-                            <div class="text-danger small mt-1">{{ form.category.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
-                        {{ form.description }}
-                        {% if form.description.errors %}
-                        <div class="text-danger small mt-1">{{ form.description.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Expense Date <span class="text-danger">*</span></label>
-                            {{ form.expense_date }}
-                            {% if form.expense_date.errors %}
-                            <div class="text-danger small mt-1">{{ form.expense_date.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Amount (excl. VAT) <span class="text-danger">*</span></label>
-                            {{ form.amount }}
-                            {% if form.amount.errors %}
-                            <div class="text-danger small mt-1">{{ form.amount.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">VAT Amount</label>
-                            {{ form.vat_amount }}
-                            {% if form.vat_amount.errors %}
-                            <div class="text-danger small mt-1">{{ form.vat_amount.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <h6 class="fw-bold mb-3"><i class="fas fa-building me-2"></i>Vendor Details (Optional)</h6>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Vendor</label>
-                            {{ form.vendor }}
-                            {% if form.vendor.errors %}
-                            <div class="text-danger small mt-1">{{ form.vendor.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Invoice Reference</label>
-                            {{ form.invoice_reference }}
-                            {% if form.invoice_reference.errors %}
-                            <div class="text-danger small mt-1">{{ form.invoice_reference.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <h6 class="fw-bold mb-3"><i class="fas fa-calculator me-2"></i>Accounting (Optional)</h6>
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Expense Account</label>
-                        {{ form.expense_account }}
-                        <small class="text-muted">Leave blank to use the project's default expense account or system mapping.</small>
-                        {% if form.expense_account.errors %}
-                        <div class="text-danger small mt-1">{{ form.expense_account.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <div class="d-flex justify-content-between">
-                        <a href="{% url 'projects:expense_list' %}" class="btn btn-light">
-                            <i class="fas fa-arrow-left me-1"></i>Cancel
-                        </a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-1"></i>Save Expense
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0 fw-bold"><i class="fas fa-info-circle me-2"></i>Instructions</h6>
-            </div>
-            <div class="card-body">
-                <p class="small text-muted mb-2">
-                    <strong>Project:</strong> Select the project this expense belongs to.
-                </p>
-                <p class="small text-muted mb-2">
-                    <strong>Category:</strong> Classify the expense type for reporting.
-                </p>
-                <p class="small text-muted mb-2">
-                    <strong>Amount:</strong> Enter the net amount excluding VAT.
-                </p>
-                <p class="small text-muted mb-2">
-                    <strong>VAT Amount:</strong> Enter the VAT component separately if applicable.
-                </p>
-                <hr>
-                <p class="small text-muted mb-0">
-                    <strong>Workflow:</strong><br>
-                    1. Create expense (Draft)<br>
-                    2. Approve expense<br>
-                    3. Post to accounting
-                </p>
-            </div>
-        </div>
-        
-        <div class="card mt-3">
-            <div class="card-header">
-                <h6 class="mb-0 fw-bold"><i class="fas fa-book me-2"></i>Accounting Impact</h6>
-            </div>
-            <div class="card-body">
-                <p class="small text-muted mb-2">When posted:</p>
-                <table class="table table-sm small mb-0">
-                    <tr>
-                        <td>Dr</td>
-                        <td>Project Expense</td>
-                    </tr>
-                    <tr>
-                        <td>Dr</td>
-                        <td>VAT Recoverable</td>
-                    </tr>
-                    <tr>
-                        <td>Cr</td>
-                        <td>Accounts Payable / Accrued</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-    </div>
+{% if form.non_field_errors %}
+<div class="alert alert-danger">{{ form.non_field_errors }}</div>
+{% endif %}
+
+{% if object and object.vendor_bill_id %}
+<div class="alert alert-info mb-3">
+    <i class="fas fa-link me-1"></i>This expense is linked to vendor bill
+    <a href="{% url 'purchase:bill_detail' object.vendor_bill.pk %}">{{ object.vendor_bill.bill_number }}</a>.
+    Amounts and vendor details are managed from Purchase.
 </div>
+{% endif %}
+
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
+        <div class="card-body">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-3">
+                    <div class="form-check">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                    </div>
+                    {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                {% if object %}
+                <div class="col-md-4">
+                    <label class="form-label">Expense number</label>
+                    <input type="text" class="form-control bg-light" value="{{ object.expense_number }}" readonly>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Expense details</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.project.id_for_label }}">Project <span class="text-danger">*</span></label>
+                    {{ form.project }}
+                    {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
+                    {% if form.project.help_text %}<div class="form-text">{{ form.project.help_text }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.category.id_for_label }}">Category <span class="text-danger">*</span></label>
+                    {{ form.category }}
+                    {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="{{ form.description.id_for_label }}">Description <span class="text-danger">*</span></label>
+                    {{ form.description }}
+                    {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.expense_date.id_for_label }}">Expense date <span class="text-danger">*</span></label>
+                    {{ form.expense_date }}
+                    {% if form.expense_date.errors %}<div class="text-danger small">{{ form.expense_date.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.amount.id_for_label }}">Amount <span class="text-danger">*</span></label>
+                    {{ form.amount }}
+                    {% if form.amount.errors %}<div class="text-danger small">{{ form.amount.errors|join:", " }}</div>{% endif %}
+                    <div class="form-text">Net amount excluding VAT.</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.vat_amount.id_for_label }}">VAT amount</label>
+                    {{ form.vat_amount }}
+                    {% if form.vat_amount.errors %}<div class="text-danger small">{{ form.vat_amount.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Total amount</label>
+                    <input type="text" class="form-control bg-light" id="expense-total-preview" readonly
+                           value="{% if object %}{{ object.total_amount|floatformat:2 }}{% else %}0.00{% endif %}">
+                    <div class="form-text">Calculated as amount + VAT.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Vendor</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.vendor.id_for_label }}">Vendor</label>
+                    {{ form.vendor }}
+                    {% if form.vendor.errors %}<div class="text-danger small">{{ form.vendor.errors|join:", " }}</div>{% endif %}
+                    {% if form.vendor.help_text %}<div class="form-text">{{ form.vendor.help_text }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.invoice_reference.id_for_label }}">Invoice reference</label>
+                    {{ form.invoice_reference }}
+                    {% if form.invoice_reference.errors %}<div class="text-danger small">{{ form.invoice_reference.errors|join:", " }}</div>{% endif %}
+                    {% if form.invoice_reference.help_text %}<div class="form-text">{{ form.invoice_reference.help_text }}</div>{% endif %}
+                </div>
+                {% if object %}
+                <div class="col-md-6">
+                    <label class="form-label">Vendor bill</label>
+                    {% if object.vendor_bill %}
+                    <div><a href="{% url 'purchase:bill_detail' object.vendor_bill.pk %}">{{ object.vendor_bill.bill_number }}</a></div>
+                    {% else %}
+                    <input type="text" class="form-control bg-light" value="—" readonly>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Accounting</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.expense_account.id_for_label }}">Expense account</label>
+                    {{ form.expense_account }}
+                    {% if form.expense_account.errors %}<div class="text-danger small">{{ form.expense_account.errors|join:", " }}</div>{% endif %}
+                    <div class="form-text">Leave blank to use the project's default expense account or system mapping.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if object %}
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Approval &amp; posting</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <input type="text" class="form-control bg-light" value="{{ object.get_status_display }}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Approved by</label>
+                    <input type="text" class="form-control bg-light" value="{% if object.approved_by %}{{ object.approved_by.get_full_name|default:object.approved_by.username }}{% else %}—{% endif %}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Approved date</label>
+                    <input type="text" class="form-control bg-light" value="{% if object.approved_date %}{{ object.approved_date|date:'d/m/Y H:i' }}{% else %}—{% endif %}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Posted</label>
+                    <input type="text" class="form-control bg-light" value="{% if object.posted %}Yes{% else %}No{% endif %}" readonly>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Journal entry</label>
+                    {% if object.journal_entry %}
+                    <div class="form-control bg-light">
+                        <a href="{% url 'finance:journal_detail' object.journal_entry.pk %}">{{ object.journal_entry.entry_number }}</a>
+                    </div>
+                    {% else %}
+                    <input type="text" class="form-control bg-light" value="—" readonly>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save</button>
+        {% if object %}
+        <a href="{% url 'projects:expense_detail' object.pk %}" class="btn btn-light">Cancel</a>
+        {% else %}
+        <a href="{% url 'projects:expense_list' %}" class="btn btn-light">Cancel</a>
+        {% endif %}
+    </div>
+</form>
 {% endblock %}
 
 {% block extra_js %}
@@ -178,10 +197,14 @@ $(function () {
             dropdownParent: $(document.body),
         });
     }
+
+    function updateTotalPreview() {
+        var amount = parseFloat($('#id_amount').val()) || 0;
+        var vat = parseFloat($('#id_vat_amount').val()) || 0;
+        $('#expense-total-preview').val((amount + vat).toFixed(2));
+    }
+    $('#id_amount, #id_vat_amount').on('input change', updateTotalPreview);
+    updateTotalPreview();
 });
 </script>
 {% endblock %}
-
-
-
-

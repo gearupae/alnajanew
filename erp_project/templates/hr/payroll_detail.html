@@ -52,6 +52,90 @@
 </div>
 {% endif %}
 
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0 fw-semibold">Payroll record</h6></div>
+    <div class="card-body">
+        <div class="row g-4">
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Is active</h6>
+                <p class="mb-0">{% if payroll.is_active %}Yes{% else %}No{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Employee</h6>
+                <p class="mb-0"><a href="{% url 'hr:employee_detail' payroll.employee.pk %}">{{ payroll.employee.full_name }}</a></p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Company</h6>
+                <p class="mb-0">{{ payroll.company|default:payroll.employee.company|default:"—" }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Payslip email sent</h6>
+                <p class="mb-0">{% if payroll.payslip_email_sent %}Yes{% else %}No{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Month</h6>
+                <p class="mb-0">{{ payroll.month|date:"F Y" }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Basic salary</h6>
+                <p class="mb-0">AED {{ payroll.basic_salary|floatformat:2|intcomma }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Allowances</h6>
+                <p class="mb-0">AED {{ payroll.allowances|floatformat:2|intcomma }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Gross salary</h6>
+                <p class="mb-0">AED {{ payroll.gross_salary|floatformat:2|intcomma }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Deductions</h6>
+                <p class="mb-0">AED {{ payroll.deductions|floatformat:2|intcomma }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Net salary</h6>
+                <p class="mb-0 fw-semibold">AED {{ payroll.net_salary|floatformat:2|intcomma }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Status</h6>
+                <p class="mb-0">{{ payroll.get_status_display }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Journal entry</h6>
+                <p class="mb-0">
+                    {% if payroll.journal_entry %}
+                    <a href="{% url 'finance:journal_detail' payroll.journal_entry.pk %}">{{ payroll.journal_entry.entry_number }}</a>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Payment journal entry</h6>
+                <p class="mb-0">
+                    {% if payroll.payment_journal_entry %}
+                    <a href="{% url 'finance:journal_detail' payroll.payment_journal_entry.pk %}">{{ payroll.payment_journal_entry.entry_number }}</a>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Paid from bank</h6>
+                <p class="mb-0">{{ payroll.paid_from_bank.name|default:"—" }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Paid date</h6>
+                <p class="mb-0">{% if payroll.paid_date %}{{ payroll.paid_date|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Payment reference</h6>
+                <p class="mb-0">{% if payroll.payment_reference %}{{ payroll.payment_reference }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row mb-4">
     <div class="col-md-6 mb-3">
         <div class="card h-100">

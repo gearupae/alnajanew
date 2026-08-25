@@ -373,6 +373,38 @@
     </div>
 </div>
 
+{% if revenue_by_customer %}
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2 px-3">
+        <div class="text-muted text-uppercase fw-medium small mb-2">Revenue by customer</div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Customer</th>
+                        <th class="text-end">Invoiced</th>
+                        <th class="text-end">Collected</th>
+                        <th class="text-end">Invoices</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in revenue_by_customer %}
+                    <tr>
+                        <td class="fw-medium">{{ row.customer_name }}</td>
+                        <td class="text-end">AED {{ row.invoiced_total|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-success">AED {{ row.collected_total|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-muted">{{ row.invoice_count|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-muted text-center py-3">No invoiced customers in this period.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="row g-2 mb-3">
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm sales-kpi sales-kpi--invoice h-100">

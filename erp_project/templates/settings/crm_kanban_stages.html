@@ -4,80 +4,109 @@
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div>
         <h4 class="mb-1 fw-bold">{{ title }}</h4>
-        <p class="text-muted mb-0">These columns power the CRM pipeline board. Enable <strong>Won</strong> on exactly one stage — leads dropped there become customers. The <strong>Customers</strong> column on the board is always separate and read-only.</p>
+        <p class="text-muted mb-0">Configure CRM lead pipeline columns. Enable <strong>Converts to customer</strong> on exactly one stage — leads dropped there become customers.</p>
     </div>
-    <a href="{% url 'crm:customer_list' %}" class="btn btn-outline-primary btn-sm">Back to CRM</a>
+    <a href="{% url 'crm:customer_list' %}" class="btn btn-outline-primary btn-sm">Back to CRM board</a>
 </div>
 
-<div class="row g-3">
-    {% for s in stages %}
-    <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <form method="post" class="row g-3 align-items-end">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="save">
-                    <input type="hidden" name="stage_id" value="{{ s.pk }}">
-                    <div class="col-md-3">
-                        <label class="form-label small text-muted">Name</label>
-                        <input type="text" name="name" class="form-control" value="{{ s.name }}" required maxlength="80">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small text-muted">Sort order</label>
-                        <input type="number" name="sort_order" class="form-control" value="{{ s.sort_order }}">
-                    </div>
-                    <div class="col-md-2 d-flex align-items-center gap-2 pt-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="is_active" id="act{{ s.pk }}" {% if s.is_active %}checked{% endif %}>
-                            <label class="form-check-label" for="act{{ s.pk }}">Active</label>
-                        </div>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-center pt-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="converts_to_customer" id="won{{ s.pk }}" {% if s.converts_to_customer %}checked{% endif %}>
-                            <label class="form-check-label text-success fw-medium" for="won{{ s.pk }}">Won (convert)</label>
-                        </div>
-                    </div>
-                    <div class="col-md-3 text-md-end">
-                        <button type="submit" class="btn btn-primary btn-sm me-1"><i class="fas fa-save me-1"></i>Save</button>
-                    </div>
-                </form>
-                <div class="d-flex justify-content-between align-items-center mt-2">
-                    <small class="text-muted mb-0">Slug: <code>{{ s.slug }}</code></small>
-                    <form method="post" class="d-inline m-0" onsubmit="return confirm('Delete “{{ s.name }}”? Leads in this column become unassigned.');">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="stage_id" value="{{ s.pk }}">
-                        <button type="submit" class="btn btn-link btn-sm text-danger p-0">Delete stage</button>
-                    </form>
-                </div>
-            </div>
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Slug</th>
+                        <th style="width: 7rem;">Sort order</th>
+                        <th style="width: 6rem;" class="text-center">Is active</th>
+                        <th style="width: 10rem;" class="text-center">Converts to customer</th>
+                        <th style="width: 10rem;" class="text-center">Tracks opportunity</th>
+                        <th style="width: 7rem;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in stages %}
+                    <tr>
+                        <td>
+                            <form method="post" id="stage-form-{{ s.pk }}" class="d-none">{% csrf_token %}</form>
+                            <input type="hidden" name="action" value="save" form="stage-form-{{ s.pk }}">
+                            <input type="hidden" name="stage_id" value="{{ s.pk }}" form="stage-form-{{ s.pk }}">
+                            <input type="text" name="name" class="form-control form-control-sm" value="{{ s.name }}" required maxlength="80" form="stage-form-{{ s.pk }}">
+                        </td>
+                        <td>
+                            <input type="text" name="slug" class="form-control form-control-sm" value="{{ s.slug }}" maxlength="80" form="stage-form-{{ s.pk }}" placeholder="e.g. qualified">
+                        </td>
+                        <td>
+                            <input type="number" name="sort_order" class="form-control form-control-sm" value="{{ s.sort_order }}" min="0" form="stage-form-{{ s.pk }}">
+                        </td>
+                        <td class="text-center">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="act{{ s.pk }}" {% if s.is_active %}checked{% endif %} form="stage-form-{{ s.pk }}">
+                        </td>
+                        <td class="text-center">
+                            <input class="form-check-input" type="checkbox" name="converts_to_customer" id="won{{ s.pk }}" {% if s.converts_to_customer %}checked{% endif %} form="stage-form-{{ s.pk }}">
+                        </td>
+                        <td class="text-center">
+                            <input class="form-check-input" type="checkbox" name="tracks_opportunity" id="opp{{ s.pk }}" {% if s.tracks_opportunity %}checked{% endif %} form="stage-form-{{ s.pk }}">
+                        </td>
+                        <td class="text-nowrap text-end">
+                            <button type="submit" class="btn btn-primary btn-sm" form="stage-form-{{ s.pk }}" title="Save"><i class="fas fa-save"></i></button>
+                            <form method="post" class="d-inline" onsubmit="return confirm('Delete “{{ s.name }}”? Leads in this column become unassigned.');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="stage_id" value="{{ s.pk }}">
+                                <button type="submit" class="btn btn-link btn-sm text-danger p-0 ms-1" title="Delete">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-muted py-4 text-center">No stages yet — add one below.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
-    {% empty %}
-    <div class="col-12"><p class="text-muted">No stages yet — add one below.</p></div>
-    {% endfor %}
 </div>
 
-<div class="card border-0 shadow-sm mt-3">
+<div class="card border-0 shadow-sm">
     <div class="card-header bg-transparent py-3">
         <h6 class="mb-0 fw-semibold">Add pipeline stage</h6>
     </div>
-    <div class="card-body">
-        <form method="post" class="row g-3 align-items-end">
+    <div class="card-body p-0">
+        <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="add">
-            <div class="col-md-4">
-                <label class="form-label small">Name</label>
-                <input type="text" name="name" class="form-control" placeholder="e.g. Qualified" required maxlength="80">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <tbody>
+                        <tr>
+                            <td style="width: 22%;">
+                                <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. Qualified" required maxlength="80">
+                            </td>
+                            <td style="width: 22%;">
+                                <input type="text" name="slug" class="form-control form-control-sm" placeholder="auto from name" maxlength="80">
+                            </td>
+                            <td style="width: 10%;">
+                                <input type="number" name="sort_order" class="form-control form-control-sm" value="100" min="0">
+                            </td>
+                            <td style="width: 8%;" class="text-center">
+                                <input class="form-check-input" type="checkbox" name="is_active" checked>
+                            </td>
+                            <td style="width: 12%;" class="text-center">
+                                <input class="form-check-input" type="checkbox" name="converts_to_customer">
+                            </td>
+                            <td style="width: 12%;" class="text-center">
+                                <input class="form-check-input" type="checkbox" name="tracks_opportunity">
+                            </td>
+                            <td class="text-end pe-3">
+                                <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-plus me-1"></i>Add</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-            <div class="col-md-2">
-                <label class="form-label small">Sort order</label>
-                <input type="number" name="sort_order" class="form-control" value="100">
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-success"><i class="fas fa-plus me-1"></i>Add</button>
-            </div>
+            <p class="form-text small px-3 pb-3 mb-0">Leave slug blank to generate from the name.</p>
         </form>
     </div>
 </div>

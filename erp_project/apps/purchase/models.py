@@ -746,6 +746,35 @@ class VendorBill(BaseModel):
         self.project.update_totals()
         return expense
 
+    def update_project_assignment(self, project, user=None):
+        """
+        Reassign project on a non-draft bill without changing accounting entries.
+        Keeps linked ProjectExpense and project totals in sync.
+        """
+        if self.status == 'draft':
+            raise ValidationError('Draft bills can be edited on the full bill form.')
+
+        from apps.projects.models import Project, ProjectExpense
+
+        old_project_id = self.project_id
+        new_project_id = project.pk if project else None
+        if old_project_id == new_project_id:
+            return
+
+        self.project = project
+        self.save(update_fields=['project', 'updated_at'])
+
+        if project:
+            self._sync_linked_project_expense(user=user)
+        else:
+            ProjectExpense.objects.filter(vendor_bill=self).delete()
+
+        if old_project_id and old_project_id != new_project_id:
+            try:
+                Project.objects.get(pk=old_project_id).update_totals()
+            except Project.DoesNotExist:
+                pass
+
 
 class VendorBillAttachment(models.Model):
     """Files linked to a vendor bill (e.g. scanned vendor invoice, GRN)."""
@@ -1183,6 +1212,15 @@ class DebitNote(BaseModel):
             raise ValidationError(
                 f'Total debited amount (AED {prior_posted + self.total:,.2f}) cannot exceed '
                 f'original bill total (AED {self.original_bill.total_amount:,.2f}).'
+            )
+        max_allowed = min(
+            self.original_bill.balance,
+            self.original_bill.total_amount - prior_posted,
+        ).quantize(Decimal('0.01'))
+        if self.total > max_allowed:
+            raise ValidationError(
+                f'Debit note amount AED {self.total:,.2f} exceeds remaining payable balance '
+                f'AED {max_allowed:,.2f}.'
             )
         if self.remaining_bill_value < 0:
             raise ValidationError('Debit note exceeds the remaining bill value.')

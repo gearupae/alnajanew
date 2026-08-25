@@ -76,8 +76,8 @@
                     <span class="badge bg-info-subtle text-info-emphasis mb-2">Projects</span>
                     <h5 class="fw-bold mb-2">Customer Progress Report</h5>
                     <p class="text-muted mb-0">
-                        Customer-facing progress report: team members, technicians, project schedule,
-                        and completed tasks — no costing or financial details.
+                        Customer-facing progress report: team, tasks, and billing summary
+                        (invoiced, received, balance due) — no internal costing.
                     </p>
                 </div>
                 <div class="mt-auto">
@@ -95,13 +95,69 @@
                     <span class="badge bg-secondary-subtle text-secondary-emphasis mb-2">Projects</span>
                     <h5 class="fw-bold mb-2">Period Wise Report</h5>
                     <p class="text-muted mb-0">
-                        All projects in a date range, grouped or filtered by salesman,
-                        site engineer, or operation manager.
+                        Projects in a date range with operational and financial columns:
+                        contract value, invoicing, costs, and margin — grouped by role.
                     </p>
                 </div>
                 <div class="mt-auto">
                     <a href="{% url 'reports:project_report_period' %}" class="btn btn-secondary">
                         <i class="fas fa-calendar-alt me-2"></i>Open Period Wise Report
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="page-header mt-4 mb-3">
+    <h5 class="fw-bold mb-1">Inventory Reports</h5>
+    <p class="text-muted mb-0 small">Read-only stock analytics (opens in Inventory module)</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex flex-column">
+                <div class="mb-3">
+                    <span class="badge bg-dark-subtle text-dark mb-2">Inventory</span>
+                    <h5 class="fw-bold mb-2">Stock &amp; Valuation</h5>
+                    <p class="text-muted mb-0 small">Stock summary, balances, valuation, movement, and analytics.</p>
+                </div>
+                <div class="mt-auto">
+                    <a href="{% url 'inventory:consumable_inventory_reports' %}" class="btn btn-outline-dark btn-sm">
+                        <i class="fas fa-boxes me-2"></i>Open Inventory Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex flex-column">
+                <div class="mb-3">
+                    <span class="badge bg-dark-subtle text-dark mb-2">Inventory</span>
+                    <h5 class="fw-bold mb-2">Consumable Usage</h5>
+                    <p class="text-muted mb-0 small">Monthly consumption, requests, and cost reports.</p>
+                </div>
+                <div class="mt-auto">
+                    <a href="{% url 'inventory:consumable_monthly_consumption_report' %}" class="btn btn-outline-dark btn-sm">
+                        <i class="fas fa-chart-line me-2"></i>Monthly Consumption
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex flex-column">
+                <div class="mb-3">
+                    <span class="badge bg-dark-subtle text-dark mb-2">Inventory</span>
+                    <h5 class="fw-bold mb-2">Inventory Aging</h5>
+                    <p class="text-muted mb-0 small">Aging analysis with PDF and Excel export.</p>
+                </div>
+                <div class="mt-auto">
+                    <a href="{% url 'inventory:inventory_aging_report' %}" class="btn btn-outline-dark btn-sm">
+                        <i class="fas fa-hourglass-half me-2"></i>Aging Report
                     </a>
                 </div>
             </div>

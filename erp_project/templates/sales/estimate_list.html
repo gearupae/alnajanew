@@ -574,9 +574,12 @@
                                 </a>
                                 {% endif %}
                                 {% if estimate.can_convert_follow_on and estimate.can_create_invoice_from_estimate %}
-                                <a href="{% url 'sales:estimate_convert' estimate.pk %}" class="btn btn-action btn-outline-success" title="Convert to Invoice" onclick="return confirm('Create invoice from this estimate? Each estimate can only be converted once.');">
-                                    <i class="fas fa-file-invoice"></i>
-                                </a>
+                                <form method="post" action="{% url 'sales:estimate_convert' estimate.pk %}" class="d-inline" onsubmit="return confirm('Create invoice from this estimate? Each estimate can only be converted once.');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-action btn-outline-success" title="Convert to Invoice">
+                                        <i class="fas fa-file-invoice"></i>
+                                    </button>
+                                </form>
                                 {% elif estimate.primary_invoice %}
                                 <a href="{% url 'sales:invoice_detail' estimate.primary_invoice.pk %}" class="btn btn-action btn-outline-success" title="View invoice {{ estimate.primary_invoice.invoice_number }}">
                                     <i class="fas fa-file-invoice"></i>

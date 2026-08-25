@@ -209,6 +209,7 @@
             <div class="card-body py-2 px-3">
                 <div class="text-muted small">Converted</div>
                 <div class="fs-4 fw-bold lh-sm text-success">{{ converted_count|intcomma }}</div>
+                <div class="text-muted small">{{ conversion_rate_pct }}% conversion rate</div>
             </div>
         </div>
     </div>
@@ -277,6 +278,42 @@
         </div>
     </div>
 </div>
+
+{% if salesperson_performance %}
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2 px-3">
+        <div class="text-muted text-uppercase fw-medium small mb-2">Salesperson performance</div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr class="small">
+                        <th>Salesperson</th>
+                        <th class="text-end">Leads</th>
+                        <th class="text-end">Pipeline value</th>
+                        <th class="text-end">Converted</th>
+                        <th class="text-end">Conv. rate</th>
+                        <th class="text-end">Won stage</th>
+                        <th class="text-end">Lost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in salesperson_performance %}
+                    <tr>
+                        <td class="fw-medium">{{ row.label }}</td>
+                        <td class="text-end">{{ row.lead_count|intcomma }}</td>
+                        <td class="text-end">AED {{ row.pipeline_value|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-success">{{ row.converted_count|intcomma }}</td>
+                        <td class="text-end">{{ row.conversion_rate_pct }}%</td>
+                        <td class="text-end">{{ row.won_count|intcomma }}</td>
+                        <td class="text-end text-danger">{{ row.lost_count|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">

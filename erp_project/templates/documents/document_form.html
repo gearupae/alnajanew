@@ -1,33 +1,170 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="page-header">
-    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-2"><li class="breadcrumb-item"><a href="{% url 'documents:document_list' %}">Documents</a></li><li class="breadcrumb-item active">{{ title }}</li></ol></nav>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'documents:document_list' %}">Documents</a></li>
+            {% if is_edit and object %}
+            <li class="breadcrumb-item"><a href="{% url 'documents:document_detail' object.pk %}">{{ object.entity_name }}</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active">{{ title }}</li>
+        </ol>
+    </nav>
     <h4 class="mb-0 fw-bold">{{ title }}</h4>
 </div>
-<div class="card">
-    <div class="card-body">
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            <div class="row g-3">
-                <div class="col-md-4"><label class="form-label">Document Type <span class="text-danger">*</span></label>{{ form.document_type }}</div>
-                <div class="col-md-4"><label class="form-label">Entity Type <span class="text-danger">*</span></label>{{ form.entity_type }}</div>
-                <div class="col-md-4"><label class="form-label">Entity Name <span class="text-danger">*</span></label>{{ form.entity_name }}</div>
-                <div class="col-md-4"><label class="form-label">Document Number</label>{{ form.document_number }}</div>
-                <div class="col-md-4"><label class="form-label">Issue Date</label>{{ form.issue_date }}</div>
-                <div class="col-md-4"><label class="form-label">Expiry Date <span class="text-danger">*</span></label>{{ form.expiry_date }}</div>
-                <div class="col-md-8"><label class="form-label">Notes</label>{{ form.notes }}</div>
-                <div class="col-md-4"><label class="form-label">File</label>{{ form.file }}</div>
+
+{% if form.non_field_errors %}
+<div class="alert alert-danger">{{ form.non_field_errors }}</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" novalidate id="documentForm">
+    {% csrf_token %}
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Status</h6></div>
+        <div class="card-body">
+            <div class="form-check">
+                {{ form.is_active }}
+                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
             </div>
-            <div class="mt-4">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
-                <a href="{% url 'documents:document_list' %}" class="btn btn-light">Cancel</a>
-            </div>
-        </form>
+            {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+        </div>
     </div>
-</div>
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Document details</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.document_type.id_for_label }}">Document type <span class="text-danger">*</span></label>
+                    {{ form.document_type }}
+                    {% if form.document_type.errors %}<div class="text-danger small">{{ form.document_type.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.entity_type.id_for_label }}">Entity type <span class="text-danger">*</span></label>
+                    {{ form.entity_type }}
+                    {% if form.entity_type.errors %}<div class="text-danger small">{{ form.entity_type.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4" id="entityPickerWrap">
+                    <label class="form-label" for="entityRecordPicker">Linked record</label>
+                    <select id="entityRecordPicker" class="form-select">
+                        <option value="">— Select or type name manually —</option>
+                    </select>
+                    <div class="form-text small">Search employees, customers, vendors, vehicles, or companies.</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.entity_name.id_for_label }}">Entity name <span class="text-danger">*</span></label>
+                    {{ form.entity_name }}
+                    {% if form.entity_name.help_text %}<div class="form-text small">{{ form.entity_name.help_text }}</div>{% endif %}
+                    {% if form.entity_name.errors %}<div class="text-danger small">{{ form.entity_name.errors|join:", " }}</div>{% endif %}
+                </div>
+                {{ form.entity_id }}
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.document_number.id_for_label }}">Reference number <span class="text-danger">*</span></label>
+                    {{ form.document_number }}
+                    {% if form.document_number.help_text %}<div class="form-text small">{{ form.document_number.help_text }}</div>{% endif %}
+                    {% if form.document_number.errors %}<div class="text-danger small">{{ form.document_number.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.issue_date.id_for_label }}">Issue date</label>
+                    {{ form.issue_date }}
+                    {% if form.issue_date.errors %}<div class="text-danger small">{{ form.issue_date.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.expiry_date.id_for_label }}">Expiry date <span class="text-danger">*</span></label>
+                    {{ form.expiry_date }}
+                    {% if form.expiry_date.errors %}<div class="text-danger small">{{ form.expiry_date.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label" for="{{ form.notes.id_for_label }}">Notes</label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.file.id_for_label }}">File <span class="text-danger">*</span></label>
+                    {{ form.file }}
+                    {% if is_edit and object.file %}
+                    <div class="form-text small">Current: <a href="{{ object.file.url }}" target="_blank" rel="noopener noreferrer">Download</a></div>
+                    {% endif %}
+                    {% if form.file.errors %}<div class="text-danger small">{{ form.file.errors|join:", " }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
+        {% if is_edit and object %}
+        <a href="{% url 'documents:document_detail' object.pk %}" class="btn btn-light">Cancel</a>
+        {% else %}
+        <a href="{% url 'documents:document_list' %}" class="btn btn-light">Cancel</a>
+        {% endif %}
+    </div>
+</form>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+(function () {
+    var lookupUrl = "{% url 'documents:entity_lookup' %}";
+    var entityTypeEl = document.getElementById('id_entity_type');
+    var entityNameEl = document.getElementById('id_entity_name');
+    var entityIdEl = document.getElementById('id_entity_id');
+    var pickerEl = document.getElementById('entityRecordPicker');
+    var pickerWrap = document.getElementById('entityPickerWrap');
 
+    function togglePicker() {
+        var t = entityTypeEl ? entityTypeEl.value : '';
+        if (!pickerWrap) return;
+        if (t === 'other' || t === 'company') {
+            pickerWrap.classList.add('d-none');
+        } else {
+            pickerWrap.classList.remove('d-none');
+        }
+    }
 
+    function loadEntities() {
+        if (!entityTypeEl || !pickerEl) return;
+        var t = entityTypeEl.value;
+        if (!t || t === 'other') {
+            pickerEl.innerHTML = '<option value="">— Select or type name manually —</option>';
+            return;
+        }
+        fetch(lookupUrl + '?entity_type=' + encodeURIComponent(t), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var html = '<option value="">— Select or type name manually —</option>';
+                (data.results || []).forEach(function (row) {
+                    var sel = entityIdEl && String(entityIdEl.value) === String(row.id) ? ' selected' : '';
+                    html += '<option value="' + row.id + '" data-name="' + row.text.replace(/"/g, '&quot;') + '"' + sel + '>' + row.text + '</option>';
+                });
+                pickerEl.innerHTML = html;
+            })
+            .catch(function () {});
+    }
 
+    if (pickerEl) {
+        pickerEl.addEventListener('change', function () {
+            var opt = pickerEl.options[pickerEl.selectedIndex];
+            if (!opt || !opt.value) return;
+            if (entityIdEl) entityIdEl.value = opt.value;
+            if (entityNameEl) entityNameEl.value = opt.getAttribute('data-name') || opt.textContent;
+        });
+    }
+    if (entityTypeEl) {
+        entityTypeEl.addEventListener('change', function () {
+            if (entityIdEl) entityIdEl.value = '';
+            loadEntities();
+            togglePicker();
+        });
+    }
 
+    document.addEventListener('DOMContentLoaded', function () {
+        togglePicker();
+        loadEntities();
+    });
+})();
+</script>
+{% endblock %}

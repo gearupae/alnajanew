@@ -176,31 +176,156 @@
             </div>
             <div class="card-body pt-0">
                 <div class="row g-4">
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Is active</h6>
+                        <p class="mb-0">{% if project.is_active %}Yes{% else %}No{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Project code</h6>
+                        <p class="mb-0 font-monospace">{{ project.project_code }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Name</h6>
+                        <p class="mb-0">{{ project.name }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Status</h6>
+                        <p class="mb-0">{{ project.get_status_display }}</p>
+                    </div>
                     <div class="col-md-4">
                         <h6 class="text-muted mb-2">Customer</h6>
                         <p class="mb-0">
                             {% if project.customer %}
-                                {{ project.customer.company|default:project.customer.name|default:"-" }}
-                            {% else %}
-                                -
-                            {% endif %}
+                            <a href="{% url 'crm:customer_detail' project.customer.pk %}" class="text-decoration-none">
+                                {{ project.customer.company|default:project.customer.name }}
+                            </a>
+                            {% else %}—{% endif %}
                         </p>
                     </div>
                     <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Contact person</h6>
-                        <p class="mb-0">
-                            {% if project.customer and project.customer.company %}
-                                {{ project.customer.name|default:"-" }}
-                            {% elif project.customer %}
-                                -
-                            {% else %}
-                                -
-                            {% endif %}
-                        </p>
+                        <h6 class="text-muted mb-2">Manager</h6>
+                        <p class="mb-0">{% if project.manager %}{{ project.manager.get_full_name|default:project.manager.username }}{% else %}—{% endif %}</p>
                     </div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Manager</h6><p class="mb-0">{% if project.manager %}{{ project.manager.get_full_name|default:project.manager.username }}{% else %}-{% endif %}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Budget</h6><p class="mb-0">AED {{ project.budget|floatformat:2 }}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Quotation price</h6><p class="mb-0">{% if project_estimate_total > 0 %}AED {{ project_estimate_total|floatformat:2 }}{% else %}—{% endif %}</p></div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Billing type</h6>
+                        <p class="mb-0">{{ project.get_billing_type_display }}</p>
+                    </div>
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">Description</h6>
+                        <p class="mb-0">{{ project.description|default:"—"|linebreaksbr }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Start date</h6>
+                        <p class="mb-0">{{ project.start_date|date:"d/m/Y"|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">End date</h6>
+                        <p class="mb-0">{{ project.end_date|date:"d/m/Y"|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Budget</h6>
+                        <p class="mb-0">AED {{ project.budget|floatformat:2 }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Estimated cost</h6>
+                        <p class="mb-0">AED {{ project.estimated_cost|floatformat:2 }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Contract value</h6>
+                        <p class="mb-0">AED {{ project.contract_value|floatformat:2 }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Total expenses</h6>
+                        <p class="mb-0">AED {{ project.total_expenses|floatformat:2 }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Total revenue</h6>
+                        <p class="mb-0">AED {{ project.total_revenue|floatformat:2 }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Total billed</h6>
+                        <p class="mb-0">AED {{ project.total_billed|floatformat:2 }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-2">Expense account</h6>
+                        <p class="mb-0">{% if project.expense_account %}{{ project.expense_account.code }} — {{ project.expense_account.name }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-2">Revenue account</h6>
+                        <p class="mb-0">{% if project.revenue_account %}{{ project.revenue_account.code }} — {{ project.revenue_account.name }}{% else %}—{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-transparent py-3">
+                <h6 class="mb-0 fw-semibold"><i class="fas fa-check-double me-2 text-dark"></i>Approval workflow</h6>
+            </div>
+            <div class="card-body pt-0">
+                <div class="row g-4">
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Conversion approval status</h6>
+                        <p class="mb-0">{{ project.get_conversion_approval_status_display }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Conversion approval submitted at</h6>
+                        <p class="mb-0">{% if project.conversion_approval_submitted_at %}{{ project.conversion_approval_submitted_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Conversion approval submitted by</h6>
+                        <p class="mb-0">{% if project.conversion_approval_submitted_by %}{{ project.conversion_approval_submitted_by.get_full_name|default:project.conversion_approval_submitted_by.username }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Conversion approval rejection reason</h6>
+                        <p class="mb-0">{{ project.conversion_approval_rejection_reason|default:conversion_rejection_detail|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Edit approval status</h6>
+                        <p class="mb-0">{{ project.get_edit_approval_status_display }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Edit approval submitted at</h6>
+                        <p class="mb-0">{% if project.edit_approval_submitted_at %}{{ project.edit_approval_submitted_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Edit approval submitted by</h6>
+                        <p class="mb-0">{% if project.edit_approval_submitted_by %}{{ project.edit_approval_submitted_by.get_full_name|default:project.edit_approval_submitted_by.username }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Edit approval rejection reason</h6>
+                        <p class="mb-0">{{ project.edit_approval_rejection_reason|default:completion_rejection_detail|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Operation access status</h6>
+                        <p class="mb-0">{{ project.get_operation_access_status_display }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Operation access submitted at</h6>
+                        <p class="mb-0">{% if project.operation_access_submitted_at %}{{ project.operation_access_submitted_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Operation access submitted by</h6>
+                        <p class="mb-0">{% if project.operation_access_submitted_by %}{{ project.operation_access_submitted_by.get_full_name|default:project.operation_access_submitted_by.username }}{% else %}—{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-muted mb-2">Operation access rejection reason</h6>
+                        <p class="mb-0">{{ project.operation_access_rejection_reason|default:operation_access_rejection_detail|default:"—" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-transparent py-3">
+                <h6 class="mb-0 fw-semibold"><i class="fas fa-chart-line me-2 text-dark"></i>Billing &amp; profit summary</h6>
+            </div>
+            <div class="card-body pt-0">
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Quotation price</h6>
+                        <p class="mb-0">{% if project_estimate_total > 0 %}AED {{ project_estimate_total|floatformat:2 }}{% else %}—{% endif %}</p>
+                    </div>
                     <div class="col-md-4">
                         <h6 class="text-muted mb-2">Invoiced</h6>
                         <p class="mb-0">{% if project_invoiced_amount > 0 %}AED {{ project_invoiced_amount|floatformat:2 }}{% else %}—{% endif %}</p>
@@ -208,13 +333,6 @@
                     <div class="col-md-4">
                         <h6 class="text-muted mb-2">Received</h6>
                         <p class="mb-0 fw-semibold text-success">{% if project_received_amount > 0 %}AED {{ project_received_amount|floatformat:2 }}{% else %}—{% endif %}</p>
-                        {% if project_advance_received > 0 or project_invoice_paid > 0 %}
-                        <p class="small text-muted mb-0">
-                            {% if project_advance_received > 0 %}Advances AED {{ project_advance_received|floatformat:2 }}{% endif %}
-                            {% if project_advance_received > 0 and project_invoice_paid > 0 %} · {% endif %}
-                            {% if project_invoice_paid > 0 %}Invoice payments AED {{ project_invoice_paid|floatformat:2 }}{% endif %}
-                        </p>
-                        {% endif %}
                     </div>
                     <div class="col-md-4">
                         <h6 class="text-muted mb-2">Balance</h6>
@@ -222,38 +340,12 @@
                     </div>
                     <div class="col-md-4">
                         <h6 class="text-muted mb-2">Total profit <span class="small fw-normal">({{ header_profit_label }})</span></h6>
-                        <p class="mb-0 fw-semibold d-flex align-items-center flex-wrap gap-2">
-                            AED {{ header_profit_vs_expenses|floatformat:2 }}
-                            {% if header_profit_vs_expenses > 0 %}
-                            <span class="badge badge-active">Profitable</span>
-                            {% elif header_profit_vs_expenses < 0 %}
-                            <span class="badge badge-inactive">Loss</span>
-                            {% else %}
-                            <span class="badge" style="background:#fef3c7;color:#92400e;">Break-even</span>
-                            {% endif %}
-                        </p>
+                        <p class="mb-0 fw-semibold">AED {{ header_profit_vs_expenses|floatformat:2 }}</p>
                     </div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Team</h6><p class="mb-0">{{ project_team.member_count }} member{% if project_team.member_count != 1 %}s{% endif %}{% if project_team.technician_count %}, {{ project_team.technician_count }} technician{% if project_team.technician_count != 1 %}s{% endif %}{% endif %}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Start Date</h6><p class="mb-0">{{ project.start_date|date:"d/m/Y"|default:"-" }}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">End Date</h6><p class="mb-0">{{ project.end_date|date:"d/m/Y"|default:"-" }}</p></div>
-                    {% if project.conversion_approval_status == 'rejected' %}
-                    <div class="col-12">
-                        <h6 class="text-muted mb-2">Conversion rejection detail</h6>
-                        <p class="mb-0">{{ conversion_rejection_detail|default:"—" }}</p>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-2">Team</h6>
+                        <p class="mb-0">{{ project_team.member_count }} member{% if project_team.member_count != 1 %}s{% endif %}{% if project_team.technician_count %}, {{ project_team.technician_count }} technician{% if project_team.technician_count != 1 %}s{% endif %}{% endif %}</p>
                     </div>
-                    {% endif %}
-                    {% if project.edit_approval_status == 'rejected' %}
-                    <div class="col-12">
-                        <h6 class="text-muted mb-2">Rejection reason</h6>
-                        <p class="mb-0">{{ completion_rejection_detail|default:"—" }}</p>
-                    </div>
-                    {% endif %}
-                    {% if project.operation_access_status == 'rejected' %}
-                    <div class="col-12">
-                        <h6 class="text-muted mb-2">Update access rejection detail</h6>
-                        <p class="mb-0">{{ operation_access_rejection_detail|default:"—" }}</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -330,7 +422,11 @@
                     <form method="post" class="row g-3 align-items-end">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="record_item_delivery">
-                        <div class="col-md-5">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Project</label>
+                            {{ item_delivery_form.project }}
+                        </div>
+                        <div class="col-md-4">
                             <label class="form-label small fw-semibold">Item</label>
                             {{ item_delivery_form.item }}
                             {% if item_delivery_form.item.errors %}<div class="text-danger small">{{ item_delivery_form.item.errors|join:", " }}</div>{% endif %}
@@ -340,10 +436,14 @@
                             {{ item_delivery_form.quantity }}
                             {% if item_delivery_form.quantity.errors %}<div class="text-danger small">{{ item_delivery_form.quantity.errors|join:", " }}</div>{% endif %}
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold">Delivery date</label>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold">Delivered date</label>
                             {{ item_delivery_form.delivered_date }}
                             {% if item_delivery_form.delivered_date.errors %}<div class="text-danger small">{{ item_delivery_form.delivered_date.errors|join:", " }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Delivered by</label>
+                            <input type="text" class="form-control form-control-sm bg-light" value="{{ request.user|staff_label }}" readonly>
                         </div>
                         <div class="col-md-2">
                             <button type="submit" class="btn btn-primary w-100"><i class="fas fa-check me-1"></i>Deliver</button>
@@ -630,13 +730,14 @@
                         <tbody>
                             {% for task in tasks %}
                             <tr>
-                                <td>{{ task.name }}</td>
+                                <td><a href="{% url 'projects:task_detail' task.pk %}" class="text-decoration-none fw-medium">{{ task.name }}</a></td>
                                 <td>{% if task.assigned_to %}{{ task.assigned_to|staff_label }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
                                 <td>{% if task.priority == 'high' %}<span class="badge badge-inactive">High</span>{% elif task.priority == 'medium' %}<span class="badge" style="background:#fef3c7;color:#92400e;">Medium</span>{% else %}<span class="badge bg-secondary">Low</span>{% endif %}</td>
                                 <td>{{ task.start_date|date:"d/m/Y"|default:"—" }}</td>
                                 <td>{{ task.due_date|date:"d/m/Y"|default:"—" }}</td>
                                 <td>{% if task.status == 'completed' %}<span class="badge badge-active">Done</span>{% elif task.status == 'in_progress' %}<span class="badge" style="background:#dbeafe;color:#1e40af;">In Progress</span>{% else %}<span class="badge bg-secondary">Pending</span>{% endif %}</td>
                                 <td>
+                                    <a href="{% url 'projects:task_detail' task.pk %}" class="btn btn-action btn-outline-secondary" title="View task"><i class="fas fa-eye"></i></a>
                                     {% if task.status != 'completed' %}<a href="{% url 'projects:task_status' task.pk 'completed' %}" class="btn btn-action btn-outline-success" title="Mark Complete"><i class="fas fa-check"></i></a>{% endif %}
                                 </td>
                             </tr>
@@ -738,6 +839,125 @@
                 </div>
             </div>
         </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h6 class="mb-0 fw-semibold"><i class="fas fa-id-card me-2 text-dark"></i>Gate passes</h6>
+                {% if can_manage_gatepass %}
+                <a href="?open_gatepass=1#gatepassFormPanel" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i>Add gate pass
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body pt-0">
+                {% if member_gatepass_rows %}
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-bordered mb-0 small align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Person</th>
+                                <th>Reference</th>
+                                <th>Valid from</th>
+                                <th>Expires</th>
+                                <th>Status</th>
+                                {% if can_manage_gatepass %}<th class="text-end">Actions</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in member_gatepass_rows %}
+                            <tr>
+                                <td class="fw-medium">{{ row.member.get_full_name|default:row.member.username }}</td>
+                                <td>{% if row.gatepass %}{{ row.gatepass.reference_number|default:"—" }}{% else %}—{% endif %}</td>
+                                <td>{% if row.gatepass %}{{ row.gatepass.start_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                                <td>
+                                    {% if row.gatepass %}
+                                        {{ row.gatepass.expiry_date|date:"d/m/Y" }}
+                                        {% if row.gatepass.expiry_date <= gatepass_alert_horizon %}
+                                        <span class="badge bg-warning text-dark ms-1">Expiring soon</span>
+                                        {% elif row.gatepass.expiry_date < today %}
+                                        <span class="badge bg-danger ms-1">Expired</span>
+                                        {% endif %}
+                                    {% else %}—{% endif %}
+                                </td>
+                                <td>
+                                    {% if row.gatepass %}
+                                        {% if row.gatepass.start_date <= today and row.gatepass.expiry_date >= today %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% elif row.gatepass.expiry_date < today %}
+                                        <span class="badge bg-secondary">Expired</span>
+                                        {% else %}
+                                        <span class="badge bg-info">Upcoming</span>
+                                        {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">No pass</span>
+                                    {% endif %}
+                                </td>
+                                {% if can_manage_gatepass %}
+                                <td class="text-end text-nowrap">
+                                    {% if row.gatepass %}
+                                    <a href="?edit_gatepass={{ row.gatepass.pk }}#gatepassFormPanel" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="post" action="{% url 'projects:project_gatepass_delete' project.pk row.gatepass.pk %}" class="d-inline" onsubmit="return confirm('Remove this gate pass?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">Add project members or technicians, then issue site access passes with expiry dates.</p>
+                {% endif %}
+
+                {% if can_manage_gatepass %}
+                <div class="collapse {% if open_gatepass_create or editing_gatepass_pk or gatepass_form.errors %}show{% endif %}" id="gatepassFormPanel">
+                    <div class="border rounded p-3 bg-light">
+                        <h6 class="small fw-semibold mb-3">{% if editing_gatepass_pk %}Edit gate pass{% else %}New gate pass{% endif %}</h6>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="save_gatepass">
+                            {% if editing_gatepass_pk %}<input type="hidden" name="gatepass_id" value="{{ editing_gatepass_pk }}">{% endif %}
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Team member / technician</label>
+                                    {{ gatepass_form.member }}
+                                    {% for err in gatepass_form.member.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Reference number</label>
+                                    {{ gatepass_form.reference_number }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Start date</label>
+                                    {{ gatepass_form.start_date }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Expiry date</label>
+                                    {{ gatepass_form.expiry_date }}
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Notes</label>
+                                    {{ gatepass_form.notes }}
+                                </div>
+                            </div>
+                            {% if gatepass_form.non_field_errors %}
+                            <div class="alert alert-danger mt-2 mb-0 py-2">{{ gatepass_form.non_field_errors }}</div>
+                            {% endif %}
+                            <div class="mt-3 d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">Save gate pass</button>
+                                <a href="{% url 'projects:project_detail' project.pk %}" class="btn btn-light btn-sm">Cancel</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
     
     <div class="col-lg-4">
@@ -763,6 +983,45 @@
                     </li>
                     {% endfor %}
                 </ul>
+            </div>
+        </div>
+        {% endif %}
+        {% if linked_sales_invoices or can_create_sales_invoice %}
+        <div class="card mb-4 border-0 shadow-sm">
+            <div class="card-header bg-transparent py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold"><i class="fas fa-file-invoice-dollar me-2 text-dark"></i>Sales invoices</h6>
+                {% if can_create_sales_invoice %}
+                <a href="{% url 'sales:invoice_create' %}?project={{ project.pk }}{% if project.customer_id %}&amp;customer={{ project.customer_id }}{% endif %}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-plus me-1"></i>Create invoice
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body pt-2 pb-2">
+                {% if linked_sales_invoices %}
+                <ul class="list-group list-group-flush">
+                    {% for inv in linked_sales_invoices %}
+                    <li class="list-group-item px-0 py-2 border-0 border-bottom">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div class="min-w-0">
+                                <a href="{% url 'sales:invoice_detail' inv.pk %}" class="fw-semibold text-decoration-none">{{ inv.invoice_number }}</a>
+                                <div class="small text-muted">{{ inv.invoice_date|date:"d M Y" }}</div>
+                            </div>
+                            <div class="text-end text-nowrap">
+                                <span class="badge bg-light text-dark border">{{ inv.get_status_display }}</span>
+                                <div class="small fw-medium mt-1">AED {{ inv.total_amount|floatformat:2 }}</div>
+                                {% if inv.balance > 0 %}
+                                <div class="small text-danger">Due AED {{ inv.balance|floatformat:2 }}</div>
+                                {% elif inv.paid_amount > 0 %}
+                                <div class="small text-success">Paid</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted small mb-0">No sales invoices linked yet. Create one to bill this project.</p>
+                {% endif %}
             </div>
         </div>
         {% endif %}
@@ -1003,16 +1262,17 @@
         </div>
 
         <div class="card mb-4">
-            <div class="card-header bg-transparent py-2 border-bottom-0">
-                <button class="btn btn-link text-decoration-none text-dark w-100 text-start p-0 d-flex justify-content-between align-items-center collapsed"
+            <div class="card-header bg-transparent py-2 border-bottom-0 d-flex justify-content-between align-items-center">
+                <button class="btn btn-link text-decoration-none text-dark p-0 d-flex justify-content-between align-items-center flex-grow-1 collapsed"
                         type="button"
                         data-bs-toggle="collapse"
                         data-bs-target="#itemDeliveriesPanel"
                         aria-expanded="false"
                         aria-controls="itemDeliveriesPanel">
                     <span class="fw-semibold"><i class="fas fa-box-open me-2 text-dark"></i>Item Deliveries</span>
-                    <i class="fas fa-chevron-down small text-muted"></i>
+                    <i class="fas fa-chevron-down small text-muted ms-2"></i>
                 </button>
+                <a href="{% url 'projects:item_delivery_list' %}?project={{ project.pk }}" class="btn btn-sm btn-light ms-2">All deliveries</a>
             </div>
             <div id="itemDeliveriesPanel" class="collapse show">
                 <div class="card-body pt-0">
@@ -1025,7 +1285,11 @@
                                 {% if ev.kind == 'delivery' %}Delivered{% else %}Returned{% endif %}
                             </span>
                             <span class="flex-grow-1 min-w-0">
+                                {% if ev.kind == 'delivery' and ev.delivery_id %}
+                                <a href="{% url 'projects:item_delivery_detail' ev.delivery_id %}" class="fw-medium d-block text-truncate text-decoration-none">{{ ev.item_name }}</a>
+                                {% else %}
                                 <span class="fw-medium d-block text-truncate">{{ ev.item_name }}</span>
+                                {% endif %}
                                 <span class="text-muted font-monospace">{{ ev.detail }}</span>
                             </span>
                             <span class="text-muted text-nowrap text-end">

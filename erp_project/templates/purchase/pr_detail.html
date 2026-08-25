@@ -79,35 +79,29 @@
             <div class="card-header"><h6 class="mb-0 fw-semibold">Request Details</h6></div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Is active</label>
+                        <p class="mb-0">{% if pr.is_active %}Yes{% else %}No{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">PR number</label>
+                        <p class="mb-0 fw-medium">{{ pr.pr_number }}</p>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label text-muted small">Date</label>
                         <p class="mb-0">{{ pr.date|date:"d/m/Y" }}</p>
                     </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Required by date</label>
+                        <p class="mb-0">{{ pr.required_by_date|date:"d/m/Y"|default:"—" }}</p>
+                    </div>
                     <div class="col-md-4">
-                        <label class="form-label text-muted small">Required By</label>
-                        <p class="mb-0">{{ pr.required_by_date|date:"d/m/Y"|default:"-" }}</p>
+                        <label class="form-label text-muted small">Requested by</label>
+                        <p class="mb-0">{{ pr.requested_by.get_full_name|default:pr.requested_by.username }}</p>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label text-muted small">Department</label>
-                        <p class="mb-0">{{ pr.department.name|default:"-" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Vendor</label>
-                        <p class="mb-0">{% if pr.vendor %}{{ pr.vendor.name }}{% else %}—{% endif %}</p>
-                    </div>
-                    {% if pr.service_request %}
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">From Service Request</label>
-                        <p class="mb-0">
-                            <a href="{% url 'service_request:sr_detail' pr.service_request.pk %}" class="text-decoration-none">
-                                {{ pr.service_request.sr_number }}
-                            </a>
-                        </p>
-                    </div>
-                    {% endif %}
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Requested By</label>
-                        <p class="mb-0">{{ pr.requested_by.get_full_name|default:pr.requested_by.username }}</p>
+                        <p class="mb-0">{{ pr.department.name|default:"—" }}</p>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label text-muted small">Priority</label>
@@ -125,21 +119,34 @@
                             {% else %}<span class="badge bg-secondary">{{ pr.get_status_display }}</span>{% endif %}
                         </p>
                     </div>
-                    {% if pr.status == 'rejected' %}
-                    <div class="col-12">
-                        <label class="form-label text-muted small">Rejection detail</label>
-                        <p class="mb-0">{{ pr.rejection_reason|default:"—" }}</p>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Vendor</label>
+                        <p class="mb-0">{% if pr.vendor %}{{ pr.vendor.name }}{% else %}—{% endif %}</p>
                     </div>
-                    {% elif pr.status == 'returned' and pr.rejection_reason %}
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Total amount</label>
+                        <p class="mb-0 fw-semibold">AED {{ pr.total_amount|floatformat:2 }}</p>
+                    </div>
+                    {% if pr.service_request %}
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Service request</label>
+                        <p class="mb-0">
+                            <a href="{% url 'service_request:sr_detail' pr.service_request.pk %}" class="text-decoration-none">
+                                {{ pr.service_request.sr_number }}
+                            </a>
+                        </p>
+                    </div>
+                    {% endif %}
+                    {% if pr.rejection_reason %}
                     <div class="col-12">
-                        <label class="form-label text-muted small">Revision feedback</label>
+                        <label class="form-label text-muted small">Rejection reason</label>
                         <p class="mb-0">{{ pr.rejection_reason }}</p>
                     </div>
                     {% endif %}
                     {% if pr.notes %}
                     <div class="col-12">
-                        <label class="form-label text-muted small">Notes / Justification</label>
-                        <p class="mb-0">{{ pr.notes }}</p>
+                        <label class="form-label text-muted small">Notes</label>
+                        <p class="mb-0">{{ pr.notes|linebreaks }}</p>
                     </div>
                     {% endif %}
                 </div>

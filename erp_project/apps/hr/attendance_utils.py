@@ -57,6 +57,29 @@ def open_attendance_session(employee: Employee, d: date) -> AttendanceRecord | N
     )
 
 
+def open_attendance_session_any_date(employee: Employee) -> AttendanceRecord | None:
+    """Latest open punch across all dates (forgotten clock-out from a prior day)."""
+    return (
+        AttendanceRecord.objects.filter(
+            employee=employee,
+            is_active=True,
+            check_in__isnull=False,
+            check_out__isnull=True,
+        )
+        .order_by('-date', '-check_in', '-pk')
+        .first()
+    )
+
+
+def resolve_open_attendance_session(employee: Employee, d: date | None = None) -> AttendanceRecord | None:
+    """Open session on d, else most recent open session on any prior date."""
+    if d is not None:
+        open_sess = open_attendance_session(employee, d)
+        if open_sess:
+            return open_sess
+    return open_attendance_session_any_date(employee)
+
+
 def _session_datetimes(d: date, check_in, check_out):
     """Return (start, end) datetimes for a closed session."""
     if not check_in or not check_out:

@@ -44,40 +44,114 @@
 <div class="row g-4">
     <div class="col-lg-8">
         <div class="card mb-4">
+            <div class="card-header"><h6 class="mb-0 fw-semibold">Bill details</h6></div>
             <div class="card-body">
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <h6 class="text-muted mb-2">Vendor</h6>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Is active</label>
+                        <p class="mb-0">{% if bill.is_active %}Yes{% else %}No{% endif %}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Bill number</label>
+                        <p class="mb-0 fw-medium">{{ bill.bill_number }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Bill date</label>
+                        <p class="mb-0">{{ bill.bill_date|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Due date</label>
+                        <p class="mb-0">{{ bill.due_date|date:"d/m/Y" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Vendor</label>
                         <p class="fw-medium mb-0">{{ bill.vendor.name }}</p>
                     </div>
-                    <div class="col-md-6">
-                        <h6 class="text-muted mb-2">Project</h6>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Vendor invoice number</label>
+                        <p class="mb-0">{{ bill.vendor_invoice_number|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Status</label>
                         <p class="mb-0">
-                            {% if bill.project %}
-                            <a href="{% url 'projects:project_detail' bill.project.pk %}" class="text-decoration-none">{{ bill.project.project_code }} — {{ bill.project.name }}</a>
+                            {% if bill.status == 'draft' %}
+                            <span class="badge bg-secondary">Draft</span>
+                            {% elif bill.status == 'posted' %}
+                            <span class="badge" style="background:#dcfce7;color:#166534;">Posted</span>
+                            {% elif bill.status == 'pending' %}
+                            <span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>
+                            {% elif bill.status == 'paid' %}
+                            <span class="badge badge-active">Paid</span>
+                            {% elif bill.status == 'partial' %}
+                            <span class="badge" style="background:#dbeafe;color:#1e40af;">Partial</span>
+                            {% elif bill.status == 'overdue' %}
+                            <span class="badge badge-inactive">Overdue</span>
                             {% else %}
-                            <span class="text-muted">—</span>
+                            <span class="badge bg-secondary">{{ bill.get_status_display }}</span>
                             {% endif %}
                         </p>
                     </div>
-                    <div class="col-md-4 mt-3">
-                        <h6 class="text-muted mb-2">Bill Date</h6>
-                        <p class="mb-0">{{ bill.bill_date|date:"d/m/Y" }}</p>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Purchase order</label>
+                        <p class="mb-0">
+                            {% if bill.purchase_order %}
+                            <a href="{% url 'purchase:po_detail' bill.purchase_order.pk %}">{{ bill.purchase_order.po_number }}</a>
+                            {% else %}—{% endif %}
+                        </p>
                     </div>
-                    <div class="col-md-4 mt-3">
-                        <h6 class="text-muted mb-2">Due Date</h6>
-                        <p class="mb-0">{{ bill.due_date|date:"d/m/Y" }}</p>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Project</label>
+                        {% if can_change_project %}
+                        <form method="post" action="{% url 'purchase:bill_update_project' bill.pk %}" class="d-flex gap-2 align-items-start">
+                            {% csrf_token %}
+                            {{ project_form.project }}
+                            <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">
+                                <i class="fas fa-save me-1"></i>Save
+                            </button>
+                        </form>
+                        <small class="text-muted d-block mt-1">Accounting entries are not changed when updating the project.</small>
+                        {% else %}
+                        <p class="mb-0">
+                            {% if bill.project %}
+                            <a href="{% url 'projects:project_detail' bill.project.pk %}" class="text-decoration-none">{{ bill.project.project_code }} — {{ bill.project.name }}</a>
+                            {% else %}—{% endif %}
+                        </p>
+                        {% endif %}
                     </div>
-                    {% if bill.purchase_order %}
-                    <div class="col-md-4 mt-3">
-                        <h6 class="text-muted mb-2">Purchase Order</h6>
-                        <p class="mb-0"><a href="{% url 'purchase:po_detail' bill.purchase_order.pk %}">{{ bill.purchase_order.po_number }}</a></p>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Goods received</label>
+                        <p class="mb-0">{% if bill.goods_received %}Yes{% else %}No{% endif %}
+                            {% if bill.goods_received %}<span class="badge bg-info text-dark ms-1">GRN-matched</span>{% endif %}
+                        </p>
                     </div>
-                    {% endif %}
-                    {% if bill.goods_received %}
-                    <div class="col-md-4 mt-3">
-                        <h6 class="text-muted mb-2">Billing type</h6>
-                        <p class="mb-0"><span class="badge bg-info text-dark">GRN-matched (goods received)</span></p>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Subtotal</label>
+                        <p class="mb-0">AED {{ bill.subtotal|floatformat:2 }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">VAT amount</label>
+                        <p class="mb-0">AED {{ bill.vat_amount|floatformat:2 }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Total amount</label>
+                        <p class="mb-0 fw-semibold">AED {{ bill.total_amount|floatformat:2 }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Paid amount</label>
+                        <p class="mb-0 text-success">AED {{ bill.paid_amount|floatformat:2 }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Journal entry</label>
+                        <p class="mb-0">
+                            {% if bill.journal_entry %}
+                            <a href="{% url 'finance:journal_detail' bill.journal_entry.pk %}" class="text-decoration-none">{{ bill.journal_entry.entry_number }}</a>
+                            {% else %}—{% endif %}
+                        </p>
+                    </div>
+                    {% if bill.notes %}
+                    <div class="col-12">
+                        <label class="form-label text-muted small">Notes</label>
+                        <p class="mb-0">{{ bill.notes|linebreaks }}</p>
                     </div>
                     {% endif %}
                 </div>

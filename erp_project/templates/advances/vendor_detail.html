@@ -38,12 +38,20 @@
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="form-label text-muted small">Vendor Name</label>
+                        <label class="form-label text-muted small">Name</label>
                         <p class="fw-medium mb-0">{{ vendor.name }}</p>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label text-muted small">Vendor Number</label>
+                        <label class="form-label text-muted small">Vendor number</label>
                         <p class="mb-0">{{ vendor.vendor_number }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Contact person</label>
+                        <p class="mb-0">{{ vendor.contact_person|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small">Is active</label>
+                        <p class="mb-0">{% if vendor.is_active %}Yes{% else %}No{% endif %}</p>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label text-muted small">Email</label>
@@ -65,22 +73,40 @@
                             {% else %}<span class="text-muted">—</span>{% endif %}
                         </p>
                     </div>
-                    {% if vendor.trn %}
                     <div class="col-md-6">
-                        <label class="form-label text-muted small">TRN (VAT)</label>
-                        <p class="fw-medium mb-0">{{ vendor.trn }}</p>
+                        <label class="form-label text-muted small">Tax Registration Number (TRN)</label>
+                        <p class="fw-medium mb-0">{{ vendor.trn|default:"—" }}</p>
                     </div>
-                    {% endif %}
-                    {% if vendor.website %}
                     <div class="col-md-6">
                         <label class="form-label text-muted small">Website</label>
                         <p class="mb-0">
+                            {% if vendor.website %}
                             <a href="{{ vendor.website }}" class="text-decoration-none" target="_blank" rel="noopener">
                                 <i class="fas fa-globe me-1"></i>{{ vendor.website }}
                             </a>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
                         </p>
                     </div>
-                    {% endif %}
+                    <div class="col-12">
+                        <label class="form-label text-muted small">Address</label>
+                        <p class="mb-0">{% if vendor.address %}{{ vendor.address|linebreaks }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">City</label>
+                        <p class="mb-0">{{ vendor.city|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Country</label>
+                        <p class="mb-0">{{ vendor.country|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Payment terms</label>
+                        <p class="mb-0">{{ vendor.payment_terms|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small">Credit limit</label>
+                        <p class="mb-0">AED {{ vendor.credit_limit|floatformat:2|intcomma }}</p>
+                    </div>
                     {% if vendor.trn_document or vendor.trade_license_document %}
                     <div class="col-12">
                         <label class="form-label text-muted small">Documents</label>
@@ -98,10 +124,10 @@
                         </div>
                     </div>
                     {% endif %}
-                    {% if vendor.address %}
+                    {% if vendor.notes %}
                     <div class="col-12">
-                        <label class="form-label text-muted small">Address</label>
-                        <p class="mb-0">{{ vendor.address|linebreaks }}</p>
+                        <label class="form-label text-muted small">Notes</label>
+                        <p class="mb-0">{{ vendor.notes|linebreaks }}</p>
                     </div>
                     {% endif %}
                 </div>

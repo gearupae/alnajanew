@@ -20,3 +20,13 @@ def band_badge_class(band):
     if band == 'green':
         return 'bg-success'
     return 'bg-secondary'
+
+
+@register.filter
+def get_item(mapping, key):
+    if not mapping:
+        return []
+    try:
+        return mapping.get(int(key), [])
+    except (TypeError, ValueError):
+        return mapping.get(key, [])

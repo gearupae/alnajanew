@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'documents:document_list' %}">Documents</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ document.document_type.name }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+            <h4 class="mb-1 fw-bold">{{ document.entity_name }}</h4>
+            <span class="text-muted">{{ document.document_type.name }}{% if document.document_number %} · {{ document.document_number }}{% endif %}</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            {% if document.is_expired %}<span class="badge badge-inactive">Expired</span>
+            {% elif document.is_expiring_soon %}<span class="badge" style="background:#fef3c7;color:#92400e;">Expiring soon</span>
+            {% else %}<span class="badge badge-active">Active</span>{% endif %}
+            <a href="{% url 'documents:document_list' %}" class="btn btn-light btn-sm">All documents</a>
+            {% if can_edit %}
+            <a href="{% url 'documents:document_edit' document.pk %}" class="btn btn-primary btn-sm"><i class="fas fa-edit me-1"></i>Edit</a>
+            {% endif %}
+            {% if can_delete %}
+            <form method="post" action="{% url 'documents:document_delete' document.pk %}" class="d-inline" onsubmit="return confirm('Delete this document?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash me-1"></i>Delete</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0 fw-semibold">Document</h6></div>
+    <div class="card-body">
+        <div class="row g-4">
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Is active</h6>
+                <p class="mb-0">{% if document.is_active %}Yes{% else %}No{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Document type</h6>
+                <p class="mb-0"><a href="{% url 'documents:type_detail' document.document_type.pk %}">{{ document.document_type.name }}</a></p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Entity type</h6>
+                <p class="mb-0">{{ document.get_entity_type_display }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Entity name</h6>
+                <p class="mb-0">{{ document.entity_name }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Entity ID</h6>
+                <p class="mb-0">
+                    {% if document.entity_id %}
+                        {% if entity_url %}<a href="{{ entity_url }}">{{ document.entity_id }}</a>{% else %}{{ document.entity_id }}{% endif %}
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Document number</h6>
+                <p class="mb-0">{% if document.document_number %}{{ document.document_number }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Issue date</h6>
+                <p class="mb-0">{% if document.issue_date %}{{ document.issue_date|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Expiry date</h6>
+                <p class="mb-0 {% if document.is_expired %}text-danger{% elif document.is_expiring_soon %}text-warning{% endif %}">{{ document.expiry_date|date:"d/m/Y" }}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Days until expiry</h6>
+                <p class="mb-0 {% if document.is_expired %}text-danger{% elif document.is_expiring_soon %}text-warning{% endif %}">{{ document.days_until_expiry }} days</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">File</h6>
+                <p class="mb-0">
+                    {% if document.file %}
+                    <a href="{{ document.file.url }}" target="_blank" rel="noopener noreferrer"><i class="fas fa-download me-1"></i>Download</a>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-12">
+                <h6 class="text-muted mb-2">Notes</h6>
+                <p class="mb-0">{% if document.notes %}{{ document.notes|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Created</h6>
+                <p class="mb-0 small">
+                    {% if document.created_at %}{{ document.created_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+                    {% if document.created_by %}<br><span class="text-muted">{{ document.created_by.get_full_name|default:document.created_by.username }}</span>{% endif %}
+                </p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="text-muted mb-2">Last updated</h6>
+                <p class="mb-0 small">
+                    {% if document.updated_at %}{{ document.updated_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+                    {% if document.updated_by %}<br><span class="text-muted">{{ document.updated_by.get_full_name|default:document.updated_by.username }}</span>{% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

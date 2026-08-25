@@ -100,9 +100,12 @@
             </form>
             {% endif %}
             {% if can_convert_estimate_follow_on and estimate.can_create_invoice_from_estimate %}
-            <a href="{% url 'sales:estimate_convert' estimate.pk %}" class="btn btn-outline-success" onclick="return confirm('Create invoice from this estimate? Each estimate can only be converted once.');">
-                <i class="fas fa-file-invoice me-2"></i>Convert to Invoice
-            </a>
+            <form method="post" action="{% url 'sales:estimate_convert' estimate.pk %}" class="d-inline" onsubmit="return confirm('Create invoice from this estimate? Each estimate can only be converted once.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-success">
+                    <i class="fas fa-file-invoice me-2"></i>Convert to Invoice
+                </button>
+            </form>
             {% elif estimate.primary_invoice %}
             <a href="{% url 'sales:invoice_detail' estimate.primary_invoice.pk %}" class="btn btn-outline-success">
                 <i class="fas fa-file-invoice me-2"></i>View Invoice ({{ estimate.primary_invoice.invoice_number }})

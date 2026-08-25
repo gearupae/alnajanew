@@ -34,18 +34,19 @@ class ContractType(BaseModel):
 class Contract(BaseModel):
     """Commercial / legal contract record."""
     STATUS_CHOICES = [
+        ('draft', 'Draft'),
         ('upcoming', 'Upcoming'),
         ('active', 'Active'),
         ('expired', 'Expired'),
-        ('cancelled', 'Cancelled'),
+        ('terminated', 'Terminated'),
     ]
 
     contract_number = models.CharField(max_length=50, unique=True, editable=False)
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='active',
-        help_text='Lifecycle status (editable; can align with dates)',
+        default='draft',
+        help_text='Lifecycle: draft → active → expired / terminated',
     )
     customer = models.ForeignKey(
         Customer,
@@ -86,7 +87,15 @@ class Contract(BaseModel):
     def save(self, *args, **kwargs):
         if not self.contract_number:
             self.contract_number = generate_number('CONTRACT', Contract, 'contract_number')
+        self.apply_auto_expiry()
         super().save(*args, **kwargs)
+
+    def apply_auto_expiry(self):
+        """Move to expired when end date has passed (unless draft or terminated)."""
+        if self.status in ('draft', 'terminated'):
+            return
+        if self.end_date < self.as_of_date:
+            self.status = 'expired'
 
     @property
     def as_of_date(self):
