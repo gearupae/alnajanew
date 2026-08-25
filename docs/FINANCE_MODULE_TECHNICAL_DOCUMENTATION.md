@@ -1,4 +1,4 @@
-# Al Najah Fire ERP - Finance Module Technical Documentation
+# Safety Point Fire ERP - Finance Module Technical Documentation
 
 **Document Type:** Complete System Documentation (Based on Actual Implementation)  
 **Version:** 2.0  

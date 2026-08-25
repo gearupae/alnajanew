@@ -1,4 +1,4 @@
-# Al Najah Fire ERP System
+# Safety Point ERP System
 
 A minimal, modular ERP system built with Django 5.x, Bootstrap 5, and PostgreSQL.
 
@@ -29,7 +29,7 @@ A minimal, modular ERP system built with Django 5.x, Bootstrap 5, and PostgreSQL
 
 1. **Clone the repository**
    ```bash
-   cd /path/to/alnajahfireerp
+   cd /path/to/safetypoint
    ```
 
 2. **Create virtual environment**
@@ -170,7 +170,7 @@ Example: `INV-2025-0001`
 
 ## License
 
-Proprietary - Al Najah Fire ERP
+Proprietary - Safety Point ERP
 
 ## Support
 

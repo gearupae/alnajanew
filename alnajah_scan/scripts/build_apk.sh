@@ -14,7 +14,7 @@ if ! command -v flutter >/dev/null 2>&1; then
   echo "Set FLUTTER_ROOT to your SDK (folder containing bin/flutter), or install Flutter:"
   echo "  https://docs.flutter.dev/get-started/install"
   echo "Or run:  bash \"${ROOT}/scripts/download_flutter_sdk_macos_arm64.sh\""
-  echo "Or use GitHub Actions: 'Build Al Najah Scan APK' → download artifact alnajah-scan-apk."
+  echo "Or use GitHub Actions: 'Build Safety Point Scan APK' → download artifact safetypoint-scan-apk."
   exit 1
 fi
 

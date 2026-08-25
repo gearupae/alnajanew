@@ -22,7 +22,7 @@ class AlnajahScanExampleApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Al Najah Scan',
+      title: 'Safety Point Scan',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
@@ -109,7 +109,7 @@ class _LoginPageState extends State<LoginPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Al Najah — scan')),
+      appBar: AppBar(title: const Text('Safety Point — scan')),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -124,7 +124,7 @@ class _LoginPageState extends State<LoginPage> {
             controller: _base,
             decoration: const InputDecoration(
               labelText: 'ERP server URL',
-              hintText: 'http://37.27.16.210',
+              hintText: 'http://sp.telldb.com',
             ),
             keyboardType: TextInputType.url,
             autocorrect: false,

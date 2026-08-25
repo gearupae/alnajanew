@@ -1,4 +1,4 @@
-# Al Najah scan — example app
+# Safety Point scan — example app
 
 1. Install Flutter, then from this folder generate platform projects (once):
 

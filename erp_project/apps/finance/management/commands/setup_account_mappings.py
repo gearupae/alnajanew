@@ -12,7 +12,7 @@ from apps.finance.models import Account, AccountMapping, AccountingSettings
 class Command(BaseCommand):
     help = 'Setup default account mappings for SAP/Oracle-style posting'
 
-    # Maps account code -> transaction types (standard Al Najah COA codes)
+    # Maps account code -> transaction types (standard Safety Point COA codes)
     DEFAULT_MAPPINGS = {
         '1100': ['sales_invoice_receivable', 'customer_receipt_ar_clear'],
         '4100': ['sales_invoice_revenue'],

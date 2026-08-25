@@ -80,7 +80,7 @@ class Command(BaseCommand):
         today = date.today()
 
         co_uae, _ = Company.objects.get_or_create(
-            name='Al Najah Fire Safety (UAE)',
+            name='Safety Point (UAE)',
             defaults={
                 'country': 'uae',
                 'trade_license_number': 'DEMO-UAE-TL-001',

@@ -1,6 +1,6 @@
-# Al Najah Scan (Flutter SDK)
+# Safety Point Scan (Flutter SDK)
 
-Small Dart library + example app for **stock take scanning** against **Al Najah Fire ERP**, using the **same username and password** as the web login (Django session cookie).
+Small Dart library + example app for **stock take scanning** against **Safety Point ERP**, using the **same username and password** as the web login (Django session cookie).
 
 ## Django API (already wired in the ERP repo)
 
@@ -26,7 +26,7 @@ dependencies:
 ```
 
 ```dart
-final client = AlnajahScanClient(baseUrl: 'https://your-erp-host');
+final client = AlnajahScanClient(baseUrl: 'http://sp.telldb.com');
 await client.login(username: 'u', password: 'p');
 final sessions = await client.listStockTakeSessions();
 final detail = await client.getStockTakeSession(sessions.first.id);
@@ -37,10 +37,10 @@ final result = await client.submitScan(sessions.first.id, barcode: decoded);
 
 **Option A — GitHub Actions (no Flutter on your PC)**  
 1. Push this repository to GitHub.  
-2. Open **Actions** → workflow **“Build Al Najah Scan APK”** → **Run workflow**.  
-3. When it finishes, open the run → **Artifacts** → download **`alnajah-scan-apk`** (contains `app-release.apk`).  
+2. Open **Actions** → workflow **“Build Safety Point Scan APK”** → **Run workflow**.  
+3. When it finishes, open the run → **Artifacts** → download **`safetypoint-scan-apk`** (contains `app-release.apk`).  
 4. Copy the APK to your phone and install (allow “install unknown apps” if prompted).  
-5. In the app, set **Base URL** to your ERP, e.g. `http://YOUR_PC_LAN_IP:7001` (Django must list that host in `ALLOWED_HOSTS`). Cleartext HTTP is enabled in the built APK for dev testing only.
+5. In the app, set **Base URL** to your ERP, e.g. `http://sp.telldb.com` (Django must list that host in `ALLOWED_HOSTS`). Cleartext HTTP is enabled in the built APK for dev testing only.
 
 **Option B — Docker** (from repo root):
 

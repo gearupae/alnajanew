@@ -1,4 +1,4 @@
-/* Al Najah ERP - Main JavaScript */
+/* Safety Point ERP - Main JavaScript */
 
 // Global AJAX Setup
 $.ajaxSetup({

@@ -1,5 +1,5 @@
 """
-Create the standard Al Najah chart of accounts and core account mappings.
+Create the standard Safety Point chart of accounts and core account mappings.
 
 Idempotent: safe to re-run (updates accounts by code, mappings by transaction_type).
 """

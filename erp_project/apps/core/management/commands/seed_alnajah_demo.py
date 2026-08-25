@@ -1,11 +1,11 @@
 """
-Seed demo operational data for Al Najah Fire ERP (customers, estimates, projects,
+Seed demo operational data for Safety Point ERP (customers, estimates, projects,
 inventory items with groups, vendors, purchase requests/orders).
 
 Safe to re-run: uses DEMO-AN-* identifiers and skips existing rows.
 
 Run on production:
-  cd /var/www/alnajahfireerp/erp_project && source ../venv/bin/activate
+  cd /var/www/safetypoint/erp_project && source ../venv/bin/activate
   python manage.py seed_alnajah_demo
   python manage.py seed_hr_demo   # HR employees (separate idempotent command)
 """
@@ -103,7 +103,7 @@ STOCK_QTY = {
 
 
 class Command(BaseCommand):
-    help = "Seed Al Najah demo data: customers, projects, estimates, items/groups, vendors, PR/PO"
+    help = "Seed Safety Point demo data: customers, projects, estimates, items/groups, vendors, PR/PO"
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -270,7 +270,7 @@ class Command(BaseCommand):
         wh, _ = Warehouse.objects.get_or_create(
             code=SEED_WH_CODE,
             defaults={
-                "name": "Al Najah Main Warehouse",
+                "name": "Safety Point Main Warehouse",
                 "address": "Industrial Area, Dubai, UAE",
                 "contact_person": "Store Keeper",
                 "phone": "+97143334444",

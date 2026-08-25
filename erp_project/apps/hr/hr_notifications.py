@@ -54,7 +54,7 @@ def send_payslip_email_for_payroll(payroll):
         logger.exception('Payslip PDF failed: %s', exc)
         return False
 
-    subject = f'Payslip {payslip_number(payroll)} — {company.company_name if company else "Al Najah"}'
+    subject = f'Payslip {payslip_number(payroll)} — {company.company_name if company else "Safety Point"}'
     body = (
         f'Dear {payroll.employee.full_name},\n\n'
         f'Please find your payslip attached for {payroll.month.strftime("%B %Y")}.\n\n'
@@ -115,7 +115,7 @@ def notify_department_manager(leave_request):
             try:
                 connection = get_smtp_connection_or_default(company)
                 EmailMessage(
-                    subject=f'{subject} — {company.company_name if company else "Al Najah"}',
+                    subject=f'{subject} — {company.company_name if company else "Safety Point"}',
                     body=body,
                     from_email=company_outgoing_from_email(company),
                     to=[to],
@@ -215,7 +215,7 @@ def send_leave_decision(leave_request, approved: bool):
     try:
         connection = get_smtp_connection_or_default(company)
         EmailMessage(
-            subject=f'{subject} — {company.company_name if company else "Al Najah"}',
+            subject=f'{subject} — {company.company_name if company else "Safety Point"}',
             body=body,
             from_email=company_outgoing_from_email(company),
             to=[to],

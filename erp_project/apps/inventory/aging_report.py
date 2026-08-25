@@ -295,7 +295,7 @@ def export_aging_xlsx(data: dict, generated_by: str = "") -> bytes:
     from apps.settings_app.models import CompanySettings
 
     cs = CompanySettings.get_settings()
-    company = cs.company_name or "Al Najah ERP"
+    company = cs.company_name or "Safety Point"
 
     wb = Workbook()
     ws = wb.active
@@ -428,7 +428,7 @@ def export_aging_pdf(data: dict, generated_by: str = "") -> bytes:
     from apps.settings_app.models import CompanySettings
 
     cs = CompanySettings.get_settings()
-    company = cs.company_name or "Al Najah ERP"
+    company = cs.company_name or "Safety Point"
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,

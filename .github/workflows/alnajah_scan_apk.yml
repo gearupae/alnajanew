@@ -1,7 +1,7 @@
 # Builds the Flutter example app (alnajah_scan/example) as a release APK.
-# Run manually: Actions → "Build Al Najah Scan APK" → Run workflow.
-# Download the "alnajah-scan-apk" artifact and install on your phone.
-name: Build Al Najah Scan APK
+# Run manually: Actions → "Build Safety Point Scan APK" → Run workflow.
+# Download the "safetypoint-scan-apk" artifact and install on your phone.
+name: Build Safety Point Scan APK
 
 on:
   workflow_dispatch:
@@ -37,5 +37,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: alnajah-scan-apk
+          name: safetypoint-scan-apk
           path: alnajah_scan/example/build/app/outputs/flutter-apk/app-release.apk
