@@ -716,3 +716,18 @@ class SubGroupExpenseTypeSettingsView(PermissionRequiredMixin, TemplateView):
 
         return redirect('settings:sub_group_expense_types')
 
+
+class UserGuideView(PermissionRequiredMixin, TemplateView):
+    """In-app user guide with screenshots for every module."""
+    template_name = 'settings/user_guide.html'
+    module_name = 'settings'
+    permission_type = 'view'
+
+    def get_context_data(self, **kwargs):
+        from .user_guide_content import USER_GUIDE_SECTIONS
+
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'User Guide'
+        context['guide_sections'] = USER_GUIDE_SECTIONS
+        return context
+

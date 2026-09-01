@@ -36,6 +36,7 @@ urlpatterns = [
         views.SubGroupExpenseTypeSettingsView.as_view(),
         name='sub_group_expense_types',
     ),
+    path('user-guide/', views.UserGuideView.as_view(), name='user_guide'),
 ]
 
 

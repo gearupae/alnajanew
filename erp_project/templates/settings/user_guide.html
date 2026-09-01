@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    .guide-layout {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr);
+        gap: 1.5rem;
+        align-items: start;
+    }
+    @media (max-width: 991.98px) {
+        .guide-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+    .guide-sidebar {
+        position: sticky;
+        top: 72px;
+        max-height: calc(100vh - 88px);
+        overflow-y: auto;
+    }
+    .guide-sidebar .list-group-item {
+        border: none;
+        border-radius: 0.375rem;
+        padding: 0.45rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    .guide-sidebar .list-group-item.active {
+        background: #111;
+        border-color: #111;
+    }
+    .guide-sidebar .list-group-item-action:hover {
+        background: #f5f5f5;
+    }
+    .guide-section {
+        scroll-margin-top: 80px;
+    }
+    .guide-topic {
+        scroll-margin-top: 80px;
+    }
+    .guide-screenshot {
+        border: 1px solid #e5e5e5;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+        max-width: 100%;
+        height: auto;
+    }
+    .guide-screenshot-wrap {
+        background: #fafafa;
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        margin: 1rem 0 1.25rem;
+    }
+    .guide-steps li {
+        margin-bottom: 0.35rem;
+    }
+    .guide-module-icon {
+        width: 2rem;
+        text-align: center;
+        color: #525252;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <h4 class="mb-1 fw-bold">{{ title }}</h4>
+    <p class="text-muted mb-0">
+        Step-by-step guide for Safety Point ERP — from login and user setup through every module.
+        Screenshots are captured from the live system at <strong>sp.telldb.com</strong>.
+    </p>
+</div>
+
+<div class="guide-layout">
+    <nav class="guide-sidebar">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-semibold small text-uppercase text-muted py-2">
+                Contents
+            </div>
+            <div class="list-group list-group-flush p-2">
+                {% for section in guide_sections %}
+                <a class="list-group-item list-group-item-action fw-semibold" href="#section-{{ section.id }}">
+                    <i class="fas {{ section.icon }} guide-module-icon me-1"></i>{{ section.title }}
+                </a>
+                {% for topic in section.topics %}
+                <a class="list-group-item list-group-item-action ps-4 py-1 small text-muted" href="#topic-{{ topic.id }}">
+                    {{ topic.title }}
+                </a>
+                {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="guide-content">
+        {% for section in guide_sections %}
+        <section id="section-{{ section.id }}" class="guide-section card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-2">
+                    <i class="fas {{ section.icon }} guide-module-icon me-2"></i>{{ section.title }}
+                </h5>
+                {% if section.intro %}
+                <p class="text-muted">{{ section.intro }}</p>
+                {% endif %}
+
+                {% for topic in section.topics %}
+                <article id="topic-{{ topic.id }}" class="guide-topic {% if not forloop.first %}mt-4 pt-4 border-top{% endif %}">
+                    <h6 class="fw-semibold mb-3">{{ topic.title }}</h6>
+
+                    {% if topic.screenshot %}
+                    <div class="guide-screenshot-wrap">
+                        <img
+                            src="{% static 'img/user-guide/' %}{{ topic.screenshot }}"
+                            alt="{{ topic.title }} — Safety Point ERP"
+                            class="guide-screenshot d-block mx-auto"
+                            loading="lazy"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                        >
+                        <p class="text-muted small mb-0 text-center d-none screenshot-missing">
+                            Screenshot loading — refresh after deploy if this page was recently added.
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    {% if topic.steps %}
+                    <p class="small fw-semibold text-uppercase text-muted mb-2">Steps</p>
+                    <ol class="guide-steps mb-3">
+                        {% for step in topic.steps %}
+                        <li>{{ step }}</li>
+                        {% endfor %}
+                    </ol>
+                    {% endif %}
+
+                    {% if topic.tips %}
+                    <div class="alert alert-light border small mb-0">
+                        <p class="fw-semibold mb-1"><i class="fas fa-lightbulb text-warning me-1"></i>Tips</p>
+                        <ul class="mb-0 ps-3">
+                            {% for tip in topic.tips %}
+                            <li>{{ tip }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h6 class="fw-semibold mb-2">Quick reference — default admin login</h6>
+                <p class="text-muted small mb-2">
+                    After initial server setup, sign in with username <code>admin</code> and change the default password immediately under Settings → Users.
+                </p>
+                <p class="text-muted small mb-0">
+                    For deployment and server details see <code>docs/DEPLOY_HETZNER.md</code> in the repository.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.guide-sidebar a[href^="#"]').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+        var target = document.querySelector(link.getAttribute('href'));
+        if (target) {
+            e.preventDefault();
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+});
+</script>
+{% endblock %}
