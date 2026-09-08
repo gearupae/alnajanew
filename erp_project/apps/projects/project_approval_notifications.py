@@ -19,10 +19,14 @@ def notify_approver_project_completion_pending(project):
     if not approver:
         return
     submitter = _user_display(project.edit_approval_submitted_by)
+    message = f'{submitter} requested to mark {project.name} as Completed.'
+    note = (project.edit_approval_submission_note or '').strip()
+    if note:
+        message = f'{message} Note: {note[:500]}'
     Notification.create(
         user=approver,
         title=f'Completion approval: {project.project_code}',
-        message=f'{submitter} requested to mark {project.name} as Completed.',
+        message=message,
         link=f'/projects/{project.pk}/',
     )
 

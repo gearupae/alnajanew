@@ -526,7 +526,8 @@ class ProjectUpdateView(UpdatePermissionMixin, UpdateView):
         form.save_m2m()
 
         if needs_completion_approval:
-            queue_project_completion_approval(self.request.user, self.object)
+            note = (form.cleaned_data.get('completion_note') or '').strip()
+            queue_project_completion_approval(self.request.user, self.object, note=note)
             messages.info(
                 self.request,
                 'Completion request submitted for approval. Status will update to Completed once approved.',
@@ -561,6 +562,7 @@ def project_approve_completion(request, pk):
     project.edit_approval_submitted_at = None
     project.edit_approval_submitted_by_id = None
     project.edit_approval_rejection_reason = ''
+    project.edit_approval_submission_note = ''
     project.save(
         update_fields=[
             'status',
@@ -568,6 +570,7 @@ def project_approve_completion(request, pk):
             'edit_approval_submitted_at',
             'edit_approval_submitted_by',
             'edit_approval_rejection_reason',
+            'edit_approval_submission_note',
             'updated_at',
         ]
     )
@@ -830,7 +833,8 @@ def project_request_completion(request, pk):
 
     from .completion_approval import queue_project_completion_approval
 
-    queue_project_completion_approval(request.user, project)
+    note = (request.POST.get('completion_note') or '').strip()
+    queue_project_completion_approval(request.user, project, note=note)
     messages.info(
         request,
         'Completion request submitted. The project approver must click '
@@ -1119,7 +1123,7 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         context['project_estimate_total'] = estimate_total
         context['header_profit_vs_expenses'] = estimate_total - recorded
         context['header_profit_label'] = 'Quotation price − total expense'
-        from .project_receipt_metrics import project_receipt_totals, _linked_invoices_for_project
+        from .project_receipt_metrics import project_receipt_totals, linked_invoices_for_project_display
 
         receipt = project_receipt_totals(self.object)
         context['project_invoiced_amount'] = receipt['invoiced_amount']
@@ -1127,7 +1131,7 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         context['project_balance_amount'] = receipt['balance_amount']
         context['project_advance_received'] = receipt['advance_received']
         context['project_invoice_paid'] = receipt['invoice_paid']
-        context['linked_sales_invoices'] = _linked_invoices_for_project(self.object)
+        context['linked_sales_invoices'] = linked_invoices_for_project_display(self.object)
         context['can_create_sales_invoice'] = (
             self.request.user.is_superuser
             or PermissionChecker.has_permission(self.request.user, 'sales', 'create')

@@ -689,7 +689,7 @@
         <div class="card-header">
             <h6 class="mb-0 fw-semibold"><i class="fas fa-signature me-2"></i>Signatures</h6>
         </div>
-        <div class="card-body row g-3">
+        <div class="card-body">
             <div class="col-md-6">
                 <label class="form-label">Authorized signature (image)</label>
                 {{ form.authorized_signature }}
@@ -702,18 +702,7 @@
                 </div>
                 {% endif %}
             </div>
-            <div class="col-md-6">
-                <label class="form-label">Customer signature (image)</label>
-                {{ form.customer_signature }}
-                {% if object.customer_signature %}
-                <div class="mt-2"><img src="{{ object.customer_signature.url }}" alt="" class="img-thumbnail" style="max-height:80px"></div>
-                {% elif company_default_customer_signature_url %}
-                <div class="mt-2">
-                    <img src="{{ company_default_customer_signature_url }}" alt="" class="img-thumbnail" style="max-height:80px">
-                    <div class="small text-muted mt-1">Default from <a href="{% url 'settings:company' %}">Company Settings</a> — applied when you save unless you upload a different file.</div>
-                </div>
-                {% endif %}
-            </div>
+            <p class="text-muted small mb-0 mt-3">Customer signature is not uploaded here — the PDF includes a blank space for the customer to sign manually.</p>
         </div>
     </div>
     

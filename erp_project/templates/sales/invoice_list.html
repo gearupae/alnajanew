@@ -43,9 +43,19 @@
 <div class="page-header d-flex justify-content-between align-items-center">
     <div>
         <h4 class="mb-1 fw-bold">{{ title }}</h4>
-        <p class="text-muted mb-0">Manage your sales invoices</p>
+        <p class="text-muted mb-0">
+            {% if unpaid_only %}Outstanding invoices with a balance due{% else %}Manage your sales invoices{% endif %}
+        </p>
     </div>
-    <div>
+    <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
+        <a href="{% url 'sales:invoice_list' %}?unpaid=1" class="btn btn-outline-warning{% if unpaid_only %} active{% endif %}">
+            <i class="fas fa-clock me-2"></i>Unpaid invoices
+        </a>
+        {% if invoice_count %}
+        <a href="{{ export_csv_url }}" class="btn btn-outline-secondary">
+            <i class="fas fa-download me-2"></i>Download CSV
+        </a>
+        {% endif %}
         {% if can_create %}
         <a href="{% url 'sales:invoice_create' %}" class="btn btn-primary">
             <i class="fas fa-plus me-2"></i>Create Invoice
@@ -120,11 +130,23 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-2">
+                <label class="form-label small text-muted">&nbsp;</label>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="unpaid" value="1" id="filterUnpaid" {% if request.GET.unpaid == '1' %}checked{% endif %}>
+                    <label class="form-check-label small" for="filterUnpaid">Unpaid only</label>
+                </div>
+            </div>
+            <div class="col-md-4">
                 <button type="submit" class="btn btn-primary me-2">
                     <i class="fas fa-filter me-1"></i>Filter
                 </button>
                 <a href="{% url 'sales:invoice_list' %}" class="btn btn-light">Clear</a>
+                {% if unpaid_only and invoice_count %}
+                <a href="{{ export_csv_url }}" class="btn btn-outline-secondary ms-1">
+                    <i class="fas fa-download me-1"></i>CSV
+                </a>
+                {% endif %}
             </div>
         </form>
     </div>
@@ -156,7 +178,7 @@
                                 {{ invoice.invoice_number }}
                             </a>
                         </td>
-                        <td class="col-customer"><span class="text-truncate" title="{{ invoice.customer.name }}">{{ invoice.customer.name }}</span></td>
+                        <td class="col-customer"><span class="text-truncate" title="{{ invoice.customer.company|default:invoice.customer.name }}">{{ invoice.customer.company|default:invoice.customer.name }}</span></td>
                         <td class="text-nowrap">{{ invoice.invoice_date|date:"d/m/Y" }}</td>
                         <td class="text-nowrap">{{ invoice.due_date|date:"d/m/Y" }}</td>
                         <td>

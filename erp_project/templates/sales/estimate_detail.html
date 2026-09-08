@@ -321,7 +321,7 @@
             </div>
         </div>
 
-        {% if estimate.authorized_signature or estimate.customer_signature %}
+        {% if estimate.authorized_signature %}
         <div class="card mb-4">
             <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-signature me-2 text-dark"></i>Signatures</h6>
@@ -330,19 +330,12 @@
                 <div class="row g-4">
                     <div class="col-md-6 text-center">
                         <p class="text-muted small mb-2">Authorized signature</p>
-                        {% if estimate.authorized_signature %}
                         <img src="{{ estimate.authorized_signature.url }}" alt="Authorized signature" class="img-fluid border rounded" style="max-height:120px;">
-                        {% else %}
-                        <p class="text-muted mb-0">—</p>
-                        {% endif %}
                     </div>
                     <div class="col-md-6 text-center">
                         <p class="text-muted small mb-2">Customer signature</p>
-                        {% if estimate.customer_signature %}
-                        <img src="{{ estimate.customer_signature.url }}" alt="Customer signature" class="img-fluid border rounded" style="max-height:120px;">
-                        {% else %}
-                        <p class="text-muted mb-0">—</p>
-                        {% endif %}
+                        <div class="border rounded bg-light mx-auto" style="max-width:280px;height:120px;"></div>
+                        <p class="text-muted small mt-2 mb-0">Blank on PDF for manual signing</p>
                     </div>
                 </div>
             </div>

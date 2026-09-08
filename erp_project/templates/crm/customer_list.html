@@ -253,7 +253,7 @@
         </h5>
         <button type="button" class="btn-close" onclick="cancelInlineForm('customerForm')"></button>
     </div>
-    <form method="post" id="createCustomerForm" enctype="multipart/form-data" data-crm-customer-form novalidate>
+    <form method="post" id="createCustomerForm" enctype="multipart/form-data" data-crm-customer-form data-crm-lookup-url="{% url 'crm:customer_lookup' %}" novalidate>
         {% csrf_token %}
         <div class="row g-3">
             <div class="col-md-3">
@@ -271,6 +271,7 @@
             <div class="col-md-3">
                 <label class="form-label">Contact <span class="text-danger crm-b2b-required-star" style="display:none;">*</span></label>
                 <input type="text" name="phone" id="crmInlinePhone" class="form-control" placeholder="+971 XX XXX XXXX">
+                <div class="form-text small mb-0">Enter a saved phone, email, or VAT/TRN to load existing details.</div>
                 <div class="form-text small mb-0 d-none" id="crmInlineContactHint">Required for B2B. Phone must include country code (e.g. +971 50 741 2365).</div>
             </div>
             <div class="col-md-6">
@@ -286,11 +287,11 @@
                 <input type="text" name="country" class="form-control" value="United Arab Emirates" placeholder="Country">
             </div>
             <div class="col-md-3" id="crmInlineTrnWrap" style="display:none;">
-                <label class="form-label">VAT (TRN) <span class="text-danger">*</span></label>
+                <label class="form-label">VAT (TRN)</label>
                 <input type="text" name="trn" id="crmInlineTrn" class="form-control" placeholder="VAT / TRN">
             </div>
             <div class="col-md-3" id="crmInlineTradeLicenseNoWrap" style="display:none;">
-                <label class="form-label">Trade license number <span class="text-danger">*</span></label>
+                <label class="form-label">Trade license number</label>
                 <input type="text" name="trade_license_number" id="crmInlineTradeLicenseNo" class="form-control" placeholder="Trade license number">
             </div>
             <div class="col-md-3">
@@ -459,7 +460,7 @@
                     {% if crm_show_customers_column %}
                     <div class="kanban-col kanban-col--themed" style="{{ kanban_customers_style }}">
                         <div class="kanban-col-header">Customers <span class="badge">{{ kanban_customers|length }}</span></div>
-                        <div class="kanban-col-body" style="max-height:26rem; overflow-y:auto;" data-list-kind="customers">
+                        <div class="kanban-col-body crm-kanban-list crm-kanban-customers-body" style="max-height:26rem; overflow-y:auto;" data-list-kind="customers">
                             {% for c in kanban_customers %}
                             <div class="kanban-card kanban-card--readonly">
                                 {% include 'crm/includes/kanban_customer_card.html' with record=c link_detail=False %}
@@ -470,7 +471,7 @@
                             {% empty %}
                             <p class="text-muted small mb-0 py-2 text-center">No customers yet.</p>
                             {% endfor %}
-                            <p class="text-muted small mb-0 pt-2">Not draggable — use Edit for status or type.</p>
+                            <p class="text-muted small mb-0 pt-2">Drop a lead here to convert — no duplicate customers.</p>
                         </div>
                     </div>
                     {% endif %}
@@ -788,6 +789,7 @@
 
 {% block extra_js %}
 <script src="{% static 'js/crm_customer_validation.js' %}"></script>
+<script src="{% static 'js/crm_customer_lookup.js' %}"></script>
 <script>
 (function () {
     document.addEventListener('DOMContentLoaded', function () {
@@ -870,8 +872,8 @@
         if (licInput) licInput.required = false;
         if (emailInput) emailInput.required = isB2b;
         if (phoneInput) phoneInput.required = isB2b;
-        if (trnInput) trnInput.required = isB2b;
-        if (tradeLicInput) tradeLicInput.required = isB2b;
+        if (trnInput) trnInput.required = false;
+        if (tradeLicInput) tradeLicInput.required = false;
         if (contactHint) contactHint.classList.toggle('d-none', !isB2b);
         document.querySelectorAll('#customerForm .crm-b2b-required-star').forEach(function (el) {
             el.style.display = isB2b ? '' : 'none';
@@ -883,6 +885,7 @@
         if (typeSel) typeSel.addEventListener('change', crmInlineToggleCustomerFields);
         if (seg) seg.addEventListener('change', crmInlineToggleCustomerFields);
         crmInlineToggleCustomerFields();
+        document.getElementById('createCustomerForm')?.addEventListener('crm-customer-prefilled', crmInlineToggleCustomerFields);
     });
 })();
 </script>
@@ -904,10 +907,49 @@
             body: JSON.stringify({ customer_id: customerId, stage_id: stagePayload })
         }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, json: j }; }); });
     }
+    function handleKanbanConvert(item, fromList, stagePayload) {
+        var customerId = item.getAttribute('data-customer-id');
+        if (!customerId) {
+            item.remove();
+            return;
+        }
+        postKanbanMove(customerId, stagePayload).then(function (res) {
+            var d = res.json || {};
+            if (res.ok && (d.converted || d.merged)) {
+                item.remove();
+                if (d.message) {
+                    window.alert(d.message);
+                }
+                window.location.reload();
+                return;
+            }
+            window.alert(d.error || 'Could not convert to customer.');
+            if (fromList) {
+                fromList.appendChild(item);
+            }
+        }).catch(function () {
+            if (fromList) {
+                fromList.appendChild(item);
+            }
+            window.location.reload();
+        });
+    }
     document.addEventListener('DOMContentLoaded', function () {
         if (typeof Sortable === 'undefined') return;
         document.querySelectorAll('.crm-kanban-list').forEach(function (el) {
             var kind = el.getAttribute('data-list-kind');
+            if (kind === 'customers') {
+                Sortable.create(el, {
+                    group: { name: 'crm-leads', pull: false, put: true },
+                    sort: false,
+                    animation: 150,
+                    draggable: '.crm-kanban-card',
+                    onAdd: function (evt) {
+                        handleKanbanConvert(evt.item, evt.from, 'customers');
+                    }
+                });
+                return;
+            }
             if (kind !== 'lead' && kind !== 'won') return;
             var isWon = kind === 'won';
             Sortable.create(el, {
@@ -920,23 +962,10 @@
                     var customerId = item.getAttribute('data-customer-id');
                     if (!customerId) return;
                     if (evt.to.getAttribute('data-list-kind') === 'customers') {
-                        evt.from.appendChild(item);
                         return;
                     }
                     if (evt.to.getAttribute('data-stage-won')) {
-                        postKanbanMove(customerId, 'won').then(function (res) {
-                            var d = res.json || {};
-                            if (res.ok && d.converted) {
-                                item.remove();
-                                window.location.reload();
-                                return;
-                            }
-                            window.alert(d.error || 'Could not convert to customer.');
-                            evt.from.appendChild(item);
-                        }).catch(function () {
-                            evt.from.appendChild(item);
-                            window.location.reload();
-                        });
+                        handleKanbanConvert(item, evt.from, 'won');
                         return;
                     }
                     var sid = evt.to.getAttribute('data-stage-id');

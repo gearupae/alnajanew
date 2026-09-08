@@ -90,6 +90,10 @@ class Project(BaseModel):
         related_name='project_edit_approval_submissions',
     )
     edit_approval_rejection_reason = models.TextField(blank=True)
+    edit_approval_submission_note = models.TextField(
+        blank=True,
+        help_text='Optional note from the submitter when requesting completion.',
+    )
     operation_access_status = models.CharField(
         max_length=20,
         choices=OPERATION_ACCESS_STATUS_CHOICES,
@@ -105,6 +109,13 @@ class Project(BaseModel):
         related_name='project_operation_access_submissions',
     )
     operation_access_rejection_reason = models.TextField(blank=True)
+    status_attachment = models.FileField(
+        upload_to='project_status/%Y/%m/',
+        blank=True,
+        max_length=500,
+        verbose_name='Status attachment',
+        help_text='Optional file supporting the project status (e.g. completion certificate or approval document).',
+    )
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     
@@ -119,6 +130,18 @@ class Project(BaseModel):
         help_text='Expected cost to deliver this project',
     )
     contract_value = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    lpo_number = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='LPO number',
+        help_text='Customer local purchase order / PO reference for this project.',
+    )
+    payment_terms = models.CharField(
+        max_length=50,
+        blank=True,
+        default='Net 30',
+        help_text='Agreed payment terms for this project (e.g. Net 30).',
+    )
     members = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         blank=True,

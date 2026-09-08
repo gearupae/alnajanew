@@ -23,6 +23,9 @@ from .utils import (
     CRM_KANBAN_CUSTOMERS_THEME,
     CRM_KANBAN_STAGE_THEMES,
     kanban_theme_style,
+    customer_lookup_payload,
+    find_customer_for_lookup,
+    find_customer_contact_duplicate,
     get_crm_project_queryset,
     get_sales_employee_queryset,
     project_choice_label,
@@ -278,6 +281,41 @@ class CustomerListView(PermissionRequiredMixin, ListView):
 
 
 @login_required
+def customer_lookup(request):
+    """JSON: find an existing customer/lead to prefill CRM forms."""
+    if not (
+        request.user.is_superuser
+        or PermissionChecker.has_permission(request.user, 'crm', 'view')
+        or PermissionChecker.has_permission(request.user, 'crm', 'create')
+    ):
+        return JsonResponse({'ok': False, 'error': 'Permission denied.'}, status=403)
+
+    exclude_pk = request.GET.get('exclude_pk')
+    if exclude_pk:
+        try:
+            exclude_pk = int(exclude_pk)
+        except (TypeError, ValueError):
+            exclude_pk = None
+
+    customer = find_customer_for_lookup(
+        user=request.user,
+        phone=request.GET.get('phone', ''),
+        email=request.GET.get('email', ''),
+        trn=request.GET.get('trn', ''),
+        customer_number=request.GET.get('customer_number', ''),
+        exclude_pk=exclude_pk,
+    )
+    if not customer:
+        return JsonResponse({'ok': True, 'found': False})
+
+    return JsonResponse({
+        'ok': True,
+        'found': True,
+        'customer': customer_lookup_payload(customer, request),
+    })
+
+
+@login_required
 def crm_project_options(request):
     """JSON list of projects for CRM customer form dropdowns."""
     if not (
@@ -291,6 +329,54 @@ def crm_project_options(request):
         for p in get_crm_project_queryset(request.user)
     ]
     return JsonResponse({'projects': projects})
+
+
+def _kanban_convert_lead_to_customer(request, cust):
+    """Convert a lead to customer, or merge away if contact already exists."""
+    duplicate, matched_field = find_customer_contact_duplicate(
+        email=cust.email or '',
+        phone=cust.phone or '',
+        exclude_pk=cust.pk,
+    )
+    if duplicate:
+        label = duplicate.company or duplicate.name or duplicate.customer_number
+        cust.is_active = False
+        cust.lead_kanban_stage = None
+        cust.save(update_fields=['is_active', 'lead_kanban_stage', 'updated_at'])
+        log_action(
+            request.user,
+            'update',
+            'Customer',
+            cust.id,
+            {
+                'action': 'kanban_merge_duplicate',
+                'merged_into': duplicate.pk,
+                'matched_field': matched_field,
+            },
+        )
+        return JsonResponse({
+            'ok': True,
+            'converted': False,
+            'merged': True,
+            'existing_customer_id': duplicate.pk,
+            'existing_customer_number': duplicate.customer_number,
+            'message': (
+                f'Customer already exists ({duplicate.customer_number} — {label}). '
+                'The duplicate lead was removed.'
+            ),
+        })
+
+    cust.customer_type = 'customer'
+    cust.lead_kanban_stage = None
+    cust.save()
+    log_action(
+        request.user,
+        'update',
+        'Customer',
+        cust.id,
+        {'action': 'kanban_won', 'converted_to_customer': True},
+    )
+    return JsonResponse({'ok': True, 'converted': True})
 
 
 @login_required
@@ -323,19 +409,10 @@ def crm_kanban_move(request):
     if isinstance(stage_raw, bool) and stage_raw is True:
         is_won = True
     elif isinstance(stage_raw, str):
-        is_won = stage_raw.strip().lower() in ('won', '__won__')
+        is_won = stage_raw.strip().lower() in ('won', '__won__', 'customers', '__customers__')
     else:
         is_won = False
     if is_won:
-        won = CrmLeadKanbanStage.objects.filter(
-            is_active=True,
-            converts_to_customer=True,
-        ).first()
-        if not won:
-            return JsonResponse(
-                {'error': 'No “Won” stage configured. Add one under Settings → CRM Kanban.'},
-                status=400,
-            )
         cust = Customer.objects.filter(
             pk=pk,
             customer_type='lead',
@@ -343,17 +420,7 @@ def crm_kanban_move(request):
         ).first()
         if not cust or not user_can_access_customer(request.user, cust):
             return JsonResponse({'error': 'Lead not found.'}, status=404)
-        cust.customer_type = 'customer'
-        cust.lead_kanban_stage = None
-        cust.save()
-        log_action(
-            request.user,
-            'update',
-            'Customer',
-            cust.id,
-            {'action': 'kanban_won', 'converted_to_customer': True},
-        )
-        return JsonResponse({'ok': True, 'converted': True})
+        return _kanban_convert_lead_to_customer(request, cust)
 
     cust = Customer.objects.filter(pk=pk, is_active=True).first()
     if not cust or cust.customer_type != 'lead' or not user_can_access_customer(request.user, cust):

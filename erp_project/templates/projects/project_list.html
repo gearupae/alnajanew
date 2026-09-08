@@ -9,6 +9,9 @@
         <a href="{% url 'projects:public_upload' %}" class="btn btn-outline-secondary" target="_blank" rel="noopener" title="Opens a page anyone can use to upload photos and files into a project">
             <i class="fas fa-link me-2"></i>Public upload
         </a>
+        <a href="{% url 'purchase:public_expense_submit' %}" class="btn btn-outline-secondary" target="_blank" rel="noopener" title="Employees can submit expense bills without logging in">
+            <i class="fas fa-receipt me-2"></i>Public expense submit
+        </a>
         {% if can_create %}
         <a href="{% url 'projects:project_create' %}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Create Project</a>
         {% endif %}

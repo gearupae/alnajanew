@@ -72,18 +72,34 @@ def project_staff_select_queryset():
 
 
 class ProjectForm(forms.ModelForm):
+    completion_note = forms.CharField(
+        required=False,
+        label='Completion note',
+        widget=forms.Textarea(attrs={
+            'rows': 2,
+            'class': 'form-control',
+            'placeholder': 'Optional note for the approver (e.g. handover details)',
+        }),
+    )
+
     class Meta:
         model = Project
         fields = [
             'is_active', 'name', 'description', 'customer', 'manager', 'status',
+            'status_attachment',
             'start_date', 'end_date', 'billing_type', 'budget', 'estimated_cost',
-            'contract_value', 'expense_account', 'revenue_account',
+            'contract_value', 'lpo_number', 'payment_terms',
+            'expense_account', 'revenue_account',
             'members', 'technicians',
         ]
         widgets = {
             'start_date': forms.DateInput(attrs={'type': 'date'}),
             'end_date': forms.DateInput(attrs={'type': 'date'}),
             'description': forms.Textarea(attrs={'rows': 2}),
+            'status_attachment': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx',
+            }),
             'members': forms.SelectMultiple(
                 attrs={'class': 'form-select select2-members', 'data-placeholder': 'Search by name or employee code…'}
             ),
@@ -121,6 +137,8 @@ class ProjectForm(forms.ModelForm):
         )
         self.fields['revenue_account'].required = False
         self.fields['revenue_account'].empty_label = '— Use default —'
+        self.fields['status_attachment'].required = False
+        self.fields['status_attachment'].label = 'Attachment'
         for name, field in self.fields.items():
             if name in ['customer', 'manager', 'status', 'billing_type', 'expense_account', 'revenue_account']:
                 field.widget.attrs['class'] = 'form-select'
@@ -131,6 +149,12 @@ class ProjectForm(forms.ModelForm):
         self.fields['budget'].widget.attrs.setdefault('step', '0.01')
         self.fields['estimated_cost'].widget.attrs.setdefault('step', '0.01')
         self.fields['contract_value'].widget.attrs.setdefault('step', '0.01')
+        self.fields['lpo_number'].label = 'LPO number'
+        self.fields['lpo_number'].required = False
+        self.fields['payment_terms'].label = 'Payment terms'
+        self.fields['payment_terms'].required = False
+        if not self.instance.pk and not self.data:
+            self.fields['payment_terms'].initial = 'Net 30'
 
         from .conversion_approval import project_awaiting_conversion_approval
 

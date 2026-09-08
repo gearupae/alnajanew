@@ -240,8 +240,6 @@ class CustomerForm(forms.ModelForm):
                 business_segment=seg,
                 email=email,
                 phone=phone,
-                trn=cleaned.get('trn') or '',
-                trade_license_number=cleaned.get('trade_license_number') or '',
             ):
                 self.add_error(field_name, f'{label} is required for B2B accounts.')
 

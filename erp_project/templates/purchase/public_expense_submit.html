@@ -1,0 +1,126 @@
+{% extends 'minimal_public.html' %}
+{% block title %}Submit expense bills{% endblock %}
+{% block content %}
+<div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+        <h1 class="h4 fw-bold mb-2">Submit expense bills</h1>
+        <p class="text-muted small mb-4">
+            Enter your employee code and attach bill receipts (PDF or photos).
+            Each file becomes one expense line. Finance will review amounts and approve before payment.
+            {% if preselect_project_id %} Optionally link this submission to a project.{% endif %}
+        </p>
+        <form method="post" enctype="multipart/form-data" id="publicExpenseForm">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label" for="employee_code">Employee code</label>
+                <input type="text" class="form-control form-control-lg" name="employee_code" id="employee_code"
+                       placeholder="e.g. EMP-SALES-002" autocomplete="username" required>
+            </div>
+            <div class="mb-3" id="project-wrap">
+                <label class="form-label mb-1" for="project_id">
+                    Project <span class="text-muted fw-normal small">(optional)</span>
+                </label>
+                <select class="form-select form-select-lg" name="project" id="project_id" disabled>
+                    <option value="">— No project —</option>
+                </select>
+                <p class="form-text small mb-0" id="project-help">
+                    Enter your full employee code — your assigned projects load automatically.
+                </p>
+            </div>
+            <div class="mb-4">
+                <label class="form-label" for="bills">Bill attachments</label>
+                <input type="file" class="form-control" name="bills" id="bills" multiple required
+                       accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.xls,.xlsx,.csv,image/*,application/pdf">
+                <div class="form-text">Select one or more bills — PDF, JPG, PNG, or Excel.</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2" id="publicExpenseSubmit">
+                Submit for approval
+            </button>
+        </form>
+    </div>
+</div>
+<p class="text-center small text-muted mt-3 mb-0">Having trouble? Contact finance or HR.</p>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    var projectsUrl = "{% url 'purchase:public_expense_projects' %}";
+    var codeInput = document.getElementById('employee_code');
+    var projectSelect = document.getElementById('project_id');
+    var projectHelp = document.getElementById('project-help');
+    var preselectProject = "{{ preselect_project_id|default:'' }}";
+    var loadTimer = null;
+    var loadSeq = 0;
+
+    function normalizeCode(value) {
+        return (value || '').trim().toUpperCase();
+    }
+
+    function isLookupReady(code) {
+        return code.length >= 3;
+    }
+
+    function setProjectOptions(projects, selectedId) {
+        projectSelect.innerHTML = '<option value="">— No project —</option>';
+        projects.forEach(function (p) {
+            var opt = document.createElement('option');
+            opt.value = String(p.id);
+            opt.textContent = p.label;
+            if (selectedId && String(selectedId) === String(p.id)) {
+                opt.selected = true;
+            }
+            projectSelect.appendChild(opt);
+        });
+        projectSelect.disabled = false;
+    }
+
+    function loadProjects() {
+        var code = normalizeCode(codeInput.value);
+        if (!isLookupReady(code)) {
+            projectSelect.innerHTML = '<option value="">— No project —</option>';
+            projectSelect.disabled = true;
+            projectHelp.textContent = 'Enter your employee code to load assigned projects.';
+            return;
+        }
+        var seq = ++loadSeq;
+        projectHelp.textContent = 'Loading your projects…';
+        fetch(projectsUrl + '?code=' + encodeURIComponent(code), {
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' },
+        })
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+            .then(function (res) {
+                if (seq !== loadSeq) return;
+                var data = res.json || {};
+                if (!res.ok || !data.ok) {
+                    projectSelect.disabled = true;
+                    projectHelp.textContent = data.error || 'Could not load projects.';
+                    return;
+                }
+                var selected = preselectProject || '';
+                preselectProject = '';
+                setProjectOptions(data.projects || [], selected);
+                if ((data.projects || []).length === 0) {
+                    projectHelp.textContent = 'No active projects assigned to you — you can still submit without a project.';
+                } else {
+                    projectHelp.textContent = 'Select a project if this expense belongs to a job (optional).';
+                }
+            })
+            .catch(function () {
+                if (seq !== loadSeq) return;
+                projectHelp.textContent = 'Could not load projects. Try again.';
+            });
+    }
+
+    codeInput.addEventListener('input', function () {
+        clearTimeout(loadTimer);
+        loadTimer = setTimeout(loadProjects, 400);
+    });
+    codeInput.addEventListener('blur', loadProjects);
+
+    if (normalizeCode(codeInput.value)) {
+        loadProjects();
+    }
+})();
+</script>
+{% endblock %}

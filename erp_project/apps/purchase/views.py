@@ -5,7 +5,7 @@ All purchase transactions post to accounting module as single source of truth.
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.views.generic import ListView, CreateView, UpdateView, DetailView
+from django.views.generic import ListView, CreateView, UpdateView, DetailView, TemplateView
 from django.urls import reverse, reverse_lazy
 from django.db.models import Q, Sum, Prefetch
 from django.core.exceptions import ValidationError
@@ -18,7 +18,10 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import json
 
-from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_GET, require_POST
+from django.utils.decorators import method_decorator
 
 from .models import (
     Vendor, PurchaseRequest, PurchaseRequestItem, PurchaseRequestAttachment,
@@ -1729,7 +1732,7 @@ class ExpenseClaimListView(PermissionRequiredMixin, ListView):
     paginate_by = 25
     
     def get_queryset(self):
-        queryset = ExpenseClaim.objects.filter(is_active=True).select_related('employee')
+        queryset = ExpenseClaim.objects.filter(is_active=True).select_related('employee', 'project')
         
         status = self.request.GET.get('status')
         if status:
@@ -1810,6 +1813,9 @@ class ExpenseClaimDetailView(PermissionRequiredMixin, DetailView):
     context_object_name = 'claim'
     module_name = 'purchase'
     permission_type = 'view'
+
+    def get_queryset(self):
+        return super().get_queryset().select_related('employee', 'project', 'journal_entry', 'payment_journal_entry')
     
     def get_context_data(self, **kwargs):
         from apps.core.audit import get_entity_audit_history
@@ -1951,6 +1957,84 @@ def expenseclaim_pay(request, pk):
                     messages.error(request, f'{field}: {error}')
     
     return redirect('purchase:expenseclaim_detail', pk=pk)
+
+
+@require_GET
+def public_expense_projects(request):
+    """JSON: active projects for an employee code (public expense form)."""
+    from .public_expense import resolve_employee_for_public_expense, projects_for_public_expense
+
+    emp, err = resolve_employee_for_public_expense(request.GET.get('code', ''))
+    if err:
+        status = 404 if 'not found' in err.lower() else 400
+        return JsonResponse({'ok': False, 'error': err}, status=status)
+    rows = [
+        {'id': p.pk, 'label': f'{p.project_code} — {p.name}'}
+        for p in projects_for_public_expense(emp)
+    ]
+    return JsonResponse({
+        'ok': True,
+        'employee_name': emp.full_name,
+        'projects': rows,
+    })
+
+
+@method_decorator(ensure_csrf_cookie, name='dispatch')
+@method_decorator(never_cache, name='dispatch')
+class PublicExpenseSubmitView(TemplateView):
+    """Public page for employees to submit bill receipts without logging in."""
+
+    template_name = 'purchase/public_expense_submit.html'
+
+    def get_context_data(self, **kwargs):
+        from apps.hr.views_leave_extended import _public_leave_branding_context
+
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(_public_leave_branding_context())
+        ctx['title'] = 'Submit expense bills'
+        ctx['preselect_project_id'] = (self.request.GET.get('project') or '').strip()
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        from .public_expense import (
+            create_public_expense_claim,
+            projects_for_public_expense,
+            resolve_employee_for_public_expense,
+        )
+
+        code = (request.POST.get('employee_code') or '').strip()
+        emp, err = resolve_employee_for_public_expense(code)
+        if err:
+            messages.error(request, err)
+            return self.get(request, *args, **kwargs)
+
+        files = request.FILES.getlist('bills')
+        if not files:
+            messages.error(request, 'Attach at least one bill (PDF, image, or Excel).')
+            return self.get(request, *args, **kwargs)
+
+        project = None
+        project_id = (request.POST.get('project') or '').strip()
+        if project_id:
+            if not project_id.isdigit():
+                messages.error(request, 'Invalid project selected.')
+                return self.get(request, *args, **kwargs)
+            project = projects_for_public_expense(emp).filter(pk=int(project_id)).first()
+            if not project:
+                messages.error(request, 'You cannot submit expenses for the selected project.')
+                return self.get(request, *args, **kwargs)
+
+        claim, count = create_public_expense_claim(
+            employee=emp,
+            project=project,
+            files=files,
+        )
+        messages.success(
+            request,
+            f'Thank you. {count} bill(s) submitted as claim {claim.claim_number}. '
+            'Finance will review before approval.',
+        )
+        return redirect('purchase:public_expense_submit')
 
 
 # ============ RECURRING EXPENSE VIEWS ============

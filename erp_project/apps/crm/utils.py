@@ -244,6 +244,105 @@ def customer_phone_digits(value: str) -> str:
     return re.sub(r'\D', '', (value or '').strip())
 
 
+def find_customer_for_lookup(
+    *,
+    user,
+    phone: str = '',
+    email: str = '',
+    trn: str = '',
+    customer_number: str = '',
+    exclude_pk=None,
+):
+    """Find an existing CRM record by phone, email, TRN, or customer number."""
+    from .models import Customer
+
+    qs = filter_customers_for_user(
+        Customer.objects.filter(is_active=True).select_related(
+            'assigned_salesperson',
+            'primary_project',
+            'lead_kanban_stage',
+        ),
+        user,
+    )
+    if exclude_pk:
+        qs = qs.exclude(pk=exclude_pk)
+
+    cn = (customer_number or '').strip()
+    if cn:
+        match = qs.filter(customer_number__iexact=cn).first()
+        if match:
+            return match
+
+    trn_val = (trn or '').strip()
+    if trn_val:
+        match = qs.filter(trn__iexact=trn_val).first()
+        if match:
+            return match
+
+    normalized_email = (email or '').strip().lower()
+    if normalized_email and '@' in normalized_email:
+        match = qs.filter(email__iexact=normalized_email).first()
+        if match:
+            return match
+
+    phone_digits = customer_phone_digits(phone)
+    if phone_digits and len(phone_digits) >= 10:
+        phone_qs = filter_customers_for_user(
+            Customer.objects.filter(is_active=True).exclude(phone='').only('pk', 'phone'),
+            user,
+        )
+        if exclude_pk:
+            phone_qs = phone_qs.exclude(pk=exclude_pk)
+        for customer in phone_qs:
+            if customer_phone_digits(customer.phone) == phone_digits:
+                return qs.filter(pk=customer.pk).first()
+
+    return None
+
+
+def customer_lookup_payload(customer, request=None) -> dict:
+    """Serialize customer fields for CRM form autofill."""
+    from django.urls import reverse
+
+    website = (customer.website or '').strip()
+    if website.startswith('https://'):
+        website = website[8:]
+    elif website.startswith('http://'):
+        website = website[7:]
+
+    detail_url = ''
+    if request:
+        detail_url = reverse('crm:customer_detail', kwargs={'pk': customer.pk})
+
+    return {
+        'id': customer.pk,
+        'customer_number': customer.customer_number,
+        'name': customer.name or '',
+        'company': customer.company or '',
+        'email': customer.email or '',
+        'phone': customer.phone or '',
+        'address': customer.address or '',
+        'city': customer.city or '',
+        'country': customer.country or '',
+        'trn': customer.trn or '',
+        'trade_license_number': customer.trade_license_number or '',
+        'website': website,
+        'scope': list(customer.scope or []),
+        'job_type': customer.job_type or '',
+        'primary_project': customer.primary_project_id,
+        'payment_terms': customer.payment_terms or '',
+        'credit_limit': str(customer.credit_limit),
+        'status': customer.status,
+        'customer_type': customer.customer_type,
+        'lead_kanban_stage': customer.lead_kanban_stage_id,
+        'assigned_salesperson': customer.assigned_salesperson_id,
+        'business_segment': customer.business_segment or '',
+        'notes': customer.notes or '',
+        'is_active': customer.is_active,
+        'detail_url': detail_url,
+    }
+
+
 def find_customer_contact_duplicate(*, email: str = '', phone: str = '', exclude_pk=None):
     """
     Return (customer, matched_field) when email or phone matches another CRM account.

@@ -4,6 +4,19 @@ from __future__ import annotations
 from apps.projects.models import Project, ProjectInvoice
 
 
+def resolve_estimate_project(estimate) -> Project | None:
+    """Return the project linked to a quotation, if any."""
+    if not estimate:
+        return None
+    if estimate.project_id:
+        return estimate.project
+    return (
+        Project.objects.filter(estimates=estimate, is_active=True)
+        .order_by('-pk')
+        .first()
+    )
+
+
 def get_invoice_project(invoice):
     """Return the active project linked to this invoice, if any."""
     if not invoice or not invoice.pk:
@@ -39,3 +52,17 @@ def save_invoice_project_link(invoice, project: Project | None) -> None:
     from apps.projects.operation_access import maybe_auto_approve_project_financial_unlock
 
     maybe_auto_approve_project_financial_unlock(project)
+    project.update_totals()
+
+
+def sync_estimate_invoices_to_project(estimate, project: Project | None) -> None:
+    """Link all active estimate invoices to the project (e.g. after late project conversion)."""
+    if not estimate or not project:
+        return
+    from .models import Invoice
+
+    for invoice in Invoice.objects.filter(
+        estimate=estimate,
+        is_active=True,
+    ).exclude(status='cancelled'):
+        save_invoice_project_link(invoice, project)

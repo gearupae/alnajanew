@@ -209,6 +209,16 @@
                         <p class="mb-0">{{ claim.employee.get_full_name|default:claim.employee.username }}</p>
                     </div>
                     <div class="col-md-3">
+                        <label class="form-label text-muted small">Project</label>
+                        <p class="mb-0">
+                            {% if claim.project %}
+                            <a href="{% url 'projects:project_detail' claim.project.pk %}" class="text-decoration-none">
+                                {{ claim.project.project_code }} — {{ claim.project.name }}
+                            </a>
+                            {% else %}—{% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label text-muted small">Claim date</label>
                         <p class="mb-0">{{ claim.claim_date|date:"d/m/Y" }}</p>
                     </div>

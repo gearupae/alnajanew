@@ -1421,6 +1421,14 @@ class ExpenseClaim(BaseModel):
         on_delete=models.PROTECT,
         related_name='purchase_expense_claims'
     )
+    project = models.ForeignKey(
+        'projects.Project',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='expense_claims',
+        help_text='Optional project this claim relates to.',
+    )
     claim_date = models.DateField()
     description = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')

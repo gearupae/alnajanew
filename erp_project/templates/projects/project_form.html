@@ -22,6 +22,17 @@ $(function () {
             minimumResultsForSearch: 0,
         });
     }
+
+    var statusSelect = document.getElementById('id_status');
+    var completionNoteWrap = document.getElementById('completion-note-wrap');
+    function toggleCompletionNote() {
+        if (!statusSelect || !completionNoteWrap) return;
+        completionNoteWrap.classList.toggle('d-none', statusSelect.value !== 'completed');
+    }
+    if (statusSelect) {
+        statusSelect.addEventListener('change', toggleCompletionNote);
+        toggleCompletionNote();
+    }
 });
 </script>
 {% endblock %}
@@ -35,7 +46,7 @@ $(function () {
 <div class="alert alert-danger">{{ form.non_field_errors }}</div>
 {% endif %}
 
-<form method="post">
+<form method="post" enctype="multipart/form-data">
     {% csrf_token %}
     {% if object %}
     {% if object.conversion_approval_status == 'pending' and object.status == 'draft' %}
@@ -66,11 +77,6 @@ $(function () {
                     <input type="text" class="form-control bg-light" value="{{ object.project_code }}" readonly>
                 </div>
                 {% endif %}
-                <div class="col-md-3">
-                    <label class="form-label">Status</label>
-                    {{ form.status }}
-                    {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}
-                </div>
             </div>
         </div>
     </div>
@@ -137,6 +143,16 @@ $(function () {
                     {{ form.contract_value }}
                     {% if form.contract_value.errors %}<div class="text-danger small">{{ form.contract_value.errors }}</div>{% endif %}
                 </div>
+                <div class="col-md-3">
+                    <label class="form-label">LPO number</label>
+                    {{ form.lpo_number }}
+                    {% if form.lpo_number.errors %}<div class="text-danger small">{{ form.lpo_number.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Payment terms</label>
+                    {{ form.payment_terms }}
+                    {% if form.payment_terms.errors %}<div class="text-danger small">{{ form.payment_terms.errors }}</div>{% endif %}
+                </div>
                 {% if object %}
                 <div class="col-md-3">
                     <label class="form-label">Total expenses</label>
@@ -198,6 +214,10 @@ $(function () {
                     <label class="form-label">Edit approval submitted by</label>
                     <input type="text" class="form-control bg-light" value="{% if object.edit_approval_submitted_by %}{{ object.edit_approval_submitted_by.get_full_name|default:object.edit_approval_submitted_by.username }}{% else %}—{% endif %}" readonly>
                 </div>
+                <div class="col-md-6">
+                    <label class="form-label">Completion note</label>
+                    <textarea class="form-control bg-light" rows="2" readonly>{% if object.edit_approval_submission_note %}{{ object.edit_approval_submission_note }}{% else %}—{% endif %}</textarea>
+                </div>
                 <div class="col-md-3">
                     <label class="form-label">Edit approval rejection reason</label>
                     <input type="text" class="form-control bg-light" value="{{ object.edit_approval_rejection_reason|default:'—' }}" readonly>
@@ -237,6 +257,46 @@ $(function () {
                     {{ form.technicians }}
                     {% if form.technicians.errors %}<div class="text-danger small">{{ form.technicians.errors }}</div>{% endif %}
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Project status</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}
+                    {% if form.status.help_text %}<div class="form-text">{{ form.status.help_text }}</div>{% endif %}
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Attachment <span class="text-muted small">(optional)</span></label>
+                    {{ form.status_attachment }}
+                    {% if form.status_attachment.errors %}<div class="text-danger small">{{ form.status_attachment.errors }}</div>{% endif %}
+                    <div class="form-text">Upload a supporting document for the selected status (PDF, image, or Office file).</div>
+                    {% if object.status_attachment %}
+                    <div class="mt-2">
+                        <span class="text-muted small">Current file:</span>
+                        <a href="{{ object.status_attachment.url }}" class="btn btn-sm btn-outline-dark ms-1" target="_blank" rel="noopener">
+                            <i class="fas fa-file-download me-1"></i>Download
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-12 d-none" id="completion-note-wrap">
+                    <label class="form-label">{{ form.completion_note.label }} <span class="text-muted fw-normal small">(optional)</span></label>
+                    {{ form.completion_note }}
+                    {% if form.completion_note.errors %}<div class="text-danger small">{{ form.completion_note.errors }}</div>{% endif %}
+                    <div class="form-text">Include handover or completion details for the approver.</div>
+                </div>
+                {% if object.edit_approval_submission_note %}
+                <div class="col-12">
+                    <label class="form-label text-muted small">Last completion note submitted</label>
+                    <p class="mb-0 small">{{ object.edit_approval_submission_note|linebreaksbr }}</p>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

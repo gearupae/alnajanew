@@ -80,6 +80,8 @@ urlpatterns = [
     # Expense Claims (moved from Finance)
     path('expense-claims/', views.ExpenseClaimListView.as_view(), name='expenseclaim_list'),
     path('expense-claims/create/', views.ExpenseClaimCreateView.as_view(), name='expenseclaim_create'),
+    path('expense-claims/public/submit/', views.PublicExpenseSubmitView.as_view(), name='public_expense_submit'),
+    path('expense-claims/public/projects/', views.public_expense_projects, name='public_expense_projects'),
     path('expense-claims/<int:pk>/', views.ExpenseClaimDetailView.as_view(), name='expenseclaim_detail'),
     path('expense-claims/<int:pk>/submit/', views.expenseclaim_submit, name='expenseclaim_submit'),
     path('expense-claims/<int:pk>/approve/', views.expenseclaim_approve, name='expenseclaim_approve'),

@@ -129,5 +129,17 @@ def copy_estimate_lines_to_invoice(estimate, invoice):
 
     sync_document_line_vat_flags(invoice)
     invoice.calculate_totals()
+    apply_estimate_totals_to_invoice(estimate, invoice)
+    return invoice
+
+
+def apply_estimate_totals_to_invoice(estimate, invoice):
+    """Ensure invoice header totals match the source quotation after conversion."""
+    estimate.calculate_totals()
+    net_subtotal = (estimate.subtotal or Decimal('0')) - (estimate.discount_applied or Decimal('0'))
+    invoice.subtotal = net_subtotal.quantize(Decimal('0.01'))
+    invoice.vat_amount = (estimate.vat_amount or Decimal('0')).quantize(Decimal('0.01'))
+    invoice.total_amount = (estimate.total_amount or Decimal('0')).quantize(Decimal('0.01'))
+    invoice.save(update_fields=['subtotal', 'vat_amount', 'total_amount'])
     return invoice
 

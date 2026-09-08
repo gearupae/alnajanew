@@ -46,6 +46,11 @@
                     {{ form.description }}
                     {% for err in form.description.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label">Project <span class="text-muted fw-normal small">(optional)</span></label>
+                    {{ form.project }}
+                    {% for err in form.project.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
             </div>
         </div>
     </div>

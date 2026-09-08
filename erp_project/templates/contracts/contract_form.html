@@ -55,6 +55,11 @@
                             {% if form.customer.errors %}<div class="text-danger small">{{ form.customer.errors|join:", " }}</div>{% endif %}
                         </div>
                         <div class="col-md-4">
+                            <label class="form-label">Project <span class="text-muted fw-normal small">(optional)</span></label>
+                            {{ form.project }}
+                            {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-4">
                             <label class="form-label">Name <span class="text-danger">*</span></label>
                             {{ form.name }}
                             {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors|join:", " }}</div>{% endif %}
@@ -156,6 +161,14 @@ $(function () {
             width: '100%',
             placeholder: 'Select types…',
             closeOnSelect: false,
+        });
+    }
+    if ($('.select2-contract-project').length) {
+        $('.select2-contract-project').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Select project…',
+            allowClear: true,
         });
     }
 });

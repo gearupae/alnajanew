@@ -384,6 +384,10 @@
             margin-bottom: 4px;
         }
 
+        .signature-line--customer {
+            height: 70px;
+        }
+
         .signature-label {
             font-size: 9px;
             color: var(--silver);
@@ -922,11 +926,7 @@
                     <div class="signature-label">Authorized signature</div>
                 </div>
                 <div class="signature-box">
-                    {% if customer_signature_url %}
-                    <img src="{{ customer_signature_url }}" alt="" style="max-height:70px;max-width:100%;margin-bottom:6px;">
-                    {% else %}
-                    <div class="signature-line"></div>
-                    {% endif %}
+                    <div class="signature-line signature-line--customer"></div>
                     <div class="signature-label">Customer signature</div>
                 </div>
             </div>

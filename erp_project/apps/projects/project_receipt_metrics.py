@@ -7,14 +7,21 @@ from django.db.models import Sum
 
 from apps.advances.models import CustomerAdvance, CustomerAdvanceApplication
 
-def _linked_invoices_for_project(project):
+def _linked_invoices_for_project(project, *, include_drafts=False):
     rows = []
     for link in project.invoices.filter(is_active=True).select_related('invoice'):
         inv = link.invoice
-        if not inv or not inv.is_active or inv.status in ('draft', 'cancelled'):
+        if not inv or not inv.is_active or inv.status == 'cancelled':
+            continue
+        if not include_drafts and inv.status == 'draft':
             continue
         rows.append(inv)
     return rows
+
+
+def linked_invoices_for_project_display(project):
+    """All linked invoices for project UI (includes draft)."""
+    return _linked_invoices_for_project(project, include_drafts=True)
 
 
 def project_receipt_totals(project) -> dict:

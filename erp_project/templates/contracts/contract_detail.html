@@ -70,6 +70,18 @@
                 </p>
             </div>
             <div class="col-md-3">
+                <h6 class="text-muted mb-2">Project</h6>
+                <p class="mb-0">
+                    {% if contract.project %}
+                    <a href="{% url 'projects:project_detail' contract.project.pk %}">
+                        {{ contract.project.project_code }} — {{ contract.project.name }}
+                    </a>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-3">
                 <h6 class="text-muted mb-2">Name</h6>
                 <p class="mb-0">{{ contract.name }}</p>
             </div>

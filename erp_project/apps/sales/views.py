@@ -270,7 +270,6 @@ def apply_company_default_estimate_signatures(estimate, request_files=None):
 
     for est_field, cs_field, upload_key in (
         ('authorized_signature', 'estimate_default_authorized_signature', 'authorized_signature'),
-        ('customer_signature', 'estimate_default_customer_signature', 'customer_signature'),
     ):
         if getattr(estimate, est_field):
             continue
@@ -1525,6 +1524,7 @@ def estimate_convert_to_invoice(request, pk):
 
     from .approval_rules import user_can_convert_estimate_follow_on
     from .estimate_conversion import copy_estimate_lines_to_invoice
+    from .invoice_project_link import resolve_estimate_project, save_invoice_project_link
 
     if not user_can_convert_estimate_follow_on(request.user, estimate):
         messages.error(
@@ -1558,10 +1558,14 @@ def estimate_convert_to_invoice(request, pk):
     )
 
     copy_estimate_lines_to_invoice(estimate, invoice)
-    if estimate.project_id:
-        from .invoice_project_link import save_invoice_project_link
-        save_invoice_project_link(invoice, estimate.project)
-    messages.success(request, f'Invoice {invoice.invoice_number} created from estimate.')
+    project = resolve_estimate_project(estimate)
+    if project:
+        save_invoice_project_link(invoice, project)
+    messages.success(
+        request,
+        f'Invoice {invoice.invoice_number} created from estimate.'
+        + (f' Linked to project {project.project_code}.' if project else ''),
+    )
     link = reverse('sales:invoice_edit', kwargs={'pk': invoice.pk})
     notify_if_new_assignee(
         estimate.assigned_to,
@@ -1873,9 +1877,7 @@ def _build_estimate_pdf_context(request, estimate, *, proforma_invoice=None, for
     logo_absolute_url = _pdf_media_absolute_url(request, company.logo, **media_kw)
 
     authorized_sig = estimate.authorized_signature or company.estimate_default_authorized_signature
-    customer_sig = estimate.customer_signature or company.estimate_default_customer_signature
     authorized_signature_url = _pdf_media_absolute_url(request, authorized_sig, **media_kw)
-    customer_signature_url = _pdf_media_absolute_url(request, customer_sig, **media_kw)
 
     pdf_image_1_url = _pdf_media_absolute_url(request, company.estimate_pdf_stamp_image, **media_kw)
     pdf_image_2_url = _pdf_media_absolute_url(request, company.estimate_pdf_footer_image, **media_kw)
@@ -1886,7 +1888,7 @@ def _build_estimate_pdf_context(request, estimate, *, proforma_invoice=None, for
         'company': company,
         'logo_absolute_url': logo_absolute_url,
         'authorized_signature_url': authorized_signature_url,
-        'customer_signature_url': customer_signature_url,
+        'customer_signature_url': '',
         'pdf_image_1_url': pdf_image_1_url,
         'pdf_image_2_url': pdf_image_2_url,
         'amount_words': amount_words,
@@ -2456,15 +2458,42 @@ class InvoiceListView(PermissionRequiredMixin, ListView):
     module_name = 'sales'
     permission_type = 'view'
     paginate_by = 25
+
+    def get(self, request, *args, **kwargs):
+        if request.GET.get('export') == 'csv':
+            return self._export_csv()
+        return super().get(request, *args, **kwargs)
+
+    def _export_csv(self):
+        from .unpaid_invoices import invoices_csv_response
+
+        if not (
+            self.request.user.is_superuser
+            or PermissionChecker.has_permission(self.request.user, 'sales', 'view')
+        ):
+            return HttpResponseForbidden('Permission denied.')
+        qs = self.get_queryset()
+        filename = f'invoices_{date.today().isoformat()}.csv'
+        if self.request.GET.get('unpaid') == '1':
+            filename = f'unpaid_invoices_{date.today().isoformat()}.csv'
+        return invoices_csv_response(qs, filename=filename)
     
     def get_queryset(self):
+        from .unpaid_invoices import unpaid_invoices_queryset
+
         queryset = Invoice.objects.filter(is_active=True).select_related('customer', 'estimate')
+
+        if self.request.GET.get('unpaid') == '1':
+            queryset = unpaid_invoices_queryset(queryset)
+        else:
+            queryset = queryset.order_by('-created_at')
         
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(
                 Q(invoice_number__icontains=search) |
-                Q(customer__name__icontains=search)
+                Q(customer__name__icontains=search) |
+                Q(customer__company__icontains=search)
             )
         
         status = self.request.GET.get('status')
@@ -2475,7 +2504,9 @@ class InvoiceListView(PermissionRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = 'Invoices'
+        unpaid_only = self.request.GET.get('unpaid') == '1'
+        context['title'] = 'Unpaid Invoices' if unpaid_only else 'Invoices'
+        context['unpaid_only'] = unpaid_only
         context['customers'] = Customer.objects.filter(is_active=True)
         context['status_choices'] = Invoice.STATUS_CHOICES
         context['can_create'] = self.request.user.is_superuser or PermissionChecker.has_permission(
@@ -2489,11 +2520,16 @@ class InvoiceListView(PermissionRequiredMixin, ListView):
         )
         context['today'] = date.today().isoformat()
         
-        # Summary stats
+        # Summary stats (respect unpaid filter when active)
         invoices = self.get_queryset()
+        context['invoice_count'] = invoices.count()
         context['total_invoiced'] = invoices.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         context['total_paid'] = invoices.aggregate(Sum('paid_amount'))['paid_amount__sum'] or 0
         context['total_outstanding'] = context['total_invoiced'] - context['total_paid']
+
+        export_params = self.request.GET.copy()
+        export_params['export'] = 'csv'
+        context['export_csv_url'] = f"{reverse('sales:invoice_list')}?{export_params.urlencode()}"
         
         return context
 

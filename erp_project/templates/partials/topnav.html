@@ -234,7 +234,7 @@
                 <!-- Finance (with nested Reports submenu) -->
                 {% if 'finance' not in nav_hidden_modules %}{% if is_superuser or 'finance' in user_permissions %}
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if 'finance' in request.path %}active{% endif %}" href="#" data-bs-toggle="dropdown">
+                    <a class="nav-link dropdown-toggle {% if 'finance' in request.path or '/property/pdc' in request.path or '/advances/security-cheques' in request.path %}active{% endif %}" href="#" data-bs-toggle="dropdown">
                         <i class="fas fa-coins me-1"></i>Finance
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark finance-dropdown" style="min-width: 220px;">
@@ -272,6 +272,18 @@
                         <li>
                             <a class="dropdown-item" href="{% url 'finance:bankreconciliation_list' %}">
                                 <i class="fas fa-sync-alt me-2"></i>Bank Reconciliation
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li class="dropdown-header">Cheques</li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'property:pdc_list' %}">
+                                <i class="fas fa-arrow-down me-2 text-success"></i>Incoming Cheques
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'advances:security_cheque_list' %}">
+                                <i class="fas fa-arrow-up me-2 text-danger"></i>Outgoing Cheques
                             </a>
                         </li>
                         <li><hr class="dropdown-divider"></li>
@@ -316,13 +328,6 @@
                         <li>
                             <a class="dropdown-item" href="{% url 'finance:period_list' %}">
                                 <i class="fas fa-lock me-2"></i>Period Locking
-                            </a>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <a class="dropdown-item" href="{% url 'advances:security_cheque_list' %}">
-                                <i class="fas fa-money-check-alt me-2"></i>Security Cheques Outward
                             </a>
                         </li>
                         <li><hr class="dropdown-divider"></li>
@@ -571,35 +576,6 @@
                         <li>
                             <a class="dropdown-item" href="{% url 'property:lease_list' %}">
                                 <i class="fas fa-file-contract me-2"></i>Leases
-                            </a>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li class="dropdown-header">PDC Management</li>
-                        <li>
-                            <a class="dropdown-item" href="{% url 'property:pdc_list' %}">
-                                <i class="fas fa-money-check me-2"></i>PDC Cheques
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="{% url 'property:pdc_bank_reconciliation' %}">
-                                <i class="fas fa-balance-scale me-2"></i>Bank Reconciliation
-                            </a>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li class="dropdown-header">Reports</li>
-                        <li>
-                            <a class="dropdown-item" href="{% url 'property:pdc_register_report' %}">
-                                <i class="fas fa-list me-2"></i>PDC Register
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="{% url 'property:pdc_outstanding_report' %}">
-                                <i class="fas fa-clock me-2"></i>Outstanding PDCs
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="{% url 'property:reconciliation_exceptions_report' %}">
-                                <i class="fas fa-exclamation-triangle me-2"></i>Exceptions
                             </a>
                         </li>
                     </ul>

@@ -35,8 +35,6 @@ def customer_b2b_required_missing(
     business_segment,
     email='',
     phone='',
-    trn='',
-    trade_license_number='',
 ) -> list[tuple[str, str]]:
     """(field_name, label) pairs missing for B2B accounts."""
     if (business_segment or '').strip().lower() != 'b2b':
@@ -46,10 +44,6 @@ def customer_b2b_required_missing(
         missing.append(('email', 'Email'))
     if not (phone or '').strip():
         missing.append(('phone', 'Contact'))
-    if not (trn or '').strip():
-        missing.append(('trn', 'VAT (TRN) number'))
-    if not (trade_license_number or '').strip():
-        missing.append(('trade_license_number', 'Trade license number'))
     return missing
 
 

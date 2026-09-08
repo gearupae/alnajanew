@@ -673,16 +673,26 @@ class ExpenseClaimForm(forms.ModelForm):
     
     class Meta:
         model = ExpenseClaim
-        fields = ['is_active', 'claim_date', 'description']
+        fields = ['is_active', 'claim_date', 'description', 'project']
         widgets = {
             'claim_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'description': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'project': forms.Select(attrs={'class': 'form-select'}),
         }
 
     def __init__(self, *args, **kwargs):
+        from apps.projects.models import Project
+
         super().__init__(*args, **kwargs)
         self.fields['is_active'].label = 'Is active'
         self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        self.fields['project'].required = False
+        self.fields['project'].empty_label = '— No project —'
+        self.fields['project'].queryset = (
+            Project.objects.filter(is_active=True)
+            .exclude(status__in=['draft', 'cancelled'])
+            .order_by('-start_date', '-pk')
+        )
         if not self.is_bound and not self.instance.pk:
             self.fields['is_active'].initial = True
 

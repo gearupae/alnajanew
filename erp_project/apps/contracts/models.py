@@ -55,6 +55,14 @@ class Contract(BaseModel):
         blank=True,
         related_name='contracts',
     )
+    project = models.ForeignKey(
+        'projects.Project',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='contracts',
+        help_text='Optional linked project for this contract.',
+    )
     name = models.CharField(max_length=255)
     contract_value = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     start_date = models.DateField()

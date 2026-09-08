@@ -51,7 +51,7 @@ class ContractListView(PermissionRequiredMixin, ListView):
     paginate_by = 25
 
     def get_queryset(self):
-        qs = Contract.objects.filter(is_active=True).select_related('customer').prefetch_related(
+        qs = Contract.objects.filter(is_active=True).select_related('customer', 'project').prefetch_related(
             'contract_types'
         )
         search = self.request.GET.get('search')
@@ -67,7 +67,7 @@ class ContractListView(PermissionRequiredMixin, ListView):
             qs = qs.filter(status=status)
         if self.request.GET.get('reminder_due') == '1':
             pks = [c.pk for c in qs if c.reminder_due() and c.status not in ('expired', 'terminated', 'draft')]
-            qs = Contract.objects.filter(pk__in=pks).select_related('customer').prefetch_related('contract_types')
+            qs = Contract.objects.filter(pk__in=pks).select_related('customer', 'project').prefetch_related('contract_types')
 
         return qs.order_by('-created_at')
 
@@ -104,8 +104,11 @@ class ContractListView(PermissionRequiredMixin, ListView):
         customer_pk = self.request.GET.get('customer')
         if customer_pk and str(customer_pk).isdigit():
             initial['customer'] = int(customer_pk)
+        project_pk = self.request.GET.get('project')
+        if project_pk and str(project_pk).isdigit():
+            initial['project'] = int(project_pk)
         ctx['form'] = kwargs.get('form') or ContractForm(initial=initial)
-        ctx['open_contract_form'] = bool(customer_pk)
+        ctx['open_contract_form'] = bool(customer_pk or project_pk)
         ctx['can_create'] = self.request.user.is_superuser or PermissionChecker.has_permission(
             self.request.user, 'contracts', 'create'
         )
@@ -163,7 +166,7 @@ class ContractDetailView(PermissionRequiredMixin, DetailView):
     permission_type = 'view'
 
     def get_queryset(self):
-        return Contract.objects.filter(is_active=True).select_related('customer').prefetch_related(
+        return Contract.objects.filter(is_active=True).select_related('customer', 'project').prefetch_related(
             'contract_types',
             'attachments',
         )
@@ -190,7 +193,7 @@ class ContractUpdateView(UpdatePermissionMixin, UpdateView):
     module_name = 'contracts'
 
     def get_queryset(self):
-        return Contract.objects.filter(is_active=True).select_related('customer').prefetch_related('contract_types')
+        return Contract.objects.filter(is_active=True).select_related('customer', 'project').prefetch_related('contract_types')
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -296,7 +299,7 @@ class ContractTypeUpdateView(UpdatePermissionMixin, UpdateView):
 def contract_pdf(request, pk):
     """Printable contract (HTML for print), layout aligned with estimate PDF."""
     contract = get_object_or_404(
-        Contract.objects.select_related('customer').prefetch_related('contract_types'),
+        Contract.objects.select_related('customer', 'project').prefetch_related('contract_types'),
         pk=pk,
         is_active=True,
     )

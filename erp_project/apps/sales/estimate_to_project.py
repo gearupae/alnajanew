@@ -111,22 +111,32 @@ def create_project_from_estimate(*, estimate, include_items: bool, submitted_by=
     needs_conversion_approval = project_conversion_approval_configured()
     initial_status = 'draft' if needs_conversion_approval else 'planning'
 
+    customer = estimate.customer
+    payment_terms = 'Net 30'
+    if customer and (customer.payment_terms or '').strip():
+        payment_terms = customer.payment_terms.strip()
+
     project = Project.objects.create(
         name=name,
         description=description,
-        customer=estimate.customer,
+        customer=customer,
         manager=estimate.assigned_to,
         status=initial_status,
         start_date=estimate.date,
         contract_value=estimate.total_amount or Decimal('0.00'),
         budget=estimate.project_budget(),
         estimated_cost=Decimal('0.00'),
+        payment_terms=payment_terms,
     )
     if estimate.assigned_to_id:
         project.members.add(estimate.assigned_to)
 
     estimate.project = project
     estimate.save(update_fields=['project'])
+
+    from apps.sales.invoice_project_link import sync_estimate_invoices_to_project
+
+    sync_estimate_invoices_to_project(estimate, project)
 
     if needs_conversion_approval and submitted_by:
         from apps.projects.operation_access import project_skips_approval_gates
@@ -154,6 +164,10 @@ def link_estimate_to_existing_project(*, estimate, project, include_items: bool,
     """
     estimate.project = project
     estimate.save(update_fields=['project'])
+
+    from apps.sales.invoice_project_link import sync_estimate_invoices_to_project
+
+    sync_estimate_invoices_to_project(estimate, project)
 
     project.sync_financials_from_linked_estimates()
 

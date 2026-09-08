@@ -531,7 +531,7 @@ class SecurityChequeListView(PermissionRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['title'] = 'Security Cheques Outward'
+        ctx['title'] = 'Outgoing Cheques'
         ctx['status_choices'] = SecurityChequeOutward.STATUS_CHOICES
         ctx['can_create'] = _can(self.request.user, 'finance', 'create')
         ctx['can_edit'] = _can(self.request.user, 'finance', 'edit')

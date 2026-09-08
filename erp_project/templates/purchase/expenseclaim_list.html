@@ -7,11 +7,16 @@
         <h4 class="mb-0 fw-bold">{{ title }}</h4>
         <small class="text-muted">Employee expense reimbursement claims</small>
     </div>
+    <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
     {% if can_create %}
     <a href="{% url 'purchase:expenseclaim_create' %}" class="btn btn-dark">
         <i class="fas fa-plus me-2"></i>New Claim
     </a>
     {% endif %}
+    <a href="{% url 'purchase:public_expense_submit' %}" class="btn btn-outline-secondary" target="_blank" rel="noopener" title="Share this link so employees can submit bills without logging in">
+        <i class="fas fa-link me-2"></i>Public submit link
+    </a>
+    </div>
 </div>
 
 <!-- Metric Cards -->

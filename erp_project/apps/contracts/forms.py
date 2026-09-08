@@ -1,9 +1,19 @@
 from django import forms
 
 from apps.crm.models import Customer
+from apps.projects.models import Project
 from apps.settings_app.models import CompanySettings
 
 from .models import Contract, ContractType
+
+
+def contract_project_choice_label(project):
+    parts = [project.project_code, project.name]
+    if project.customer_id:
+        label = project.customer.company or project.customer.name
+        if label:
+            parts.append(label)
+    return ' — '.join(p for p in parts if p)
 
 
 class ContractTypeForm(forms.ModelForm):
@@ -39,6 +49,7 @@ class ContractForm(forms.ModelForm):
         fields = [
             'is_active',
             'customer',
+            'project',
             'name',
             'contract_value',
             'start_date',
@@ -52,7 +63,10 @@ class ContractForm(forms.ModelForm):
         ]
         widgets = {
             'status': forms.Select(attrs={'class': 'form-select'}),
-            'customer': forms.Select(attrs={'class': 'form-select'}),
+            'customer': forms.Select(attrs={'class': 'form-select', 'id': 'id_customer'}),
+            'project': forms.Select(
+                attrs={'class': 'form-select select2-contract-project', 'id': 'id_project'}
+            ),
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Contract name'}),
             'contract_value': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
@@ -79,6 +93,11 @@ class ContractForm(forms.ModelForm):
         self.fields['customer'].queryset = Customer.objects.filter(is_active=True).order_by('name', 'company')
         self.fields['customer'].required = False
         self.fields['customer'].empty_label = '— No customer —'
+        self.fields['project'].required = False
+        self.fields['project'].empty_label = '— No project —'
+        self.fields['project'].label = 'Project'
+        self.fields['project'].label_from_instance = contract_project_choice_label
+        self._set_project_queryset()
         self.fields['contract_types'].queryset = ContractType.objects.filter(is_active=True).order_by('name')
         self.fields['contract_types'].required = False
         self.fields['contract_types'].label = 'Contract types'
@@ -92,6 +111,15 @@ class ContractForm(forms.ModelForm):
                 CompanySettings.get_settings().contract_default_terms or ''
             )
 
+    def _set_project_queryset(self):
+        qs = (
+            Project.objects.filter(is_active=True)
+            .exclude(status__in=['draft', 'cancelled'])
+            .select_related('customer')
+            .order_by('-start_date', '-pk')
+        )
+        self.fields['project'].queryset = qs
+
     def clean(self):
         cleaned = super().clean()
         if self.data:
@@ -102,6 +130,12 @@ class ContractForm(forms.ModelForm):
         end = cleaned.get('end_date')
         if start and end and end < start:
             raise forms.ValidationError('End date must be on or after start date.')
+        customer = cleaned.get('customer')
+        project = cleaned.get('project')
+        if project and customer and project.customer_id and project.customer_id != customer.pk:
+            raise forms.ValidationError('The selected project belongs to a different customer.')
+        if project and not customer and project.customer_id:
+            cleaned['customer'] = project.customer
         lines = []
         if self.data:
             lines = [line.strip() for line in self.data.getlist('scope_of_work_line') if line.strip()]

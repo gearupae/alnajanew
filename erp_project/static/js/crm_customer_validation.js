@@ -130,16 +130,6 @@
             case 'assigned_salesperson':
                 message = validateAssignedSalesperson(input.value);
                 break;
-            case 'trn':
-                if (b2b && !trim(input.value)) {
-                    message = 'VAT (TRN) number is required for B2B accounts.';
-                }
-                break;
-            case 'trade_license_number':
-                if (b2b && !trim(input.value)) {
-                    message = 'Trade license number is required for B2B accounts.';
-                }
-                break;
             default:
                 return true;
         }
@@ -148,7 +138,7 @@
 
     function applyB2bRequirements(form) {
         if (!isB2bSegment(form)) {
-            ['email', 'phone', 'trn', 'trade_license_number'].forEach(function (name) {
+            ['email', 'phone'].forEach(function (name) {
                 var input = form.querySelector('[name="' + name + '"]');
                 if (input) setFieldValidity(input, '');
             });
@@ -158,8 +148,6 @@
         var checks = [
             ['email', 'Email is required for B2B accounts.'],
             ['phone', 'Contact is required for B2B accounts.'],
-            ['trn', 'VAT (TRN) number is required for B2B accounts.'],
-            ['trade_license_number', 'Trade license number is required for B2B accounts.'],
         ];
         checks.forEach(function (pair) {
             var input = form.querySelector('[name="' + pair[0] + '"]');
@@ -173,7 +161,7 @@
 
     function validateForm(form) {
         var ok = true;
-        var names = ['company', 'business_segment', 'assigned_salesperson', 'email', 'phone', 'website', 'trn', 'trade_license_number'];
+        var names = ['company', 'business_segment', 'assigned_salesperson', 'email', 'phone', 'website'];
         names.forEach(function (name) {
             var input = form.querySelector('[name="' + name + '"]');
             if (input && !validateField(form, input)) {
@@ -193,7 +181,7 @@
         if (!form || form.dataset.crmValidationAttached === '1') return;
         form.dataset.crmValidationAttached = '1';
 
-        var liveFields = ['phone', 'email', 'website', 'company', 'business_segment', 'assigned_salesperson', 'trn', 'trade_license_number'];
+        var liveFields = ['phone', 'email', 'website', 'company', 'business_segment', 'assigned_salesperson'];
         liveFields.forEach(function (name) {
             var input = form.querySelector('[name="' + name + '"]');
             if (!input) return;
@@ -208,7 +196,7 @@
         var typeSel = form.querySelector('[name="customer_type"]');
         var segSel = form.querySelector('[name="business_segment"]');
         function revalidateB2bFields() {
-            ['email', 'phone', 'trn', 'trade_license_number'].forEach(function (name) {
+            ['email', 'phone'].forEach(function (name) {
                 var input = form.querySelector('[name="' + name + '"]');
                 if (input) validateField(form, input);
             });

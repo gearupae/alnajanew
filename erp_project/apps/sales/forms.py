@@ -52,7 +52,7 @@ class EstimateForm(forms.ModelForm):
             'show_rates_on_pdf', 'show_group_totals_on_pdf',
             'show_brand_name_on_pdf',
             'notes', 'client_note', 'terms_and_conditions',
-            'authorized_signature', 'customer_signature',
+            'authorized_signature',
         ]
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
@@ -72,7 +72,6 @@ class EstimateForm(forms.ModelForm):
                 attrs={'class': 'form-check-input', 'role': 'switch', 'id': 'id_prices_include_vat'},
             ),
             'authorized_signature': forms.FileInput(attrs={'class': 'form-control'}),
-            'customer_signature': forms.FileInput(attrs={'class': 'form-control'}),
             'show_rates_on_pdf': forms.CheckboxInput(
                 attrs={'class': 'form-check-input', 'role': 'switch'},
             ),
@@ -416,7 +415,12 @@ class InvoiceForm(forms.ModelForm):
     def save(self, commit=True):
         invoice = super().save(commit=commit)
         if commit:
-            save_invoice_project_link(invoice, self.cleaned_data.get('project'))
+            project = self.cleaned_data.get('project')
+            if not project and invoice.estimate_id:
+                from .invoice_project_link import resolve_estimate_project
+
+                project = resolve_estimate_project(invoice.estimate)
+            save_invoice_project_link(invoice, project)
         return invoice
 
 
