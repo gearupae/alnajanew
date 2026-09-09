@@ -701,10 +701,34 @@ class Invoice(BaseModel):
     invoice_date = models.DateField()
     due_date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    document_title = models.CharField(
+        max_length=100,
+        default='TAX INVOICE',
+        help_text='Heading shown on the invoice PDF title bar',
+    )
     notes = models.TextField(blank=True)
     prices_include_vat = models.BooleanField(
         default=False,
         help_text='If true, entered unit prices are VAT-inclusive; VAT is back-calculated.',
+    )
+
+    discount_type = models.CharField(
+        max_length=20,
+        choices=Estimate.DISCOUNT_TYPE_CHOICES,
+        default='none',
+    )
+    discount_value = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    discount_applied = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Last calculated discount amount on subtotal (excl. VAT)',
+    )
+    round_off = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Adjustment applied to grand total (e.g. fils rounding)',
     )
 
     # Amounts
@@ -737,14 +761,92 @@ class Invoice(BaseModel):
     def balance(self):
         """Calculate outstanding balance."""
         return self.total_amount - self.paid_amount
+
+    def compute_discount_amount(self, subtotal: Decimal) -> Decimal:
+        """Discount applied to subtotal (excl. VAT) before tax."""
+        subtotal = subtotal if isinstance(subtotal, Decimal) else Decimal(str(subtotal or '0'))
+        if self.discount_type == 'percent' and self.discount_value > 0:
+            return (subtotal * self.discount_value / Decimal('100')).quantize(Decimal('0.01'))
+        if self.discount_type == 'amount' and self.discount_value > 0:
+            return min(self.discount_value, subtotal).quantize(Decimal('0.01'))
+        return Decimal('0.00')
+
+    @staticmethod
+    def allocate_line_discounts(items, subtotal: Decimal, discount_amt: Decimal) -> list[Decimal]:
+        """Split header discount across lines proportionally (last line takes rounding remainder)."""
+        if not items or discount_amt <= 0 or subtotal <= 0:
+            return [Decimal('0.00')] * len(items)
+        allocations: list[Decimal] = []
+        remaining = discount_amt
+        last_idx = len(items) - 1
+        for idx, item in enumerate(items):
+            if idx == last_idx:
+                allocations.append(remaining.quantize(Decimal('0.01')))
+                continue
+            share = (discount_amt * item.total / subtotal).quantize(Decimal('0.01'))
+            allocations.append(share)
+            remaining -= share
+        return allocations
+
+    def discounted_line_amounts(self, items=None):
+        """
+        Per-line net (excl. VAT) and VAT after header discount.
+        Returns list of (line_net, line_vat) aligned with items.
+        """
+        items = list(items if items is not None else self.items.all())
+        for item in items:
+            item.save()
+        subtotal = sum((item.total for item in items), Decimal('0.00'))
+        discount_amt = self.compute_discount_amount(subtotal)
+        allocations = self.allocate_line_discounts(items, subtotal, discount_amt)
+        result = []
+        for item, line_disc in zip(items, allocations):
+            line_net = (item.total - line_disc).quantize(Decimal('0.01'))
+            if self.prices_include_vat and item.vat_rate > 0:
+                from .vat_pricing import split_line_amounts
+
+                gross_after_disc = (
+                    line_net * (Decimal('1') + item.vat_rate / Decimal('100'))
+                ).quantize(Decimal('0.01'))
+                line_net, line_vat = split_line_amounts(
+                    gross_after_disc, item.vat_rate, True
+                )
+            else:
+                line_vat = (line_net * item.vat_rate / Decimal('100')).quantize(Decimal('0.01'))
+            result.append((line_net, line_vat))
+        return result, subtotal, discount_amt
+
+    def build_vat_summary(self) -> dict:
+        """VAT breakdown by rate after discount (for PDF / reports)."""
+        line_amounts, _, _ = self.discounted_line_amounts()
+        items = list(self.items.all())
+        summary: dict[float, dict] = {}
+        for item, (line_net, line_vat) in zip(items, line_amounts):
+            rate = float(item.vat_rate)
+            if rate not in summary:
+                summary[rate] = {'taxable': Decimal('0.00'), 'vat': Decimal('0.00')}
+            summary[rate]['taxable'] += line_net
+            summary[rate]['vat'] += line_vat
+        return {
+            rate: {'taxable': float(vals['taxable']), 'vat': float(vals['vat'])}
+            for rate, vals in summary.items()
+        }
     
     def calculate_totals(self):
-        """Calculate subtotal, VAT, and total from items."""
-        items = self.items.all()
-        self.subtotal = sum(item.total for item in items)
-        self.vat_amount = sum(item.vat_amount for item in items)
-        self.total_amount = self.subtotal + self.vat_amount
-        self.save(update_fields=['subtotal', 'vat_amount', 'total_amount'])
+        """Calculate subtotal, discount, VAT, round-off, and grand total from items."""
+        items = list(self.items.all())
+        line_amounts, subtotal, discount_amt = self.discounted_line_amounts(items)
+        vat_sum = sum((lv for _, lv in line_amounts), Decimal('0.00'))
+        round_off = self.round_off if self.round_off is not None else Decimal('0.00')
+        self.subtotal = subtotal
+        self.discount_applied = discount_amt
+        self.vat_amount = vat_sum
+        self.total_amount = (
+            subtotal - discount_amt + vat_sum + round_off
+        ).quantize(Decimal('0.01'))
+        self.save(update_fields=[
+            'subtotal', 'vat_amount', 'total_amount', 'discount_applied',
+        ])
     
     def post_to_accounting(self, user=None):
         """
@@ -825,13 +927,16 @@ class Invoice(BaseModel):
             credit=Decimal('0.00'),
         )
         
-        # Credit Sales Revenue (subtotal excl VAT)
+        # Credit Sales Revenue (net of discount, incl. round-off)
+        net_sales = (
+            self.subtotal - self.discount_applied + self.round_off
+        ).quantize(Decimal('0.01'))
         JournalEntryLine.objects.create(
             journal_entry=journal,
             account=sales_account,
             description=f"Sales - {self.invoice_number}",
             debit=Decimal('0.00'),
-            credit=self.subtotal,
+            credit=net_sales,
         )
         
         # Credit VAT Payable (if VAT exists and account found)

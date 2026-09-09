@@ -1,5 +1,28 @@
 {% extends 'base.html' %}
 
+{% block extra_css %}
+<style>
+#itemsTable td:first-child .select2-container {
+    width: 100% !important;
+}
+#itemsTable td:first-child .select2-selection--single {
+    min-height: 31px;
+    font-size: 0.875rem;
+}
+#itemsTable td:first-child .select2-selection__rendered {
+    padding-left: 0.35rem;
+    line-height: 1.5;
+}
+.invoice-inventory-select2-dropdown {
+    min-width: 18rem !important;
+    z-index: 1060;
+}
+.invoice-inventory-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <nav aria-label="breadcrumb">
@@ -28,6 +51,28 @@
 
 <form method="post" id="invoiceForm">
     {% csrf_token %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0 fw-semibold"><i class="fas fa-heading me-2"></i>Title Bar</h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Title bar text <span class="text-danger">*</span></label>
+                    {{ form.document_title }}
+                    <datalist id="invoice-title-suggestions">
+                        <option value="TAX INVOICE"></option>
+                        <option value="PROFORMA INVOICE"></option>
+                        <option value="COMMERCIAL INVOICE"></option>
+                        <option value="SIMPLIFIED TAX INVOICE"></option>
+                    </datalist>
+                    <small class="text-muted d-block mt-1">Heading on the blue PDF/print header (e.g. TAX INVOICE).</small>
+                    {% if form.document_title.errors %}<div class="text-danger small">{{ form.document_title.errors|join:", " }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
     
     <div class="card mb-4">
         <div class="card-header">
@@ -64,6 +109,26 @@
                     <label class="form-label">Status</label>
                     {{ form.status }}
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Tax Inclusive <span class="text-danger">*</span></label>
+                    {% if prices_include_vat_editable %}
+                    {{ form.prices_include_vat }}
+                    {% else %}
+                    <select class="form-select" id="id_prices_include_vat" disabled>
+                        <option value="yes" {% if form.instance.prices_include_vat %}selected{% endif %}>Yes</option>
+                        <option value="no" {% if not form.instance.prices_include_vat %}selected{% endif %}>No</option>
+                    </select>
+                    {% if form.instance.prices_include_vat %}
+                    <input type="hidden" name="prices_include_vat" value="yes">
+                    {% else %}
+                    <input type="hidden" name="prices_include_vat" value="no">
+                    {% endif %}
+                    {% endif %}
+                    {% if form.prices_include_vat.help_text %}
+                    <small class="text-muted d-block">{{ form.prices_include_vat.help_text }}</small>
+                    {% endif %}
+                    {% if form.prices_include_vat.errors %}<div class="text-danger small">{{ form.prices_include_vat.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-12">
                     <label class="form-label">Notes</label>
@@ -127,12 +192,6 @@
             </button>
         </div>
         <div class="card-body p-0">
-            <div class="px-3 pt-3 pb-2 border-bottom bg-light">
-                <div class="form-check form-switch mb-0">
-                    {{ form.prices_include_vat }}
-                    <label class="form-check-label" for="id_prices_include_vat">Prices include VAT</label>
-                </div>
-            </div>
             {{ items_formset.management_form }}
             <div class="table-responsive">
                 <table class="table mb-0" id="itemsTable">
@@ -150,10 +209,11 @@
                     <tbody id="itemsBody">
                         {% for item_form in items_formset %}
                         <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %}>
-                            <td>
+                            <td class="invoice-item-cell">
                                 {{ item_form.id }}
-                                <input type="text" name="{{ item_form.prefix }}-description" class="form-control form-control-sm" 
-                                       value="{{ item_form.description.value|default:'' }}" placeholder="Item description">
+                                <select class="form-select form-select-sm invoice-inventory-select" aria-label="Search inventory item"></select>
+                                <input type="hidden" name="{{ item_form.prefix }}-description" class="invoice-description-input"
+                                       value="{{ item_form.description.value|default:'' }}">
                             </td>
                             <td>
                                 <input type="number" name="{{ item_form.prefix }}-quantity" class="form-control form-control-sm item-qty" 
@@ -199,9 +259,19 @@
                             <td class="text-end fw-medium" id="subtotal">0.00</td>
                             <td colspan="2"></td>
                         </tr>
+                        <tr id="discountRow" class="d-none">
+                            <td colspan="4" class="text-end fw-medium text-danger">Discount:</td>
+                            <td class="text-end fw-medium text-danger" id="discountDisplay">0.00</td>
+                            <td colspan="2"></td>
+                        </tr>
                         <tr>
                             <td colspan="4" class="text-end fw-medium"><span id="vatLabel">VAT amount</span>:</td>
                             <td class="text-end fw-medium" id="vatTotal">0.00</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr id="roundOffRow" class="d-none">
+                            <td colspan="4" class="text-end fw-medium">Round-off:</td>
+                            <td class="text-end fw-medium" id="roundOffDisplay">0.00</td>
                             <td colspan="2"></td>
                         </tr>
                         <tr>
@@ -223,6 +293,32 @@
                         {% endif %}
                     </tfoot>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0 fw-semibold"><i class="fas fa-percent me-2"></i>Discount &amp; Round-Off</h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Discount type <span class="text-danger">*</span></label>
+                    {{ form.discount_type }}
+                    {% if form.discount_type.errors %}<div class="text-danger small">{{ form.discount_type.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Discount value <span class="text-danger">*</span></label>
+                    {{ form.discount_value }}
+                    <small class="text-muted d-block">Use % or fixed amount based on type. Enter 0 if no discount.</small>
+                    {% if form.discount_value.errors %}<div class="text-danger small">{{ form.discount_value.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Round-off <span class="text-danger">*</span></label>
+                    {{ form.round_off }}
+                    {% if form.round_off.errors %}<div class="text-danger small">{{ form.round_off.errors|join:", " }}</div>{% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -251,17 +347,203 @@
 // Tax Code data for JavaScript
 const taxCodes = [
     {% for tc in tax_codes %}
-    {id: {{ tc.id }}, code: '{{ tc.code }}', name: '{{ tc.name }}', rate: {{ tc.rate }}},
+    {id: {{ tc.id }}, code: '{{ tc.code|escapejs }}', name: '{{ tc.name|escapejs }}', rate: {{ tc.rate }}},
     {% endfor %}
 ];
 const defaultTaxCodeId = {% if default_tax_code %}{{ default_tax_code.id }}{% else %}null{% endif %};
 const invoicePaidAmount = {% if object %}{{ object.paid_amount|default:0 }}{% else %}0{% endif %};
+const INVOICE_INVENTORY_ITEMS = {{ invoice_inventory_items_json|default:"[]"|safe }};
+const INVOICE_CUSTOM_PREFIX = 'custom:';
 
 let formCount = {{ items_formset.total_form_count }};
 
+function escapeHtml(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;');
+}
+
+function invoiceCustomTagId(text) {
+    return INVOICE_CUSTOM_PREFIX + String(text || '').trim();
+}
+
+function isInvoiceCustomTagId(val) {
+    return String(val || '').indexOf(INVOICE_CUSTOM_PREFIX) === 0;
+}
+
+function getInvoiceInventoryOptions(selectedId) {
+    const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
+    let html = '<option value=""></option>';
+    if (isInvoiceCustomTagId(selected)) {
+        html += '<option value="' + escapeHtml(selected) + '" selected>' +
+            escapeHtml(selected.slice(INVOICE_CUSTOM_PREFIX.length)) + '</option>';
+    }
+    if (!Array.isArray(INVOICE_INVENTORY_ITEMS) || !INVOICE_INVENTORY_ITEMS.length) {
+        return html;
+    }
+    INVOICE_INVENTORY_ITEMS.forEach(function (row) {
+        const sel = selected && selected === String(row.id) ? ' selected' : '';
+        html += '<option value="' + row.id + '"' + sel + '>' + escapeHtml(row.label || '') + '</option>';
+    });
+    return html;
+}
+
+function guessInvoiceInventoryIdFromDescription(desc) {
+    if (!desc) return '';
+    const d = desc.trim().toLowerCase();
+    if (!d) return '';
+    for (let i = 0; i < INVOICE_INVENTORY_ITEMS.length; i++) {
+        const row = INVOICE_INVENTORY_ITEMS[i];
+        if ((row.name || '').toLowerCase() === d) return String(row.id);
+        if ((row.label || '').toLowerCase() === d) return String(row.id);
+    }
+    for (let j = 0; j < INVOICE_INVENTORY_ITEMS.length; j++) {
+        const row2 = INVOICE_INVENTORY_ITEMS[j];
+        const name = (row2.name || '').toLowerCase();
+        if (name && (d.indexOf(name) !== -1 || name.indexOf(d) !== -1)) return String(row2.id);
+    }
+    return '';
+}
+
+function resolveInvoiceSelectValue(desc) {
+    const text = (desc || '').trim();
+    if (text) {
+        const matched = guessInvoiceInventoryIdFromDescription(text);
+        if (matched) {
+            return matched;
+        }
+        return invoiceCustomTagId(text);
+    }
+    return '';
+}
+
+function syncInvoiceDescriptionFromSelect(selectEl, row, options) {
+    const forcePrice = !!(options && options.forcePrice);
+    const descInput = row.querySelector('.invoice-description-input');
+    const val = selectEl.value || '';
+    if (!descInput) {
+        return;
+    }
+    if (!val) {
+        descInput.value = '';
+        return;
+    }
+    if (isInvoiceCustomTagId(val)) {
+        descInput.value = val.slice(INVOICE_CUSTOM_PREFIX.length);
+        return;
+    }
+    const meta = INVOICE_INVENTORY_ITEMS.find(function (x) { return String(x.id) === String(val); });
+    if (!meta) {
+        descInput.value = '';
+        return;
+    }
+    descInput.value = meta.name || meta.label || '';
+    const price = row.querySelector('.item-price');
+    if (price) {
+        const cur = parseFloat(price.value);
+        if (forcePrice || !cur || cur === 0) {
+            const p = parseFloat(meta.selling_price);
+            price.value = (isNaN(p) ? 0 : p).toFixed(2);
+        }
+    }
+    const taxSelect = row.querySelector('.item-tax-code');
+    if (taxSelect && meta.tax_code_id) {
+        taxSelect.value = String(meta.tax_code_id);
+    }
+    const qtyInput = row.querySelector('.item-qty');
+    if (qtyInput) {
+        calculateRowTotal(qtyInput);
+    }
+}
+
+function destroyInvoiceInventorySelect2(selectEl) {
+    if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
+    const $el = $(selectEl);
+    $el.off('change.invoiceInv select2:select.invoiceInv select2:clear.invoiceInv');
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+}
+
+function bindInvoiceInventorySelectHandlers(selectEl) {
+    if (!selectEl || typeof $ === 'undefined') return;
+    const $el = $(selectEl);
+    $el.off('change.invoiceInv select2:select.invoiceInv select2:clear.invoiceInv');
+    $el.on('change.invoiceInv select2:select.invoiceInv select2:clear.invoiceInv', function () {
+        const row = selectEl.closest('tr');
+        syncInvoiceDescriptionFromSelect(selectEl, row, { forcePrice: false });
+    });
+}
+
+function initInvoiceInventorySelect2(selectEl, selectedId) {
+    if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
+    if (!Array.isArray(INVOICE_INVENTORY_ITEMS) || !INVOICE_INVENTORY_ITEMS.length) return;
+    const current = selectedId != null && selectedId !== '' ? String(selectedId) : (selectEl.value || '');
+    destroyInvoiceInventorySelect2(selectEl);
+    selectEl.innerHTML = getInvoiceInventoryOptions(current);
+    const $el = $(selectEl);
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search inventory or type custom title…',
+        allowClear: true,
+        tags: true,
+        dropdownParent: $(document.body),
+        minimumResultsForSearch: 0,
+        dropdownAutoWidth: true,
+        dropdownCssClass: 'invoice-inventory-select2-dropdown',
+        createTag: function (params) {
+            const term = $.trim(params.term);
+            if (!term) {
+                return null;
+            }
+            const lower = term.toLowerCase();
+            const exists = INVOICE_INVENTORY_ITEMS.some(function (row) {
+                return (row.label || '').toLowerCase() === lower ||
+                    (row.name || '').toLowerCase() === lower ||
+                    (row.item_code || '').toLowerCase() === lower;
+            });
+            if (exists) {
+                return null;
+            }
+            return { id: invoiceCustomTagId(term), text: term, newTag: true };
+        },
+        language: {
+            noResults: function () { return 'Press Enter to use as custom description'; },
+        },
+    });
+    if (current) {
+        $el.val(current).trigger('change.select2');
+    }
+    bindInvoiceInventorySelectHandlers(selectEl);
+}
+
+function initInvoiceRowInventorySelect(row) {
+    const selectEl = row.querySelector('.invoice-inventory-select');
+    if (!selectEl) return;
+    const descInput = row.querySelector('.invoice-description-input');
+    const selectValue = resolveInvoiceSelectValue(descInput ? descInput.value : '');
+    initInvoiceInventorySelect2(selectEl, selectValue || null);
+    if (selectValue) {
+        syncInvoiceDescriptionFromSelect(selectEl, row, { forcePrice: false });
+    }
+}
+
+function initAllInvoiceInventorySelect2() {
+    document.querySelectorAll('#itemsBody .item-row').forEach(function (row) {
+        if (row.style.display === 'none') return;
+        initInvoiceRowInventorySelect(row);
+    });
+}
+
 function pricesIncludeVatEnabled() {
     const el = document.getElementById('id_prices_include_vat');
-    return !!(el && el.checked);
+    if (!el) return false;
+    if (el.tagName === 'SELECT') {
+        return el.value === 'yes';
+    }
+    return !!el.checked;
 }
 
 function splitLineAmounts(gross, vatRate, inclusive) {
@@ -316,9 +598,8 @@ function calculateRowTotal(el) {
 }
 
 function calculateTotals() {
+    const rows = [];
     let subtotal = 0;
-    let vatTotal = 0;
-    let grandTotal = 0;
     document.querySelectorAll('#itemsBody tr.item-row').forEach(row => {
         if (row.style.display === 'none') return;
         const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
@@ -328,12 +609,55 @@ function calculateTotals() {
             ? parseFloat(taxSelect.options[taxSelect.selectedIndex].dataset.rate) || 0
             : 0;
         const splits = splitLineAmounts(qty * price, vatRate, pricesIncludeVatEnabled());
+        rows.push({ net: splits.taxable, vatRate, lineVat: splits.vat });
         subtotal += splits.taxable;
-        vatTotal += splits.vat;
-        grandTotal += splits.gross;
     });
+
+    const dt = document.querySelector('[name="discount_type"]')?.value || 'none';
+    const dv = parseFloat(document.querySelector('[name="discount_value"]')?.value) || 0;
+    let disc = 0;
+    if (dt === 'percent' && dv > 0) disc = subtotal * (dv / 100);
+    else if (dt === 'amount' && dv > 0) disc = Math.min(dv, subtotal);
+    disc = Math.round(disc * 100) / 100;
+
+    let remainingDisc = disc;
+    let vatTotal = 0;
+    rows.forEach((row, idx) => {
+        let lineDisc = 0;
+        if (disc > 0 && subtotal > 0) {
+            if (idx === rows.length - 1) {
+                lineDisc = remainingDisc;
+            } else {
+                lineDisc = Math.round(disc * (row.net / subtotal) * 100) / 100;
+                remainingDisc -= lineDisc;
+            }
+        }
+        const lineNet = row.net - lineDisc;
+        if (pricesIncludeVatEnabled() && row.vatRate > 0) {
+            const grossAfterDisc = Math.round((lineNet * (1 + row.vatRate / 100)) * 100) / 100;
+            const split = splitLineAmounts(grossAfterDisc, row.vatRate, true);
+            vatTotal += split.vat;
+        } else {
+            vatTotal += Math.round(lineNet * (row.vatRate / 100) * 100) / 100;
+        }
+    });
+
+    const roundOff = parseFloat(document.querySelector('[name="round_off"]')?.value) || 0;
+    const grandTotal = subtotal - disc + vatTotal + roundOff;
+
     document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+    const showDiscount = disc > 0;
+    document.getElementById('discountRow')?.classList.toggle('d-none', !showDiscount);
+    if (showDiscount) {
+        document.getElementById('discountDisplay').textContent = disc.toFixed(2);
+    }
     document.getElementById('vatTotal').textContent = vatTotal.toFixed(2);
+    const showRoundOff = Math.abs(roundOff) >= 0.005;
+    document.getElementById('roundOffRow')?.classList.toggle('d-none', !showRoundOff);
+    if (showRoundOff) {
+        const sign = roundOff > 0 ? '+' : '';
+        document.getElementById('roundOffDisplay').textContent = sign + roundOff.toFixed(2);
+    }
     document.getElementById('grandTotal').textContent = grandTotal.toFixed(2);
     const balanceEl = document.getElementById('balanceDisplay');
     if (balanceEl) {
@@ -351,7 +675,7 @@ function addItemRow() {
     const row = document.createElement('tr');
     row.className = 'item-row';
     row.innerHTML = `
-        <td><input type="text" name="items-${idx}-description" class="form-control form-control-sm" placeholder="Item description"></td>
+        <td class="invoice-item-cell"><select class="form-select form-select-sm invoice-inventory-select" aria-label="Search inventory item"></select><input type="hidden" name="items-${idx}-description" class="invoice-description-input" value=""></td>
         <td><input type="number" name="items-${idx}-quantity" class="form-control form-control-sm item-qty" value="1" step="0.01" min="0.01" onchange="calculateRowTotal(this)"></td>
         <td><input type="number" name="items-${idx}-unit_price" class="form-control form-control-sm item-price" value="0" step="0.01" min="0" onchange="calculateRowTotal(this)"></td>
         <td>
@@ -372,11 +696,14 @@ function addItemRow() {
         sel.value = String(defaultTaxCodeId);
     }
     totalForms.value = idx + 1;
+    initInvoiceRowInventorySelect(row);
     calculateRowTotal(row.querySelector('.item-qty'));
 }
 
 function removeItemRow(btn) {
     const row = btn.closest('tr');
+    const invSel = row.querySelector('.invoice-inventory-select');
+    if (invSel) destroyInvoiceInventorySelect2(invSel);
     const del = row.querySelector('.delete-check');
     if (del) {
         del.checked = true;
@@ -389,7 +716,8 @@ function removeItemRow(btn) {
     calculateTotals();
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+$(function () {
+    initAllInvoiceInventorySelect2();
     updateVatPricingLabels();
     syncLineVatInclusiveFlags();
     document.querySelectorAll('#itemsBody tr.item-row').forEach(row => {
@@ -398,13 +726,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     const vatToggle = document.getElementById('id_prices_include_vat');
-    if (vatToggle) {
+    if (vatToggle && !vatToggle.disabled) {
+        let prevVatInclusive = pricesIncludeVatEnabled();
         vatToggle.addEventListener('change', function() {
+            const hasLines = Array.from(document.querySelectorAll('#itemsBody tr.item-row')).some(row => {
+                if (row.style.display === 'none') return false;
+                const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
+                const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
+                return qty > 0 && price > 0;
+            });
+            if (hasLines) {
+                const ok = confirm(
+                    'Changing tax inclusive setting recalculates all line totals. Continue?'
+                );
+                if (!ok) {
+                    vatToggle.value = prevVatInclusive ? 'yes' : 'no';
+                    return;
+                }
+            }
+            prevVatInclusive = pricesIncludeVatEnabled();
             updateVatPricingLabels();
             syncLineVatInclusiveFlags();
             document.querySelectorAll('#itemsBody tr.item-row').forEach(row => {
                 if (row.style.display !== 'none') {
                     calculateRowTotal(row.querySelector('.item-qty') || row.querySelector('.item-price'));
+                }
+            });
+        });
+    }
+    document.querySelector('[name="discount_type"]')?.addEventListener('change', calculateTotals);
+    document.querySelector('[name="discount_value"]')?.addEventListener('input', calculateTotals);
+    document.querySelector('[name="round_off"]')?.addEventListener('input', calculateTotals);
+    const invoiceForm = document.getElementById('invoiceForm');
+    if (invoiceForm) {
+        invoiceForm.addEventListener('submit', function () {
+            document.querySelectorAll('#itemsBody .item-row').forEach(function (row) {
+                if (row.style.display === 'none') return;
+                const sel = row.querySelector('.invoice-inventory-select');
+                if (sel) {
+                    syncInvoiceDescriptionFromSelect(sel, row, { forcePrice: false });
                 }
             });
         });

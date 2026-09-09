@@ -10,8 +10,11 @@
     </nav>
     <div class="d-flex justify-content-between align-items-center">
         <div>
-            <h4 class="mb-1 fw-bold">{{ invoice.invoice_number }}</h4>
-            <span class="text-muted">{{ invoice.customer.name }}</span>
+            <h4 class="mb-1 fw-bold">{{ invoice.document_title|default:"TAX INVOICE" }}</h4>
+            <div class="text-muted">{{ invoice.invoice_number }} · {{ invoice.customer.name }}</div>
+            <span class="badge ms-2 {% if invoice.prices_include_vat %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                Tax Inclusive: {% if invoice.prices_include_vat %}Yes{% else %}No{% endif %}
+            </span>
         </div>
         <div>
             {% if can_create_advance %}
@@ -122,10 +125,22 @@
                                 <td colspan="6" class="text-end">Gross Total:</td>
                                 <td class="text-end fw-medium">AED {{ invoice.total_amount|floatformat:2 }}</td>
                             </tr>
+                            {% if invoice.discount_applied and invoice.discount_applied > 0 %}
+                            <tr>
+                                <td colspan="6" class="text-end">Discount:</td>
+                                <td class="text-end fw-medium text-danger">− AED {{ invoice.discount_applied|floatformat:2 }}</td>
+                            </tr>
+                            {% endif %}
                             <tr>
                                 <td colspan="6" class="text-end">Included VAT:</td>
                                 <td class="text-end fw-medium">AED {{ invoice.vat_amount|floatformat:2 }}</td>
                             </tr>
+                            {% if invoice.round_off %}
+                            <tr>
+                                <td colspan="6" class="text-end">Round-off:</td>
+                                <td class="text-end fw-medium">AED {{ invoice.round_off|floatformat:2 }}</td>
+                            </tr>
+                            {% endif %}
                             <tr>
                                 <td colspan="6" class="text-end fw-bold">Taxable Amount:</td>
                                 <td class="text-end fw-bold">AED {{ invoice.subtotal|floatformat:2 }}</td>
@@ -135,10 +150,22 @@
                                 <td colspan="6" class="text-end">Taxable Subtotal:</td>
                                 <td class="text-end fw-medium">AED {{ invoice.subtotal|floatformat:2 }}</td>
                             </tr>
+                            {% if invoice.discount_applied and invoice.discount_applied > 0 %}
+                            <tr>
+                                <td colspan="6" class="text-end">Discount:</td>
+                                <td class="text-end fw-medium text-danger">− AED {{ invoice.discount_applied|floatformat:2 }}</td>
+                            </tr>
+                            {% endif %}
                             <tr>
                                 <td colspan="6" class="text-end">Total VAT (AED):</td>
                                 <td class="text-end fw-medium">AED {{ invoice.vat_amount|floatformat:2 }}</td>
                             </tr>
+                            {% if invoice.round_off %}
+                            <tr>
+                                <td colspan="6" class="text-end">Round-off:</td>
+                                <td class="text-end fw-medium">AED {{ invoice.round_off|floatformat:2 }}</td>
+                            </tr>
+                            {% endif %}
                             <tr>
                                 <td colspan="6" class="text-end fw-bold">Grand Total:</td>
                                 <td class="text-end fw-bold">AED {{ invoice.total_amount|floatformat:2 }}</td>

@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# Deploy Safety Point ERP to production over SSH + rsync.
+# Deploy Al Najah ERP to production over SSH + rsync.
 # - Never uploads local .env (server keeps its own secrets).
-# - By default syncs code only; use --with-db to also push SQLite (dev/small setups).
+# - Never overwrites server media/, venv/, or database (unless --with-db).
 #
 # Usage:
-#   export DEPLOY_HOST=root@178.104.184.249
-#   export DEPLOY_PATH=/var/www/safetypoint
-#   export RSYNC_RSH='ssh -i ~/.ssh/safetypoint_hetzner -o IdentitiesOnly=yes'
-#   export DEPLOY_SSH_OPTS='-i ~/.ssh/safetypoint_hetzner -o IdentitiesOnly=yes'
+#   export DEPLOY_HOST=root@37.27.16.210
+#   export DEPLOY_PATH=/var/www/alnajahfireerp
+#   export DEPLOY_SSH_OPTS='-i ~/.ssh/alnajah_hetzner -o IdentitiesOnly=yes'
 #   ./scripts/deploy_production.sh
 #   ./scripts/deploy_production.sh --with-db
 #   DEPLOY_RUN_PIP=1 ./scripts/deploy_production.sh   # optional pip install on server
@@ -15,9 +14,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HOST="${DEPLOY_HOST:-root@178.104.184.249}"
-REMOTE="${DEPLOY_PATH:-/var/www/safetypoint}"
-SERVICE="${DEPLOY_SERVICE:-safetypoint}"
+HOST="${DEPLOY_HOST:-root@37.27.16.210}"
+REMOTE="${DEPLOY_PATH:-/var/www/alnajahfireerp}"
+SERVICE="${DEPLOY_SERVICE:-gunicorn}"
 SSH_OPTS="${DEPLOY_SSH_OPTS:--o StrictHostKeyChecking=accept-new}"
 RSYNC_SSH="${RSYNC_RSH:-ssh ${SSH_OPTS}}"
 WITH_DB=false
@@ -27,8 +26,8 @@ for arg in "$@"; do
     --with-db) WITH_DB=true ;;
     -h|--help)
       echo "Usage: $0 [--with-db]"
-      echo "  DEPLOY_HOST (default root@178.104.184.249)  DEPLOY_PATH (default /var/www/safetypoint)"
-      echo "  Git repo: https://github.com/gearupae/safetypoint.git"
+      echo "  DEPLOY_HOST (default root@37.27.16.210)  DEPLOY_PATH (default /var/www/alnajahfireerp)"
+      echo "  Git repo: https://github.com/gearupae/alnajanew.git"
       exit 0
       ;;
   esac
@@ -47,6 +46,7 @@ RSYNC_EXCLUDES=(
   --exclude 'erp_project/.env'
   --exclude '.env'
   --exclude 'media'
+  --exclude 'erp_project/media'
   --exclude 'staticfiles'
   --exclude 'erp_project/staticfiles'
 )
@@ -57,7 +57,7 @@ fi
 
 echo "==> Rsync to ${HOST}:${REMOTE}"
 echo "    with-db: ${WITH_DB}"
-echo "    NEVER overwrites: erp_project/.env, .env, venv/, media/, staticfiles/"
+echo "    NEVER overwrites: erp_project/.env, .env, venv/, media/, erp_project/media/, staticfiles/"
 echo "    NEVER overwrites: db.sqlite3 (unless --with-db)"
 rsync "${RSYNC_EXCLUDES[@]}" "${ROOT}/" "${HOST}:${REMOTE}/"
 

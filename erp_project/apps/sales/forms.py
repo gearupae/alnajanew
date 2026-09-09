@@ -15,6 +15,7 @@ from apps.finance.models import TaxCode
 from apps.inventory.models import ItemBaseGroup
 from apps.projects.models import Project
 from .estimate_csv import get_default_estimate_csv_tax_code
+from .vat_pricing import default_prices_include_vat
 from .invoice_project_link import get_invoice_project, save_invoice_project_link
 
 User = get_user_model()
@@ -355,14 +356,25 @@ class InvoiceForm(forms.ModelForm):
         model = Invoice
         fields = [
             'is_active', 'customer', 'estimate', 'invoice_date', 'due_date',
-            'status', 'notes', 'prices_include_vat',
+            'status', 'document_title', 'notes', 'prices_include_vat',
+            'discount_type', 'discount_value', 'round_off',
         ]
         widgets = {
             'invoice_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'due_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+            'document_title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'TAX INVOICE',
+                'list': 'invoice-title-suggestions',
+                'id': 'id_document_title',
+            }),
             'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
-            'prices_include_vat': forms.CheckboxInput(
-                attrs={'class': 'form-check-input', 'role': 'switch', 'id': 'id_prices_include_vat'},
+            'discount_type': forms.Select(attrs={'class': 'form-select', 'id': 'id_discount_type'}),
+            'discount_value': forms.NumberInput(
+                attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'id': 'id_discount_value'},
+            ),
+            'round_off': forms.NumberInput(
+                attrs={'class': 'form-control', 'step': '0.01', 'id': 'id_round_off'},
             ),
         }
     
@@ -379,9 +391,36 @@ class InvoiceForm(forms.ModelForm):
         self.fields['estimate'].widget.attrs['class'] = 'form-select'
         self.fields['estimate'].label_from_instance = lambda est: f'{est.display_estimate_number} — {est.customer.display_name}'
         self.fields['status'].widget.attrs['class'] = 'form-select'
+        self.fields['document_title'].label = 'Title bar (PDF header)'
+        self.fields['document_title'].required = True
+        if not self.instance.pk and not self.is_bound:
+            self.fields['document_title'].initial = 'TAX INVOICE'
         self.fields['notes'].required = False
-        self.fields['prices_include_vat'].label = 'Prices include VAT'
-        self.fields['prices_include_vat'].required = False
+        tax_inclusive = (
+            self.instance.prices_include_vat
+            if self.instance.pk
+            else default_prices_include_vat()
+        )
+        if self.is_bound:
+            tax_inclusive = self.data.get('prices_include_vat') == 'yes'
+        self.fields['prices_include_vat'] = forms.ChoiceField(
+            choices=[('yes', 'Yes'), ('no', 'No')],
+            label='Tax Inclusive',
+            required=True,
+            initial='yes' if tax_inclusive else 'no',
+            widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_prices_include_vat'}),
+            help_text='Yes = unit prices include VAT. No = prices are before VAT.',
+        )
+        self.fields['discount_type'].label = 'Discount type'
+        self.fields['discount_value'].label = 'Discount value'
+        self.fields['round_off'].label = 'Round-off'
+        self.fields['round_off'].help_text = (
+            'Adjustment to grand total (e.g. ±0.01 for fils rounding). Use 0 if none.'
+        )
+        if not self.instance.pk:
+            self.fields['discount_type'].initial = 'none'
+            self.fields['discount_value'].initial = Decimal('0.00')
+            self.fields['round_off'].initial = Decimal('0.00')
         self.fields['invoice_date'].input_formats = ['%Y-%m-%d']
         self.fields['due_date'].input_formats = ['%Y-%m-%d']
 
@@ -402,7 +441,7 @@ class InvoiceForm(forms.ModelForm):
         cleaned = super().clean()
         if self.is_bound:
             cleaned['is_active'] = 'is_active' in self.data
-            cleaned['prices_include_vat'] = 'prices_include_vat' in self.data
+            cleaned['prices_include_vat'] = self.data.get('prices_include_vat') == 'yes'
         customer = cleaned.get('customer')
         project = cleaned.get('project')
         if project and customer and project.customer_id and project.customer_id != customer.pk:
@@ -410,6 +449,26 @@ class InvoiceForm(forms.ModelForm):
                 'project',
                 'Selected project belongs to a different customer.',
             )
+        document_title = (cleaned.get('document_title') or '').strip()
+        if not document_title:
+            self.add_error('document_title', 'Title bar text is required.')
+        else:
+            cleaned['document_title'] = document_title
+        discount_type = cleaned.get('discount_type') or 'none'
+        discount_value = cleaned.get('discount_value')
+        round_off = cleaned.get('round_off')
+        if discount_value is None:
+            self.add_error('discount_value', 'Discount value is required.')
+        if round_off is None:
+            self.add_error('round_off', 'Round-off is required.')
+        if discount_value is not None:
+            if discount_type == 'none' and discount_value > 0:
+                self.add_error(
+                    'discount_value',
+                    'Set discount value to 0 when discount type is None.',
+                )
+            if discount_type == 'percent' and discount_value > Decimal('100'):
+                self.add_error('discount_value', 'Percentage discount cannot exceed 100.')
         return cleaned
 
     def save(self, commit=True):

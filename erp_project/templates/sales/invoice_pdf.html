@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tax Invoice — {{ invoice.invoice_number }}</title>
+    <title>{{ invoice.document_title|default:"TAX INVOICE" }} — {{ invoice.invoice_number }}</title>
     {% include 'sales/includes/invoice_pdf_styles.html' %}
 </head>
 <body>
@@ -15,7 +15,7 @@
     <div class="estimate-container">
         <div class="title-strip">
             <div class="title-strip-main">
-                <div class="estimate-title-text">TAX INVOICE</div>
+                <div class="estimate-title-text">{{ invoice.document_title|default:"TAX INVOICE" }}</div>
                 <div class="estimate-number">{{ invoice.invoice_number }}</div>
             </div>
         </div>
@@ -148,6 +148,12 @@
                     <span class="totals-label">Taxable subtotal</span>
                     <span class="totals-value">AED {{ invoice.subtotal|floatformat:2 }}</span>
                 </div>
+                {% if invoice.discount_applied and invoice.discount_applied > 0 %}
+                <div class="totals-row">
+                    <span class="totals-label">Discount</span>
+                    <span class="totals-value">− AED {{ invoice.discount_applied|floatformat:2 }}</span>
+                </div>
+                {% endif %}
                 {% for rate, amounts in vat_summary.items %}
                 <div class="totals-row vat-row">
                     <span class="totals-label">VAT @ {{ rate|floatformat:0 }}%</span>
@@ -158,6 +164,12 @@
                     <span class="totals-label">Total VAT (AED)</span>
                     <span class="totals-value">AED {{ invoice.vat_amount|floatformat:2 }}</span>
                 </div>
+                {% if invoice.round_off %}
+                <div class="totals-row">
+                    <span class="totals-label">Round-off</span>
+                    <span class="totals-value">AED {{ invoice.round_off|floatformat:2 }}</span>
+                </div>
+                {% endif %}
                 <div class="totals-row total">
                     <span class="totals-label">Grand total</span>
                     <span class="totals-value">AED {{ invoice.total_amount|floatformat:2 }}</span>

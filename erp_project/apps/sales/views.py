@@ -172,6 +172,23 @@ def _inventory_items_for_estimate_json(limit=2000):
     ]
 
 
+def _invoice_inventory_items_data(limit=2000):
+    """Active inventory items for invoice line description search/autofill."""
+    from apps.inventory.models import Item
+
+    return [
+        {
+            'id': item.pk,
+            'label': str(item),
+            'name': item.name,
+            'item_code': item.item_code,
+            'selling_price': str(item.selling_price or Decimal('0.00')),
+            'tax_code_id': item.tax_code_id,
+        }
+        for item in Item.usable().order_by('name')[:limit]
+    ]
+
+
 def _estimate_form_inventory_groups_context():
     """
     Item groups with active items for estimate line-item bulk add + group name datalist.
@@ -1555,6 +1572,8 @@ def estimate_convert_to_invoice(request, pk):
         status='draft',
         notes=estimate.notes,
         prices_include_vat=estimate.prices_include_vat,
+        discount_type=estimate.discount_type,
+        discount_value=estimate.discount_value,
     )
 
     copy_estimate_lines_to_invoice(estimate, invoice)
@@ -2435,6 +2454,7 @@ def _invoice_form_project_context():
         .order_by('-created_at')
         .values('id', 'customer_id', 'project_code', 'name')
     )
+    inventory_items = _invoice_inventory_items_data()
     return {
         'invoice_project_options_json': json.dumps(
             [
@@ -2447,6 +2467,8 @@ def _invoice_form_project_context():
             ],
             cls=DjangoJSONEncoder,
         ),
+        'invoice_inventory_items_data': inventory_items,
+        'invoice_inventory_items_json': json.dumps(inventory_items, cls=DjangoJSONEncoder),
     }
 
 
@@ -2924,14 +2946,7 @@ def invoice_pdf(request, pk):
     except:
         amount_words = ""
     
-    # Calculate VAT summary by rate
-    vat_summary = {}
-    for item in invoice.items.all():
-        rate = float(item.vat_rate)
-        if rate not in vat_summary:
-            vat_summary[rate] = {'taxable': 0, 'vat': 0}
-        vat_summary[rate]['taxable'] += float(item.total)
-        vat_summary[rate]['vat'] += float(item.vat_amount)
+    vat_summary = invoice.build_vat_summary()
 
     logo_absolute_url = ''
     if company.logo:
