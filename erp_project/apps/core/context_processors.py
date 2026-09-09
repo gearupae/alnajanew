@@ -6,15 +6,17 @@ from django.conf import settings
 from apps.core.utils import PermissionChecker
 from apps.core.visibility import crm_show_my_leads_label
 from apps.hr.models import Employee
-from apps.settings_app.models import Notification
+from apps.settings_app.models import CompanySettings, Notification
 
 
 def global_context(request):
     """
     Add global context variables to all templates.
     """
+    company = CompanySettings.get_settings()
     context = {
-        'app_name': 'Safety Point',
+        'app_name': company.company_name or 'Al Najah',
+        'company': company,
         'current_year': __import__('datetime').datetime.now().year,
         'nav_hidden_modules': settings.NAV_HIDDEN_MODULES,
     }
