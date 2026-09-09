@@ -1,4 +1,4 @@
-package com.alnajah.alnajah_scan_example
+package com.safetypoint.safetypoint_scan_example
 
 import android.content.res.Configuration
 import android.view.KeyEvent
@@ -11,7 +11,7 @@ import io.flutter.plugin.common.MethodChannel
  * When the camera [AndroidView] has focus, keystrokes may not reach Flutter's hidden [TextField];
  * [dispatchKeyEvent] buffers characters until Enter/Tab, then sends the barcode to Flutter.
  *
- * Flutter enables capture only on the stock-take scan screen via [alnajah_hid_control] `setWedgeCapture`.
+ * Flutter enables capture only on the stock-take scan screen via [safetypoint_hid_control] `setWedgeCapture`.
  */
 class MainActivity : FlutterActivity() {
 
@@ -33,9 +33,9 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        hidWedgeOut = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "alnajah_hid_wedge")
+        hidWedgeOut = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "safetypoint_hid_wedge")
         try {
-            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "alnajah_hid_control")
+            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "safetypoint_hid_control")
                 .setMethodCallHandler { call, result ->
                     when (call.method) {
                         "setWedgeCapture" -> {
@@ -51,11 +51,11 @@ class MainActivity : FlutterActivity() {
                     }
                 }
         } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "alnajah_hid_control", e)
+            android.util.Log.e("MainActivity", "safetypoint_hid_control", e)
         }
         try {
             flutterEngine.platformViewsController.registry.registerViewFactory(
-                "alnajah_barcode_scanner",
+                "safetypoint_barcode_scanner",
                 BarcodeScannerViewFactory(
                     flutterEngine.dartExecutor.binaryMessenger,
                     this,

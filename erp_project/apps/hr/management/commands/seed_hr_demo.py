@@ -122,7 +122,7 @@ class Command(BaseCommand):
                 defaults={
                     'first_name': first,
                     'last_name': last,
-                    'email': f'{first.lower()}.{last.lower().replace(" ", "")}@alnajah.demo',
+                    'email': f'{first.lower()}.{last.lower().replace(" ", "")}@safetypoint.demo',
                     'phone': f'+97150{int(seq):07d}',
                     'gender': gender,
                     'department': dept_map[dept_code],

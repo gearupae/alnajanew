@@ -20,7 +20,7 @@ fi
 
 if [[ ! -f android/app/build.gradle ]]; then
   echo "Generating Android/iOS folders..."
-  flutter create . --project-name alnajah_scan_example --org com.alnajah
+  flutter create . --project-name safetypoint_scan_example --org com.safetypoint
 fi
 
 flutter pub get

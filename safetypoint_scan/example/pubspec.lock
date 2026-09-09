@@ -120,7 +120,7 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  alnajah_scan:
+  safetypoint_scan:
     dependency: "direct main"
     description:
       path: ".."

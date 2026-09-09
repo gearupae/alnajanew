@@ -221,7 +221,7 @@ NUMBER_SERIES = {
 # Override in .env for production: HR_EMPLOYEE_DEFAULT_PASSWORD=YourStrongSecret
 HR_EMPLOYEE_DEFAULT_PASSWORD = config(
     'HR_EMPLOYEE_DEFAULT_PASSWORD',
-    default='AlNajahEmployee123!',
+    default='SafetyPointEmployee123!',
 )
 
 # Outbound email (quotations, POs, HR). Company Settings SMTP overrides when filled in.

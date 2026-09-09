@@ -3,7 +3,7 @@ Import inventory items and groups from Excel templates.
 
 Supported formats:
 - bom: medical-gas BOM with "[Group name]" headers in column A
-- trial: Al Najah trial materials list — green/yellow rows are group names
+- trial: Safety Point trial materials list — green/yellow rows are group names
 
 Does not delete existing items or groups — creates or updates as needed.
 Reuses existing items by name (case-insensitive) and can attach them to multiple groups.
@@ -136,7 +136,7 @@ def _row_has_group_fill(row) -> bool:
 
 def parse_trial_materials_xlsx(path: str) -> list[dict]:
     """
-    Parse Al Najah trial materials workbook.
+    Parse Safety Point trial materials workbook.
 
     Green/yellow background rows are group names (usually column A, sometimes column B).
     Ungrouped structural headers (text in A, blank B, group number in F) are also groups.

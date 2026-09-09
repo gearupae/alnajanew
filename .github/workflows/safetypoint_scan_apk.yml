@@ -1,4 +1,4 @@
-# Builds the Flutter example app (alnajah_scan/example) as a release APK.
+# Builds the Flutter example app (safetypoint_scan/example) as a release APK.
 # Run manually: Actions → "Build Safety Point Scan APK" → Run workflow.
 # Download the "safetypoint-scan-apk" artifact and install on your phone.
 name: Build Safety Point Scan APK
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: alnajah_scan/example
+        working-directory: safetypoint_scan/example
     steps:
       - uses: actions/checkout@v4
 
@@ -20,7 +20,7 @@ jobs:
           channel: stable
 
       - name: Generate Android project
-        run: flutter create . --project-name alnajah_scan_example --org com.alnajah
+        run: flutter create . --project-name safetypoint_scan_example --org com.safetypoint
 
       - name: Dependencies
         run: flutter pub get
@@ -38,4 +38,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: safetypoint-scan-apk
-          path: alnajah_scan/example/build/app/outputs/flutter-apk/app-release.apk
+          path: safetypoint_scan/example/build/app/outputs/flutter-apk/app-release.apk

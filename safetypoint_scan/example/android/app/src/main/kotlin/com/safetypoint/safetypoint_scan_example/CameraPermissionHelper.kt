@@ -1,4 +1,4 @@
-package com.alnajah.alnajah_scan_example
+package com.safetypoint.safetypoint_scan_example
 
 import android.app.Activity
 import android.content.pm.PackageManager

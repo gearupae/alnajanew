@@ -11,10 +11,10 @@ downloads/
 eggs/
 .eggs/
 lib/
-!alnajah_scan/lib/
-!alnajah_scan/lib/**
-!alnajah_scan/example/lib/
-!alnajah_scan/example/lib/**
+!safetypoint_scan/lib/
+!safetypoint_scan/lib/**
+!safetypoint_scan/example/lib/
+!safetypoint_scan/example/lib/**
 lib64/
 parts/
 sdist/
@@ -104,20 +104,20 @@ celerybeat.pid
 # mypy
 .mypy_cache/
 
-# Flutter — scan package + example (regenerate example Android with: cd alnajah_scan/example && flutter create .)
-alnajah_scan/.dart_tool/
-alnajah_scan/.flutter-plugins-dependencies
+# Flutter — scan package + example (regenerate example Android with: cd safetypoint_scan/example && flutter create .)
+safetypoint_scan/.dart_tool/
+safetypoint_scan/.flutter-plugins-dependencies
 # Track example/android (Kotlin ML Kit + CameraX); ignore Gradle cache + local SDK path
-alnajah_scan/example/android/.gradle/
-alnajah_scan/example/android/**/build/
-alnajah_scan/example/android/local.properties
-alnajah_scan/example/ios/
-alnajah_scan/example/linux/
-alnajah_scan/example/macos/
-alnajah_scan/example/windows/
-alnajah_scan/example/web/
-alnajah_scan/example/.dart_tool/
-alnajah_scan/example/build/
-alnajah_scan/example/*.iml
-alnajah_scan/example/.flutter-plugins-dependencies
+safetypoint_scan/example/android/.gradle/
+safetypoint_scan/example/android/**/build/
+safetypoint_scan/example/android/local.properties
+safetypoint_scan/example/ios/
+safetypoint_scan/example/linux/
+safetypoint_scan/example/macos/
+safetypoint_scan/example/windows/
+safetypoint_scan/example/web/
+safetypoint_scan/example/.dart_tool/
+safetypoint_scan/example/build/
+safetypoint_scan/example/*.iml
+safetypoint_scan/example/.flutter-plugins-dependencies
 

@@ -1,4 +1,4 @@
-name: alnajah_scan
+name: safetypoint_scan
 description: Flutter SDK for Safety Point ERP stock-take scanning — same session login as the web app.
 version: 0.1.14
 publish_to: none

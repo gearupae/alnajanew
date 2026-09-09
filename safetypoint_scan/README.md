@@ -21,8 +21,8 @@ These routes are **CSRF-exempt** so native clients can use cookies without a CSR
 
 ```yaml
 dependencies:
-  alnajah_scan:
-    path: ../alnajah_scan   # adjust path
+  safetypoint_scan:
+    path: ../safetypoint_scan   # adjust path
 ```
 
 ```dart
@@ -45,17 +45,17 @@ final result = await client.submitScan(sessions.first.id, barcode: decoded);
 **Option B — Docker** (from repo root):
 
 ```bash
-docker build -f alnajah_scan/Dockerfile.apk -t alnajah-scan-apk .
-cid=$(docker create alnajah-scan-apk)
-docker cp "$cid:/src/alnajah_scan/example/build/app/outputs/flutter-apk/app-release.apk" ./alnajah-scan.apk
+docker build -f safetypoint_scan/Dockerfile.apk -t safetypoint-scan-apk .
+cid=$(docker create safetypoint-scan-apk)
+docker cp "$cid:/src/safetypoint_scan/example/build/app/outputs/flutter-apk/app-release.apk" ./safetypoint-scan.apk
 docker rm "$cid"
 ```
 
 **Option C — Local Flutter**
 
 ```bash
-./alnajah_scan/scripts/build_apk.sh
-# APK: alnajah_scan/example/build/app/outputs/flutter-apk/app-release.apk
+./safetypoint_scan/scripts/build_apk.sh
+# APK: safetypoint_scan/example/build/app/outputs/flutter-apk/app-release.apk
 ```
 
 ## Example app

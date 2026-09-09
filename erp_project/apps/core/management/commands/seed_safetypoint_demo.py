@@ -6,7 +6,7 @@ Safe to re-run: uses DEMO-AN-* identifiers and skips existing rows.
 
 Run on production:
   cd /var/www/safetypoint/erp_project && source ../venv/bin/activate
-  python manage.py seed_alnajah_demo
+  python manage.py seed_safetypoint_demo
   python manage.py seed_hr_demo   # HR employees (separate idempotent command)
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ from django.db import transaction
 User = get_user_model()
 
 SEED_TAG = "DEMO-AN"
-SEED_NOTE = "Seeded by seed_alnajah_demo"
+SEED_NOTE = "Seeded by seed_safetypoint_demo"
 
 CUSTOMERS = [
     ("001", "Emirates Tower Management LLC", "100123456700001", "b2b", "project", ["ff", "fa"]),
@@ -168,7 +168,7 @@ class Command(BaseCommand):
             _, was_created = Customer.objects.get_or_create(
                 name=f"[{SEED_TAG}] {name}",
                 defaults={
-                    "email": f"demo.cust{seq}@alnajah.demo",
+                    "email": f"demo.cust{seq}@safetypoint.demo",
                     "phone": f"+9714{int(seq):07d}",
                     "company": name,
                     "address": f"{name}, Dubai, UAE",
@@ -394,7 +394,7 @@ class Command(BaseCommand):
                 name=f"[{SEED_TAG}] {name}",
                 defaults={
                     "contact_person": contact,
-                    "email": f"vendor{seq}@alnajah.demo",
+                    "email": f"vendor{seq}@safetypoint.demo",
                     "phone": f"+97150{int(seq):07d}",
                     "address": f"{name}, Industrial Area, Sharjah, UAE",
                     "city": "Sharjah",

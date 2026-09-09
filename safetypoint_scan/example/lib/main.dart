@@ -4,12 +4,12 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:alnajah_scan/alnajah_scan.dart';
+import 'package:safetypoint_scan/safetypoint_scan.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const _kPrefBaseUrl = 'alnajah_scan_base_url';
-const _kPrefUsername = 'alnajah_scan_username';
+const _kPrefBaseUrl = 'safetypoint_scan_base_url';
+const _kPrefUsername = 'safetypoint_scan_username';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -317,8 +317,8 @@ class _ScanPageState extends State<ScanPage> {
     _wedge.addListener(_onWedgeInput);
     // Android: capture USB/BT HID scanner at Activity level (camera PlatformView often steals focus).
     if (!kIsWeb && Platform.isAndroid) {
-      _hidControl = const MethodChannel('alnajah_hid_control');
-      _hidWedgeRx = const MethodChannel('alnajah_hid_wedge');
+      _hidControl = const MethodChannel('safetypoint_hid_control');
+      _hidWedgeRx = const MethodChannel('safetypoint_hid_wedge');
       _hidWedgeRx!.setMethodCallHandler((call) async {
         if (!_alive || !mounted) return;
         if (call.method == 'barcode') {
@@ -337,7 +337,7 @@ class _ScanPageState extends State<ScanPage> {
   }
 
   void _onScannerViewCreated(int id) {
-    _nativeBarcodeChannel = MethodChannel('alnajah_barcode_scanner/$id');
+    _nativeBarcodeChannel = MethodChannel('safetypoint_barcode_scanner/$id');
     _nativeBarcodeChannel!.setMethodCallHandler((call) async {
       if (!_alive) return;
       if (call.method == 'onBarcode') {
@@ -685,8 +685,8 @@ class _ScanPageState extends State<ScanPage> {
                     fit: StackFit.expand,
                     children: [
                       AndroidView(
-                        key: const ValueKey<Object>('alnajah_barcode_scanner'),
-                        viewType: 'alnajah_barcode_scanner',
+                        key: const ValueKey<Object>('safetypoint_barcode_scanner'),
+                        viewType: 'safetypoint_barcode_scanner',
                         onPlatformViewCreated: _onScannerViewCreated,
                       ),
                       ValueListenableBuilder<Color?>(

@@ -1,4 +1,4 @@
-package com.alnajah.alnajah_scan_example
+package com.safetypoint.safetypoint_scan_example
 
 import android.content.Context
 import io.flutter.embedding.android.FlutterActivity

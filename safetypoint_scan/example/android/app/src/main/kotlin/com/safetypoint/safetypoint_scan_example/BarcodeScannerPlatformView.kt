@@ -1,4 +1,4 @@
-package com.alnajah.alnajah_scan_example
+package com.safetypoint.safetypoint_scan_example
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -58,7 +58,7 @@ internal class BarcodeScannerPlatformView(
     companion object {
         private const val TAG = "AlnajahBarcodeView"
         private const val COOLDOWN_MS = 1000L
-        private const val CHANNEL_PREFIX = "alnajah_barcode_scanner"
+        private const val CHANNEL_PREFIX = "safetypoint_barcode_scanner"
 
         /**
          * Fallback when [BarcodeScanning.getClient] (no args) fails — explicit symbologies only.
@@ -122,7 +122,7 @@ internal class BarcodeScannerPlatformView(
     private val scannerInitLock = Any()
 
     private val analysisExecutor: ExecutorService = Executors.newSingleThreadExecutor { r ->
-        Thread(r, "alnajah-mlkit-analysis").apply { isDaemon = true }
+        Thread(r, "safetypoint-mlkit-analysis").apply { isDaemon = true }
     }
 
     private var cameraProvider: ProcessCameraProvider? = null

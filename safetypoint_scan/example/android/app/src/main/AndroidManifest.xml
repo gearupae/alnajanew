@@ -5,7 +5,7 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <application android:usesCleartextTraffic="true" 
-        android:label="alnajah_scan_example"
+        android:label="safetypoint_scan_example"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
