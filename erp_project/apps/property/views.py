@@ -19,6 +19,7 @@ import json
 
 from apps.core.mixins import CreatePermissionMixin, UpdatePermissionMixin
 from apps.crm.models import Customer
+from apps.projects.models import Project
 from .models import (
     Property, Unit, Tenant, Lease, PDCCheque,
     PDCAllocation, PDCAllocationLine, PDCBankMatch, AmbiguousMatchLog,
@@ -468,6 +469,7 @@ class PDCListView(LoginRequiredMixin, ListView):
         ).count()
         
         context['customers'] = Customer.objects.filter(is_active=True).order_by('name')
+        context['projects'] = Project.objects.filter(is_active=True).select_related('customer').order_by('-created_at')
         context['status_choices'] = PDCCheque.STATUS_CHOICES
         context['today'] = date.today()
 
@@ -507,11 +509,17 @@ class PDCCreateView(LoginRequiredMixin, CreateView):
             messages.error(request, 'Amount is required.')
             return redirect('property:pdc_list')
         
+        project_id = request.POST.get('project', '')
+        project = None
+        if project_id:
+            project = Project.objects.filter(pk=project_id, is_active=True).first()
+
         try:
             customer = Customer.objects.get(pk=customer_id, is_active=True)
             with transaction.atomic():
                 pdc = PDCCheque.objects.create(
                     customer=customer,
+                    project=project,
                     is_active='is_active' in request.POST,
                     cheque_number=cheque_number,
                     bank_name=bank_name,

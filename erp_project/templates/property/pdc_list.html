@@ -115,6 +115,15 @@
                 </select>
             </div>
             <div class="col-md-4">
+                <label class="form-label">Project</label>
+                <select name="project" class="form-select">
+                    <option value="">— None —</option>
+                    {% for project in projects %}
+                    <option value="{{ project.pk }}">{{ project.project_code }} - {{ project.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
                 <label class="form-label">Cheque Number <span class="text-danger">*</span></label>
                 <input type="text" name="cheque_number" class="form-control" required>
             </div>
