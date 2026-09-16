@@ -17,22 +17,21 @@
         }
 
         :root {
-            --ink: #1e293b;
-            --ink-soft: #475569;
-            --graphite: #64748b;
-            --silver: #94a3b8;
-            --mist: #e2e8f0;
-            --paper: #f8fafc;
+            --ink: #0a0a0a;
+            --ink-soft: #262626;
+            --graphite: #404040;
+            --silver: #737373;
+            --ash: #a3a3a3;
+            --mist: #e5e5e5;
+            --paper: #f5f5f5;
             --white: #ffffff;
-            /* Subtle brand accent — light touch of sky blue */
-            --accent: #6ba3bc;
-            --accent-soft: #a8c9d8;
-            --accent-tint: #f4f8fa;
-            --accent-border: #d4e4ec;
-            --head-bg: #c8e6f4;
-            --head-bg-light: #dff0f8;
-            --row-alt: #fafbfc;
-            --discount: #b91c1c;
+            --head-bg: #171717;
+            --head-bg-soft: #262626;
+            --head-text: #fafafa;
+            --head-text-muted: #d4d4d4;
+            --head-border: #404040;
+            --row-alt: #fafafa;
+            --discount: #525252;
         }
 
         body {
@@ -107,13 +106,13 @@
             color: var(--ink);
         }
 
-        /* Title strip — light sky blue (letterhead tone) */
+        /* Title strip — black & ash */
         .title-strip {
-            background: linear-gradient(135deg, var(--head-bg-light) 0%, var(--head-bg) 100%);
-            color: var(--ink);
+            background: var(--head-bg);
+            color: var(--head-text);
             padding: 16px 18px;
             margin-bottom: 16px;
-            border: 1px solid var(--accent-border);
+            border: 1px solid var(--head-border);
         }
 
         .title-strip-main {
@@ -128,14 +127,14 @@
             font-weight: 700;
             letter-spacing: 0.06em;
             line-height: 1.2;
-            color: var(--ink);
+            color: var(--head-text);
         }
 
         .estimate-number {
             font-size: 17px;
             font-weight: 700;
             letter-spacing: 0.04em;
-            color: var(--accent);
+            color: var(--head-text-muted);
         }
 
         .status-badge {
@@ -145,19 +144,19 @@
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            border: 1px solid var(--accent-border);
-            background: var(--white);
-            color: var(--accent);
+            border: 1px solid var(--ash);
+            background: var(--head-bg-soft);
+            color: var(--head-text-muted);
             font-weight: 700;
         }
 
-        .status-draft { color: var(--graphite); }
-        .status-sent { color: #0369a1; }
-        .status-approved { color: #1d4ed8; }
-        .status-rejected { color: #b45309; }
-        .status-under_negotiation { color: #0e7490; }
-        .status-quotation_won { color: #15803d; }
-        .status-quotation_lost { color: #b91c1c; }
+        .status-draft { color: var(--ash); }
+        .status-sent { color: var(--head-text-muted); }
+        .status-approved { color: var(--head-text); }
+        .status-rejected { color: var(--silver); }
+        .status-under_negotiation { color: var(--head-text-muted); }
+        .status-quotation_won { color: var(--head-text); }
+        .status-quotation_lost { color: var(--silver); }
 
         /* Estimate details inside To block */
         .addr-to-estimate-details {
@@ -212,14 +211,14 @@
 
         .items-table thead th {
             background: var(--head-bg);
-            color: var(--ink);
+            color: var(--head-text);
             padding: 9px 6px;
             text-align: left;
             font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.04em;
-            border: 1px solid var(--accent-border);
-            border-bottom: 2px solid var(--accent-soft);
+            border: 1px solid var(--head-border);
+            border-bottom: 2px solid var(--graphite);
             font-weight: 700;
         }
 
@@ -253,7 +252,7 @@
             font-weight: 700;
             font-size: 10px;
             color: var(--ink);
-            border-top: 1px solid var(--accent-border);
+            border-top: 1px solid var(--mist);
             white-space: nowrap;
         }
 
@@ -284,21 +283,20 @@
         .totals-row.vat-row { background: var(--row-alt); }
 
         .totals-row.total {
-            background: var(--paper);
-            color: var(--ink);
+            background: var(--head-bg);
+            color: var(--head-text);
             font-size: 13px;
             font-weight: 700;
-            border: 1px solid var(--mist);
-            border-left: 3px solid var(--accent);
+            border: 1px solid var(--head-border);
             margin-top: 2px;
         }
 
         .totals-row.total .totals-label {
-            color: var(--ink);
+            color: var(--head-text-muted);
         }
 
         .totals-row.total .totals-value {
-            color: var(--accent);
+            color: var(--head-text);
         }
 
         .totals-label { color: var(--graphite); }
@@ -471,14 +469,14 @@
 
         .print-btn {
             padding: 10px 18px;
-            border: 1px solid var(--accent);
+            border: 1px solid var(--head-border);
             border-radius: 4px;
             cursor: pointer;
             font-size: 13px;
             font-weight: 600;
             text-decoration: none;
-            background: var(--accent);
-            color: var(--white);
+            background: var(--head-bg);
+            color: var(--head-text);
         }
 
         .print-btn-secondary {

@@ -296,7 +296,7 @@ class CompanySettings(models.Model):
     @classmethod
     def get_settings(cls):
         """Get or create company settings."""
-        settings, _ = cls.objects.get_or_create(pk=1, defaults={'company_name': 'My Company'})
+        settings, _ = cls.objects.get_or_create(pk=1, defaults={'company_name': 'Al Najah'})
         return settings
 
 

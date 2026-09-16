@@ -243,7 +243,7 @@ class Command(BaseCommand):
         settings, created = CompanySettings.objects.get_or_create(
             pk=1,
             defaults={
-                'company_name': 'My Company',
+                'company_name': 'Al Najah',
                 'currency': 'AED',
                 'timezone': 'Asia/Dubai',
                 'fiscal_year_start': 1,
