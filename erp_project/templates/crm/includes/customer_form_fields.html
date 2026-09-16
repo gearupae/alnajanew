@@ -1,0 +1,98 @@
+{% comment %}
+Compact CRM customer / lead form fields (create & edit).
+{% endcomment %}
+<div class="row g-3" data-crm-compact-form>
+    <div class="col-md-4">
+        <label class="form-label" for="{{ form.company.id_for_label }}">Company <span class="text-danger">*</span></label>
+        {{ form.company }}
+        {% for err in form.company.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="col-md-4">
+        <label class="form-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+        {{ form.name }}
+        {% for err in form.name.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="col-md-4">
+        {% if object and object.customer_type == 'customer' %}
+        <label class="form-label">Type</label>
+        <input type="hidden" name="customer_type" value="customer">
+        <input type="text" class="form-control" value="Customer" readonly>
+        {% elif crm_sales_rep_only %}
+        <label class="form-label">Type <span class="text-danger">*</span></label>
+        <input type="hidden" name="customer_type" value="lead">
+        <input type="text" class="form-control" value="Lead" readonly>
+        {% else %}
+        <label class="form-label" for="{{ form.customer_type.id_for_label }}">Type <span class="text-danger">*</span></label>
+        {{ form.customer_type }}
+        {% endif %}
+        {% for err in form.customer_type.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label" for="{{ form.assigned_salesperson.id_for_label }}">Assigned salesman <span class="text-danger">*</span></label>
+        {{ form.assigned_salesperson }}
+        <div class="form-text small mb-0">Lists active HR employee records. Defaults to you when linked.</div>
+        {% for err in form.assigned_salesperson.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="col-md-4" id="crmBusinessSegmentWrap">
+        <label class="form-label" for="{{ form.business_segment.id_for_label }}">Business type <span class="text-danger">*</span></label>
+        {{ form.business_segment }}
+        <div class="form-text small mb-0">Select B2B or B2C.</div>
+        {% for err in form.business_segment.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label" for="{{ form.email.id_for_label }}">Email <span class="text-danger crm-b2b-required-star" style="display:none;">*</span></label>
+        {{ form.email }}
+        {% for err in form.email.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="col-md-4">
+        <label class="form-label" for="{{ form.phone.id_for_label }}">Phone <span class="text-danger crm-b2b-required-star" style="display:none;">*</span></label>
+        {{ form.phone }}
+        {% for err in form.phone.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="col-md-4">
+        <label class="form-label d-block" for="{{ form.is_active.id_for_label }}">Active</label>
+        <div class="form-check form-switch mt-1">
+            {{ form.is_active }}
+            <label class="form-check-label" for="{{ form.is_active.id_for_label }}"></label>
+        </div>
+        <div class="form-text small mb-0">Off by default — turn on when approved.</div>
+        {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+
+    <div class="col-12">
+        <label class="form-label" for="{{ form.address.id_for_label }}">Address</label>
+        {{ form.address }}
+        {% for err in form.address.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+
+    <div class="col-md-3 crm-b2b-only-field" id="crmInlineTrnWrap" style="display:none;">
+        <label class="form-label" for="{{ form.trn.id_for_label }}">{{ form.trn.label }}</label>
+        {{ form.trn }}
+        {% for err in form.trn.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="col-md-6" id="crmWebsiteFieldWrap">
+        <label class="form-label" for="{{ form.website.id_for_label }}">Website</label>
+        {{ form.website }}
+        {% for err in form.website.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="col-md-3 crm-b2b-only-field" id="crmB2bTrnDocWrap" style="display:none;">
+        <label class="form-label" for="{{ form.trn_document.id_for_label }}">{{ form.trn_document.label }} <span class="text-muted small">(optional)</span></label>
+        {{ form.trn_document }}
+        <div class="form-text small mb-0">PDF or image.</div>
+        {% for err in form.trn_document.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="col-md-3 crm-b2b-only-field" id="crmB2bLicenseDocWrap" style="display:none;">
+        <label class="form-label" for="{{ form.trade_license_document.id_for_label }}">{{ form.trade_license_document.label }} <span class="text-muted small">(optional)</span></label>
+        {{ form.trade_license_document }}
+        <div class="form-text small mb-0">PDF or image.</div>
+        {% for err in form.trade_license_document.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+
+    <div class="col-12">
+        <label class="form-label" for="{{ form.notes.id_for_label }}">Notes</label>
+        {{ form.notes }}
+        {% for err in form.notes.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+</div>

@@ -30,12 +30,23 @@ function toggleInlineForm(formId) {
     const form = document.getElementById(formId);
     if (form) {
         form.classList.toggle('show');
+        if (formId === 'customerForm') {
+            document.body.classList.toggle('crm-customer-modal-open', form.classList.contains('show'));
+        }
         if (form.classList.contains('show')) {
-            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (formId !== 'customerForm') {
+                form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
             // Focus first input
             const firstInput = form.querySelector('input:not([type="hidden"]), select, textarea');
             if (firstInput) {
                 setTimeout(() => firstInput.focus(), 300);
+            }
+            if (formId === 'customerForm' && window.CrmCustomerFormToggle) {
+                const compact = form.querySelector('[data-crm-compact-form]');
+                if (compact) {
+                    window.CrmCustomerFormToggle.attach(compact);
+                }
             }
         }
     }
@@ -46,10 +57,19 @@ function cancelInlineForm(formId) {
     const form = document.getElementById(formId);
     if (form) {
         form.classList.remove('show');
+        if (formId === 'customerForm') {
+            document.body.classList.remove('crm-customer-modal-open');
+        }
         // Reset form
         const formElement = form.querySelector('form');
         if (formElement) {
             formElement.reset();
+            if (formId === 'customerForm' && window.CrmCustomerFormToggle) {
+                const compact = form.querySelector('[data-crm-compact-form]');
+                if (compact) {
+                    window.CrmCustomerFormToggle.toggle(compact);
+                }
+            }
         }
     }
 }

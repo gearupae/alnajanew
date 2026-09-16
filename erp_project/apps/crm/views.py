@@ -154,6 +154,7 @@ class CustomerListView(PermissionRequiredMixin, ListView):
         context['form'] = CustomerForm(
             projects_queryset=get_crm_project_queryset(self.request.user),
             user=user,
+            compact=True,
         )
         context['salesman_choices'] = get_sales_employee_queryset()
         context['salesman_choice_options'] = [
@@ -263,6 +264,7 @@ class CustomerListView(PermissionRequiredMixin, ListView):
             request.FILES,
             projects_queryset=get_crm_project_queryset(request.user),
             user=request.user,
+            compact=True,
         )
         if form.is_valid():
             customer = form.save(commit=False)
@@ -863,6 +865,7 @@ class CustomerUpdateView(UpdatePermissionMixin, UpdateView):
         kwargs = super().get_form_kwargs()
         kwargs['projects_queryset'] = get_crm_project_queryset(self.request.user)
         kwargs['user'] = self.request.user
+        kwargs['compact'] = True
         return kwargs
     
     def get_context_data(self, **kwargs):

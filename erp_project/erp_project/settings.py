@@ -24,15 +24,14 @@ NAV_HIDDEN_MODULES = frozenset(
 
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
-    default='localhost,127.0.0.1,sp.telldb.com,178.104.184.249',
+    default='localhost,127.0.0.1,37.27.16.210',
     cast=Csv(),
 )
 
 # CSRF — include both http and https if the site is reachable on either (e.g. before TLS).
-# Override in .env if needed: CSRF_TRUSTED_ORIGINS=https://sp.telldb.com
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
-    default='http://127.0.0.1:8001,http://localhost:8001,http://sp.telldb.com,https://sp.telldb.com',
+    default='http://127.0.0.1:3000,http://localhost:3000',
     cast=Csv(),
 )
 CSRF_FAILURE_VIEW = 'apps.core.csrf.csrf_failure'

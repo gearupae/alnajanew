@@ -19,6 +19,13 @@ from .utils import (
 )
 
 
+COMPACT_CUSTOMER_FIELDS = frozenset({
+    'company', 'name', 'customer_type', 'assigned_salesperson', 'business_segment',
+    'email', 'phone', 'is_active', 'address', 'trn', 'website',
+    'trn_document', 'trade_license_document', 'notes',
+})
+
+
 class CustomerForm(forms.ModelForm):
     """Form for creating/editing customers."""
 
@@ -43,50 +50,79 @@ class CustomerForm(forms.ModelForm):
             'trn_document', 'trade_license_document', 'notes',
         ]
 
-    def __init__(self, *args, projects_queryset=None, user=None, **kwargs):
+    def __init__(self, *args, projects_queryset=None, user=None, compact=False, **kwargs):
+        self.compact = compact
         super().__init__(*args, **kwargs)
 
+        if compact:
+            for field_name in list(self.fields.keys()):
+                if field_name not in COMPACT_CUSTOMER_FIELDS:
+                    del self.fields[field_name]
+
         qs = projects_queryset if projects_queryset is not None else get_crm_project_queryset()
-        self.fields['primary_project'].queryset = qs
-        self.fields['primary_project'].required = False
-        self.fields['primary_project'].empty_label = '— Select project —'
-        self.fields['primary_project'].label_from_instance = project_choice_label
-        self.fields['primary_project'].widget.attrs['class'] = 'form-select'
-        self.fields['primary_project'].label = 'Project'
+        if 'primary_project' in self.fields:
+            self.fields['primary_project'].queryset = qs
+            self.fields['primary_project'].required = False
+            self.fields['primary_project'].empty_label = '— Select project —'
+            self.fields['primary_project'].label_from_instance = project_choice_label
+            self.fields['primary_project'].widget.attrs['class'] = 'form-select'
+            self.fields['primary_project'].label = 'Project'
 
-        self.fields['is_active'].label = 'Is active'
-        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        if compact:
+            self.fields['is_active'].label = 'Active'
+            self.fields['is_active'].widget = forms.CheckboxInput(
+                attrs={'class': 'form-check-input', 'role': 'switch'}
+            )
+            if not self.instance.pk:
+                self.initial.setdefault('is_active', False)
+            self.fields['name'].label = 'Contact Name'
+            self.fields['customer_type'].label = 'Type'
+            self.fields['phone'].label = 'Phone'
+            self.fields['trn'].label = 'VAT (TRN)'
+            self.fields['trn_document'].label = 'TRN certificate'
+            self.fields['trade_license_document'].label = 'Trade license'
+            self.fields['assigned_salesperson'].widget.attrs['class'] = 'form-select'
+        else:
+            self.fields['is_active'].label = 'Is active'
+            self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
 
-        self.fields['scope'].label = 'Scope'
+        if 'scope' in self.fields:
+            self.fields['scope'].label = 'Scope'
         self.fields['business_segment'].required = True
         self.fields['business_segment'].widget.attrs['class'] = 'form-select'
         self.fields['business_segment'].label = 'Business type'
         self.fields['trn_document'].required = False
         self.fields['trade_license_document'].required = False
 
-        self.fields['lead_kanban_stage'].queryset = CrmLeadKanbanStage.objects.filter(
-            is_active=True,
-            converts_to_customer=False,
-        ).order_by('sort_order', 'id')
-        self.fields['lead_kanban_stage'].required = False
-        self.fields['lead_kanban_stage'].empty_label = '— Unassigned —'
-        self.fields['lead_kanban_stage'].widget.attrs['class'] = 'form-select'
-        self.fields['lead_kanban_stage'].label = 'Lead kanban stage'
+        if 'lead_kanban_stage' in self.fields:
+            self.fields['lead_kanban_stage'].queryset = CrmLeadKanbanStage.objects.filter(
+                is_active=True,
+                converts_to_customer=False,
+            ).order_by('sort_order', 'id')
+            self.fields['lead_kanban_stage'].required = False
+            self.fields['lead_kanban_stage'].empty_label = '— Unassigned —'
+            self.fields['lead_kanban_stage'].widget.attrs['class'] = 'form-select'
+            self.fields['lead_kanban_stage'].label = 'Lead kanban stage'
 
-        self.fields['payment_terms'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': 'Net 30',
-        })
-        self.fields['credit_limit'].widget = forms.NumberInput(
-            attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}
-        )
-        self.fields['city'].widget.attrs.update({'class': 'form-control', 'placeholder': 'City'})
-        self.fields['country'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Country'})
-        self.fields['trade_license_number'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': 'Trade license number',
-        })
-        self.fields['trade_license_number'].label = 'Trade license number'
+        if 'payment_terms' in self.fields:
+            self.fields['payment_terms'].widget.attrs.update({
+                'class': 'form-control',
+                'placeholder': 'Net 30',
+            })
+        if 'credit_limit' in self.fields:
+            self.fields['credit_limit'].widget = forms.NumberInput(
+                attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}
+            )
+        if 'city' in self.fields:
+            self.fields['city'].widget.attrs.update({'class': 'form-control', 'placeholder': 'City'})
+        if 'country' in self.fields:
+            self.fields['country'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Country'})
+        if 'trade_license_number' in self.fields:
+            self.fields['trade_license_number'].widget.attrs.update({
+                'class': 'form-control',
+                'placeholder': 'Trade license number',
+            })
+            self.fields['trade_license_number'].label = 'Trade license number'
 
         include_salesperson_id = None
         if self.instance.pk and self.instance.assigned_salesperson_id:
@@ -97,23 +133,28 @@ class CustomerForm(forms.ModelForm):
         self.fields['assigned_salesperson'].required = True
         self.fields['assigned_salesperson'].empty_label = '— Select salesman —'
         self.fields['assigned_salesperson'].label_from_instance = salesperson_display_name
-        self.fields['assigned_salesperson'].widget.attrs['class'] = 'form-select select2'
+        if not compact:
+            self.fields['assigned_salesperson'].widget.attrs['class'] = 'form-select select2'
         self.fields['assigned_salesperson'].label = 'Assigned salesman'
         self.fields['name'].required = False
         self.fields['company'].required = True
         self.fields['email'].required = False
         self.fields['phone'].required = False
-        self.fields['phone'].label = 'Contact'
+        if not compact:
+            self.fields['phone'].label = 'Contact'
 
         if user and not self.instance.pk:
             emp = get_sales_employee_for_user(user)
             if emp and 'assigned_salesperson' not in self.initial:
                 self.initial['assigned_salesperson'] = emp.pk
-            if 'country' not in self.initial:
+            if not compact and 'country' not in self.initial:
                 self.initial['country'] = 'United Arab Emirates'
 
-        if self.instance.pk:
+        if self.instance.pk and 'scope' in self.fields:
             self.initial['scope'] = list(self.instance.scope or [])
+
+        name_placeholder = 'Full Name (optional)' if compact else 'Contact Name'
+        trn_placeholder = 'VAT / TRN' if compact else 'VAT / TRN number'
 
         for field_name, field in self.fields.items():
             if field_name in (
@@ -125,7 +166,7 @@ class CustomerForm(forms.ModelForm):
             if field_name in ('trn_document', 'trade_license_document'):
                 field.widget = forms.FileInput(
                     attrs={
-                        'class': 'form-control form-control-sm',
+                        'class': 'form-control',
                         'accept': '.pdf,.jpg,.jpeg,.png,.webp,.heic',
                     }
                 )
@@ -133,14 +174,14 @@ class CustomerForm(forms.ModelForm):
                 continue
             if field_name in ['address', 'notes']:
                 field.widget.attrs['class'] = 'form-control'
-                field.widget.attrs['rows'] = 3
+                field.widget.attrs['rows'] = 3 if field_name == 'address' else 2
             elif field_name in ['status', 'customer_type', 'job_type']:
                 field.widget.attrs['class'] = 'form-select'
             else:
                 field.widget.attrs['class'] = 'form-control'
 
             if field_name == 'name':
-                field.widget.attrs['placeholder'] = 'Contact Name'
+                field.widget.attrs['placeholder'] = name_placeholder
             elif field_name == 'email':
                 field.widget.attrs['placeholder'] = 'email@example.com'
             elif field_name == 'phone':
@@ -150,10 +191,16 @@ class CustomerForm(forms.ModelForm):
             elif field_name == 'address':
                 field.widget.attrs['placeholder'] = 'Full Address'
             elif field_name == 'trn':
-                field.widget.attrs['placeholder'] = 'VAT / TRN number'
+                field.widget.attrs['placeholder'] = trn_placeholder
+            elif field_name == 'notes':
+                field.widget.attrs['placeholder'] = 'Additional notes...'
             elif field_name == 'website':
                 field.widget = forms.TextInput(attrs=field.widget.attrs)
                 field.widget.attrs['placeholder'] = 'gear-up.ae, www.gear-up.ae, or https://gear-up.ae'
+            elif field_name == 'business_segment' and compact:
+                field.widget.attrs.setdefault('id', 'crmInlineBusinessSegment')
+            elif field_name == 'customer_type' and compact:
+                field.widget.attrs.setdefault('id', 'crmInlineCustomerType')
 
     def _effective_customer_type(self):
         if self.instance.pk and self.instance.customer_type == 'customer':
@@ -272,4 +319,19 @@ class CustomerForm(forms.ModelForm):
             if self.data.get('trade_license_document-clear') in ('on', 'true', '1'):
                 cleaned['trade_license_document'] = False
 
+        if self.compact:
+            cleaned['country'] = cleaned.get('country') or 'United Arab Emirates'
+            cleaned['status'] = 'active' if cleaned.get('is_active') else 'inactive'
+
         return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.compact:
+            instance.country = self.cleaned_data.get('country') or 'United Arab Emirates'
+            instance.status = self.cleaned_data.get('status') or (
+                'active' if instance.is_active else 'inactive'
+            )
+        if commit:
+            instance.save()
+        return instance

@@ -1,9 +1,8 @@
-# Deploy Local Data to Main Server (Safety Point)
+# Deploy Local Data to Main Server (Al Najah)
 
-**Server:** `root@178.104.184.249`  
-**Domain:** http://sp.telldb.com/  
-**App path:** `/var/www/safetypoint`  
-**Git repo:** https://github.com/gearupae/safetypoint.git
+**Server:** `root@37.27.16.210`  
+**App path:** `/var/www/alnajahfireerp`  
+**Git repo:** https://github.com/gearupae/alnajanew.git
 
 For **full production deploy** (code, no `.env` overwrite, optional DB), use from repo root:
 
@@ -18,48 +17,20 @@ To replace the main server database with your local data:
    ```
    erp_project/db.sqlite3
    ```
-   A backup was created at:
-   ```
-   erp_project/backups/db_backup_YYYYMMDD_HHMMSS.sqlite3
-   ```
 
 2. **Copy to server**:
    ```bash
-   scp erp_project/db.sqlite3 root@178.104.184.249:/var/www/safetypoint/erp_project/
+   scp erp_project/db.sqlite3 root@37.27.16.210:/var/www/alnajahfireerp/erp_project/
    ```
 
-3. **On the server**, stop the app, replace the DB, run migrations, restart:
+3. **On the server**, run migrations and restart:
    ```bash
-   cd /var/www/safetypoint/erp_project
-   # Backup existing server DB first (optional)
-   mv db.sqlite3 db.sqlite3.old
-   # Copy the uploaded file as db.sqlite3 (or it was uploaded directly)
-   python manage.py migrate
-   # Restart your app (gunicorn, systemd, etc.)
+   cd /var/www/alnajahfireerp/erp_project
+   source ../venv/bin/activate
+   python manage.py migrate --no-input
+   systemctl restart gunicorn
    ```
 
 ## Option 2: PostgreSQL
 
-1. **On local** (dump):
-   ```bash
-   python manage.py dumpdata --natural-foreign --natural-primary -e contenttypes -e auth.Permission -o backup.json
-   ```
-   Or full dump:
-   ```bash
-   pg_dump -U your_user your_db > backup.sql
-   ```
-
-2. **On server** (restore):
-   ```bash
-   # Clear existing data and restore
-   psql -U your_user your_db < backup.sql
-   # Or for dumpdata:
-   python manage.py flush --no-input
-   python manage.py loaddata backup.json
-   ```
-
-## After deploy
-
-- Run `python manage.py migrate` to apply any new migrations
-- Run `python manage.py collectstatic --noinput` if using static files
-- Restart the application server
+Use your normal PostgreSQL backup/restore process for the production database configured in `erp_project/.env` on the server.
