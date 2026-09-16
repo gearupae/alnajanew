@@ -30,14 +30,8 @@ function toggleInlineForm(formId) {
     const form = document.getElementById(formId);
     if (form) {
         form.classList.toggle('show');
-        if (formId === 'customerForm') {
-            document.body.classList.toggle('crm-customer-modal-open', form.classList.contains('show'));
-        }
         if (form.classList.contains('show')) {
-            if (formId !== 'customerForm') {
-                form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-            // Focus first input
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
             const firstInput = form.querySelector('input:not([type="hidden"]), select, textarea');
             if (firstInput) {
                 setTimeout(() => firstInput.focus(), 300);
@@ -57,10 +51,6 @@ function cancelInlineForm(formId) {
     const form = document.getElementById(formId);
     if (form) {
         form.classList.remove('show');
-        if (formId === 'customerForm') {
-            document.body.classList.remove('crm-customer-modal-open');
-        }
-        // Reset form
         const formElement = form.querySelector('form');
         if (formElement) {
             formElement.reset();

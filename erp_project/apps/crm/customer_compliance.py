@@ -40,8 +40,6 @@ def customer_b2b_required_missing(
     if (business_segment or '').strip().lower() != 'b2b':
         return []
     missing: list[tuple[str, str]] = []
-    if not (email or '').strip():
-        missing.append(('email', 'Email'))
     if not (phone or '').strip():
         missing.append(('phone', 'Contact'))
     return missing

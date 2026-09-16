@@ -211,16 +211,10 @@ class CustomerForm(forms.ModelForm):
         return (raw or 'lead').strip()
 
     def clean_email(self):
-        seg = ''
-        if self.data:
-            seg = (self.data.get('business_segment') or '').strip().lower()
-        elif self.instance.pk:
-            seg = (self.instance.business_segment or '').strip().lower()
-        required = seg == 'b2b'
         try:
             return normalize_customer_email(
                 self.cleaned_data.get('email'),
-                required=required,
+                required=False,
             )
         except ValidationError as exc:
             raise forms.ValidationError(exc.messages[0] if exc.messages else str(exc))
@@ -276,8 +270,6 @@ class CustomerForm(forms.ModelForm):
         cleaned['name'] = (cleaned.get('name') or '').strip()
 
         ctype = self._effective_customer_type()
-        if ctype == 'customer':
-            cleaned['lead_kanban_stage'] = None
 
         email = cleaned.get('email') or ''
         phone = cleaned.get('phone') or ''
@@ -311,27 +303,32 @@ class CustomerForm(forms.ModelForm):
 
         if seg == 'b2c':
             cleaned['trn'] = ''
-            cleaned['trade_license_number'] = ''
+            if 'trade_license_number' in self.fields:
+                cleaned['trade_license_number'] = ''
         elif seg == 'b2b':
-            cleaned['trade_license_number'] = (cleaned.get('trade_license_number') or '').strip()
+            if 'trade_license_number' in self.fields:
+                cleaned['trade_license_number'] = (cleaned.get('trade_license_number') or '').strip()
             if self.data.get('trn_document-clear') in ('on', 'true', '1'):
                 cleaned['trn_document'] = False
             if self.data.get('trade_license_document-clear') in ('on', 'true', '1'):
                 cleaned['trade_license_document'] = False
 
-        if self.compact:
-            cleaned['country'] = cleaned.get('country') or 'United Arab Emirates'
-            cleaned['status'] = 'active' if cleaned.get('is_active') else 'inactive'
+        if ctype == 'customer' and 'lead_kanban_stage' in self.fields:
+            cleaned['lead_kanban_stage'] = None
 
         return cleaned
 
     def save(self, commit=True):
         instance = super().save(commit=False)
         if self.compact:
-            instance.country = self.cleaned_data.get('country') or 'United Arab Emirates'
-            instance.status = self.cleaned_data.get('status') or (
-                'active' if instance.is_active else 'inactive'
-            )
+            instance.country = instance.country or 'United Arab Emirates'
+            instance.status = 'active' if instance.is_active else 'inactive'
+            seg = (self.cleaned_data.get('business_segment') or '').strip().lower()
+            if seg == 'b2c':
+                instance.trade_license_number = ''
+            ctype = self._effective_customer_type()
+            if ctype == 'customer':
+                instance.lead_kanban_stage = None
         if commit:
             instance.save()
         return instance

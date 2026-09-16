@@ -116,7 +116,7 @@
                 message = validatePhoneFormat(input.value, b2b);
                 break;
             case 'email':
-                message = validateEmail(input.value, b2b);
+                message = validateEmail(input.value, false);
                 break;
             case 'website':
                 message = validateWebsite(input.value);
@@ -138,7 +138,7 @@
 
     function applyB2bRequirements(form) {
         if (!isB2bSegment(form)) {
-            ['email', 'phone'].forEach(function (name) {
+            ['phone'].forEach(function (name) {
                 var input = form.querySelector('[name="' + name + '"]');
                 if (input) setFieldValidity(input, '');
             });
@@ -146,7 +146,6 @@
         }
         var ok = true;
         var checks = [
-            ['email', 'Email is required for B2B accounts.'],
             ['phone', 'Contact is required for B2B accounts.'],
         ];
         checks.forEach(function (pair) {
@@ -196,7 +195,7 @@
         var typeSel = form.querySelector('[name="customer_type"]');
         var segSel = form.querySelector('[name="business_segment"]');
         function revalidateB2bFields() {
-            ['email', 'phone'].forEach(function (name) {
+            ['phone'].forEach(function (name) {
                 var input = form.querySelector('[name="' + name + '"]');
                 if (input) validateField(form, input);
             });

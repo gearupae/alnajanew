@@ -30,7 +30,7 @@
 
         var emailInput = container.querySelector('[name="email"]');
         var phoneInput = container.querySelector('[name="phone"]');
-        if (emailInput) emailInput.required = isB2b;
+        if (emailInput) emailInput.required = false;
         if (phoneInput) phoneInput.required = isB2b;
 
         container.querySelectorAll('.crm-b2b-required-star').forEach(function (el) {

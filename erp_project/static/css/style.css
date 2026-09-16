@@ -320,35 +320,6 @@ body {
     display: block;
 }
 
-.crm-customer-modal-backdrop {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.45);
-    z-index: 1040;
-}
-
-body.crm-customer-modal-open {
-    overflow: hidden;
-}
-
-body.crm-customer-modal-open .crm-customer-modal-backdrop {
-    display: block;
-}
-
-#customerForm.crm-customer-modal-panel.show {
-    display: block;
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 1050;
-    width: min(1100px, calc(100vw - 2rem));
-    max-height: calc(100vh - 2rem);
-    overflow: auto;
-    margin: 0;
-}
-
 /* Badges */
 .badge {
     padding: 0.375rem 0.625rem;

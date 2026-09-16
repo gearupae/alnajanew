@@ -42,7 +42,7 @@ Compact CRM customer / lead form fields (create & edit).
     </div>
 
     <div class="col-md-4">
-        <label class="form-label" for="{{ form.email.id_for_label }}">Email <span class="text-danger crm-b2b-required-star" style="display:none;">*</span></label>
+        <label class="form-label" for="{{ form.email.id_for_label }}">Email</label>
         {{ form.email }}
         {% for err in form.email.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
     </div>
