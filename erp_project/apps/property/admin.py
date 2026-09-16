@@ -42,21 +42,21 @@ class LeaseAdmin(admin.ModelAdmin):
 @admin.register(PDCCheque)
 class PDCChequeAdmin(admin.ModelAdmin):
     list_display = [
-        'pdc_number', 'cheque_number', 'bank_name', 'cheque_date', 
-        'amount', 'tenant', 'status', 'deposit_status'
+        'pdc_number', 'cheque_number', 'bank_name', 'cheque_date',
+        'amount', 'customer', 'status', 'deposit_status'
     ]
     list_filter = ['status', 'deposit_status', 'bank_name', 'purpose']
-    search_fields = ['pdc_number', 'cheque_number', 'tenant__name', 'bank_name']
+    search_fields = ['pdc_number', 'cheque_number', 'customer__name', 'bank_name']
     readonly_fields = ['pdc_number', 'created_at', 'updated_at']
     date_hierarchy = 'cheque_date'
-    
+
     fieldsets = (
         ('Cheque Details', {
-            'fields': ('pdc_number', 'cheque_number', 'bank_name', 'cheque_date', 
+            'fields': ('pdc_number', 'cheque_number', 'bank_name', 'cheque_date',
                       'amount', 'drawer_name', 'drawer_account')
         }),
-        ('Tenant & Lease', {
-            'fields': ('tenant', 'lease', 'purpose', 'payment_period_start', 'payment_period_end')
+        ('Customer & Project', {
+            'fields': ('customer', 'project', 'purpose')
         }),
         ('Status', {
             'fields': ('status', 'deposit_status')

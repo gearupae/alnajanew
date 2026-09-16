@@ -66,13 +66,11 @@
                         <div class="col-md-3"><h6 class="text-muted mb-2">Bank name</h6><p class="mb-0">{{ pdc.bank_name }}</p></div>
                         <div class="col-md-3"><h6 class="text-muted mb-2">Cheque date</h6><p class="mb-0">{{ pdc.cheque_date|date:"d/m/Y" }}</p></div>
                         <div class="col-md-3"><h6 class="text-muted mb-2">Amount</h6><p class="mb-0 fw-semibold">AED {{ pdc.amount|floatformat:2|intcomma }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Tenant</h6><p class="mb-0"><a href="{% url 'property:tenant_detail' pdc.tenant.pk %}">{{ pdc.tenant.name }}</a></p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Lease</h6><p class="mb-0">{% if pdc.lease %}<a href="{% url 'property:lease_detail' pdc.lease.pk %}">{{ pdc.lease.lease_number }}</a>{% else %}—{% endif %}</p></div>
+                        <div class="col-md-3"><h6 class="text-muted mb-2">Customer</h6><p class="mb-0"><a href="{% url 'crm:customer_detail' pdc.customer.pk %}">{{ pdc.customer.name }}</a></p></div>
+                        <div class="col-md-3"><h6 class="text-muted mb-2">Project</h6><p class="mb-0">{% if pdc.project %}<a href="{% url 'projects:project_detail' pdc.project.pk %}">{{ pdc.project.name }}</a>{% else %}—{% endif %}</p></div>
                         <div class="col-md-3"><h6 class="text-muted mb-2">Drawer name</h6><p class="mb-0">{{ pdc.drawer_name|default:"—" }}</p></div>
                         <div class="col-md-3"><h6 class="text-muted mb-2">Drawer account</h6><p class="mb-0">{{ pdc.drawer_account|default:"—" }}</p></div>
                         <div class="col-md-3"><h6 class="text-muted mb-2">Purpose</h6><p class="mb-0">{{ pdc.get_purpose_display }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Payment period start</h6><p class="mb-0">{% if pdc.payment_period_start %}{{ pdc.payment_period_start|date:"d/m/Y" }}{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Payment period end</h6><p class="mb-0">{% if pdc.payment_period_end %}{{ pdc.payment_period_end|date:"d/m/Y" }}{% else %}—{% endif %}</p></div>
                         <div class="col-md-3"><h6 class="text-muted mb-2">Status</h6><p class="mb-0">{{ pdc.get_status_display }}</p></div>
                         <div class="col-md-3"><h6 class="text-muted mb-2">Deposit status</h6><p class="mb-0">{{ pdc.get_deposit_status_display }}</p></div>
                         <div class="col-md-3"><h6 class="text-muted mb-2">Received date</h6><p class="mb-0">{{ pdc.received_date|date:"d/m/Y" }}</p></div>
@@ -133,38 +131,30 @@
                 </div>
             </div>
 
-            <!-- Tenant & Lease -->
+            <!-- Customer & Project -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
-                    <h5 class="mb-0"><i class="fas fa-user me-2 text-primary"></i>Tenant & Lease</h5>
+                    <h5 class="mb-0"><i class="fas fa-user me-2 text-primary"></i>Customer &amp; Project</h5>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="text-muted small">Tenant</label>
+                            <label class="text-muted small">Customer</label>
                             <p class="mb-0">
-                                <a href="{% url 'property:tenant_detail' pdc.tenant.pk %}">{{ pdc.tenant.name }}</a>
+                                <a href="{% url 'crm:customer_detail' pdc.customer.pk %}">{{ pdc.customer.name }}</a>
                             </p>
                         </div>
                         <div class="col-md-6">
-                            <label class="text-muted small">Lease</label>
+                            <label class="text-muted small">Project</label>
                             <p class="mb-0">
-                                {% if pdc.lease %}
-                                <a href="{% url 'property:lease_detail' pdc.lease.pk %}">{{ pdc.lease.lease_number }}</a>
+                                {% if pdc.project %}
+                                <a href="{% url 'projects:project_detail' pdc.project.pk %}">{{ pdc.project.name }}</a>
                                 {% else %}-{% endif %}
                             </p>
                         </div>
                         <div class="col-md-4">
                             <label class="text-muted small">Purpose</label>
                             <p class="mb-0">{{ pdc.get_purpose_display }}</p>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="text-muted small">Period Start</label>
-                            <p class="mb-0">{{ pdc.payment_period_start|date:"d M Y"|default:"-" }}</p>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="text-muted small">Period End</label>
-                            <p class="mb-0">{{ pdc.payment_period_end|date:"d M Y"|default:"-" }}</p>
                         </div>
                     </div>
                 </div>
@@ -339,12 +329,12 @@
             </div>
             {% endif %}
 
-            <!-- Related PDCs (same cheque different tenant) -->
-            {% with similar_pdcs=pdc.tenant.pdc_cheques.all|slice:":5" %}
+            <!-- Related PDCs (same customer) -->
+            {% with similar_pdcs=pdc.customer.pdc_cheques.all|slice:":5" %}
             {% if similar_pdcs %}
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white">
-                    <h6 class="mb-0">Other PDCs - {{ pdc.tenant.name }}</h6>
+                    <h6 class="mb-0">Other PDCs - {{ pdc.customer.name }}</h6>
                 </div>
                 <div class="card-body p-0">
                     <ul class="list-group list-group-flush">
@@ -447,7 +437,7 @@
                 <div class="modal-body">
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        This will restore the AR balance for {{ pdc.tenant.name }}.
+                        This will restore the AR balance for {{ pdc.customer.name }}.
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Bounce Date</label>
@@ -472,7 +462,7 @@
                             <span class="input-group-text">AED</span>
                             <input type="number" name="bounce_charges" class="form-control" step="0.01" value="0.00">
                         </div>
-                        <small class="text-muted">Charges will be added to tenant's AR</small>
+                        <small class="text-muted">Charges will be added to customer's AR</small>
                     </div>
                 </div>
                 <div class="modal-footer">

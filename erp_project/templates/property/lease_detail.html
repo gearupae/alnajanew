@@ -15,10 +15,7 @@
         <h4 class="mb-0 fw-bold">Lease {{ lease.lease_number }}</h4>
     </div>
     <div>
-        <a href="{% url 'property:bulk_pdc_create' %}?lease={{ lease.pk }}" class="btn btn-primary">
-            <i class="fas fa-plus me-1"></i> Create PDCs
-        </a>
-        <a href="{% url 'property:lease_update' lease.pk %}" class="btn btn-outline-primary ms-2">
+        <a href="{% url 'property:lease_update' lease.pk %}" class="btn btn-outline-primary">
             <i class="fas fa-edit me-1"></i> Edit
         </a>
     </div>

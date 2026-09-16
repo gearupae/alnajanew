@@ -5,6 +5,9 @@ from django import forms
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 
+from apps.crm.models import Customer
+from apps.projects.models import Project
+
 from .models import (
     Property, Unit, Tenant, Lease, PDCCheque,
     PDCAllocation, PDCAllocationLine,
@@ -148,29 +151,26 @@ class PDCChequeForm(forms.ModelForm):
     class Meta:
         model = PDCCheque
         fields = [
-            'is_active', 'tenant', 'lease', 'cheque_number', 'bank_name', 'cheque_date',
-            'amount', 'drawer_name', 'drawer_account', 'purpose',
-            'payment_period_start', 'payment_period_end', 'notes',
+            'is_active', 'customer', 'project', 'cheque_number', 'bank_name', 'cheque_date',
+            'amount', 'drawer_name', 'drawer_account', 'purpose', 'notes',
         ]
         widgets = {
             'cheque_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'payment_period_start': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'payment_period_end': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         _apply_is_active_checkbox(self)
-        self.fields['tenant'].queryset = Tenant.objects.filter(is_active=True).order_by('name')
-        self.fields['lease'].queryset = Lease.objects.filter(is_active=True).select_related('tenant').order_by('-start_date')
-        self.fields['lease'].required = False
+        self.fields['customer'].queryset = Customer.objects.filter(is_active=True).order_by('name')
+        self.fields['project'].queryset = Project.objects.filter(is_active=True).select_related('customer').order_by('-created_at')
+        self.fields['project'].required = False
         for name, field in self.fields.items():
             if name == 'is_active':
                 continue
             if name in self.Meta.widgets:
                 continue
-            field.widget.attrs['class'] = 'form-select' if name in ('tenant', 'lease', 'purpose') else 'form-control'
+            field.widget.attrs['class'] = 'form-select' if name in ('customer', 'project', 'purpose') else 'form-control'
 
     def clean(self):
         cleaned = _clean_is_active(self, super().clean())
@@ -178,22 +178,22 @@ class PDCChequeForm(forms.ModelForm):
         bank_name = cleaned.get('bank_name')
         cheque_date = cleaned.get('cheque_date')
         amount = cleaned.get('amount')
-        tenant = cleaned.get('tenant')
+        customer = cleaned.get('customer')
 
-        if cheque_number and bank_name and cheque_date and amount and tenant:
+        if cheque_number and bank_name and cheque_date and amount and customer:
             existing = PDCCheque.objects.filter(
                 cheque_number=cheque_number,
                 bank_name=bank_name,
                 cheque_date=cheque_date,
                 amount=amount,
-                tenant=tenant,
+                customer=customer,
                 is_active=True,
             )
             if self.instance.pk:
                 existing = existing.exclude(pk=self.instance.pk)
             if existing.exists():
                 raise ValidationError(
-                    'A PDC with the same cheque number, bank, date, amount, and tenant already exists.'
+                    'A PDC with the same cheque number, bank, date, amount, and customer already exists.'
                 )
         return cleaned
 
@@ -314,29 +314,6 @@ class BankStatementMatchForm(forms.Form):
     )
 
 
-class BulkPDCForm(forms.Form):
-    lease = forms.ModelChoiceField(
-        queryset=Lease.objects.filter(is_active=True, status='active'),
-        label='Select Lease',
-    )
-    bank_name = forms.CharField(max_length=200)
-    first_cheque_number = forms.CharField(max_length=50)
-    drawer_name = forms.CharField(max_length=200, required=False)
-    drawer_account = forms.CharField(max_length=50, required=False)
-    notes = forms.CharField(
-        widget=forms.Textarea(attrs={'rows': 2}),
-        required=False,
-    )
-
-    def clean_first_cheque_number(self):
-        value = self.cleaned_data['first_cheque_number']
-        try:
-            int(value)
-        except ValueError:
-            raise ValidationError('First cheque number must be numeric for auto-increment.')
-        return value
-
-
 class RentInvoiceForm(forms.ModelForm):
     class Meta:
         model = RentInvoice
@@ -361,7 +338,7 @@ class RentInvoiceForm(forms.ModelForm):
         self.fields['lease'].required = False
         self.fields['unit'].required = False
         self.fields['pdc'].required = False
-        self.fields['pdc'].queryset = PDCCheque.objects.filter(is_active=True).select_related('tenant')
+        self.fields['pdc'].queryset = PDCCheque.objects.filter(is_active=True).select_related('customer')
         for name, field in self.fields.items():
             if name in self.Meta.widgets:
                 continue

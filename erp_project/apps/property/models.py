@@ -257,23 +257,23 @@ class Lease(BaseModel):
 
 class PDCCheque(BaseModel):
     """
-    Post-Dated Cheque (PDC) with composite uniqueness.
-    
+    Incoming (Post-Dated) Cheque received from a customer.
+
     UNIQUE IDENTIFICATION (Composite):
     - Cheque Number
     - Bank Name
     - Cheque Date
     - Amount
-    - Tenant ID
-    
-    This allows same cheque number/amount/bank for DIFFERENT tenants.
+    - Customer ID
+
+    This allows the same cheque number/amount/bank for DIFFERENT customers.
     """
     STATUS_CHOICES = [
         ('received', 'Received'),
         ('deposited', 'Deposited'),
         ('cleared', 'Cleared'),
         ('bounced', 'Bounced'),
-        ('returned', 'Returned to Tenant'),
+        ('returned', 'Returned to Customer'),
         ('replaced', 'Replaced'),
         ('cancelled', 'Cancelled'),
     ]
@@ -292,25 +292,28 @@ class PDCCheque(BaseModel):
     bank_name = models.CharField(max_length=200)
     cheque_date = models.DateField(help_text='Post-dated cheque date')
     amount = models.DecimalField(max_digits=15, decimal_places=2)
-    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name='pdc_cheques')
-    
+    customer = models.ForeignKey('crm.Customer', on_delete=models.PROTECT, related_name='pdc_cheques')
+
     # Additional cheque info
     drawer_name = models.CharField(max_length=200, blank=True, help_text='Name on cheque')
     drawer_account = models.CharField(max_length=50, blank=True)
-    
-    # Link to lease
-    lease = models.ForeignKey(Lease, on_delete=models.SET_NULL, null=True, blank=True, related_name='pdc_cheques')
-    
+
+    # Link to project (optional)
+    project = models.ForeignKey(
+        'projects.Project', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pdc_cheques',
+        help_text='Project this cheque relates to (optional)',
+    )
+
     # Purpose
     purpose = models.CharField(max_length=50, choices=[
-        ('rent', 'Rent Payment'),
+        ('invoice_payment', 'Invoice Payment'),
+        ('advance', 'Customer Advance'),
+        ('retention', 'Retention Release'),
         ('security_deposit', 'Security Deposit'),
-        ('maintenance', 'Maintenance Fee'),
         ('other', 'Other'),
-    ], default='rent')
-    payment_period_start = models.DateField(null=True, blank=True, help_text='Rent period start date')
-    payment_period_end = models.DateField(null=True, blank=True, help_text='Rent period end date')
-    
+    ], default='invoice_payment')
+
     # Status tracking
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='received')
     deposit_status = models.CharField(max_length=20, choices=DEPOSIT_STATUS_CHOICES, default='pending')
@@ -398,16 +401,16 @@ class PDCCheque(BaseModel):
     
     class Meta:
         ordering = ['cheque_date']
-        # Composite uniqueness - allows same cheque number for different tenants
+        # Composite uniqueness - allows same cheque number for different customers
         constraints = [
             models.UniqueConstraint(
-                fields=['cheque_number', 'bank_name', 'cheque_date', 'amount', 'tenant'],
+                fields=['cheque_number', 'bank_name', 'cheque_date', 'amount', 'customer'],
                 name='unique_pdc_identification'
             )
         ]
-    
+
     def __str__(self):
-        return f"PDC {self.pdc_number} - {self.cheque_number} ({self.tenant.name})"
+        return f"PDC {self.pdc_number} - {self.cheque_number} ({self.customer.name})"
     
     def save(self, *args, **kwargs):
         if not self.pdc_number:
@@ -426,12 +429,12 @@ class PDCCheque(BaseModel):
     
     def post_received_journal(self, user):
         """
-        Post journal when PDC is received from tenant.
+        Post journal when the incoming cheque is received from a customer.
         Immediately recognizes the cheque as a current asset and clears AR.
 
         Journal Entry:
         Dr PDC Receivable (1210)
-        Cr Trade Debtors / Tenant AR
+        Cr Accounts Receivable (1200 control)
         """
         from apps.finance.models import JournalEntry, JournalEntryLine, AccountMapping, FiscalYear
 
@@ -447,14 +450,17 @@ class PDCCheque(BaseModel):
                 "Expected account 1210 or set up 'pdc_control' in Finance → Account Mapping."
             )
 
-        ar_account = self.tenant.ar_account
+        ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
         if not ar_account:
-            raise ValidationError(f'Tenant {self.tenant.name} does not have AR account configured.')
+            raise ValidationError(
+                'Accounts Receivable control account not configured. '
+                "Expected account 1200 or set up 'sales_invoice_receivable' in Finance → Account Mapping."
+            )
 
         journal = JournalEntry.objects.create(
             date=self.received_date or date.today(),
             reference=f"PDC Received - {self.cheque_number}",
-            description=f"PDC received from {self.tenant.name} - Cheque: {self.cheque_number}",
+            description=f"PDC received from {self.customer.name} - Cheque: {self.cheque_number}",
             source_module='pdc',
             entry_type='standard',
             status='draft',
@@ -466,7 +472,7 @@ class PDCCheque(BaseModel):
             account=pdc_receivable,
             debit=self.amount,
             credit=Decimal('0.00'),
-            description=f"PDC {self.cheque_number} from {self.tenant.name}",
+            description=f"PDC {self.cheque_number} from {self.customer.name}",
         )
 
         JournalEntryLine.objects.create(
@@ -536,7 +542,7 @@ class PDCCheque(BaseModel):
         journal = JournalEntry.objects.create(
             date=clearing_date,
             reference=f"PDC Cleared - {self.cheque_number}",
-            description=f"PDC cleared for {self.tenant.name} - Cheque: {self.cheque_number}",
+            description=f"PDC cleared for {self.customer.name} - Cheque: {self.cheque_number}",
             source_module='pdc',
             entry_type='standard',
             status='draft',
@@ -569,20 +575,17 @@ class PDCCheque(BaseModel):
         self.journal_entry = journal
         self.save()
 
-        for invoice in self.rent_invoices.filter(status__in=['posted', 'partial'], is_active=True):
-            invoice.apply_payment(min(self.amount, invoice.balance))
-
         return journal
-    
+
     def bounce(self, user, bounce_date=None, bounce_reason='', bounce_charges=Decimal('0.00')):
         """
         Mark PDC as bounced. Reverses the receipt entry and, if cleared, the clearing entry.
 
         Net effect:
-        - If deposited (not yet cleared): Dr Tenant AR, Cr PDC Receivable (1210)
-        - If cleared: Dr Tenant AR, Cr Bank
+        - If deposited (not yet cleared): Dr Customer AR, Cr PDC Receivable (1210)
+        - If cleared: Dr Customer AR, Cr Bank
 
-        Optional bounce charges: Dr Bounce Expense (6800), Cr Tenant AR
+        Optional bounce charges: Dr Customer AR, Cr Bounce Charges Income
         """
         from apps.finance.models import JournalEntry, JournalEntryLine, Account, AccountMapping, FiscalYear
 
@@ -594,9 +597,12 @@ class PDCCheque(BaseModel):
 
         FiscalYear.validate_posting_allowed(bounce_date)
 
-        ar_account = self.tenant.ar_account
+        ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
         if not ar_account:
-            raise ValidationError(f'Tenant {self.tenant.name} does not have AR account configured.')
+            raise ValidationError(
+                'Accounts Receivable control account not configured. '
+                "Expected account 1200 or set up 'sales_invoice_receivable' in Finance → Account Mapping."
+            )
 
         if self.status == 'cleared':
             credit_account = self.deposited_to_bank.gl_account
@@ -612,7 +618,7 @@ class PDCCheque(BaseModel):
         journal = JournalEntry.objects.create(
             date=bounce_date,
             reference=f"PDC Bounce - {self.cheque_number}",
-            description=f"Cheque bounced for {self.tenant.name} - Reason: {bounce_reason}",
+            description=f"Cheque bounced for {self.customer.name} - Reason: {bounce_reason}",
             source_module='pdc',
             entry_type='reversal',
             status='draft',

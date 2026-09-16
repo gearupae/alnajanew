@@ -7,7 +7,7 @@
 <div class="page-header d-flex justify-content-between align-items-center">
     <div>
         <h4 class="mb-1 fw-bold">PDC Register</h4>
-        <p class="text-muted mb-0">Tenant-wise PDC cheque register with status tracking</p>
+        <p class="text-muted mb-0">Customer-wise incoming cheque register with status tracking</p>
     </div>
     <div>
         <button class="btn btn-outline-secondary" onclick="window.print()">
@@ -21,12 +21,12 @@
     <div class="card-body py-3">
         <form method="get" class="row g-3 align-items-end">
             <div class="col-md-3">
-                <label class="form-label small text-muted">Tenant</label>
-                <select name="tenant" class="form-select">
-                    <option value="">All Tenants</option>
-                    {% for tenant in tenants %}
-                    <option value="{{ tenant.pk }}" {% if filters.tenant == tenant.pk|stringformat:"i" %}selected{% endif %}>
-                        {{ tenant.name }}
+                <label class="form-label small text-muted">Customer</label>
+                <select name="customer" class="form-select">
+                    <option value="">All Customers</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.pk }}" {% if filters.customer == customer.pk|stringformat:"i" %}selected{% endif %}>
+                        {{ customer.name }}
                     </option>
                     {% endfor %}
                 </select>
@@ -59,16 +59,16 @@
 </div>
 
 <!-- Report Content -->
-{% for tenant_name, data in tenant_data.items %}
+{% for customer_name, data in customer_data.items %}
 <div class="card mb-4">
     <div class="card-header bg-white d-flex justify-content-between align-items-center">
         <div>
             <h5 class="mb-0">
-                <a href="{% url 'property:tenant_detail' data.tenant.pk %}" class="text-decoration-none">
-                    {{ tenant_name }}
+                <a href="{% url 'crm:customer_detail' data.customer.pk %}" class="text-decoration-none">
+                    {{ customer_name }}
                 </a>
             </h5>
-            <small class="text-muted">{{ data.tenant.tenant_number }}</small>
+            <small class="text-muted">{{ data.customer.customer_number }}</small>
         </div>
         <div class="text-end">
             <span class="badge bg-primary">Total: AED {{ data.total_amount|floatformat:2|intcomma }}</span>

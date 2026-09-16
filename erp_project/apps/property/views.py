@@ -18,6 +18,7 @@ from datetime import date, timedelta
 import json
 
 from apps.core.mixins import CreatePermissionMixin, UpdatePermissionMixin
+from apps.crm.models import Customer
 from .models import (
     Property, Unit, Tenant, Lease, PDCCheque,
     PDCAllocation, PDCAllocationLine, PDCBankMatch, AmbiguousMatchLog,
@@ -26,7 +27,7 @@ from .models import (
 from .forms import (
     PropertyForm, UnitForm, TenantForm, LeaseForm, PDCChequeForm,
     PDCDepositForm, PDCClearForm, PDCBounceForm, PDCAllocationForm,
-    PDCAllocationLineForm, BankStatementMatchForm, BulkPDCForm,
+    PDCAllocationLineForm, BankStatementMatchForm,
     RentInvoiceForm, SecurityDepositReceiveForm, SecurityDepositRefundForm,
 )
 from .property_billing import (
@@ -401,21 +402,21 @@ class PDCListView(LoginRequiredMixin, ListView):
     paginate_by = 30
     
     def get_queryset(self):
-        queryset = PDCCheque.objects.filter(is_active=True).select_related('tenant', 'lease', 'deposited_to_bank')
-        
+        queryset = PDCCheque.objects.filter(is_active=True).select_related('customer', 'project', 'deposited_to_bank')
+
         # Filters
         search = self.request.GET.get('search', '')
         status = self.request.GET.get('status', '')
-        tenant_id = self.request.GET.get('tenant', '')
+        customer_id = self.request.GET.get('customer', '')
         date_from = self.request.GET.get('date_from', '')
         date_to = self.request.GET.get('date_to', '')
-        
+
         if search:
             # Try to search by amount if search is numeric
             search_filter = (
                 Q(pdc_number__icontains=search) |
                 Q(cheque_number__icontains=search) |
-                Q(tenant__name__icontains=search) |
+                Q(customer__name__icontains=search) |
                 Q(bank_name__icontains=search)
             )
             try:
@@ -427,8 +428,8 @@ class PDCListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(search_filter)
         if status:
             queryset = queryset.filter(status=status)
-        if tenant_id:
-            queryset = queryset.filter(tenant_id=tenant_id)
+        if customer_id:
+            queryset = queryset.filter(customer_id=customer_id)
         if date_from:
             queryset = queryset.filter(cheque_date__gte=date_from)
         if date_to:
@@ -466,10 +467,10 @@ class PDCListView(LoginRequiredMixin, ListView):
             cheque_date__lte=date.today()
         ).count()
         
-        context['tenants'] = Tenant.objects.filter(is_active=True)
+        context['customers'] = Customer.objects.filter(is_active=True).order_by('name')
         context['status_choices'] = PDCCheque.STATUS_CHOICES
         context['today'] = date.today()
-        
+
         return context
 
 
@@ -481,11 +482,11 @@ class PDCCreateView(LoginRequiredMixin, CreateView):
     
     def post(self, request, *args, **kwargs):
         """Handle inline form submission from list page."""
-        tenant_id = request.POST.get('tenant', '')
-        if not tenant_id:
-            messages.error(request, 'Tenant is required.')
+        customer_id = request.POST.get('customer', '')
+        if not customer_id:
+            messages.error(request, 'Customer is required.')
             return redirect('property:pdc_list')
-        
+
         cheque_number = request.POST.get('cheque_number', '').strip()
         if not cheque_number:
             messages.error(request, 'Cheque number is required.')
@@ -507,25 +508,25 @@ class PDCCreateView(LoginRequiredMixin, CreateView):
             return redirect('property:pdc_list')
         
         try:
-            tenant = Tenant.objects.get(pk=tenant_id, is_active=True)
+            customer = Customer.objects.get(pk=customer_id, is_active=True)
             with transaction.atomic():
                 pdc = PDCCheque.objects.create(
-                    tenant=tenant,
+                    customer=customer,
                     is_active='is_active' in request.POST,
                     cheque_number=cheque_number,
                     bank_name=bank_name,
                     cheque_date=cheque_date,
                     amount=Decimal(amount),
-                    drawer_name=request.POST.get('drawer_name', tenant.name),
-                    purpose=request.POST.get('purpose', 'rent'),
+                    drawer_name=request.POST.get('drawer_name', customer.name),
+                    purpose=request.POST.get('purpose', 'invoice_payment'),
                     received_by=request.user,
                     created_by=request.user
                 )
                 journal = pdc.post_received_journal(request.user)
             messages.success(request, f'PDC {pdc.pdc_number} created. Journal: {journal.entry_number}')
             return redirect('property:pdc_detail', pk=pdc.pk)
-        except Tenant.DoesNotExist:
-            messages.error(request, 'Selected tenant not found.')
+        except Customer.DoesNotExist:
+            messages.error(request, 'Selected customer not found.')
         except Exception as e:
             messages.error(request, f'Error creating PDC: {str(e)}')
 
@@ -548,7 +549,7 @@ class PDCDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return PDCCheque.objects.select_related(
-            'tenant', 'lease', 'deposited_to_bank', 'received_by', 'deposited_by',
+            'customer', 'project', 'deposited_to_bank', 'received_by', 'deposited_by',
             'reconciled_by', 'journal_entry', 'pdc_control_journal', 'bounce_journal',
             'replaced_by', 'bank_statement_line',
         )
@@ -635,82 +636,6 @@ def pdc_bounce(request, pk):
     
     return redirect('property:pdc_detail', pk=pk)
 
-
-@login_required
-def bulk_pdc_create(request):
-    """Create multiple PDCs from a lease."""
-    if request.method == 'POST':
-        form = BulkPDCForm(request.POST)
-        if form.is_valid():
-            lease = form.cleaned_data['lease']
-            bank_name = form.cleaned_data['bank_name']
-            first_cheque = int(form.cleaned_data['first_cheque_number'])
-            drawer_name = form.cleaned_data.get('drawer_name', lease.tenant.name)
-            drawer_account = form.cleaned_data.get('drawer_account', '')
-            notes = form.cleaned_data.get('notes', '')
-            
-            # Calculate payment amounts and dates
-            payment_amount = lease.payment_amount
-            num_payments = lease.number_of_cheques
-            
-            # Determine payment interval
-            if lease.payment_frequency == 'monthly':
-                interval_months = 1
-            elif lease.payment_frequency == 'quarterly':
-                interval_months = 3
-            elif lease.payment_frequency == 'semi_annual':
-                interval_months = 6
-            else:  # annual
-                interval_months = 12
-            
-            created_pdcs = []
-            current_date = lease.start_date
-            
-            try:
-                with transaction.atomic():
-                    for i in range(num_payments):
-                        cheque_number = str(first_cheque + i)
-                        
-                        # Calculate period
-                        period_start = current_date
-                        next_date = current_date + timedelta(days=interval_months * 30)
-                        period_end = next_date - timedelta(days=1)
-                        
-                        pdc = PDCCheque.objects.create(
-                            tenant=lease.tenant,
-                            lease=lease,
-                            cheque_number=cheque_number,
-                            bank_name=bank_name,
-                            cheque_date=current_date,
-                            amount=payment_amount,
-                            drawer_name=drawer_name,
-                            drawer_account=drawer_account,
-                            purpose='rent',
-                            payment_period_start=period_start,
-                            payment_period_end=period_end,
-                            received_by=request.user,
-                            notes=notes,
-                            created_by=request.user
-                        )
-                        pdc.post_received_journal(request.user)
-                        created_pdcs.append(pdc)
-                        current_date = next_date
-                    
-                    messages.success(request, f'{len(created_pdcs)} PDCs created successfully for {lease.tenant.name}')
-                    return redirect('property:lease_detail', pk=lease.pk)
-            except Exception as e:
-                messages.error(request, f'Error creating PDCs: {str(e)}')
-    else:
-        initial = {}
-        lease_id = request.GET.get('lease')
-        if lease_id:
-            try:
-                initial['lease'] = Lease.objects.get(pk=lease_id, is_active=True)
-            except Lease.DoesNotExist:
-                pass
-        form = BulkPDCForm(initial=initial)
-    
-    return render(request, 'property/bulk_pdc_form.html', {'form': form})
 
 
 # =============================================================================
@@ -1119,54 +1044,54 @@ def pdc_manual_allocation(request, line_id):
 
 @login_required
 def pdc_register_report(request):
-    """PDC Register Report - Tenant-wise."""
-    tenant_id = request.GET.get('tenant', '')
+    """Incoming Cheque Register - Customer-wise."""
+    customer_id = request.GET.get('customer', '')
     status = request.GET.get('status', '')
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
-    
-    pdcs = PDCCheque.objects.filter(is_active=True).select_related('tenant', 'lease', 'deposited_to_bank')
-    
-    if tenant_id:
-        pdcs = pdcs.filter(tenant_id=tenant_id)
+
+    pdcs = PDCCheque.objects.filter(is_active=True).select_related('customer', 'project', 'deposited_to_bank')
+
+    if customer_id:
+        pdcs = pdcs.filter(customer_id=customer_id)
     if status:
         pdcs = pdcs.filter(status=status)
     if date_from:
         pdcs = pdcs.filter(cheque_date__gte=date_from)
     if date_to:
         pdcs = pdcs.filter(cheque_date__lte=date_to)
-    
-    # Group by tenant
-    tenant_data = {}
-    for pdc in pdcs.order_by('tenant__name', 'cheque_date'):
-        tenant_name = pdc.tenant.name
-        if tenant_name not in tenant_data:
-            tenant_data[tenant_name] = {
-                'tenant': pdc.tenant,
+
+    # Group by customer
+    customer_data = {}
+    for pdc in pdcs.order_by('customer__name', 'cheque_date'):
+        customer_name = pdc.customer.name
+        if customer_name not in customer_data:
+            customer_data[customer_name] = {
+                'customer': pdc.customer,
                 'pdcs': [],
                 'total_amount': Decimal('0.00'),
                 'cleared_amount': Decimal('0.00'),
                 'pending_amount': Decimal('0.00'),
             }
-        tenant_data[tenant_name]['pdcs'].append(pdc)
-        tenant_data[tenant_name]['total_amount'] += pdc.amount
+        customer_data[customer_name]['pdcs'].append(pdc)
+        customer_data[customer_name]['total_amount'] += pdc.amount
         if pdc.status == 'cleared':
-            tenant_data[tenant_name]['cleared_amount'] += pdc.amount
+            customer_data[customer_name]['cleared_amount'] += pdc.amount
         elif pdc.status in ['received', 'deposited']:
-            tenant_data[tenant_name]['pending_amount'] += pdc.amount
-    
+            customer_data[customer_name]['pending_amount'] += pdc.amount
+
     context = {
-        'tenant_data': tenant_data,
-        'tenants': Tenant.objects.filter(is_active=True),
+        'customer_data': customer_data,
+        'customers': Customer.objects.filter(is_active=True).order_by('name'),
         'status_choices': PDCCheque.STATUS_CHOICES,
         'filters': {
-            'tenant': tenant_id,
+            'customer': customer_id,
             'status': status,
             'date_from': date_from,
             'date_to': date_to,
         }
     }
-    
+
     return render(request, 'property/reports/pdc_register.html', context)
 
 
@@ -1177,7 +1102,7 @@ def pdc_outstanding_report(request):
     outstanding = PDCCheque.objects.filter(
         is_active=True,
         status__in=['received', 'deposited']
-    ).select_related('tenant', 'lease')
+    ).select_related('customer', 'project')
     
     # Group by month
     monthly_data = {}
@@ -1241,7 +1166,7 @@ def bank_reconciliation_exceptions_report(request):
         status='deposited',
         deposit_status='in_clearing',
         deposited_date__lt=seven_days_ago
-    ).select_related('tenant')
+    ).select_related('customer')
     
     context = {
         'ambiguous_matches': ambiguous,
@@ -1281,11 +1206,8 @@ def tenant_ledger_report(request, tenant_id):
     """Tenant Ledger with Cheque-level drill-down."""
     tenant = get_object_or_404(Tenant, pk=tenant_id, is_active=True)
     
-    # Get all PDCs for this tenant
-    pdcs = PDCCheque.objects.filter(
-        tenant=tenant,
-        is_active=True
-    ).order_by('cheque_date')
+    # Incoming cheques are no longer tenant-linked (customer/project based)
+    pdcs = PDCCheque.objects.none()
     
     # Get all journal entries for tenant AR account
     journal_entries = []
@@ -1342,25 +1264,25 @@ def api_pdc_search(request):
         is_active=True,
         status='deposited',
         deposit_status='in_clearing'
-    ).select_related('tenant')
-    
+    ).select_related('customer')
+
     if query:
         pdcs = pdcs.filter(
             Q(cheque_number__icontains=query) |
-            Q(tenant__name__icontains=query) |
+            Q(customer__name__icontains=query) |
             Q(pdc_number__icontains=query)
         )
-    
+
     if bank_id:
         pdcs = pdcs.filter(deposited_to_bank_id=bank_id)
-    
+
     results = [{
         'id': pdc.pk,
         'pdc_number': pdc.pdc_number,
         'cheque_number': pdc.cheque_number,
         'amount': str(pdc.amount),
         'cheque_date': str(pdc.cheque_date),
-        'tenant_name': pdc.tenant.name,
+        'customer_name': pdc.customer.name,
         'bank_name': pdc.bank_name,
     } for pdc in pdcs[:20]]
     
@@ -1374,44 +1296,44 @@ def api_validate_pdc_uniqueness(request):
     bank_name = request.GET.get('bank_name', '')
     cheque_date = request.GET.get('cheque_date', '')
     amount = request.GET.get('amount', '')
-    tenant_id = request.GET.get('tenant_id', '')
+    customer_id = request.GET.get('customer_id', '')
     pdc_id = request.GET.get('pdc_id', '')  # For edit mode
-    
-    if not all([cheque_number, bank_name, cheque_date, amount, tenant_id]):
+
+    if not all([cheque_number, bank_name, cheque_date, amount, customer_id]):
         return JsonResponse({'valid': True, 'message': 'Incomplete data'})
-    
+
     existing = PDCCheque.objects.filter(
         cheque_number=cheque_number,
         bank_name=bank_name,
         cheque_date=cheque_date,
         amount=amount,
-        tenant_id=tenant_id,
+        customer_id=customer_id,
         is_active=True
     )
-    
+
     if pdc_id:
         existing = existing.exclude(pk=pdc_id)
-    
+
     if existing.exists():
         return JsonResponse({
             'valid': False,
-            'message': 'A PDC with the same cheque number, bank, date, amount, and tenant already exists.'
+            'message': 'A PDC with the same cheque number, bank, date, amount, and customer already exists.'
         })
-    
-    # Check if same cheque exists for different tenant (allowed but warn)
+
+    # Check if same cheque exists for a different customer (allowed but warn)
     similar = PDCCheque.objects.filter(
         cheque_number=cheque_number,
         bank_name=bank_name,
         amount=amount,
         is_active=True
-    ).exclude(tenant_id=tenant_id)
-    
+    ).exclude(customer_id=customer_id)
+
     if similar.exists():
-        tenant_names = ', '.join([p.tenant.name for p in similar[:3]])
+        customer_names = ', '.join([p.customer.name for p in similar[:3]])
         return JsonResponse({
             'valid': True,
-            'warning': f'Similar cheque exists for other tenants: {tenant_names}'
+            'warning': f'Similar cheque exists for other customers: {customer_names}'
         })
-    
+
     return JsonResponse({'valid': True})
 

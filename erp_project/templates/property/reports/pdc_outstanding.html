@@ -144,7 +144,7 @@
                         <th>PDC No</th>
                         <th>Cheque No</th>
                         <th>Cheque Date</th>
-                        <th>Tenant</th>
+                        <th>Customer</th>
                         <th class="text-end">Amount</th>
                         <th>Status</th>
                     </tr>
@@ -159,7 +159,7 @@
                         </td>
                         <td>{{ pdc.cheque_number }}</td>
                         <td>{{ pdc.cheque_date|date:"d M Y" }}</td>
-                        <td>{{ pdc.tenant.name }}</td>
+                        <td>{{ pdc.customer.name }}</td>
                         <td class="text-end">{{ pdc.amount|floatformat:2|intcomma }}</td>
                         <td>
                             {% if pdc.status == 'received' %}

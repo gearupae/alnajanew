@@ -142,7 +142,7 @@
                             <br>
                             <small class="text-muted">
                                 {% for pdc in item.matches|slice:":3" %}
-                                {{ pdc.tenant.name|truncatechars:15 }}{% if not forloop.last %}, {% endif %}
+                                {{ pdc.customer.name|truncatechars:15 }}{% if not forloop.last %}, {% endif %}
                                 {% endfor %}
                                 {% if item.matches|length > 3 %}...{% endif %}
                             </small>
@@ -194,7 +194,7 @@
                         </td>
                         <td>
                             {% for pdc in item.matches %}
-                            {{ pdc.tenant.name }}{% if not forloop.last %}, {% endif %}
+                            {{ pdc.customer.name }}{% if not forloop.last %}, {% endif %}
                             {% endfor %}
                         </td>
                     </tr>

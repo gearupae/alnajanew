@@ -40,12 +40,12 @@
 
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <label class="form-label">Tenant <span class="text-danger">*</span></label>
-                                {{ form.tenant }}
+                                <label class="form-label">Customer <span class="text-danger">*</span></label>
+                                {{ form.customer }}
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Lease</label>
-                                {{ form.lease }}
+                                <label class="form-label">Project</label>
+                                {{ form.project }}
                             </div>
                         </div>
 
@@ -82,19 +82,11 @@
                         </div>
 
                         <h6 class="border-bottom pb-2 mb-3">Payment Details</h6>
-                        
+
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 <label class="form-label">Purpose</label>
                                 {{ form.purpose }}
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Period Start</label>
-                                {{ form.payment_period_start }}
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Period End</label>
-                                {{ form.payment_period_end }}
                             </div>
                         </div>
 
@@ -130,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const bankName = form.querySelector('[name="bank_name"]');
     const chequeDate = form.querySelector('[name="cheque_date"]');
     const amount = form.querySelector('[name="amount"]');
-    const tenant = form.querySelector('[name="tenant"]');
+    const customer = form.querySelector('[name="customer"]');
     const alert = document.getElementById('uniquenessAlert');
     const message = document.getElementById('uniquenessMessage');
     
@@ -139,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateUniqueness() {
         clearTimeout(timeout);
         timeout = setTimeout(async function() {
-            if (!chequeNumber.value || !bankName.value || !chequeDate.value || !amount.value || !tenant.value) {
+            if (!chequeNumber.value || !bankName.value || !chequeDate.value || !amount.value || !customer.value) {
                 alert.classList.add('d-none');
                 return;
             }
@@ -151,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     `&bank_name=${encodeURIComponent(bankName.value)}` +
                     `&cheque_date=${encodeURIComponent(chequeDate.value)}` +
                     `&amount=${encodeURIComponent(amount.value)}` +
-                    `&tenant_id=${encodeURIComponent(tenant.value)}`
+                    `&customer_id=${encodeURIComponent(customer.value)}`
                 );
                 const data = await response.json();
                 
@@ -172,7 +164,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 500);
     }
     
-    [chequeNumber, bankName, chequeDate, amount, tenant].forEach(el => {
+    [chequeNumber, bankName, chequeDate, amount, customer].forEach(el => {
         el.addEventListener('change', validateUniqueness);
         el.addEventListener('input', validateUniqueness);
     });

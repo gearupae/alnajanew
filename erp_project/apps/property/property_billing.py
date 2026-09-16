@@ -2,7 +2,7 @@
 from datetime import timedelta
 from decimal import Decimal
 
-from .models import Lease, RentInvoice, PDCCheque, SecurityDeposit
+from .models import Lease, RentInvoice, SecurityDeposit
 
 
 def vat_rate_for_lease(lease):
@@ -64,12 +64,6 @@ def generate_rent_invoices_for_lease(lease, user):
             current_date = next_date
             continue
 
-        pdc = PDCCheque.objects.filter(
-            lease=lease,
-            payment_period_start=period_start,
-            is_active=True,
-        ).first()
-
         invoice = RentInvoice.objects.create(
             tenant=lease.tenant,
             lease=lease,
@@ -80,7 +74,6 @@ def generate_rent_invoices_for_lease(lease, user):
             period_end=period_end,
             rent_amount=payment_amount,
             vat_rate=vat_rate,
-            pdc=pdc,
             created_by=user,
         )
         created.append(invoice)

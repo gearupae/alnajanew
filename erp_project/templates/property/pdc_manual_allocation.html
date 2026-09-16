@@ -107,8 +107,8 @@
                                     <td>{{ pdc.cheque_number }}</td>
                                     <td>{{ pdc.cheque_date|date:"d M Y" }}</td>
                                     <td>
-                                        <a href="{% url 'property:tenant_detail' pdc.tenant.pk %}" target="_blank" class="text-decoration-none">
-                                            {{ pdc.tenant.name }}
+                                        <a href="{% url 'crm:customer_detail' pdc.customer.pk %}" target="_blank" class="text-decoration-none">
+                                            {{ pdc.customer.name }}
                                         </a>
                                     </td>
                                     <td class="text-end">{{ pdc.amount|floatformat:2|intcomma }}</td>

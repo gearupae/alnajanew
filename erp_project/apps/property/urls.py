@@ -41,7 +41,6 @@ urlpatterns = [
     # PDC Cheques
     path('pdc/', views.PDCListView.as_view(), name='pdc_list'),
     path('pdc/create/', views.PDCCreateView.as_view(), name='pdc_create'),
-    path('pdc/bulk-create/', views.bulk_pdc_create, name='bulk_pdc_create'),
     path('pdc/<int:pk>/', views.PDCDetailView.as_view(), name='pdc_detail'),
     path('pdc/<int:pk>/deposit/', views.pdc_deposit, name='pdc_deposit'),
     path('pdc/<int:pk>/clear/', views.pdc_clear, name='pdc_clear'),

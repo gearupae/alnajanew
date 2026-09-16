@@ -5,12 +5,9 @@
 <div class="page-header d-flex justify-content-between align-items-center">
     <div>
         <h4 class="mb-1 fw-bold">Incoming Cheques</h4>
-        <p class="text-muted mb-0">Post-dated cheques received from tenants and customers</p>
+        <p class="text-muted mb-0">Post-dated cheques received from customers</p>
     </div>
     <div>
-        <a href="{% url 'property:bulk_pdc_create' %}" class="btn btn-outline-primary me-2">
-            <i class="fas fa-layer-group me-1"></i>Bulk Create
-        </a>
         <button class="btn btn-primary" onclick="toggleInlineForm('pdcForm')">
             <i class="fas fa-plus me-2"></i>Add PDC
         </button>
@@ -109,11 +106,11 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Tenant <span class="text-danger">*</span></label>
-                <select name="tenant" class="form-select" required>
-                    <option value="">Select Tenant...</option>
-                    {% for tenant in tenants %}
-                    <option value="{{ tenant.pk }}">{{ tenant.name }}</option>
+                <label class="form-label">Customer <span class="text-danger">*</span></label>
+                <select name="customer" class="form-select" required>
+                    <option value="">Select Customer...</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.pk }}">{{ customer.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -140,9 +137,10 @@
             <div class="col-md-3">
                 <label class="form-label">Purpose</label>
                 <select name="purpose" class="form-select">
-                    <option value="rent">Rent Payment</option>
+                    <option value="invoice_payment">Invoice Payment</option>
+                    <option value="advance">Customer Advance</option>
+                    <option value="retention">Retention Release</option>
                     <option value="security_deposit">Security Deposit</option>
-                    <option value="maintenance">Maintenance Fee</option>
                     <option value="other">Other</option>
                 </select>
             </div>
@@ -159,7 +157,7 @@
     <div class="card-body py-3">
         <form method="get" class="row g-3 align-items-end">
             <div class="col-md-3">
-                <input type="text" name="search" class="form-control" placeholder="Search PDC, cheque, tenant..." value="{{ request.GET.search }}">
+                <input type="text" name="search" class="form-control" placeholder="Search PDC, cheque, customer..." value="{{ request.GET.search }}">
             </div>
             <div class="col-md-2">
                 <select name="status" class="form-select">
@@ -170,10 +168,10 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <select name="tenant" class="form-select">
-                    <option value="">All Tenants</option>
-                    {% for tenant in tenants %}
-                    <option value="{{ tenant.pk }}" {% if request.GET.tenant == tenant.pk|stringformat:"i" %}selected{% endif %}>{{ tenant.name }}</option>
+                <select name="customer" class="form-select">
+                    <option value="">All Customers</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.pk }}" {% if request.GET.customer == customer.pk|stringformat:"i" %}selected{% endif %}>{{ customer.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -202,7 +200,7 @@
                         <th>Cheque No</th>
                         <th>Bank</th>
                         <th>Date</th>
-                        <th>Tenant</th>
+                        <th>Customer</th>
                         <th class="text-end">Amount</th>
                         <th>Status</th>
                         <th class="text-center" width="100">Actions</th>
@@ -225,8 +223,8 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'property:tenant_detail' pdc.tenant.pk %}" class="text-decoration-none">
-                                {{ pdc.tenant.name|truncatechars:20 }}
+                            <a href="{% url 'crm:customer_detail' pdc.customer.pk %}" class="text-decoration-none">
+                                {{ pdc.customer.name|truncatechars:20 }}
                             </a>
                         </td>
                         <td class="text-end fw-medium">{{ pdc.amount|floatformat:2|intcomma }}</td>
