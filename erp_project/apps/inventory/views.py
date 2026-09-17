@@ -450,6 +450,32 @@ def _resolve_subgroup_expense_type(raw):
     return ItemSubGroupExpenseType.objects.filter(pk=int(raw), is_active=True).first()
 
 
+@login_required
+def item_picker_search(request):
+    """JSON search for item group membership picker (Select2 AJAX)."""
+    if not (
+        request.user.is_superuser
+        or PermissionChecker.has_permission(request.user, 'inventory', 'view')
+    ):
+        return JsonResponse({'results': []}, status=403)
+
+    q = (request.GET.get('q') or request.GET.get('term') or '').strip()
+    exclude_raw = (request.GET.get('exclude') or '').strip()
+    exclude_ids = [int(x) for x in exclude_raw.split(',') if x.isdigit()]
+
+    qs = Item.usable().order_by('item_code', 'name')
+    if exclude_ids:
+        qs = qs.exclude(pk__in=exclude_ids)
+    if q:
+        qs = qs.filter(Q(item_code__icontains=q) | Q(name__icontains=q))
+
+    results = [
+        {'id': item.pk, 'text': f'{item.item_code} — {item.name}'}
+        for item in qs[:50]
+    ]
+    return JsonResponse({'results': results})
+
+
 def item_group_manage(request):
     """Manage item sub-groups and base groups: members, default estimate qty, rename, PDF settings."""
     can_edit = request.user.is_superuser or PermissionChecker.has_permission(
@@ -732,6 +758,8 @@ def item_group_manage(request):
     selected = None
     memberships = []
     available_items = Item.objects.none()
+    member_item_ids = []
+    available_items_count = 0
     group_param = (request.GET.get('group') or '').strip()
     if group_param.isdigit():
         selected = ItemGroup.objects.filter(pk=int(group_param)).first()
@@ -745,11 +773,10 @@ def item_group_manage(request):
             .order_by('sort_order', 'item__item_code', 'pk')
         )
         member_ids = memberships.values_list('item_id', flat=True)
-        available_items = (
-            Item.usable()
-            .exclude(pk__in=member_ids)
-            .order_by('item_code', 'name')[:500]
-        )
+        member_item_ids = list(member_ids)
+        available_qs = Item.usable().exclude(pk__in=member_ids).order_by('item_code', 'name')
+        available_items_count = available_qs.count()
+        available_items = available_qs[:500]
 
     base_groups = (
         ItemBaseGroup.objects.annotate(sub_group_count=Count('sub_groups'))
@@ -810,6 +837,8 @@ def item_group_manage(request):
             'selected_group': selected,
             'memberships': memberships,
             'available_items': available_items,
+            'member_item_ids': member_item_ids,
+            'available_items_count': available_items_count,
             'base_groups': base_groups,
             'selected_base_group': selected_base,
             'base_sub_groups': base_sub_groups,

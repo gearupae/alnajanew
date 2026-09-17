@@ -59,6 +59,37 @@
     background: #ececec;
     border-color: #d4d4d4;
 }
+.group-item-select2-dropdown {
+    z-index: 1060;
+}
+.group-item-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+.group-items-table th.col-order,
+.group-items-table td.col-order {
+    width: 6.5rem;
+    min-width: 6.5rem;
+    white-space: nowrap;
+}
+.group-items-table th.col-qty,
+.group-items-table td.col-qty {
+    width: 7rem;
+    min-width: 7rem;
+    white-space: nowrap;
+}
+.group-items-table td.col-order input,
+.group-items-table td.col-qty input {
+    min-width: 5rem;
+    width: 100%;
+    text-align: center;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+}
+.group-items-table th.col-actions,
+.group-items-table td.col-actions {
+    width: 3rem;
+    min-width: 3rem;
+}
 .item-groups-tabs .nav-link.active {
     color: #171717;
     background: #fff;
@@ -233,11 +264,11 @@
                     <input type="hidden" name="group_id" value="{{ selected_group.pk }}">
                     <div class="col-md-7">
                         <label class="form-label small mb-1">Add item</label>
-                        <select name="add_item_id" class="form-select form-select-sm" required>
-                            <option value="">— Choose item —</option>
-                            {% for item in available_items %}
-                            <option value="{{ item.pk }}">{{ item.item_code }} — {{ item.name }}</option>
-                            {% endfor %}
+                        <select name="add_item_id" id="groupAddItemSelect" class="form-select form-select-sm"
+                                data-search-url="{% url 'inventory:item_picker_search' %}"
+                                data-exclude="{% for id in member_item_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                                required>
+                            <option value=""></option>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -248,8 +279,10 @@
                         <button type="submit" class="btn btn-primary btn-sm w-100"><i class="fas fa-plus me-1"></i>Add</button>
                     </div>
                 </form>
-                {% if not available_items %}
+                {% if available_items_count == 0 %}
                 <p class="small text-muted mb-0 mt-2">All active items are already in this group.</p>
+                {% else %}
+                <p class="small text-muted mb-0 mt-2">{{ available_items_count }} item{{ available_items_count|pluralize }} available — type code or name to search.</p>
                 {% endif %}
             </div>
             {% endif %}
@@ -262,29 +295,29 @@
                     <input type="hidden" name="group_id" value="{{ selected_group.pk }}">
                 </form>
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover mb-0 align-middle">
+                        <table class="table table-sm table-hover mb-0 align-middle group-items-table">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Code</th>
+                                    <th style="width:11rem;">Code</th>
                                     <th>Name</th>
-                                    <th style="width:70px;">Order</th>
-                                    <th style="width:100px;">Est. qty</th>
-                                    {% if can_edit %}<th style="width:60px;"></th>{% endif %}
+                                    <th class="col-order">Order</th>
+                                    <th class="col-qty">Est. qty</th>
+                                    {% if can_edit %}<th class="col-actions"></th>{% endif %}
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for m in memberships %}
                                 <tr>
-                                    <td class="small fw-medium">{{ m.item.item_code }}</td>
+                                    <td class="small fw-medium text-nowrap">{{ m.item.item_code }}</td>
                                     <td class="small">{{ m.item.name }}</td>
-                                    <td>
+                                    <td class="col-order">
                                         {% if can_edit %}
                                         <input type="number" form="saveGroupQtyForm" name="order_{{ m.pk }}" value="{{ m.sort_order }}" min="0" step="1" class="form-control form-control-sm" title="Line order when this sub-group is added to an estimate">
                                         {% else %}
                                         {{ m.sort_order }}
                                         {% endif %}
                                     </td>
-                                    <td>
+                                    <td class="col-qty">
                                         {% if can_edit %}
                                         <input type="number" form="saveGroupQtyForm" name="qty_{{ m.pk }}" value="{{ m.default_quantity|floatformat:0 }}" min="1" step="1" class="form-control form-control-sm" title="Default quantity when this group is added to an estimate">
                                         {% else %}
@@ -292,7 +325,7 @@
                                         {% endif %}
                                     </td>
                                     {% if can_edit %}
-                                    <td class="text-end">
+                                    <td class="col-actions text-end">
                                         <form method="post" class="d-inline" onsubmit="return confirm('Remove this item from the group?');">
                                             {% csrf_token %}
                                             <input type="hidden" name="tab" value="sub">
@@ -665,5 +698,39 @@
 
     renderAll();
 })();
+
+$(function () {
+    var itemSelect = document.getElementById('groupAddItemSelect');
+    if (!itemSelect || typeof $.fn.select2 === 'undefined') return;
+    var searchUrl = itemSelect.getAttribute('data-search-url');
+    if (!searchUrl) return;
+
+    var exclude = itemSelect.getAttribute('data-exclude') || '';
+    $(itemSelect).select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search by code or name…',
+        allowClear: true,
+        dropdownParent: $(document.body),
+        minimumInputLength: 0,
+        dropdownCssClass: 'group-item-select2-dropdown',
+        ajax: {
+            url: searchUrl,
+            dataType: 'json',
+            delay: 200,
+            data: function (params) {
+                return { q: params.term || '', exclude: exclude };
+            },
+            processResults: function (data) {
+                return { results: data.results || [] };
+            },
+        },
+        language: {
+            noResults: function () { return 'No matching items — try item code or name'; },
+            searching: function () { return 'Searching…'; },
+            inputTooShort: function () { return 'Type to search items…'; },
+        },
+    });
+});
 </script>
 {% endblock %}
