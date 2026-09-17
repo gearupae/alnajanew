@@ -143,7 +143,9 @@ class CustomerListView(PermissionRequiredMixin, ListView):
             Customer.objects.select_related('assigned_salesperson', 'lead_kanban_stage'),
             self.request.user,
         )
-        return apply_customer_list_filters(queryset, self.request.GET)
+        return apply_customer_list_filters(
+            queryset, self.request.GET
+        ).order_by('-customer_number')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

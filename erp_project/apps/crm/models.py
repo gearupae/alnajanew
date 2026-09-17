@@ -178,7 +178,7 @@ class Customer(BaseModel):
     notes = models.TextField(blank=True)
     
     class Meta:
-        ordering = ['-created_at']
+        ordering = ['-customer_number']
         verbose_name = 'Customer'
         verbose_name_plural = 'Customers'
     

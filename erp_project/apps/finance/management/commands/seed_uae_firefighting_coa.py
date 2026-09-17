@@ -21,7 +21,8 @@ from django.db import transaction
 
 from apps.finance.models import Account, AccountCategory, AccountMapping, AccountType, TaxCode
 
-DATA_FILE = Path(settings.BASE_DIR) / 'data' / 'uae_firefighting_coa_seed.json'
+DEFAULT_DATA_FILE = Path(settings.BASE_DIR) / 'data' / 'uae_firefighting_coa_seed.json'
+AL_NAJAH_DATA_FILE = Path(settings.BASE_DIR) / 'data' / 'al_najah_fire_safety_coa.json'
 
 TYPE_MAP = {
     'ASSET': AccountType.ASSET,
@@ -151,22 +152,72 @@ def _category_for(row: dict) -> str | None:
     return AccountCategory.OTHER_CURRENT_ASSETS if acct_type == 'ASSET' else AccountCategory.OTHER_CURRENT_LIABILITIES
 
 
+def _clear_existing_coa():
+    """Remove postings and accounts so COA can be replaced cleanly."""
+    from apps.finance.models import (
+        Account,
+        AccountMapping,
+        BankAccount,
+        JournalEntry,
+        JournalEntryLine,
+        OpeningBalanceEntry,
+        OpeningBalanceLine,
+        TaxCode,
+    )
+
+    JournalEntryLine.objects.all().delete()
+    JournalEntry.objects.all().delete()
+    OpeningBalanceLine.objects.all().delete()
+    OpeningBalanceEntry.objects.all().delete()
+    AccountMapping.objects.all().delete()
+    TaxCode.objects.update(sales_account_id=None, purchase_account_id=None)
+    BankAccount.objects.all().delete()
+    deleted, _ = Account.objects.all().delete()
+    return deleted
+
+
 class Command(BaseCommand):
     help = 'Seed UAE fire fighting COA, tax codes, and account mappings from JSON data file'
 
     def add_arguments(self, parser):
         parser.add_argument('--dry-run', action='store_true', help='Report without saving')
+        parser.add_argument(
+            '--replace-all',
+            action='store_true',
+            help='Delete existing accounts, journal entries, and mappings before seeding',
+        )
+        parser.add_argument(
+            '--file',
+            type=str,
+            default='',
+            help='JSON data file (default: uae_firefighting_coa_seed.json; use al_najah for Al Najah COA)',
+        )
 
     def handle(self, *args, **options):
-        if not DATA_FILE.exists():
-            self.stderr.write(self.style.ERROR(f'Missing data file: {DATA_FILE}'))
+        file_arg = (options.get('file') or '').strip().lower()
+        if file_arg in ('al_najah', 'al-najah', 'al_najah_fire_safety_coa.json'):
+            data_file = AL_NAJAH_DATA_FILE
+        elif file_arg:
+            data_file = Path(file_arg)
+            if not data_file.is_absolute():
+                data_file = Path(settings.BASE_DIR) / data_file
+        else:
+            data_file = DEFAULT_DATA_FILE
+
+        if not data_file.exists():
+            self.stderr.write(self.style.ERROR(f'Missing data file: {data_file}'))
             return
 
-        payload = json.loads(DATA_FILE.read_text(encoding='utf-8'))
+        payload = json.loads(data_file.read_text(encoding='utf-8'))
         dry_run = options['dry_run']
+        replace_all = options['replace_all']
+        cleared = 0
 
         @transaction.atomic
         def run():
+            nonlocal cleared
+            if replace_all:
+                cleared = Account.objects.count() if dry_run else _clear_existing_coa()
             acct_created = acct_updated = 0
             tax_created = tax_updated = 0
             map_created = map_updated = 0
@@ -183,7 +234,9 @@ class Command(BaseCommand):
                     'account_category': _category_for(row),
                     'is_active': True,
                     'is_cash_account': subtype in ('CASH', 'BANK'),
-                    'is_contra_account': subtype in ('CONTRA_ASSET', 'ACC_DEPRECIATION', 'CONTRA_REVENUE', 'CONTRA_COST'),
+                    'is_contra_account': subtype in (
+                        'CONTRA_ASSET', 'ACC_DEPRECIATION', 'CONTRA_REVENUE', 'CONTRA_COST', 'DISTRIBUTION',
+                    ),
                     'is_fixed_deposit': code == '1015',
                     'overdraft_allowed': subtype == 'BANK' and code == '2300',
                     'description': f"Subtype: {subtype}" if subtype else '',
@@ -237,15 +290,22 @@ class Command(BaseCommand):
                     tax_updated += 1
 
             if not dry_run:
-                TaxCode.objects.exclude(code__in=[r['code'] for r in payload.get('tax_codes', [])]).update(
+                active_codes = [r['code'] for r in payload.get('tax_codes', [])]
+                TaxCode.objects.exclude(code__in=active_codes).update(
                     is_default=False, is_active=False
                 )
-                sr5 = TaxCode.objects.filter(code='SR5', is_active=True).first()
-                if sr5:
+                default_tax = (
+                    TaxCode.objects.filter(code='VAT5', is_active=True).first()
+                    or TaxCode.objects.filter(code='SR5', is_active=True).first()
+                )
+                if default_tax:
                     from apps.inventory.models import Item
 
-                    Item.objects.filter(tax_code__code='VAT5').update(tax_code=sr5)
-                    Item.objects.filter(tax_code__isnull=True).update(tax_code=sr5)
+                    Item.objects.filter(tax_code__code__in=['VAT5', 'SR5']).update(tax_code=default_tax)
+                    Item.objects.filter(tax_code__isnull=True).update(tax_code=default_tax)
+                    TaxCode.objects.filter(is_active=True).update(is_default=False)
+                    default_tax.is_default = True
+                    default_tax.save(update_fields=['is_default'])
 
             all_mappings = dict(payload.get('account_mapping', {}))
             all_mappings.update(payload.get('new_mapping_keys_required', {}))
@@ -298,8 +358,11 @@ class Command(BaseCommand):
             return acct_created, acct_updated, tax_created, tax_updated, map_created, map_updated, map_skipped
 
         results = run()
+        prefix = '[DRY RUN] ' if dry_run else ''
+        cleared_msg = f'  cleared: {cleared} existing accounts\n' if replace_all else ''
         self.stdout.write(self.style.SUCCESS(
-            f'\nUAE fire fighting COA seed complete:\n'
+            f'\n{prefix}COA seed complete ({data_file.name}):\n'
+            f'{cleared_msg}'
             f'  accounts: {results[0]} created, {results[1]} updated\n'
             f'  tax codes: {results[2]} created, {results[3]} updated\n'
             f'  mappings: {results[4]} created, {results[5]} updated, {results[6]} skipped (unsupported keys)'

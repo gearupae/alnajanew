@@ -4,15 +4,25 @@
 {% block extra_css %}
 <style>
 /* One size for the whole table (headers, cells, badges, links) */
+.crm-customer-table-wrap {
+    overflow-x: hidden;
+}
 .crm-customer-table {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
+    table-layout: fixed;
+    width: 100%;
+    margin-bottom: 0;
 }
 .crm-customer-table th,
 .crm-customer-table td {
-    padding: 0.4rem 0.45rem;
+    padding: 0.35rem 0.4rem;
     vertical-align: middle;
     font-size: inherit;
-    line-height: 1.45;
+    line-height: 1.4;
+}
+.crm-customer-table th:not(.col-actions),
+.crm-customer-table td:not(.col-actions) {
+    overflow: hidden;
 }
 .crm-customer-table thead th {
     font-size: inherit;
@@ -31,13 +41,14 @@
 }
 .crm-customer-table .crm-inline-select {
     font-weight: 400;
-    font-size: inherit;
-    padding: 0.35em 1.75rem 0.35em 0.55em;
+    font-size: 0.8125rem;
+    padding: 0.25em 1.5rem 0.25em 0.45em;
     border-radius: 4px;
     border: 1px solid transparent;
-    line-height: 1.45;
-    min-width: 5.75rem;
-    max-width: 9rem;
+    line-height: 1.35;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     cursor: pointer;
 }
 .crm-inline-select.crm-inline-type-lead { background-color: #dbeafe; color: #1e40af; }
@@ -47,42 +58,64 @@
 .crm-inline-select.crm-inline-status-prospect { background-color: #fef3c7; color: #b45309; }
 .crm-customer-table th {
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.crm-customer-table .col-company {
-    max-width: 11rem;
+.crm-customer-table .col-id { width: 6%; }
+.crm-customer-table .col-company { width: 22%; }
+.crm-customer-table .col-name { width: 12%; }
+.crm-customer-table .col-email { width: 14%; }
+.crm-customer-table .col-phone { width: 9%; }
+.crm-customer-table .col-type { width: 8%; }
+.crm-customer-table .col-salesman { width: 9%; }
+.crm-customer-table .col-status { width: 8%; }
+.crm-customer-table.table th.col-actions,
+.crm-customer-table.table td.col-actions {
+    width: 5.5rem;
+    min-width: 5.5rem;
+    max-width: 5.5rem;
+    overflow: visible;
+    white-space: nowrap;
+    padding-left: 0.25rem;
+    padding-right: 0.35rem;
 }
-.crm-customer-table .col-name {
-    max-width: 9rem;
+.crm-customer-table .col-company .d-flex {
+    min-width: 0;
 }
-.crm-customer-table .col-company > span {
+.crm-customer-table .col-salesman {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.crm-customer-table .col-company .text-truncate,
+.crm-customer-table .col-name .text-truncate,
+.crm-customer-table .col-email a,
+.crm-customer-table .col-phone a,
+.crm-customer-table .col-id a {
     display: block;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.crm-customer-table .col-email {
-    max-width: 10rem;
-}
-.crm-customer-table .col-email a {
-    display: inline-block;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    vertical-align: bottom;
-}
-.crm-customer-table .col-actions {
-    min-width: 9rem;
+.crm-customer-table .col-actions .table-actions-inner {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    flex-wrap: nowrap;
 }
 .crm-customer-table .col-actions .btn-action {
-    width: 30px;
-    height: 30px;
-    font-size: 0.85rem;
+    width: 26px;
+    height: 26px;
+    font-size: 0.75rem;
+    padding: 0;
+    flex-shrink: 0;
 }
 .crm-customer-table .customer-avatar {
-    width: 30px !important;
-    height: 30px !important;
-    font-size: 0.75rem;
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 0.7rem;
     flex-shrink: 0;
 }
 
@@ -461,36 +494,36 @@
 <!-- Customers Table -->
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
-        <div class="table-responsive">
+        <div class="crm-customer-table-wrap">
             <table class="table table-hover table-sm crm-customer-table mb-0">
                 <thead>
                     <tr>
-                        <th>#</th>
+                        <th class="col-id">#</th>
                         <th class="col-company">Customer</th>
                         <th class="col-name">Contact person</th>
                         <th class="col-email">Email</th>
-                        <th>Phone</th>
-                        <th>Type</th>
-                        {% if show_assign_salesman %}<th>Salesman</th>{% endif %}
-                        <th>Status</th>
+                        <th class="col-phone">Phone</th>
+                        <th class="col-type">Type</th>
+                        {% if show_assign_salesman %}<th class="col-salesman">Salesman</th>{% endif %}
+                        <th class="col-status">Status</th>
                         <th class="text-center col-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for customer in customers %}
                     <tr>
-                        <td class="text-nowrap">
-                            <a href="{% url 'crm:customer_detail' customer.pk %}" class="text-decoration-none fw-medium">
+                        <td class="col-id">
+                            <a href="{% url 'crm:customer_detail' customer.pk %}" class="text-decoration-none fw-medium" title="{{ customer.customer_number }}">
                                 {{ customer.customer_number }}
                             </a>
                         </td>
                         <td class="col-company">
-                            <div class="d-flex align-items-center">
+                            <div class="d-flex align-items-center min-w-0">
                                 <div class="bg-{{ customer.customer_type|yesno:'primary,success' }} text-white rounded-circle d-flex align-items-center justify-content-center me-1 customer-avatar">
                                     {% if customer.company %}{{ customer.company.0|upper }}{% elif customer.name %}{{ customer.name.0|upper }}{% else %}?{% endif %}
                                 </div>
                                 {% if customer.company %}
-                                <span class="text-truncate fw-medium" title="{{ customer.company }}">{{ customer.company }}</span>
+                                <span class="text-truncate fw-medium min-w-0 flex-grow-1" title="{{ customer.company }}">{{ customer.company }}</span>
                                 {% else %}
                                 <span class="text-muted">-</span>
                                 {% endif %}
@@ -498,7 +531,7 @@
                         </td>
                         <td class="col-name">
                             {% if customer.name %}
-                            <span class="text-truncate" title="{{ customer.name }}">{{ customer.name }}</span>
+                            <span class="text-truncate d-block" title="{{ customer.name }}">{{ customer.name }}</span>
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
@@ -510,14 +543,14 @@
                             <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td class="text-nowrap">
+                        <td class="col-phone">
                             {% if customer.phone %}
-                            <a href="tel:{{ customer.phone }}" class="text-decoration-none">{{ customer.phone }}</a>
+                            <a href="tel:{{ customer.phone }}" class="text-decoration-none" title="{{ customer.phone }}">{{ customer.phone }}</a>
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="col-type">
                             {% if can_edit %}
                             <form method="post" action="{% url 'crm:customer_inline_update' customer.pk %}" class="crm-inline-field-form">
                                 {% csrf_token %}
@@ -541,7 +574,7 @@
                             {% endif %}
                         </td>
                         {% if show_assign_salesman %}
-                        <td class="text-nowrap small">
+                        <td class="col-salesman small">
                             {% if customer.assigned_salesperson %}
                             {{ customer.assigned_salesman_label }}
                             {% else %}
@@ -549,7 +582,7 @@
                             {% endif %}
                         </td>
                         {% endif %}
-                        <td>
+                        <td class="col-status">
                             {% if can_edit %}
                             <form method="post" action="{% url 'crm:customer_inline_update' customer.pk %}" class="crm-inline-field-form">
                                 {% csrf_token %}
@@ -571,7 +604,7 @@
                             {% endif %}
                         </td>
                         <td class="text-center col-actions">
-                            <div class="d-flex flex-wrap gap-1 justify-content-center align-items-center">
+                            <div class="table-actions-inner">
                             {% if can_edit %}
                             <a href="{% url 'crm:customer_edit' customer.pk %}" class="btn btn-action btn-outline-primary" title="Edit">
                                 <i class="fas fa-edit"></i>

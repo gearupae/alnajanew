@@ -296,8 +296,8 @@ class ItemListView(PermissionRequiredMixin, ListView):
                 total_stock_calc__lt=F('minimum_stock'),
             )
 
-        return queryset.order_by('-created_at', '-pk')
-    
+        return queryset.order_by('-item_code')
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Items'

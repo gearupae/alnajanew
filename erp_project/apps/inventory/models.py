@@ -337,7 +337,7 @@ class Item(BaseModel):
     rejection_reason = models.TextField(blank=True)
     
     class Meta:
-        ordering = ['-created_at', '-pk']
+        ordering = ['-item_code']
 
     @classmethod
     def usable(cls):
