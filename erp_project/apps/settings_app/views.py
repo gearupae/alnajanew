@@ -629,6 +629,7 @@ class CrmKanbanSettingsView(PermissionRequiredMixin, TemplateView):
                 is_active=request.POST.get('is_active') == 'on',
                 converts_to_customer=request.POST.get('converts_to_customer') == 'on',
                 tracks_opportunity=request.POST.get('tracks_opportunity') == 'on',
+                is_site_visit=request.POST.get('is_site_visit') == 'on',
             )
             messages.success(request, f'Stage “{stage.name}” added.')
         elif action == 'save' and request.POST.get('stage_id'):
@@ -643,6 +644,7 @@ class CrmKanbanSettingsView(PermissionRequiredMixin, TemplateView):
             s.is_active = request.POST.get('is_active') == 'on'
             s.converts_to_customer = request.POST.get('converts_to_customer') == 'on'
             s.tracks_opportunity = request.POST.get('tracks_opportunity') == 'on'
+            s.is_site_visit = request.POST.get('is_site_visit') == 'on'
             s.save()
             messages.success(request, f'Stage “{s.name}” saved.')
         elif action == 'delete' and request.POST.get('stage_id'):

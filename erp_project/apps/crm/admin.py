@@ -13,7 +13,7 @@ class CrmOpportunityUpdateAdmin(admin.ModelAdmin):
 
 @admin.register(CrmLeadKanbanStage)
 class CrmLeadKanbanStageAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug', 'sort_order', 'is_active', 'converts_to_customer', 'tracks_opportunity']
+    list_display = ['name', 'slug', 'sort_order', 'is_active', 'converts_to_customer', 'tracks_opportunity', 'is_site_visit']
     list_filter = ['is_active', 'converts_to_customer']
     search_fields = ['name', 'slug']
     ordering = ['sort_order', 'id']

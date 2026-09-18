@@ -37,4 +37,9 @@
     {% endif %}
 </div>
 {% endif %}
+{% if record.is_site_visit_lead %}
+<div class="kanban-card-meta mt-1">
+    <span class="badge bg-dark text-white"><i class="fas fa-map-marker-alt fa-xs me-1"></i>Site visit</span>
+</div>
+{% endif %}
 <div class="kanban-card-meta text-muted mt-1">{{ record.customer_number }}</div>

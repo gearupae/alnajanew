@@ -501,10 +501,14 @@ def crm_kanban_move(request):
     if not stage:
         return JsonResponse({'error': 'Invalid pipeline stage.'}, status=400)
 
+    old_stage_id = cust.lead_kanban_stage_id
     cust.lead_kanban_stage = stage
     if stage.tracks_opportunity and not cust.opportunity_status:
         cust.opportunity_status = 'pending'
     cust.save()
+    from .site_visit_notifications import maybe_notify_site_visit_stage_change
+
+    maybe_notify_site_visit_stage_change(cust, old_stage_id, actor=request.user)
     log_action(
         request.user,
         'update',
@@ -927,6 +931,7 @@ class CustomerUpdateView(UpdatePermissionMixin, UpdateView):
     def form_valid(self, form):
         # Track changes
         old_obj = Customer.objects.get(pk=self.object.pk)
+        old_stage_id = old_obj.lead_kanban_stage_id
         changes = {}
         for field in form.changed_data:
             changes[field] = {
@@ -937,6 +942,14 @@ class CustomerUpdateView(UpdatePermissionMixin, UpdateView):
         response = super().form_valid(form)
         
         log_action(self.request.user, 'update', 'Customer', self.object.id, changes)
+        if 'lead_kanban_stage' in form.changed_data:
+            from .site_visit_notifications import maybe_notify_site_visit_stage_change
+
+            maybe_notify_site_visit_stage_change(
+                self.object,
+                old_stage_id,
+                actor=self.request.user,
+            )
         messages.success(self.request, f'Customer {self.object.name} updated successfully.')
         return response
 

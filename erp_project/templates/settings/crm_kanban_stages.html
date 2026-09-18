@@ -4,7 +4,7 @@
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div>
         <h4 class="mb-1 fw-bold">{{ title }}</h4>
-        <p class="text-muted mb-0">Configure CRM lead pipeline columns. Enable <strong>Converts to customer</strong> on exactly one stage — leads dropped there become customers.</p>
+        <p class="text-muted mb-0">Configure CRM lead pipeline columns. Enable <strong>Converts to customer</strong> on exactly one stage — leads dropped there become customers. Enable <strong>Site visit</strong> on one stage to notify assignees when a lead is moved there.</p>
     </div>
     <a href="{% url 'crm:customer_list' %}" class="btn btn-outline-primary btn-sm">Back to CRM board</a>
 </div>
@@ -21,6 +21,7 @@
                         <th style="width: 6rem;" class="text-center">Is active</th>
                         <th style="width: 10rem;" class="text-center">Converts to customer</th>
                         <th style="width: 10rem;" class="text-center">Tracks opportunity</th>
+                        <th style="width: 8rem;" class="text-center">Site visit</th>
                         <th style="width: 7rem;"></th>
                     </tr>
                 </thead>
@@ -48,6 +49,9 @@
                         <td class="text-center">
                             <input class="form-check-input" type="checkbox" name="tracks_opportunity" id="opp{{ s.pk }}" {% if s.tracks_opportunity %}checked{% endif %} form="stage-form-{{ s.pk }}">
                         </td>
+                        <td class="text-center">
+                            <input class="form-check-input" type="checkbox" name="is_site_visit" id="sv{{ s.pk }}" {% if s.is_site_visit %}checked{% endif %} form="stage-form-{{ s.pk }}" title="Site visit stage">
+                        </td>
                         <td class="text-nowrap text-end">
                             <button type="submit" class="btn btn-primary btn-sm" form="stage-form-{{ s.pk }}" title="Save"><i class="fas fa-save"></i></button>
                             <form method="post" class="d-inline" onsubmit="return confirm('Delete “{{ s.name }}”? Leads in this column become unassigned.');">
@@ -60,7 +64,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-muted py-4 text-center">No stages yet — add one below.</td>
+                        <td colspan="8" class="text-muted py-4 text-center">No stages yet — add one below.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -98,6 +102,9 @@
                             </td>
                             <td style="width: 12%;" class="text-center">
                                 <input class="form-check-input" type="checkbox" name="tracks_opportunity">
+                            </td>
+                            <td style="width: 10%;" class="text-center">
+                                <input class="form-check-input" type="checkbox" name="is_site_visit" title="Site visit stage">
                             </td>
                             <td class="text-end pe-3">
                                 <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-plus me-1"></i>Add</button>

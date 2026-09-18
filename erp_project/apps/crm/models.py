@@ -27,6 +27,10 @@ class CrmLeadKanbanStage(models.Model):
         default=False,
         help_text='Leads in this stage track opportunity status (Open / Pending / Close) and updates.',
     )
+    is_site_visit = models.BooleanField(
+        default=False,
+        help_text='Leads moved here are treated as site visits; assignees get a “Site visit pending” notification.',
+    )
 
     class Meta:
         ordering = ['sort_order', 'id']
@@ -41,6 +45,8 @@ class CrmLeadKanbanStage(models.Model):
             self.slug = slugify(self.name)[:80] or 'stage'
         if self.converts_to_customer:
             CrmLeadKanbanStage.objects.exclude(pk=self.pk).update(converts_to_customer=False)
+        if self.is_site_visit:
+            CrmLeadKanbanStage.objects.exclude(pk=self.pk).update(is_site_visit=False)
         super().save(*args, **kwargs)
 
 
@@ -246,6 +252,13 @@ class Customer(BaseModel):
             return False
         stage = self.lead_kanban_stage
         return bool(stage and stage.tracks_opportunity)
+
+    @property
+    def is_site_visit_lead(self):
+        if self.customer_type != 'lead':
+            return False
+        stage = self.lead_kanban_stage
+        return bool(stage and stage.is_site_visit)
 
 
 class CrmOpportunityUpdate(BaseModel):
