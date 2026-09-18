@@ -28,7 +28,7 @@ class VendorForm(forms.ModelForm):
     class Meta:
         model = Vendor
         fields = [
-            'is_active', 'name', 'contact_person', 'email', 'phone', 'address',
+            'name', 'contact_person', 'email', 'phone', 'address',
             'city', 'country', 'trn', 'website', 'trn_document', 'trade_license_document',
             'payment_terms', 'credit_limit', 'status', 'notes',
         ]
@@ -51,8 +51,6 @@ class VendorForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['is_active'].label = 'Is active'
-        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['trn_document'].required = False
         self.fields['trade_license_document'].required = False
         self.fields['trn'].label = 'Tax Registration Number (TRN)'
@@ -67,7 +65,7 @@ class VendorForm(forms.ModelForm):
         self.fields['city'].widget.attrs.update({'class': 'form-control', 'placeholder': 'City'})
         self.fields['country'].widget.attrs.update({'class': 'form-control', 'placeholder': 'Country'})
         for field_name, field in self.fields.items():
-            if field_name in ('address', 'notes', 'payment_terms', 'credit_limit', 'city', 'country', 'is_active'):
+            if field_name in ('address', 'notes', 'payment_terms', 'credit_limit', 'city', 'country'):
                 continue
             elif field_name in ('trn_document', 'trade_license_document'):
                 continue
@@ -80,7 +78,6 @@ class VendorForm(forms.ModelForm):
             elif field_name == 'website':
                 field.widget.attrs['placeholder'] = 'gear-up.ae, www.gear-up.ae, or https://gear-up.ae'
         if not self.is_bound and not self.instance.pk:
-            self.fields['is_active'].initial = True
             if 'country' not in self.initial:
                 self.initial['country'] = 'United Arab Emirates'
 
@@ -97,8 +94,6 @@ class VendorForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if self.is_bound:
-            cleaned['is_active'] = 'is_active' in self.data
         if self.data.get('trn_document-clear') in ('on', 'true', '1'):
             cleaned['trn_document'] = False
         if self.data.get('trade_license_document-clear') in ('on', 'true', '1'):

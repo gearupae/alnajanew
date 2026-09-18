@@ -27,6 +27,7 @@ for arg in "$@"; do
     -h|--help)
       echo "Usage: $0 [--with-db]"
       echo "  DEPLOY_HOST (default root@37.27.16.210)  DEPLOY_PATH (default /var/www/alnajahfireerp)"
+      echo "  Production: https://alnajah.telldb.com/"
       echo "  Git repo: https://github.com/gearupae/alnajanew.git"
       exit 0
       ;;

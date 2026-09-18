@@ -1,5 +1,6 @@
 # Deploy Local Data to Main Server (Al Najah)
 
+**Production URL:** https://alnajah.telldb.com/  
 **Server:** `root@37.27.16.210`  
 **App path:** `/var/www/alnajahfireerp`  
 **Git repo:** https://github.com/gearupae/alnajanew.git

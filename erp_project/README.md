@@ -1,6 +1,11 @@
-# Safety Point ERP System
+# Al Najah Gas Pipeline ERP
 
-A minimal, modular ERP system built with Django 5.x, Bootstrap 5, and PostgreSQL.
+Modular ERP (Django 5.x, Bootstrap 5, PostgreSQL on production).
+
+**Production:** https://alnajah.telldb.com/  
+**Git:** https://github.com/gearupae/alnajanew.git  
+**Server:** `ssh root@37.27.16.210` — app at `/var/www/alnajahfireerp`  
+**Deploy:** see [DEPLOYMENT.md](../DEPLOYMENT.md) and [docs/DEPLOY_HETZNER.md](../docs/DEPLOY_HETZNER.md)
 
 ## Features
 
@@ -29,7 +34,8 @@ A minimal, modular ERP system built with Django 5.x, Bootstrap 5, and PostgreSQL
 
 1. **Clone the repository**
    ```bash
-   cd /path/to/safetypoint
+   git clone https://github.com/gearupae/alnajanew.git
+   cd alnajanew
    ```
 
 2. **Create virtual environment**
@@ -170,7 +176,7 @@ Example: `INV-2025-0001`
 
 ## License
 
-Proprietary - Safety Point ERP
+Proprietary — Al Najah Gas Pipeline ERP
 
 ## Support
 

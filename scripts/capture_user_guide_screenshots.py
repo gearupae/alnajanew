@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / 'erp_project' / 'static' / 'img' / 'user-guide'
-BASE_URL = os.environ.get('GUIDE_BASE_URL', 'https://sp.telldb.com').rstrip('/')
+BASE_URL = os.environ.get('GUIDE_BASE_URL', 'https://alnajah.telldb.com').rstrip('/')
 USERNAME = os.environ.get('GUIDE_USERNAME', 'admin')
 PASSWORD = os.environ.get('GUIDE_PASSWORD', 'admin123')
 

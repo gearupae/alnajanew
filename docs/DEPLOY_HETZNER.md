@@ -1,5 +1,6 @@
 # Deploy to Hetzner (Al Najah ERP)
 
+**Production URL:** https://alnajah.telldb.com/  
 **Server:** `root@37.27.16.210`  
 **Git repo:** https://github.com/gearupae/alnajanew.git  
 **App path:** `/var/www/alnajahfireerp`

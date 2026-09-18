@@ -1,8 +1,8 @@
 """
-Structured Safety Point ERP user guide content.
+Structured Al Najah ERP user guide content.
 
 Screenshots are stored under static/img/user-guide/ and captured by
-scripts/capture_user_guide_screenshots.py against the live system.
+scripts/capture_user_guide_screenshots.py against https://alnajah.telldb.com/
 """
 
 USER_GUIDE_SECTIONS = [
@@ -11,7 +11,7 @@ USER_GUIDE_SECTIONS = [
         'title': 'Getting Started',
         'icon': 'fa-sign-in-alt',
         'intro': (
-            'Safety Point ERP is a modular business system. Start by signing in, '
+            'Al Najah ERP is a modular business system. Start by signing in, '
             'then use the top navigation bar to reach CRM, Sales, Purchase, Finance, '
             'Inventory, HR, and other modules based on your assigned role.'
         ),
@@ -21,14 +21,14 @@ USER_GUIDE_SECTIONS = [
                 'title': 'Logging in',
                 'screenshot': 'login.png',
                 'steps': [
-                    'Open your browser and go to https://sp.telldb.com/login/',
+                    'Open your browser and go to https://alnajah.telldb.com/login/',
                     'Enter your username and password provided by your administrator.',
                     'Click Sign In. On success you are redirected to the Dashboard.',
                     'Use Remember me only on trusted personal devices.',
                     'If you see an invalid password message, contact your admin to reset access.',
                 ],
                 'tips': [
-                    'The login page shows the Safety Point branding and company logo.',
+                    'The login page shows the Al Najah branding and company logo.',
                     'After 8 hours of inactivity your session expires and you must sign in again.',
                 ],
             },
@@ -116,7 +116,7 @@ USER_GUIDE_SECTIONS = [
                     'Set default estimate text templates and signature images for PDF documents.',
                 ],
                 'tips': [
-                    'Company name "Safety Point" is shown on the login page and document footers.',
+                    'Company name (e.g. Al Najah) is shown on the login page and document footers.',
                     'Use Settings → Companies for multi-entity setups with separate bank details.',
                 ],
             },
