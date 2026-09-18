@@ -316,68 +316,6 @@
 
         <div class="card mb-4">
             <div class="card-header bg-transparent py-3">
-                <h6 class="mb-0 fw-semibold"><i class="fas fa-check-double me-2 text-dark"></i>Approval workflow</h6>
-            </div>
-            <div class="card-body pt-0">
-                <div class="row g-4">
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Conversion approval status</h6>
-                        <p class="mb-0">{{ project.get_conversion_approval_status_display }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Conversion approval submitted at</h6>
-                        <p class="mb-0">{% if project.conversion_approval_submitted_at %}{{ project.conversion_approval_submitted_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Conversion approval submitted by</h6>
-                        <p class="mb-0">{% if project.conversion_approval_submitted_by %}{{ project.conversion_approval_submitted_by.get_full_name|default:project.conversion_approval_submitted_by.username }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Conversion approval rejection reason</h6>
-                        <p class="mb-0">{{ project.conversion_approval_rejection_reason|default:conversion_rejection_detail|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Edit approval status</h6>
-                        <p class="mb-0">{{ project.get_edit_approval_status_display }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Edit approval submitted at</h6>
-                        <p class="mb-0">{% if project.edit_approval_submitted_at %}{{ project.edit_approval_submitted_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Edit approval submitted by</h6>
-                        <p class="mb-0">{% if project.edit_approval_submitted_by %}{{ project.edit_approval_submitted_by.get_full_name|default:project.edit_approval_submitted_by.username }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-muted mb-2">Completion note</h6>
-                        <p class="mb-0">{% if project.edit_approval_submission_note %}{{ project.edit_approval_submission_note|linebreaksbr }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Edit approval rejection reason</h6>
-                        <p class="mb-0">{{ project.edit_approval_rejection_reason|default:completion_rejection_detail|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Operation access status</h6>
-                        <p class="mb-0">{{ project.get_operation_access_status_display }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Operation access submitted at</h6>
-                        <p class="mb-0">{% if project.operation_access_submitted_at %}{{ project.operation_access_submitted_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Operation access submitted by</h6>
-                        <p class="mb-0">{% if project.operation_access_submitted_by %}{{ project.operation_access_submitted_by.get_full_name|default:project.operation_access_submitted_by.username }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Operation access rejection reason</h6>
-                        <p class="mb-0">{{ project.operation_access_rejection_reason|default:operation_access_rejection_detail|default:"—" }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card mb-4">
-            <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-chart-line me-2 text-dark"></i>Billing &amp; profit summary</h6>
             </div>
             <div class="card-body pt-0">
