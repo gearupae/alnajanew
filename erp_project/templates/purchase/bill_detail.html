@@ -1,5 +1,36 @@
 {% extends 'base.html' %}
 
+{% block extra_css %}
+<style>
+.bill-detail-overview .overview-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--gray-600);
+    margin-bottom: 0.25rem;
+}
+.bill-detail-overview .overview-value {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--gray-900);
+    line-height: 1.4;
+    word-break: break-word;
+}
+.bill-detail-overview .overview-section-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+.bill-detail-overview .tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <nav aria-label="breadcrumb">
@@ -43,26 +74,26 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card mb-4">
+        <div class="card mb-4 bill-detail-overview">
             <div class="card-header"><h6 class="mb-0 fw-semibold">Bill details</h6></div>
             <div class="card-body">
-                <div class="erp-detail-grid">
-                    <p class="erp-detail-section-title mb-0">General</p>
-                    <div class="erp-detail-field">
-                        <h6>Bill number</h6>
-                        <p class="fw-medium">{{ bill.bill_number }}</p>
+                <div class="overview-section-title">General</div>
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Bill number</div>
+                        <div class="overview-value fw-medium">{{ bill.bill_number }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Bill date</h6>
-                        <p>{{ bill.bill_date|date:"d/m/Y" }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Bill date</div>
+                        <div class="overview-value">{{ bill.bill_date|date:"d/m/Y" }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Due date</h6>
-                        <p>{{ bill.due_date|date:"d/m/Y" }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Due date</div>
+                        <div class="overview-value">{{ bill.due_date|date:"d/m/Y" }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Status</h6>
-                        <p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Status</div>
+                        <div class="overview-value">
                             {% if bill.status == 'draft' %}
                             <span class="badge bg-secondary">Draft</span>
                             {% elif bill.status == 'posted' %}
@@ -78,96 +109,107 @@
                             {% else %}
                             <span class="badge bg-secondary">{{ bill.get_status_display }}</span>
                             {% endif %}
-                        </p>
+                        </div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Vendor</h6>
-                        <p class="fw-medium">{{ bill.vendor.name }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Vendor</div>
+                        <div class="overview-value fw-medium">{{ bill.vendor.name }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Vendor invoice number</h6>
-                        <p>{{ bill.vendor_invoice_number|default:"—" }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Vendor invoice number</div>
+                        <div class="overview-value">{{ bill.vendor_invoice_number|default:"—" }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Purchase order</h6>
-                        <p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Purchase order</div>
+                        <div class="overview-value">
                             {% if bill.purchase_order %}
                             <a href="{% url 'purchase:po_detail' bill.purchase_order.pk %}">{{ bill.purchase_order.po_number }}</a>
                             {% else %}—{% endif %}
-                        </p>
+                        </div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Goods received</h6>
-                        <p>{% if bill.goods_received %}Yes{% else %}No{% endif %}
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Goods received</div>
+                        <div class="overview-value">
+                            {% if bill.goods_received %}Yes{% else %}No{% endif %}
                             {% if bill.goods_received %}<span class="badge bg-info text-dark ms-1">GRN-matched</span>{% endif %}
-                        </p>
+                        </div>
                     </div>
+                </div>
 
-                    <div class="erp-detail-field erp-detail-field-full">
-                        <h6>Project</h6>
+                <div class="overview-section-title">Project</div>
+                <div class="row g-3 mb-4 align-items-end">
+                    <div class="col-md-8 col-lg-6">
                         {% if can_change_project %}
-                        <form method="post" action="{% url 'purchase:bill_update_project' bill.pk %}" class="d-flex flex-wrap gap-2 align-items-center">
+                        <form method="post" action="{% url 'purchase:bill_update_project' bill.pk %}" class="row g-2 align-items-end">
                             {% csrf_token %}
-                            {{ project_form.project }}
-                            <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">
-                                <i class="fas fa-save me-1"></i>Save
-                            </button>
+                            <div class="col">
+                                <div class="overview-label">Project</div>
+                                {{ project_form.project }}
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">
+                                    <i class="fas fa-save me-1"></i>Save
+                                </button>
+                            </div>
                         </form>
-                        <small class="text-muted d-block">Accounting entries are not changed when updating the project.</small>
+                        <small class="text-muted d-block mt-1">Accounting entries are not changed when updating the project.</small>
                         {% else %}
-                        <p>
+                        <div class="overview-label">Project</div>
+                        <div class="overview-value">
                             {% if bill.project %}
                             <a href="{% url 'projects:project_detail' bill.project.pk %}" class="text-decoration-none">{{ bill.project.project_code }} — {{ bill.project.name }}</a>
                             {% else %}—{% endif %}
-                        </p>
+                        </div>
                         {% endif %}
                     </div>
+                </div>
 
-                    <p class="erp-detail-section-title mb-0">Amounts &amp; accounting</p>
-                    <div class="erp-detail-field">
-                        <h6>Subtotal</h6>
-                        <p class="tabular-nums">AED {{ bill.subtotal|floatformat:2 }}</p>
+                <div class="overview-section-title">Amounts &amp; accounting</div>
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Subtotal</div>
+                        <div class="overview-value tabular-nums">AED {{ bill.subtotal|floatformat:2 }}</div>
                     </div>
                     {% if bill.discount_applied %}
-                    <div class="erp-detail-field">
-                        <h6>Discount</h6>
-                        <p class="text-danger tabular-nums">- AED {{ bill.discount_applied|floatformat:2 }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Discount</div>
+                        <div class="overview-value text-danger tabular-nums">- AED {{ bill.discount_applied|floatformat:2 }}</div>
                     </div>
                     {% endif %}
-                    <div class="erp-detail-field">
-                        <h6>VAT amount</h6>
-                        <p class="tabular-nums">AED {{ bill.vat_amount|floatformat:2 }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">VAT amount</div>
+                        <div class="overview-value tabular-nums">AED {{ bill.vat_amount|floatformat:2 }}</div>
                     </div>
                     {% if bill.round_off %}
-                    <div class="erp-detail-field">
-                        <h6>Round-off</h6>
-                        <p class="tabular-nums">AED {{ bill.round_off|floatformat:2 }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Round-off</div>
+                        <div class="overview-value tabular-nums">AED {{ bill.round_off|floatformat:2 }}</div>
                     </div>
                     {% endif %}
-                    <div class="erp-detail-field">
-                        <h6>Total amount</h6>
-                        <p class="fw-semibold tabular-nums">AED {{ bill.total_amount|floatformat:2 }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Total amount</div>
+                        <div class="overview-value fw-semibold tabular-nums">AED {{ bill.total_amount|floatformat:2 }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Paid amount</h6>
-                        <p class="text-success tabular-nums">AED {{ bill.paid_amount|floatformat:2 }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Paid amount</div>
+                        <div class="overview-value text-success tabular-nums">AED {{ bill.paid_amount|floatformat:2 }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Balance due</h6>
-                        <p class="fw-semibold tabular-nums {% if bill.balance > 0 %}text-danger{% endif %}">AED {{ bill.balance|floatformat:2 }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Balance due</div>
+                        <div class="overview-value fw-semibold tabular-nums {% if bill.balance > 0 %}text-danger{% endif %}">AED {{ bill.balance|floatformat:2 }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Journal entry</h6>
-                        <p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Journal entry</div>
+                        <div class="overview-value">
                             {% if bill.journal_entry %}
                             <a href="{% url 'finance:journal_detail' bill.journal_entry.pk %}" class="text-decoration-none">{{ bill.journal_entry.entry_number }}</a>
                             {% else %}—{% endif %}
-                        </p>
+                        </div>
                     </div>
                     {% if bill.notes %}
-                    <div class="erp-detail-field erp-detail-field-full">
-                        <h6>Notes</h6>
-                        <p>{{ bill.notes|linebreaksbr }}</p>
+                    <div class="col-12">
+                        <div class="overview-label">Notes</div>
+                        <div class="overview-value">{{ bill.notes|linebreaksbr }}</div>
                     </div>
                     {% endif %}
                 </div>
