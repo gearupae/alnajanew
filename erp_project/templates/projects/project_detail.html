@@ -67,6 +67,32 @@
     text-decoration: underline;
     color: var(--bs-primary);
 }
+.project-detail-overview .overview-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--gray-600);
+    margin-bottom: 0.25rem;
+}
+.project-detail-overview .overview-value {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--gray-900);
+    line-height: 1.4;
+    word-break: break-word;
+}
+.project-detail-overview .overview-section-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+.project-detail-overview .tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
 </style>
 {% endblock %}
 {% block content %}
@@ -177,102 +203,115 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card mb-4">
+        <div class="card mb-4 project-detail-overview">
             <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-address-card me-2 text-dark"></i>Project details</h6>
             </div>
             <div class="card-body py-3">
-                <div class="pd-detail-grid">
-                    <div class="pd-field">
-                        <h6>Is active</h6>
-                        <p>{% if project.is_active %}Yes{% else %}No{% endif %}</p>
+                <div class="overview-section-title">General</div>
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Is active</div>
+                        <div class="overview-value">{% if project.is_active %}Yes{% else %}No{% endif %}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Project code</h6>
-                        <p class="font-monospace">{{ project.project_code }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Project code</div>
+                        <div class="overview-value font-monospace">{{ project.project_code }}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Name</h6>
-                        <p>{{ project.name }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Name</div>
+                        <div class="overview-value">{{ project.name }}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Status</h6>
-                        <p>{{ project.get_status_display }}</p>
-                        {% if project.status_attachment %}
-                        <a href="{{ project.status_attachment.url }}" class="btn btn-sm btn-outline-dark mt-1" target="_blank" rel="noopener">
-                            <i class="fas fa-paperclip me-1"></i>Status attachment
-                        </a>
-                        {% endif %}
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Status</div>
+                        <div class="overview-value">
+                            {{ project.get_status_display }}
+                            {% if project.status_attachment %}
+                            <div>
+                                <a href="{{ project.status_attachment.url }}" class="btn btn-sm btn-outline-dark mt-1" target="_blank" rel="noopener">
+                                    <i class="fas fa-paperclip me-1"></i>Status attachment
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Customer</h6>
-                        <p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Customer</div>
+                        <div class="overview-value">
                             {% if project.customer %}
                             <a href="{% url 'crm:customer_detail' project.customer.pk %}" class="pd-customer-link">
                                 {{ project.customer.company|default:project.customer.name }}
                             </a>
                             {% else %}—{% endif %}
-                        </p>
+                        </div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Manager</h6>
-                        <p>{% if project.manager %}{{ project.manager.get_full_name|default:project.manager.username }}{% else %}—{% endif %}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Manager</div>
+                        <div class="overview-value">{% if project.manager %}{{ project.manager.get_full_name|default:project.manager.username }}{% else %}—{% endif %}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Billing type</h6>
-                        <p>{{ project.get_billing_type_display }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Billing type</div>
+                        <div class="overview-value">{{ project.get_billing_type_display }}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Start date</h6>
-                        <p>{{ project.start_date|date:"d/m/Y"|default:"—" }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Start date</div>
+                        <div class="overview-value">{{ project.start_date|date:"d/m/Y"|default:"—" }}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>End date</h6>
-                        <p>{{ project.end_date|date:"d/m/Y"|default:"—" }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">End date</div>
+                        <div class="overview-value">{{ project.end_date|date:"d/m/Y"|default:"—" }}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Budget</h6>
-                        <p>AED {{ project.budget|floatformat:2 }}</p>
+                </div>
+
+                <div class="overview-section-title">Financials</div>
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Budget</div>
+                        <div class="overview-value tabular-nums">AED {{ project.budget|floatformat:2 }}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Estimated cost</h6>
-                        <p>AED {{ project.estimated_cost|floatformat:2 }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Estimated cost</div>
+                        <div class="overview-value tabular-nums">AED {{ project.estimated_cost|floatformat:2 }}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Contract value</h6>
-                        <p>AED {{ project.contract_value|floatformat:2 }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Contract value</div>
+                        <div class="overview-value tabular-nums">AED {{ project.contract_value|floatformat:2 }}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>LPO number</h6>
-                        <p>{{ project.lpo_number|default:"—" }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">LPO number</div>
+                        <div class="overview-value">{{ project.lpo_number|default:"—" }}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Payment terms</h6>
-                        <p>{{ project.payment_terms|default:"—" }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Payment terms</div>
+                        <div class="overview-value">{{ project.payment_terms|default:"—" }}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Total expenses</h6>
-                        <p>AED {{ project.total_expenses|floatformat:2 }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Total expenses</div>
+                        <div class="overview-value tabular-nums">AED {{ project.total_expenses|floatformat:2 }}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Total revenue</h6>
-                        <p>AED {{ project.total_revenue|floatformat:2 }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Total revenue</div>
+                        <div class="overview-value tabular-nums">AED {{ project.total_revenue|floatformat:2 }}</div>
                     </div>
-                    <div class="pd-field">
-                        <h6>Total billed</h6>
-                        <p>AED {{ project.total_billed|floatformat:2 }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Total billed</div>
+                        <div class="overview-value tabular-nums">AED {{ project.total_billed|floatformat:2 }}</div>
                     </div>
-                    <div class="pd-field pd-field-span-2">
-                        <h6>Expense account</h6>
-                        <p>{% if project.expense_account %}{{ project.expense_account.code }} — {{ project.expense_account.name }}{% else %}—{% endif %}</p>
+                </div>
+
+                <div class="overview-section-title">Accounts</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="overview-label">Expense account</div>
+                        <div class="overview-value">{% if project.expense_account %}{{ project.expense_account.code }} — {{ project.expense_account.name }}{% else %}—{% endif %}</div>
                     </div>
-                    <div class="pd-field pd-field-span-2">
-                        <h6>Revenue account</h6>
-                        <p>{% if project.revenue_account %}{{ project.revenue_account.code }} — {{ project.revenue_account.name }}{% else %}—{% endif %}</p>
+                    <div class="col-md-6">
+                        <div class="overview-label">Revenue account</div>
+                        <div class="overview-value">{% if project.revenue_account %}{{ project.revenue_account.code }} — {{ project.revenue_account.name }}{% else %}—{% endif %}</div>
                     </div>
-                    <div class="pd-field pd-field-full">
-                        <h6>Description</h6>
-                        <p>{{ project.description|default:"—"|linebreaksbr }}</p>
+                    <div class="col-12">
+                        <div class="overview-label">Description</div>
+                        <div class="overview-value">{{ project.description|default:"—"|linebreaksbr }}</div>
                     </div>
                 </div>
             </div>
