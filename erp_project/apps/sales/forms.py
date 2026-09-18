@@ -89,7 +89,8 @@ class EstimateForm(forms.ModelForm):
         self.fields['is_active'].label = 'Is active'
         self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['customer'].queryset = Customer.objects.filter(is_active=True)
-        self.fields['customer'].widget.attrs['class'] = 'form-select'
+        self.fields['customer'].label_from_instance = lambda c: c.picker_option_label
+        self.fields['customer'].widget.attrs['class'] = 'form-select estimate-customer-select'
         self.fields['project'].queryset = Project.objects.filter(is_active=True).order_by('-created_at')
         self.fields['project'].required = False
         self.fields['project'].empty_label = '— Select project —'
@@ -113,7 +114,7 @@ class EstimateForm(forms.ModelForm):
         self.fields['type_of_occupancy'].label = 'Type of occupancy'
         self.fields['type_of_work'].label = 'Type of work'
         scope_choices = [('', '---------')] + [
-            (bg.name, bg.name) for bg in ItemBaseGroup.objects.order_by('name')
+            (name, name) for name in ItemBaseGroup.names_with_active_subgroup_items()
         ]
         if self.instance and self.instance.pk and self.instance.scope_of_work:
             current_scope = self.instance.scope_of_work
@@ -383,7 +384,8 @@ class InvoiceForm(forms.ModelForm):
         self.fields['is_active'].label = 'Is active'
         self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['customer'].queryset = Customer.objects.filter(is_active=True)
-        self.fields['customer'].widget.attrs['class'] = 'form-select'
+        self.fields['customer'].label_from_instance = lambda c: c.picker_option_label
+        self.fields['customer'].widget.attrs['class'] = 'form-select estimate-customer-select'
         self.fields['customer'].widget.attrs['id'] = 'id_customer'
         self.fields['estimate'].queryset = Estimate.objects.filter(is_active=True).select_related('customer').order_by('-created_at')
         self.fields['estimate'].required = False

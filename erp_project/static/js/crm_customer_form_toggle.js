@@ -1,5 +1,5 @@
 /**
- * Show/hide B2B-only CRM customer fields (TRN, documents, website layout).
+ * Show/hide B2B-only CRM customer fields (trade license; TRN is always visible).
  */
 (function (window) {
     'use strict';
@@ -12,21 +12,10 @@
         if (!container) return;
         var seg = container.querySelector('[name="business_segment"]');
         var isB2b = seg && seg.value === 'b2b';
-        var trnInput = container.querySelector('[name="trn"]');
-        var websiteWrap = container.querySelector('#crmWebsiteFieldWrap');
 
         container.querySelectorAll('.crm-b2b-only-field').forEach(function (el) {
             el.style.display = isB2b ? '' : 'none';
         });
-
-        if (trnInput && !isB2b) {
-            trnInput.value = '';
-        }
-
-        if (websiteWrap) {
-            websiteWrap.classList.toggle('col-md-6', !isB2b);
-            websiteWrap.classList.toggle('col-md-3', isB2b);
-        }
 
         var emailInput = container.querySelector('[name="email"]');
         var phoneInput = container.querySelector('[name="phone"]');

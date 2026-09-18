@@ -16,6 +16,7 @@
     <div class="d-flex gap-2 flex-wrap">
         {% if can_edit %}<a href="{% url 'hr:payroll_settings' %}" class="btn btn-outline-primary btn-sm">Settings</a>{% endif %}
         <a href="{% url 'hr:payroll_template_list' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-layer-group me-1"></i>Salary templates</a>
+        <a href="{% url 'hr:payroll_deduction_list' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-minus-circle me-1"></i>Deductions</a>
         <a href="{% url 'hr:payroll_advance_list' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-hand-holding-usd me-1"></i>Advances</a>
         {% if can_create %}
         <a href="{% url 'hr:payroll_create' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>Add</a>
@@ -71,6 +72,7 @@
                         <td class="text-center">
                             <a href="{% url 'hr:payroll_detail' payroll.pk %}" class="btn btn-action btn-outline-secondary" title="View"><i class="fas fa-eye"></i></a>
                             {% if payroll.status == 'draft' and can_edit %}
+                            <a href="{% url 'hr:payroll_edit' payroll.pk %}#deductions" class="btn btn-action btn-outline-danger" title="Deductions"><i class="fas fa-minus-circle"></i></a>
                             <form method="post" action="{% url 'hr:payroll_process' payroll.pk %}" class="d-inline">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-action btn-outline-success" title="Process" onclick="return confirm('Process payroll and post to accounting?');"><i class="fas fa-check"></i></button>

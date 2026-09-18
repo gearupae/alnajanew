@@ -368,11 +368,18 @@ class PurchaseOrderItemForm(forms.ModelForm):
     Form for purchase order line items.
     Tax Code determines VAT rate - No Tax Code = 0% VAT (Out of Scope)
     """
-    
+
     class Meta:
         model = PurchaseOrderItem
-        fields = ['inventory_item', 'quantity', 'unit_price', 'tax_code', 'is_vat_inclusive']
+        fields = ['inventory_item', 'description', 'quantity', 'unit_price', 'tax_code', 'is_vat_inclusive']
         widgets = {
+            'description': forms.TextInput(
+                attrs={
+                    'class': 'form-control form-control-sm item-description mt-1',
+                    'placeholder': 'Line description (optional)',
+                    'maxlength': '500',
+                }
+            ),
             'quantity': forms.NumberInput(attrs={'step': '1', 'min': '0'}),
             'unit_price': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
         }
@@ -389,6 +396,7 @@ class PurchaseOrderItemForm(forms.ModelForm):
         self.fields['inventory_item'].widget.attrs['class'] = (
             'form-select form-select-sm item-inventory-select'
         )
+        self.fields['description'].required = False
 
         self.fields['tax_code'].queryset = TaxCode.objects.filter(is_active=True)
         self.fields['tax_code'].required = False
@@ -426,6 +434,7 @@ class PurchaseOrderItemForm(forms.ModelForm):
             return cleaned
 
         inv = cleaned.get('inventory_item')
+        desc = (cleaned.get('description') or '').strip()
         qty = cleaned.get('quantity')
         if qty is None:
             qty = Decimal('0')
@@ -438,7 +447,7 @@ class PurchaseOrderItemForm(forms.ModelForm):
                 raise forms.ValidationError({'quantity': 'Enter a quantity greater than zero.'})
             return cleaned
 
-        if self.instance.pk and (self.instance.description or '').strip():
+        if self.instance.pk and desc:
             return cleaned
 
         if qty > 0 or price > 0:
@@ -478,12 +487,20 @@ class VendorBillForm(forms.ModelForm):
         fields = [
             'is_active', 'vendor', 'project', 'purchase_order', 'goods_received',
             'vendor_invoice_number', 'bill_date', 'due_date', 'status', 'notes',
+            'discount_type', 'discount_value', 'round_off',
         ]
         widgets = {
             'bill_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'due_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
             'goods_received': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'discount_type': forms.Select(attrs={'class': 'form-select', 'id': 'id_discount_type'}),
+            'discount_value': forms.NumberInput(
+                attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'id': 'id_discount_value'},
+            ),
+            'round_off': forms.NumberInput(
+                attrs={'class': 'form-control', 'step': '0.01', 'id': 'id_round_off'},
+            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -511,14 +528,38 @@ class VendorBillForm(forms.ModelForm):
             "Check if this bill is for goods already received into inventory. "
             "This will debit GRN Clearing instead of Expense."
         )
+        self.fields['discount_type'].label = 'Discount type'
+        self.fields['discount_value'].label = 'Discount value'
+        self.fields['round_off'].label = 'Round-off'
+        self.fields['round_off'].help_text = (
+            'Adjustment to grand total (e.g. ±0.01 for fils rounding). Use 0 if none.'
+        )
         if not self.is_bound and not self.instance.pk:
             self.fields['is_active'].initial = True
+            self.fields['discount_type'].initial = 'none'
+            self.fields['discount_value'].initial = Decimal('0.00')
+            self.fields['round_off'].initial = Decimal('0.00')
 
     def clean(self):
         cleaned = super().clean()
         if self.is_bound:
             cleaned['is_active'] = 'is_active' in self.data
             cleaned['goods_received'] = 'goods_received' in self.data
+        discount_type = cleaned.get('discount_type') or 'none'
+        discount_value = cleaned.get('discount_value')
+        round_off = cleaned.get('round_off')
+        if discount_value is None:
+            self.add_error('discount_value', 'Discount value is required.')
+        if round_off is None:
+            self.add_error('round_off', 'Round-off is required.')
+        if discount_value is not None:
+            if discount_type == 'none' and discount_value > 0:
+                self.add_error(
+                    'discount_value',
+                    'Set discount value to 0 when discount type is None.',
+                )
+            if discount_type == 'percent' and discount_value > Decimal('100'):
+                self.add_error('discount_value', 'Percentage discount cannot exceed 100.')
         goods_received = cleaned.get('goods_received', False)
         po = cleaned.get('purchase_order')
 

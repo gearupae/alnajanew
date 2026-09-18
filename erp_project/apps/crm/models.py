@@ -211,15 +211,19 @@ class Customer(BaseModel):
         return self.company if self.company else self.name
 
     @property
+    def picker_option_label(self):
+        """Dropdown / Select2 label — includes name and company when both differ."""
+        number = self.customer_number
+        name = (self.name or '').strip()
+        company = (self.company or '').strip()
+        if company and name and company.casefold() != name.casefold():
+            return f'{number} — {name} · {company}'
+        return f'{number} — {company or name or number}'
+
+    @property
     def public_upload_option_label(self):
         """Number + contact name (+ company when different) for public pickers."""
-        primary = (self.name or self.company or '').strip()
-        base = f'{self.customer_number} — {primary}'
-        company = (self.company or '').strip()
-        name = (self.name or '').strip()
-        if company and name and company.casefold() != name.casefold():
-            return f'{base} · {company}'
-        return base
+        return self.picker_option_label
 
     @property
     def scope_display_labels(self):

@@ -225,16 +225,17 @@
             </div>
         </div>
 
-        {% if customer.business_segment == 'b2b' %}
         <div class="card border-0 shadow-sm mt-4">
             <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-semibold">
-                    <i class="fas fa-building me-2 text-primary"></i>B2B registration documents
+                    <i class="fas fa-building me-2 text-primary"></i>Tax & registration documents
                 </h6>
             </div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-6">
+                        <label class="form-label text-muted small">VAT (TRN)</label>
+                        <p class="mb-2 fw-medium">{{ customer.trn|default:"—" }}</p>
                         <label class="form-label text-muted small">TRN certificate</label>
                         <p class="mb-0">
                             {% if customer.trn_document %}
@@ -244,6 +245,7 @@
                             {% endif %}
                         </p>
                     </div>
+                    {% if customer.business_segment == 'b2b' %}
                     <div class="col-md-6">
                         <label class="form-label text-muted small">Trade license number</label>
                         <p class="mb-2 fw-medium">{{ customer.trade_license_number|default:"—" }}</p>
@@ -256,10 +258,10 @@
                             {% endif %}
                         </p>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
-        {% endif %}
 
         {% if public_uploads %}
         <div class="card border-0 shadow-sm mt-4">

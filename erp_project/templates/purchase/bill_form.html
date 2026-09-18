@@ -249,9 +249,19 @@
                             <td class="text-end fw-medium" id="subtotal">0.00</td>
                             <td></td>
                         </tr>
+                        <tr id="discountRow" class="d-none">
+                            <td colspan="5" class="text-end bill-footer-label text-danger">Discount (live):</td>
+                            <td class="text-end fw-medium text-danger" id="discountTotal">0.00</td>
+                            <td></td>
+                        </tr>
                         <tr>
                             <td colspan="5" class="text-end bill-footer-label">VAT amount (live):</td>
                             <td class="text-end fw-medium" id="vatTotal">0.00</td>
+                            <td></td>
+                        </tr>
+                        <tr id="roundOffRow" class="d-none">
+                            <td colspan="5" class="text-end bill-footer-label">Round-off (live):</td>
+                            <td class="text-end fw-medium" id="roundOffTotal">0.00</td>
                             <td></td>
                         </tr>
                         <tr>
@@ -261,6 +271,31 @@
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold"><i class="fas fa-percent me-2"></i>Discount &amp; Round-Off</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.discount_type.id_for_label }}">Discount type</label>
+                    {{ form.discount_type }}
+                    {% if form.discount_type.errors %}<div class="text-danger small">{{ form.discount_type.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.discount_value.id_for_label }}">Discount value</label>
+                    {{ form.discount_value }}
+                    <small class="text-muted d-block">Use % or fixed amount based on type. Enter 0 if no discount.</small>
+                    {% if form.discount_value.errors %}<div class="text-danger small">{{ form.discount_value.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.round_off.id_for_label }}">Round-off</label>
+                    {{ form.round_off }}
+                    {% if form.round_off.help_text %}<small class="text-muted d-block">{{ form.round_off.help_text }}</small>{% endif %}
+                    {% if form.round_off.errors %}<div class="text-danger small">{{ form.round_off.errors|join:", " }}</div>{% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -845,26 +880,62 @@ function calculateRowTotal(input) {
 }
 
 function calculateTotals() {
-    let subtotal = 0, vatTotal = 0;
+    const rows = [];
+    let subtotal = 0;
     document.querySelectorAll('.item-row').forEach(row => {
         if (row.style.display === 'none') return;
         const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
         const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
         const taxCodeSelect = row.querySelector('.item-tax-code');
-        
         let vatRate = 0;
         if (taxCodeSelect && taxCodeSelect.selectedOptions[0]) {
             vatRate = parseFloat(taxCodeSelect.selectedOptions[0].dataset.rate) || 0;
         }
-        
         const net = qty * price;
-        const vat = net * (vatRate / 100);
+        rows.push({ net, vatRate });
         subtotal += net;
-        vatTotal += vat;
     });
+
+    const dt = document.querySelector('[name="discount_type"]')?.value || 'none';
+    const dv = parseFloat(document.querySelector('[name="discount_value"]')?.value) || 0;
+    let disc = 0;
+    if (dt === 'percent' && dv > 0) disc = subtotal * (dv / 100);
+    else if (dt === 'amount' && dv > 0) disc = Math.min(dv, subtotal);
+    disc = Math.round(disc * 100) / 100;
+
+    let remainingDisc = disc;
+    let vatTotal = 0;
+    rows.forEach((row, idx) => {
+        let lineDisc = 0;
+        if (disc > 0 && subtotal > 0) {
+            if (idx === rows.length - 1) {
+                lineDisc = remainingDisc;
+            } else {
+                lineDisc = Math.round(disc * (row.net / subtotal) * 100) / 100;
+                remainingDisc -= lineDisc;
+            }
+        }
+        const lineNet = row.net - lineDisc;
+        vatTotal += Math.round(lineNet * (row.vatRate / 100) * 100) / 100;
+    });
+
+    const roundOff = parseFloat(document.querySelector('[name="round_off"]')?.value) || 0;
+    const grandTotal = subtotal - disc + vatTotal + roundOff;
+
     document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+    const showDiscount = disc > 0;
+    document.getElementById('discountRow')?.classList.toggle('d-none', !showDiscount);
+    if (showDiscount) {
+        document.getElementById('discountTotal').textContent = disc.toFixed(2);
+    }
     document.getElementById('vatTotal').textContent = vatTotal.toFixed(2);
-    document.getElementById('grandTotal').textContent = (subtotal + vatTotal).toFixed(2);
+    const showRoundOff = Math.abs(roundOff) >= 0.005;
+    document.getElementById('roundOffRow')?.classList.toggle('d-none', !showRoundOff);
+    if (showRoundOff) {
+        const sign = roundOff > 0 ? '+' : '';
+        document.getElementById('roundOffTotal').textContent = sign + roundOff.toFixed(2);
+    }
+    document.getElementById('grandTotal').textContent = grandTotal.toFixed(2);
 }
 
 function applyPOHeaderFields(data) {
@@ -898,6 +969,11 @@ document.addEventListener('DOMContentLoaded', function() {
             calculateRowTotal(qty);
         }
     });
+
+    document.querySelector('[name="discount_type"]')?.addEventListener('change', calculateTotals);
+    document.querySelector('[name="discount_value"]')?.addEventListener('input', calculateTotals);
+    document.querySelector('[name="round_off"]')?.addEventListener('input', calculateTotals);
+    calculateTotals();
 
     const billForm = document.querySelector('form[method="post"]');
     if (billForm) {

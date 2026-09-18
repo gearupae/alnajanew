@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-2">
+                <li class="breadcrumb-item"><a href="{% url 'hr:payroll_list' %}">Payroll</a></li>
+                <li class="breadcrumb-item active">Deductions</li>
+            </ol>
+        </nav>
+        <h4 class="mb-1 fw-bold">{{ title }}</h4>
+        <p class="text-muted mb-0">Manual payroll deductions (loans, penalties, etc.). Attendance, leave, ILOE, GOSI, and advance repayments are calculated when payroll is processed.</p>
+    </div>
+    {% if can_add %}
+    <a href="{% url 'hr:payroll_deduction_create' %}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add deduction</a>
+    {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body py-3">
+                <p class="text-muted mb-0 small">Total (filtered)</p>
+                <h5 class="mb-0 fw-bold">AED {{ total_amount|floatformat:2|intcomma }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8 d-flex align-items-center">
+        <p class="text-muted small mb-0">
+            Configure automatic rules in <a href="{% url 'hr:payroll_settings' %}">Payroll settings</a>
+            and salary advances in <a href="{% url 'hr:payroll_advance_list' %}">Advances</a>.
+        </p>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small mb-0">Employee</label>
+                <select name="employee" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    {% for e in employees %}
+                    <option value="{{ e.pk }}" {% if filter_employee == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-0">Payroll month</label>
+                <input type="month" name="month" class="form-control form-control-sm" value="{{ filter_month }}"/>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-0">Payroll status</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="draft" {% if filter_status == 'draft' %}selected{% endif %}>Draft</option>
+                    <option value="processed" {% if filter_status == 'processed' %}selected{% endif %}>Processed</option>
+                    <option value="paid" {% if filter_status == 'paid' %}selected{% endif %}>Paid</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-sm btn-outline-primary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Employee</th>
+                        <th>Month</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th class="text-end">Amount</th>
+                        <th>Payroll status</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in deduction_lines %}
+                    <tr>
+                        <td>{{ line.payroll.employee.full_name }}</td>
+                        <td>{{ line.payroll.month|date:"F Y" }}</td>
+                        <td><span class="badge bg-light text-dark">{{ line.code }}</span></td>
+                        <td>{{ line.label }}</td>
+                        <td class="text-end text-danger">AED {{ line.amount|floatformat:2|intcomma }}</td>
+                        <td>
+                            {% if line.payroll.status == 'paid' %}<span class="badge badge-active">Paid</span>
+                            {% elif line.payroll.status == 'processed' %}<span class="badge" style="background:#dbeafe;color:#1e40af;">Processed</span>
+                            {% else %}<span class="badge bg-secondary">Draft</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'hr:payroll_detail' line.payroll.pk %}" class="btn btn-action btn-outline-secondary" title="View payroll"><i class="fas fa-eye"></i></a>
+                            {% if line.payroll.status == 'draft' and can_add %}
+                            <a href="{% url 'hr:payroll_edit' line.payroll.pk %}#deductions" class="btn btn-action btn-outline-primary" title="Edit deductions"><i class="fas fa-edit"></i></a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fas fa-minus-circle fa-2x mb-2 d-block opacity-50"></i>
+                            No manual deductions yet.
+                            {% if can_add %}<a href="{% url 'hr:payroll_deduction_create' %}">Add a deduction</a>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

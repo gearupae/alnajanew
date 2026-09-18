@@ -180,7 +180,8 @@ class EmployeeAttendanceRecordsView(LoginRequiredMixin, ListView):
     paginate_by = 31
 
     def dispatch(self, request, *args, **kwargs):
-        if PermissionChecker.has_permission(request.user, 'hr', 'view'):
+        # HR admins (create) use the company-wide list; field staff keep self-service.
+        if PermissionChecker.has_permission(request.user, 'hr', 'create'):
             return redirect('hr:attendance_list')
         return super().dispatch(request, *args, **kwargs)
 

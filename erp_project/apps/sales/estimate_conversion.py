@@ -4,10 +4,10 @@ from __future__ import annotations
 from decimal import Decimal
 
 from apps.crm.customer_compliance import (
-    b2b_compliance_missing_labels,
     b2b_compliance_warning_message,
     b2b_has_compliance_for_project_conversion,
     customer_is_b2b,
+    project_conversion_compliance_missing_labels,
 )
 
 
@@ -32,10 +32,16 @@ def estimate_convert_to_project_block_reason(estimate) -> str:
                 )
         return 'This estimate is already linked to a project.'
     if not estimate_customer_b2b_compliance_ok(estimate):
-        missing = b2b_compliance_missing_labels(estimate.customer)
+        missing = project_conversion_compliance_missing_labels(estimate.customer)
         if missing:
+            extra = (
+                ' B2B customers also need trade license number and document.'
+                if customer_is_b2b(estimate.customer)
+                else ''
+            )
             return (
-                'B2B customer must have VAT (TRN), TRN document, and trade license on file. '
+                'Customer must have VAT (TRN) and TRN document on file before converting to a project.'
+                f'{extra} '
                 f'Missing: {", ".join(missing)}. '
                 'Update the customer record in CRM, then convert to project.'
             )
@@ -50,7 +56,6 @@ def warn_on_quotation_won_if_b2b_incomplete(estimate) -> str:
 def estimate_show_b2b_compliance_banner(estimate) -> bool:
     return (
         estimate.status == 'quotation_won'
-        and customer_is_b2b(estimate.customer)
         and not estimate_customer_b2b_compliance_ok(estimate)
         and not estimate.project_id
     )

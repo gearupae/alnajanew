@@ -45,6 +45,15 @@
     min-width: 14rem;
     margin-left: auto;
 }
+.estimate-header-select2-dropdown {
+    z-index: 1060;
+}
+.estimate-header-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+#estimateForm .select2-container--bootstrap-5 .select2-selection {
+    min-height: calc(1.5em + 0.75rem + 2px);
+}
 .estimate-items-table th,
 .estimate-items-table td {
     min-width: 0;
@@ -393,6 +402,7 @@
                     <label class="form-label" for="{{ form.scope_of_work.id_for_label }}">Scope of work</label>
                     {{ form.scope_of_work }}
                     {% if form.scope_of_work.errors %}<div class="text-danger small">{{ form.scope_of_work.errors|join:", " }}</div>{% endif %}
+                    <small class="text-muted d-block">Only base groups with sub-groups that contain inventory items are listed.</small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Date <span class="text-danger">*</span></label>
@@ -1175,11 +1185,14 @@ let suppressInventoryChange = false;
 function syncInventorySelectUi(selectEl, invId) {
     if (!selectEl) return;
     const val = invId != null && invId !== '' ? String(invId) : (selectEl.value || '');
+    const hadSelect2 = typeof $ !== 'undefined' && $(selectEl).data('select2');
+    if (hadSelect2) {
+        destroyInventorySelect2(selectEl);
+    }
     selectEl.innerHTML = getInventoryOptions(val);
-    if (typeof $ !== 'undefined' && $(selectEl).data('select2')) {
-        $(selectEl).val(val || null).trigger('change.select2');
-    } else {
-        selectEl.value = val;
+    selectEl.value = val;
+    if (hadSelect2) {
+        initInventorySelect2(selectEl);
     }
     syncInventorySelectTitle(selectEl);
 }
@@ -1666,7 +1679,10 @@ function loadLineItemsForScopeOfWork(baseGroupName) {
     if (!baseGroupName) return true;
     const groups = getSubGroupsForBaseGroup(baseGroupName);
     if (!groups.length) {
-        alert(`No sub-groups with items found for "${baseGroupName}". Add sub-groups under Inventory → Item groups.`);
+        alert(
+            `No sub-groups with active items are linked to "${baseGroupName}". ` +
+            'Open Inventory → Item groups, assign sub-groups to this base group, and add items to each sub-group.'
+        );
         return false;
     }
     const filled = getVisibleEstimateRows().filter(isEstimateRowFilled);
@@ -2263,23 +2279,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     syncLineVatInclusiveFlags();
     updateVatPricingLabels();
-    const scopeSelect = document.getElementById('id_scope_of_work');
-    if (scopeSelect) {
-        let lastScopeOfWork = scopeSelect.value || '';
-        scopeSelect.addEventListener('change', function() {
-            const selected = this.value;
-            if (!selected) {
-                lastScopeOfWork = '';
-                return;
-            }
-            const ok = loadLineItemsForScopeOfWork(selected);
-            if (!ok) {
-                this.value = lastScopeOfWork;
-            } else {
-                lastScopeOfWork = selected;
-            }
-        });
-    }
     const boundsModalEl = document.getElementById('estimatePriceBoundsModal');
     if (boundsModalEl && window.bootstrap) {
         estimatePriceBoundsModal = new bootstrap.Modal(boundsModalEl);
@@ -2310,7 +2309,117 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+function initEstimateCustomerSelect2() {
+    const el = document.getElementById('id_customer');
+    if (!el || typeof $ === 'undefined' || !$.fn.select2) return;
+    const $el = $(el);
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+    const searchUrl = '{% url "crm:customer_picker_search" %}';
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        dropdownParent: $(document.body),
+        allowClear: !el.required,
+        minimumInputLength: 0,
+        dropdownCssClass: 'estimate-header-select2-dropdown',
+        placeholder: 'Search by number, name, or company…',
+        ajax: {
+            url: searchUrl,
+            dataType: 'json',
+            delay: 200,
+            data: function(params) {
+                return { q: params.term || '', selected: $el.val() || '' };
+            },
+            processResults: function(data) {
+                return { results: data.results || [] };
+            },
+        },
+        language: {
+            noResults: function() { return 'No matching customers — try number, name, or company'; },
+            searching: function() { return 'Searching…'; },
+        },
+    });
+}
+
+function initEstimateScopeOfWorkHandler() {
+    const scopeSelect = document.getElementById('id_scope_of_work');
+    if (!scopeSelect || typeof $ === 'undefined') return;
+    const $scope = $(scopeSelect);
+    $scope.off('change.scopeOfWork select2:select.scopeOfWork select2:clear.scopeOfWork');
+    let lastScopeOfWork = scopeSelect.value || '';
+    const onScopeChange = function() {
+        const selected = scopeSelect.value || '';
+        if (!selected) {
+            lastScopeOfWork = '';
+            return;
+        }
+        if (selected === lastScopeOfWork) return;
+        const ok = loadLineItemsForScopeOfWork(selected);
+        if (!ok) {
+            scopeSelect.value = lastScopeOfWork;
+            $scope.trigger('change.select2');
+        } else {
+            lastScopeOfWork = selected;
+        }
+    };
+    $scope.on('change.scopeOfWork select2:select.scopeOfWork', onScopeChange);
+    $scope.on('select2:clear.scopeOfWork', function() {
+        lastScopeOfWork = '';
+    });
+}
+
+function initEstimateHeaderSelect2() {
+    if (typeof $ === 'undefined' || !$.fn.select2) return;
+    const headerSelectors = [
+        '#id_project',
+        '#id_assigned_to',
+        '#id_scope_of_work',
+        '#id_type_of_occupancy',
+        '#id_type_of_work',
+        '#id_discount_type',
+        '#clientNoteTemplateSelect',
+        '#termsTemplateSelect',
+    ];
+    headerSelectors.forEach(function(sel) {
+        const el = document.querySelector(sel);
+        if (!el) return;
+        const $el = $(el);
+        if ($el.data('select2')) {
+            $el.select2('destroy');
+        }
+        $el.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: $(document.body),
+            minimumResultsForSearch: 0,
+            allowClear: !el.required,
+            dropdownCssClass: 'estimate-header-select2-dropdown',
+            placeholder: el.querySelector('option[value=""]')?.textContent?.trim() || undefined,
+        });
+    });
+    const scopeEl = document.getElementById('id_scope');
+    if (scopeEl) {
+        const $scope = $(scopeEl);
+        if ($scope.data('select2')) {
+            $scope.select2('destroy');
+        }
+        $scope.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: $(document.body),
+            closeOnSelect: false,
+            placeholder: 'Select scope tags…',
+            dropdownCssClass: 'estimate-header-select2-dropdown',
+        });
+    }
+}
+
 $(function() {
+    initEstimateCustomerSelect2();
+    initEstimateHeaderSelect2();
+    initEstimateScopeOfWorkHandler();
     initAllInventorySelect2();
     window.addEventListener('resize', syncAllInventoryFieldHeights);
 });

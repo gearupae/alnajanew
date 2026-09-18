@@ -35,7 +35,12 @@ from apps.hr.attendance_utils import (
     month_absent_rate_pct,
     open_attendance_session,
 )
-from apps.hr.forms_extended import EmployeeAdvanceForm, PayrollSettingsForm, PayrollTemplateForm
+from apps.hr.forms_extended import (
+    EmployeeAdvanceForm,
+    PayrollManualDeductionForm,
+    PayrollSettingsForm,
+    PayrollTemplateForm,
+)
 from apps.hr.models import Department, Employee, LeaveBalance, LeaveRequest, Payroll
 from apps.hr.models_extended import (
     AdvanceRepayment,
@@ -45,6 +50,7 @@ from apps.hr.models_extended import (
     EmployeeHRProfile,
     GOSIRecord,
     KSACompliance,
+    PayrollDeductionLine,
     PayrollSettings,
     PayrollTemplate,
     UAECompliance,
@@ -224,6 +230,9 @@ class HRDashboardView(PermissionRequiredMixin, TemplateView):
         ctx['att_snap'] = attendance_snapshot_today()
         ctx['att_absent_rate_pct'] = month_absent_rate_pct(today.year, today.month)
         ctx['att_ot_company_month'] = company_overtime_month(today.year, today.month)
+        ctx['can_mark_attendance'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'hr', 'create'
+        )
 
         ctx['gosi_month_total'] = ctx['gosi_month_employee']
 
@@ -906,6 +915,96 @@ class EmployeeAdvanceDetailView(PermissionRequiredMixin, DetailView):
         ctx['title'] = f'Advance — {self.object.employee.full_name}'
         ctx['repayments'] = self.object.repayments.select_related('payroll').order_by('-date', '-pk')
         return ctx
+
+
+class PayrollDeductionListView(PermissionRequiredMixin, ListView):
+    template_name = 'hr/payroll_deduction_list.html'
+    context_object_name = 'deduction_lines'
+    module_name = 'hr'
+    permission_type = 'view'
+    paginate_by = 50
+
+    def get_queryset(self):
+        from apps.hr.payroll_deductions import MANUAL_DEDUCTION_CODES
+
+        qs = (
+            PayrollDeductionLine.objects.filter(
+                is_active=True,
+                payroll__is_active=True,
+                code__in=MANUAL_DEDUCTION_CODES,
+            )
+            .select_related('payroll', 'payroll__employee', 'payroll__company')
+            .order_by('-payroll__month', 'payroll__employee__first_name', 'payroll__employee__last_name', 'pk')
+        )
+        eid = self.request.GET.get('employee')
+        if eid and str(eid).isdigit():
+            qs = qs.filter(payroll__employee_id=int(eid))
+        m = self.request.GET.get('month')
+        if m and isinstance(m, str) and len(m) >= 7 and m[4:5] == '-':
+            try:
+                y, mo = m.split('-', 1)
+                qs = qs.filter(payroll__month__year=int(y), payroll__month__month=int(mo))
+            except ValueError:
+                pass
+        st = self.request.GET.get('status')
+        if st in ('draft', 'processed', 'paid'):
+            qs = qs.filter(payroll__status=st)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Payroll deductions'
+        ctx['employees'] = Employee.objects.filter(is_active=True).order_by('first_name', 'last_name')
+        ctx['filter_employee'] = self.request.GET.get('employee', '')
+        ctx['filter_month'] = self.request.GET.get('month', '')
+        ctx['filter_status'] = self.request.GET.get('status', '')
+        ctx['can_add'] = self.request.user.is_superuser or PermissionChecker.has_permission(
+            self.request.user, 'hr', 'edit'
+        )
+        ctx['total_amount'] = self.get_queryset().aggregate(t=Sum('amount'))['t'] or Decimal('0')
+        return ctx
+
+
+class PayrollManualDeductionCreateView(CreatePermissionMixin, FormView):
+    form_class = PayrollManualDeductionForm
+    template_name = 'hr/payroll_deduction_form.html'
+    success_url = reverse_lazy('hr:payroll_deduction_list')
+    module_name = 'hr'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add payroll deduction'
+        return ctx
+
+    def form_valid(self, form):
+        from apps.hr.payroll_deductions import (
+            add_manual_deduction_for_employee_month,
+            default_manual_deduction_description,
+        )
+        from apps.hr.salary_payroll_utils import refresh_payroll_gross_and_allowances
+
+        employee = form.cleaned_data['employee']
+        month_first = form.cleaned_data['month']
+        code = form.cleaned_data['code']
+        label = (form.cleaned_data.get('description') or '').strip() or default_manual_deduction_description(code)
+        amount = form.cleaned_data['amount']
+        try:
+            payroll = add_manual_deduction_for_employee_month(
+                employee=employee,
+                month_first=month_first,
+                code=code,
+                label=label,
+                amount=amount,
+            )
+        except Exception as exc:
+            form.add_error(None, str(exc))
+            return self.form_invalid(form)
+        refresh_payroll_gross_and_allowances(payroll)
+        messages.success(
+            self.request,
+            f'Deduction of AED {amount:.2f} added for {employee.full_name} ({month_first.strftime("%B %Y")}).',
+        )
+        return super().form_valid(form)
 
 
 class PayrollTemplateDeleteView(UpdatePermissionMixin, DeleteView):

@@ -285,6 +285,50 @@ class CustomerListView(PermissionRequiredMixin, ListView):
 
 
 @login_required
+@login_required
+def customer_picker_search(request):
+    """JSON search for customer Select2 pickers (estimates, invoices, etc.)."""
+    if not (
+        request.user.is_superuser
+        or PermissionChecker.has_permission(request.user, 'crm', 'view')
+        or PermissionChecker.has_permission(request.user, 'sales', 'view')
+        or PermissionChecker.has_permission(request.user, 'sales', 'create')
+    ):
+        return JsonResponse({'results': []}, status=403)
+
+    q = (request.GET.get('q') or request.GET.get('term') or '').strip()
+    selected_raw = (request.GET.get('selected') or '').strip()
+    selected_ids = [int(x) for x in selected_raw.split(',') if x.isdigit()]
+
+    qs = filter_customers_for_user(
+        Customer.objects.filter(is_active=True), request.user
+    ).order_by('-customer_number')
+
+    if q:
+        qs = qs.filter(
+            Q(customer_number__icontains=q)
+            | Q(name__icontains=q)
+            | Q(company__icontains=q)
+            | Q(email__icontains=q)
+            | Q(phone__icontains=q)
+        )
+
+    results = []
+    seen = set()
+    if selected_ids:
+        for customer in Customer.objects.filter(pk__in=selected_ids, is_active=True):
+            results.append({'id': customer.pk, 'text': customer.picker_option_label})
+            seen.add(customer.pk)
+
+    for customer in qs[:50]:
+        if customer.pk in seen:
+            continue
+        results.append({'id': customer.pk, 'text': customer.picker_option_label})
+        seen.add(customer.pk)
+
+    return JsonResponse({'results': results})
+
+
 def customer_lookup(request):
     """JSON: find an existing customer/lead to prefill CRM forms."""
     if not (

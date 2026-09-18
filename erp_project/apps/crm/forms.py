@@ -22,7 +22,7 @@ from .utils import (
 COMPACT_CUSTOMER_FIELDS = frozenset({
     'company', 'name', 'customer_type', 'assigned_salesperson', 'business_segment',
     'email', 'phone', 'is_active', 'address', 'trn', 'website',
-    'trn_document', 'trade_license_document', 'notes',
+    'trn_document', 'trade_license_number', 'trade_license_document', 'notes',
 })
 
 
@@ -302,16 +302,16 @@ class CustomerForm(forms.ModelForm):
                     )
 
         if seg == 'b2c':
-            cleaned['trn'] = ''
             if 'trade_license_number' in self.fields:
                 cleaned['trade_license_number'] = ''
         elif seg == 'b2b':
             if 'trade_license_number' in self.fields:
                 cleaned['trade_license_number'] = (cleaned.get('trade_license_number') or '').strip()
-            if self.data.get('trn_document-clear') in ('on', 'true', '1'):
-                cleaned['trn_document'] = False
-            if self.data.get('trade_license_document-clear') in ('on', 'true', '1'):
-                cleaned['trade_license_document'] = False
+
+        if self.data.get('trn_document-clear') in ('on', 'true', '1'):
+            cleaned['trn_document'] = False
+        if self.data.get('trade_license_document-clear') in ('on', 'true', '1'):
+            cleaned['trade_license_document'] = False
 
         if ctype == 'customer' and 'lead_kanban_stage' in self.fields:
             cleaned['lead_kanban_stage'] = None

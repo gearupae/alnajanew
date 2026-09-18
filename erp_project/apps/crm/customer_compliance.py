@@ -54,11 +54,29 @@ def customer_contact_missing_labels(*, email, phone, customer_type=None, busines
     ) if label in ('Email', 'Contact')]
 
 
+def project_conversion_compliance_missing_labels(customer) -> list[str]:
+    """
+    Required before quotation → project conversion.
+    All customers need TRN + TRN document; B2B also needs trade license details.
+    """
+    if not customer:
+        return ['Customer record']
+    missing = []
+    if not (getattr(customer, 'trn', None) or '').strip():
+        missing.append('VAT (TRN) number')
+    if not _file_uploaded(getattr(customer, 'trn_document', None)):
+        missing.append('TRN document')
+    if customer_is_b2b(customer):
+        if not (getattr(customer, 'trade_license_number', None) or '').strip():
+            missing.append('Trade license number')
+        if not _file_uploaded(getattr(customer, 'trade_license_document', None)):
+            missing.append('Trade license document')
+    return missing
+
+
 def b2b_has_compliance_for_project_conversion(customer) -> bool:
-    """B2C and non-B2B segments skip checks; B2B must have TRN + both documents."""
-    if not customer_is_b2b(customer):
-        return True
-    return len(b2b_compliance_missing_labels(customer)) == 0
+    """True when customer has everything required to convert a quotation to a project."""
+    return len(project_conversion_compliance_missing_labels(customer)) == 0
 
 
 def b2b_compliance_warning_message(customer) -> str:

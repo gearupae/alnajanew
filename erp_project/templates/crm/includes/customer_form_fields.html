@@ -1,3 +1,4 @@
+{% load crm_extras %}
 {% comment %}
 Compact CRM customer / lead form fields (create & edit).
 {% endcomment %}
@@ -67,24 +68,57 @@ Compact CRM customer / lead form fields (create & edit).
         {% for err in form.address.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
     </div>
 
-    <div class="col-md-3 crm-b2b-only-field" id="crmInlineTrnWrap" style="display:none;">
+    <div class="col-md-3" id="crmInlineTrnWrap">
         <label class="form-label" for="{{ form.trn.id_for_label }}">{{ form.trn.label }}</label>
         {{ form.trn }}
+        <div class="form-text small mb-0">Required before converting a quotation to a project.</div>
         {% for err in form.trn.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="col-md-3" id="crmTrnDocWrap">
+        <label class="form-label" for="{{ form.trn_document.id_for_label }}">{{ form.trn_document.label }}</label>
+        {% if object and object.trn_document %}
+        <div class="d-flex align-items-center gap-2 mb-2 p-2 bg-light rounded border">
+            <i class="fas fa-file-alt text-secondary"></i>
+            <div class="flex-grow-1 min-w-0">
+                <div class="small text-muted text-truncate">{{ object.trn_document|file_basename }}</div>
+                <a href="{{ object.trn_document.url }}" class="btn btn-sm btn-outline-secondary mt-1" target="_blank" rel="noopener">View</a>
+            </div>
+        </div>
+        <div class="form-check mb-2">
+            <input type="checkbox" name="trn_document-clear" id="id_trn_document-clear" class="form-check-input" value="1">
+            <label class="form-check-label small" for="id_trn_document-clear">Remove current file</label>
+        </div>
+        {% endif %}
+        {{ form.trn_document }}
+        <div class="form-text small mb-0">PDF or image. Required before project conversion.</div>
+        {% for err in form.trn_document.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
     </div>
     <div class="col-md-6" id="crmWebsiteFieldWrap">
         <label class="form-label" for="{{ form.website.id_for_label }}">Website</label>
         {{ form.website }}
         {% for err in form.website.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
     </div>
-    <div class="col-md-3 crm-b2b-only-field" id="crmB2bTrnDocWrap" style="display:none;">
-        <label class="form-label" for="{{ form.trn_document.id_for_label }}">{{ form.trn_document.label }} <span class="text-muted small">(optional)</span></label>
-        {{ form.trn_document }}
-        <div class="form-text small mb-0">PDF or image.</div>
-        {% for err in form.trn_document.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+
+    <div class="col-md-4 crm-b2b-only-field" id="crmTradeLicenseNumberWrap" style="display:none;">
+        <label class="form-label" for="{{ form.trade_license_number.id_for_label }}">{{ form.trade_license_number.label }}</label>
+        {{ form.trade_license_number }}
+        {% for err in form.trade_license_number.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
     </div>
-    <div class="col-md-3 crm-b2b-only-field" id="crmB2bLicenseDocWrap" style="display:none;">
-        <label class="form-label" for="{{ form.trade_license_document.id_for_label }}">{{ form.trade_license_document.label }} <span class="text-muted small">(optional)</span></label>
+    <div class="col-md-4 crm-b2b-only-field" id="crmB2bLicenseDocWrap" style="display:none;">
+        <label class="form-label" for="{{ form.trade_license_document.id_for_label }}">{{ form.trade_license_document.label }}</label>
+        {% if object and object.trade_license_document %}
+        <div class="d-flex align-items-center gap-2 mb-2 p-2 bg-light rounded border">
+            <i class="fas fa-file-alt text-secondary"></i>
+            <div class="flex-grow-1 min-w-0">
+                <div class="small text-muted text-truncate">{{ object.trade_license_document|file_basename }}</div>
+                <a href="{{ object.trade_license_document.url }}" class="btn btn-sm btn-outline-secondary mt-1" target="_blank" rel="noopener">View</a>
+            </div>
+        </div>
+        <div class="form-check mb-2">
+            <input type="checkbox" name="trade_license_document-clear" id="id_trade_license_document-clear" class="form-check-input" value="1">
+            <label class="form-check-label small" for="id_trade_license_document-clear">Remove current file</label>
+        </div>
+        {% endif %}
         {{ form.trade_license_document }}
         <div class="form-text small mb-0">PDF or image.</div>
         {% for err in form.trade_license_document.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}

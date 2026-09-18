@@ -171,10 +171,20 @@ class Company(BaseModel):
         ('ksa', 'KSA'),
         ('other', 'Other'),
     ]
+    COUNTRY_CODE_MAP = {
+        'uae': 'AE',
+        'ksa': 'SA',
+        'other': 'XX',
+    }
 
     name = models.CharField(max_length=200)
     trade_license_number = models.CharField(max_length=120, blank=True)
     country = models.CharField(max_length=10, choices=COUNTRY_CHOICES, default='uae')
+    country_code = models.CharField(
+        max_length=3,
+        default='AE',
+        help_text='ISO country code (derived from country).',
+    )
     mol_number = models.CharField(
         max_length=20,
         blank=True,
@@ -196,6 +206,13 @@ class Company(BaseModel):
 
     def __str__(self):
         return self.name
+
+    def sync_country_code(self):
+        self.country_code = self.COUNTRY_CODE_MAP.get(self.country, 'AE')
+
+    def save(self, *args, **kwargs):
+        self.sync_country_code()
+        super().save(*args, **kwargs)
 
 
 class CompanySettings(models.Model):

@@ -368,7 +368,9 @@ class PurchaseOrderItem(models.Model):
     def save(self, *args, **kwargs):
         if self.inventory_item_id:
             inv = self.inventory_item
-            self.description = f"{inv.item_code} - {inv.name}"[:500]
+            default_desc = f"{inv.item_code} - {inv.name}"[:500]
+            if not (self.description or '').strip():
+                self.description = default_desc
 
         # Derive VAT rate from Tax Code (No Tax Code = 0%)
         if self.tax_code:
@@ -504,6 +506,12 @@ class VendorBill(BaseModel):
         ('partial', 'Partially Paid'),
         ('overdue', 'Overdue'),
     ]
+
+    DISCOUNT_TYPE_CHOICES = [
+        ('none', 'None'),
+        ('percent', 'Percentage'),
+        ('amount', 'Fixed amount'),
+    ]
     
     bill_number = models.CharField(max_length=50, unique=True, editable=False)
     purchase_order = models.ForeignKey(
@@ -532,6 +540,25 @@ class VendorBill(BaseModel):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     notes = models.TextField(blank=True)
     
+    discount_type = models.CharField(
+        max_length=20,
+        choices=DISCOUNT_TYPE_CHOICES,
+        default='none',
+    )
+    discount_value = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    discount_applied = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Last calculated discount amount on subtotal (excl. VAT)',
+    )
+    round_off = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Adjustment applied to grand total (e.g. fils rounding)',
+    )
+
     # Amounts
     subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     vat_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
@@ -581,13 +608,61 @@ class VendorBill(BaseModel):
     @property
     def balance(self):
         return self.total_amount - self.paid_amount
-    
+
+    def compute_discount_amount(self, subtotal: Decimal) -> Decimal:
+        subtotal = subtotal if isinstance(subtotal, Decimal) else Decimal(str(subtotal or '0'))
+        if self.discount_type == 'percent' and self.discount_value > 0:
+            return (subtotal * self.discount_value / Decimal('100')).quantize(Decimal('0.01'))
+        if self.discount_type == 'amount' and self.discount_value > 0:
+            return min(self.discount_value, subtotal).quantize(Decimal('0.01'))
+        return Decimal('0.00')
+
+    @staticmethod
+    def allocate_line_discounts(items, subtotal: Decimal, discount_amt: Decimal) -> list[Decimal]:
+        if not items or discount_amt <= 0 or subtotal <= 0:
+            return [Decimal('0.00')] * len(items)
+        allocations: list[Decimal] = []
+        remaining = discount_amt
+        last_idx = len(items) - 1
+        for idx, item in enumerate(items):
+            if idx == last_idx:
+                allocations.append(remaining.quantize(Decimal('0.01')))
+                continue
+            share = (discount_amt * item.total / subtotal).quantize(Decimal('0.01'))
+            allocations.append(share)
+            remaining -= share
+        return allocations
+
+    def discounted_line_amounts(self, items=None):
+        items = list(items if items is not None else self.items.all())
+        subtotal = sum((item.total for item in items), Decimal('0.00'))
+        discount_amt = self.compute_discount_amount(subtotal)
+        allocations = self.allocate_line_discounts(items, subtotal, discount_amt)
+        result = []
+        for item, line_disc in zip(items, allocations):
+            line_net = (item.total - line_disc).quantize(Decimal('0.01'))
+            line_vat = (line_net * item.vat_rate / Decimal('100')).quantize(Decimal('0.01'))
+            result.append((line_net, line_vat))
+        return result, subtotal, discount_amt
+
+    def net_expense_amount(self) -> Decimal:
+        round_off = self.round_off if self.round_off is not None else Decimal('0.00')
+        return (self.subtotal - self.discount_applied + round_off).quantize(Decimal('0.01'))
+
     def calculate_totals(self):
-        items = self.items.all()
-        self.subtotal = sum(item.total for item in items)
-        self.vat_amount = sum(item.vat_amount for item in items)
-        self.total_amount = self.subtotal + self.vat_amount
-        self.save(update_fields=['subtotal', 'vat_amount', 'total_amount'])
+        items = list(self.items.all())
+        line_amounts, subtotal, discount_amt = self.discounted_line_amounts(items)
+        vat_sum = sum((lv for _, lv in line_amounts), Decimal('0.00'))
+        round_off = self.round_off if self.round_off is not None else Decimal('0.00')
+        self.subtotal = subtotal
+        self.discount_applied = discount_amt
+        self.vat_amount = vat_sum
+        self.total_amount = (
+            subtotal - discount_amt + vat_sum + round_off
+        ).quantize(Decimal('0.01'))
+        self.save(update_fields=[
+            'subtotal', 'vat_amount', 'total_amount', 'discount_applied',
+        ])
     
     def post_to_accounting(self, user=None):
         """
@@ -660,11 +735,12 @@ class VendorBill(BaseModel):
             source_module='purchase',
         )
 
+        net_expense = self.net_expense_amount()
         JournalEntryLine.objects.create(
             journal_entry=journal,
             account=debit_account,
             description=f"{debit_label} - {self.bill_number}",
-            debit=self.subtotal,
+            debit=net_expense,
             credit=Decimal('0.00'),
         )
 
@@ -722,7 +798,7 @@ class VendorBill(BaseModel):
                 'category': 'other',
                 'description': desc,
                 'expense_date': self.bill_date,
-                'amount': self.subtotal,
+                'amount': self.net_expense_amount(),
                 'vat_amount': self.vat_amount,
                 'status': 'posted',
                 'posted': True,
@@ -735,7 +811,7 @@ class VendorBill(BaseModel):
             expense.vendor = self.vendor
             expense.description = desc
             expense.expense_date = self.bill_date
-            expense.amount = self.subtotal
+            expense.amount = self.net_expense_amount()
             expense.vat_amount = self.vat_amount
             expense.journal_entry = self.journal_entry
             expense.invoice_reference = inv_ref

@@ -144,8 +144,9 @@
 {% if show_b2b_compliance_banner %}
 <div class="alert alert-warning mb-4">
     <i class="fas fa-exclamation-triangle me-2"></i>
-    <strong>B2B customer documents required.</strong>
-    Add VAT (TRN), TRN document, and trade license on the customer record before you can convert this quotation to a project.
+    <strong>Customer documents required.</strong>
+    Add VAT (TRN) and TRN document on the customer record before you can convert this quotation to a project.
+    B2B customers also need trade license number and document.
     {% if customer_edit_url %}
     <a href="{{ customer_edit_url }}" class="alert-link ms-1">Edit customer</a>
     {% endif %}

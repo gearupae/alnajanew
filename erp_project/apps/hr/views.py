@@ -83,6 +83,7 @@ def leave_requests_queryset_for_user(user):
 def _payroll_form_allowance_context(payroll=None):
     from apps.hr.models_extended import PayrollTemplate
     from apps.hr.payroll_allowances import TEMPLATE_ALLOWANCE_CHOICES
+    from apps.hr.payroll_deductions import MANUAL_DEDUCTION_CHOICES, manual_deduction_rows_for_payroll
 
     rows = []
     if payroll and payroll.pk:
@@ -98,6 +99,8 @@ def _payroll_form_allowance_context(payroll=None):
         rows = [{'code': 'HOUSING', 'description': '', 'amount': ''}]
     return {
         'standard_allowance_choices': TEMPLATE_ALLOWANCE_CHOICES,
+        'manual_deduction_choices': MANUAL_DEDUCTION_CHOICES,
+        'deduction_rows': manual_deduction_rows_for_payroll(payroll),
         'payroll_templates': PayrollTemplate.objects.filter(is_active=True).select_related('company').order_by(
             'name'
         ),
@@ -1097,6 +1100,7 @@ class PayrollCreateView(CreatePermissionMixin, CreateView):
     
     def form_valid(self, form):
         from apps.hr.payroll_allowances import replace_allowance_lines_from_post
+        from apps.hr.payroll_deductions import replace_manual_deduction_lines_from_post
         from apps.hr.salary_payroll_utils import (
             ensure_payroll_allowances_from_employee_template,
             refresh_payroll_gross_and_allowances,
@@ -1113,6 +1117,7 @@ class PayrollCreateView(CreatePermissionMixin, CreateView):
             payroll.basic_salary = emp.basic_salary or Decimal('0')
         payroll.save()
         replace_allowance_lines_from_post(payroll, self.request.POST)
+        replace_manual_deduction_lines_from_post(payroll, self.request.POST)
         if emp:
             ensure_payroll_allowances_from_employee_template(payroll, emp)
         refresh_payroll_gross_and_allowances(payroll)
@@ -1144,6 +1149,7 @@ class PayrollUpdateView(UpdatePermissionMixin, UpdateView):
     
     def form_valid(self, form):
         from apps.hr.payroll_allowances import replace_allowance_lines_from_post
+        from apps.hr.payroll_deductions import replace_manual_deduction_lines_from_post
         from apps.hr.salary_payroll_utils import (
             ensure_payroll_allowances_from_employee_template,
             refresh_payroll_gross_and_allowances,
@@ -1156,6 +1162,7 @@ class PayrollUpdateView(UpdatePermissionMixin, UpdateView):
                 payroll.company_id = ecid
         payroll.save()
         replace_allowance_lines_from_post(payroll, self.request.POST)
+        replace_manual_deduction_lines_from_post(payroll, self.request.POST)
         emp = Employee.objects.filter(pk=payroll.employee_id).first()
         if emp:
             ensure_payroll_allowances_from_employee_template(payroll, emp)

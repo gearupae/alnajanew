@@ -161,6 +161,13 @@ class CompanyForm(forms.ModelForm):
             elif name != 'address':
                 field.widget.attrs['class'] = 'form-control'
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.sync_country_code()
+        if commit:
+            instance.save()
+        return instance
+
 
 class CompanySettingsForm(forms.ModelForm):
     """Form for company settings."""

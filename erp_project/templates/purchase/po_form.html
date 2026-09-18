@@ -29,6 +29,10 @@
 .po-current-stock-cell {
     min-width: 5.5rem;
 }
+.item-description {
+    margin-top: 0.25rem;
+    font-size: 0.8125rem;
+}
 .item-current-stock {
     background: #f0f9ff;
     color: #0c4a6e;
@@ -219,8 +223,12 @@
                                 {{ item_form.id }}
                                 {{ item_form.is_vat_inclusive }}
                                 {{ item_form.inventory_item }}
+                                {{ item_form.description }}
                                 {% if item_form.inventory_item.errors %}
                                 <div class="text-danger small">{{ item_form.inventory_item.errors|join:", " }}</div>
+                                {% endif %}
+                                {% if item_form.description.errors %}
+                                <div class="text-danger small">{{ item_form.description.errors|join:", " }}</div>
                                 {% endif %}
                                 {% if item_form.non_field_errors %}
                                 <div class="text-danger small">{{ item_form.non_field_errors|join:", " }}</div>
@@ -461,6 +469,25 @@ function buildInventorySelect(name, selectedId) {
     return sel;
 }
 
+function syncPoDescriptionFromInventory(row, meta, force) {
+    const descInput = row.querySelector('.item-description');
+    if (!descInput || !meta) return;
+    const current = (descInput.value || '').trim();
+    const label = (meta.label || '').trim();
+    if (force || !current || descInput.dataset.autoFilled === '1') {
+        descInput.value = label;
+        descInput.dataset.autoFilled = label ? '1' : '0';
+    }
+}
+
+function bindPoDescriptionInput(descInput) {
+    if (!descInput || descInput.dataset.poDescBound === '1') return;
+    descInput.dataset.poDescBound = '1';
+    descInput.addEventListener('input', function () {
+        descInput.dataset.autoFilled = '0';
+    });
+}
+
 function applyInventoryDefaults(selectEl, row) {
     const id = parseInt(selectEl.value, 10);
     if (!id) {
@@ -473,6 +500,7 @@ function applyInventoryDefaults(selectEl, row) {
         return;
     }
     updateRowStock(row, meta.current_stock);
+    syncPoDescriptionFromInventory(row, meta, false);
     const price = row.querySelector('.item-price');
     if (price) {
         const cur = parseFloat(price.value);
@@ -528,12 +556,13 @@ function bindPoQtyInput(input) {
     });
 }
 
-function addItemRow(inventoryItemId = null, quantity = '0', unitPrice = '0', taxCodeId = null) {
+function addItemRow(inventoryItemId = null, quantity = '0', unitPrice = '0', taxCodeId = null, description = '') {
     const tbody = document.getElementById('itemsBody');
     const newRow = document.createElement('tr');
     newRow.className = 'item-row';
     const idx = formCount;
     const hasInv = inventoryItemId != null && inventoryItemId !== '';
+    const safeDesc = escapeHtml(description).replace(/"/g, '&quot;');
     newRow.innerHTML = `
         <td class="td-inv"></td>
         <td class="text-center text-nowrap align-middle item-current-stock po-current-stock-cell text-muted small">—</td>
@@ -553,6 +582,16 @@ function addItemRow(inventoryItemId = null, quantity = '0', unitPrice = '0', tax
     tdInv.appendChild(hiddenVat);
     const invSel = buildInventorySelect(`items-${idx}-inventory_item`, hasInv ? inventoryItemId : null);
     tdInv.appendChild(invSel);
+    const descInput = document.createElement('input');
+    descInput.type = 'text';
+    descInput.name = `items-${idx}-description`;
+    descInput.className = 'form-control form-control-sm item-description mt-1';
+    descInput.placeholder = 'Line description (optional)';
+    descInput.maxLength = 500;
+    descInput.value = description || '';
+    descInput.dataset.autoFilled = description ? '0' : '0';
+    tdInv.appendChild(descInput);
+    bindPoDescriptionInput(descInput);
     initPoInventorySelect2(invSel);
     formCount++;
     document.getElementById('id_items-TOTAL_FORMS').value = formCount;
@@ -661,7 +700,8 @@ function loadPRItems(prId) {
                             invId,
                             item.quantity || '0',
                             item.unit_price || item.estimated_price || '0',
-                            item.tax_code_id || defaultTaxCodeId
+                            item.tax_code_id || defaultTaxCodeId,
+                            item.description || ''
                         );
                     });
                 } else {
@@ -717,7 +757,8 @@ function loadSRItems(srId) {
                             invId,
                             item.quantity || '0',
                             item.unit_price || item.estimated_price || '0',
-                            defaultTaxCodeId
+                            defaultTaxCodeId,
+                            item.description || ''
                         );
                     });
                 } else {
@@ -760,6 +801,8 @@ $(function() {
         }
     });
     document.querySelectorAll('.item-row').forEach(row => {
+        const desc = row.querySelector('.item-description');
+        if (desc) bindPoDescriptionInput(desc);
         refreshRowStockFromSelect(row);
         const qty = row.querySelector('.item-qty');
         if (qty) {

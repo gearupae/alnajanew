@@ -430,15 +430,19 @@ class ProjectExpenseForm(forms.ModelForm):
         self.fields['expense_account'].queryset = Account.objects.filter(
             is_active=True,
             account_type__in=['expense', 'cogs'],
-        )
+        ).order_by('code', 'name')
         self.fields['expense_account'].required = False
         self.fields['expense_account'].empty_label = '-- Use Default --'
+        self.fields['expense_account'].widget.attrs['class'] = 'form-select select2-expense-account'
+        self.fields['expense_account'].widget.attrs['data-placeholder'] = 'Search account by code or name…'
 
         for name, field in self.fields.items():
             if name == 'is_active':
                 continue
-            if name in ['category', 'vendor', 'expense_account']:
+            if name in ['category', 'vendor']:
                 field.widget.attrs['class'] = 'form-select'
+            elif name == 'expense_account':
+                field.widget.attrs.setdefault('class', 'form-select select2-expense-account')
             elif name == 'project':
                 pass
             else:

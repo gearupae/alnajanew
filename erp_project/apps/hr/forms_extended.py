@@ -103,6 +103,54 @@ class PayrollTemplateForm(forms.ModelForm):
         return cleaned
 
 
+class PayrollManualDeductionForm(forms.Form):
+    employee = forms.ModelChoiceField(
+        queryset=Employee.objects.filter(is_active=True).order_by('first_name', 'last_name'),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Employee',
+    )
+    month = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'month', 'class': 'form-control'}),
+        label='Payroll month',
+        input_formats=['%Y-%m'],
+    )
+    code = forms.ChoiceField(
+        choices=[],
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Deduction type',
+    )
+    description = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional description'}),
+        label='Description',
+    )
+    amount = forms.DecimalField(
+        min_value=Decimal('0.01'),
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        label='Amount (AED)',
+    )
+
+    def __init__(self, *args, **kwargs):
+        from apps.hr.payroll_deductions import MANUAL_DEDUCTION_CHOICES
+
+        super().__init__(*args, **kwargs)
+        self.fields['code'].choices = MANUAL_DEDUCTION_CHOICES
+
+    def clean_month(self):
+        from datetime import datetime
+
+        month_value = self.cleaned_data.get('month')
+        if not month_value:
+            return month_value
+        if isinstance(month_value, str) and len(month_value) == 7 and month_value.count('-') == 1:
+            year, month = month_value.split('-')
+            return datetime(int(year), int(month), 1).date()
+        if hasattr(month_value, 'day') and month_value.day != 1:
+            return datetime(month_value.year, month_value.month, 1).date()
+        return month_value
+
+
 class EmployeeAdvanceForm(forms.ModelForm):
     class Meta:
         model = EmployeeAdvance

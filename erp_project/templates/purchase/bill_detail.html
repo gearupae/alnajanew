@@ -128,10 +128,22 @@
                         <label class="form-label text-muted small">Subtotal</label>
                         <p class="mb-0">AED {{ bill.subtotal|floatformat:2 }}</p>
                     </div>
+                    {% if bill.discount_applied %}
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Discount</label>
+                        <p class="mb-0 text-danger">- AED {{ bill.discount_applied|floatformat:2 }}</p>
+                    </div>
+                    {% endif %}
                     <div class="col-md-3">
                         <label class="form-label text-muted small">VAT amount</label>
                         <p class="mb-0">AED {{ bill.vat_amount|floatformat:2 }}</p>
                     </div>
+                    {% if bill.round_off %}
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">Round-off</label>
+                        <p class="mb-0">AED {{ bill.round_off|floatformat:2 }}</p>
+                    </div>
+                    {% endif %}
                     <div class="col-md-3">
                         <label class="form-label text-muted small">Total amount</label>
                         <p class="mb-0 fw-semibold">AED {{ bill.total_amount|floatformat:2 }}</p>
@@ -223,10 +235,22 @@
                                 <td colspan="4" class="text-end">Subtotal:</td>
                                 <td class="text-end fw-medium">AED {{ bill.subtotal|floatformat:2 }}</td>
                             </tr>
+                            {% if bill.discount_applied %}
+                            <tr>
+                                <td colspan="4" class="text-end text-danger">Discount:</td>
+                                <td class="text-end fw-medium text-danger">- AED {{ bill.discount_applied|floatformat:2 }}</td>
+                            </tr>
+                            {% endif %}
                             <tr>
                                 <td colspan="4" class="text-end">VAT:</td>
                                 <td class="text-end fw-medium">AED {{ bill.vat_amount|floatformat:2 }}</td>
                             </tr>
+                            {% if bill.round_off %}
+                            <tr>
+                                <td colspan="4" class="text-end">Round-off:</td>
+                                <td class="text-end fw-medium">AED {{ bill.round_off|floatformat:2 }}</td>
+                            </tr>
+                            {% endif %}
                             <tr>
                                 <td colspan="4" class="text-end fw-bold">Total:</td>
                                 <td class="text-end fw-bold">AED {{ bill.total_amount|floatformat:2 }}</td>

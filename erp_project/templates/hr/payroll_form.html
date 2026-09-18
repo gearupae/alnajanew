@@ -77,10 +77,6 @@
                     <label class="form-label">Basic salary <span class="text-danger">*</span></label>
                     <div class="input-group"><span class="input-group-text">AED</span>{{ form.basic_salary }}</div>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Manual / misc deductions (draft)</label>
-                    <div class="input-group"><span class="input-group-text">AED</span>{{ form.deductions }}</div>
-                </div>
             </div>
 
             <h6 class="small text-muted text-uppercase mb-2">Allowance lines</h6>
@@ -107,6 +103,38 @@
             </div>
             <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddAllowance"><i class="fas fa-plus me-1"></i>Add row</button>
             <p class="mt-3 mb-0"><strong>Total allowances:</strong> <span id="totalAllow">AED 0.00</span></p>
+        </div>
+    </div>
+
+    <div class="card mb-4" id="deductions">
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Deductions</h6></div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">Add manual deductions for this payroll (loans, penalties, etc.). Attendance, leave, ILOE, GOSI, and advance repayments are calculated automatically when payroll is processed — see preview below.</p>
+            <div class="d-none">{{ form.deductions }}</div>
+            <h6 class="small text-muted text-uppercase mb-2">Manual deduction lines</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle" id="deductionTable">
+                    <thead><tr><th>Type</th><th>Description</th><th class="text-end" style="width:10rem">Amount</th><th></th></tr></thead>
+                    <tbody id="deductionBody">
+                        {% for row in deduction_rows %}
+                        <tr class="deduct-row">
+                            <td>
+                                <select name="deduction_code[]" class="form-select form-select-sm">
+                                    {% for code, label in manual_deduction_choices %}
+                                    <option value="{{ code }}" {% if row.code == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td><input type="text" name="deduction_description[]" class="form-control form-control-sm" value="{{ row.description }}" placeholder="Optional"/></td>
+                            <td><input type="number" step="0.01" name="deduction_amount[]" class="form-control form-control-sm text-end deduction-amt" value="{{ row.amount }}"/></td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger btn-remove-deduct">&times;</button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddDeduction"><i class="fas fa-plus me-1"></i>Add deduction</button>
+            <p class="mt-3 mb-0"><strong>Total manual deductions:</strong> <span id="totalManualDeduct">AED 0.00</span></p>
         </div>
     </div>
 
@@ -140,7 +168,7 @@
         <div class="card-body">
             <h6 class="text-muted mb-2">Net salary (preview)</h6>
             <h4 class="mb-0 fw-bold" id="netSalary">AED 0.00</h4>
-            <small class="text-muted">Basic + Total allowances − Deductions</small>
+            <small class="text-muted">Basic + Total allowances − Manual deductions (auto deductions apply on process)</small>
         </div>
     </div>
 
@@ -165,6 +193,10 @@
             <div class="col-md-3">
                 <label class="form-label text-muted">Allowances</label>
                 <input type="text" class="form-control bg-light" readonly value="AED {{ object.allowances|floatformat:2 }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted">Deductions</label>
+                <input type="text" class="form-control bg-light" readonly value="AED {{ object.deductions|floatformat:2 }}">
             </div>
             <div class="col-md-3">
                 <label class="form-label text-muted">Gross salary</label>
@@ -223,10 +255,22 @@
         document.querySelectorAll('.allowance-amt').forEach(function(inp){ t += parseFloat(inp.value)||0; });
         return t;
     }
+    function sumManualDeductions(){
+        var t = 0;
+        document.querySelectorAll('.deduction-amt').forEach(function(inp){ t += parseFloat(inp.value)||0; });
+        return t;
+    }
+    function syncDeductionsField(){
+        var total = sumManualDeductions();
+        if(deductions) deductions.value = total.toFixed(2);
+        var el = document.getElementById('totalManualDeduct');
+        if(el) el.textContent = 'AED ' + total.toFixed(2);
+        return total;
+    }
     function recalc(){
         var basic = parseMoney(basicEl);
         var allow = sumAllowances();
-        var ded = parseMoney(deductions);
+        var ded = syncDeductionsField();
         document.getElementById('totalAllow').textContent = 'AED ' + allow.toFixed(2);
         document.getElementById('netSalary').textContent = 'AED ' + (basic + allow - ded).toFixed(2);
     }
@@ -244,15 +288,34 @@
         tr.querySelector('.btn-remove-row').addEventListener('click', function(){ tr.remove(); recalc(); });
     }
 
+    function addDeductionRow(){
+        var tbody = document.getElementById('deductionBody');
+        var proto = tbody.querySelector('.deduct-row');
+        if(!proto) return;
+        var tr = proto.cloneNode(true);
+        tr.querySelectorAll('input').forEach(function(inp){ inp.value = ''; });
+        var sel = tr.querySelector('select');
+        if(sel) sel.selectedIndex = 0;
+        tbody.appendChild(tr);
+        tr.querySelector('.deduction-amt').addEventListener('input', recalc);
+        tr.querySelector('.btn-remove-deduct').addEventListener('click', function(){ tr.remove(); recalc(); schedulePreview(); });
+    }
+
     document.getElementById('btnAddAllowance').addEventListener('click', addRow);
+    document.getElementById('btnAddDeduction').addEventListener('click', function(){ addDeductionRow(); schedulePreview(); });
     document.getElementById('allowanceBody').addEventListener('click', function(e){
         if(e.target.classList.contains('btn-remove-row')){ e.target.closest('tr').remove(); recalc(); }
+    });
+    document.getElementById('deductionBody').addEventListener('click', function(e){
+        if(e.target.classList.contains('btn-remove-deduct')){ e.target.closest('tr').remove(); recalc(); schedulePreview(); }
     });
     document.getElementById('allowanceBody').addEventListener('input', function(e){
         if(e.target.classList.contains('allowance-amt')) recalc();
     });
+    document.getElementById('deductionBody').addEventListener('input', function(e){
+        if(e.target.classList.contains('deduction-amt')){ recalc(); schedulePreview(); }
+    });
     if(basicEl) basicEl.addEventListener('input', recalc);
-    if(deductions) deductions.addEventListener('input', recalc);
 
     if(empSel && coSel){
         empSel.addEventListener('change', function(){
@@ -283,8 +346,12 @@
     });
 
     document.querySelectorAll('.allowance-amt').forEach(function(el){ el.addEventListener('input', recalc); });
+    document.querySelectorAll('.deduction-amt').forEach(function(el){ el.addEventListener('input', recalc); });
     document.querySelectorAll('.btn-remove-row').forEach(function(btn){
         btn.addEventListener('click', function(){ btn.closest('tr').remove(); recalc(); });
+    });
+    document.querySelectorAll('.btn-remove-deduct').forEach(function(btn){
+        btn.addEventListener('click', function(){ btn.closest('tr').remove(); recalc(); schedulePreview(); });
     });
     recalc();
 
@@ -304,7 +371,7 @@
             month: monthEl.value,
             basic: parseMoney(basicEl),
             allowances: sumAllowances(),
-            manual: parseMoney(deductions)
+            manual: sumManualDeductions()
         });
         fetch(previewUrl + '?' + params.toString(), {headers:{'X-Requested-With':'XMLHttpRequest'}})
             .then(function(r){ return r.json(); })
@@ -341,12 +408,16 @@
     if(empSel) empSel.addEventListener('change', schedulePreview);
     if(monthEl) monthEl.addEventListener('change', schedulePreview);
     if(basicEl) basicEl.addEventListener('input', schedulePreview);
-    if(deductions) deductions.addEventListener('input', schedulePreview);
     document.getElementById('allowanceBody').addEventListener('input', function(e){
         if(e.target.classList.contains('allowance-amt')) schedulePreview();
     });
     document.getElementById('btnAddAllowance').addEventListener('click', function(){ setTimeout(schedulePreview, 50); });
     schedulePreview();
+
+    var payrollForm = document.getElementById('payrollForm');
+    if(payrollForm){
+        payrollForm.addEventListener('submit', function(){ syncDeductionsField(); });
+    }
 })();
 </script>
 {% endblock %}

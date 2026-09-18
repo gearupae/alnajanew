@@ -97,6 +97,25 @@ class ItemBaseGroup(models.Model):
     def __str__(self):
         return self.name
 
+    @classmethod
+    def names_with_active_subgroup_items(cls):
+        """Base groups that have at least one sub-group with active inventory items."""
+        from django.db.models import Exists, OuterRef
+
+        active_membership = ItemGroupMembership.objects.filter(
+            group_id=OuterRef('pk'),
+            item__is_active=True,
+            item__status='active',
+        )
+        subgroups_with_items = ItemGroup.objects.filter(
+            base_group_id=OuterRef('pk'),
+        ).filter(Exists(active_membership))
+        return list(
+            cls.objects.filter(Exists(subgroups_with_items))
+            .order_by('name')
+            .values_list('name', flat=True)
+        )
+
 
 class ItemGroup(models.Model):
     """

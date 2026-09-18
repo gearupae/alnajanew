@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{% url 'hr:payroll_list' %}">Payroll</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'hr:payroll_deduction_list' %}">Deductions</a></li>
+            <li class="breadcrumb-item active">{{ title }}</li>
+        </ol>
+    </nav>
+    <h4 class="mb-0 fw-bold">{{ title }}</h4>
+</div>
+
+<div class="card"><div class="card-body">
+<form method="post">{% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="row g-3 mb-1">
+        <div class="col-md-4">
+            <label class="form-label" for="{{ form.employee.id_for_label }}">{{ form.employee.label }}</label>
+            {{ form.employee.errors }}
+            {{ form.employee }}
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="{{ form.month.id_for_label }}">{{ form.month.label }}</label>
+            {{ form.month.errors }}
+            {{ form.month }}
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+            {{ form.code.errors }}
+            {{ form.code }}
+        </div>
+    </div>
+    <div class="row g-3 mb-3">
+        <div class="col-md-8">
+            <label class="form-label" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+            {{ form.description.errors }}
+            {{ form.description }}
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="{{ form.amount.id_for_label }}">{{ form.amount.label }}</label>
+            {{ form.amount.errors }}
+            {{ form.amount }}
+        </div>
+    </div>
+    <p class="text-muted small">If no draft payroll exists for this employee and month, one will be created automatically.</p>
+    <button type="submit" class="btn btn-primary">Save deduction</button>
+    <a href="{% url 'hr:payroll_deduction_list' %}" class="btn btn-light">Cancel</a>
+</form>
+</div></div>
+{% endblock %}
