@@ -723,3 +723,46 @@ hr {
         grid-column: 1 / -1;
     }
 }
+
+.erp-detail-section-title {
+    grid-column: 1 / -1;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin: 0.15rem 0 0;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.erp-detail-section-title:not(:first-child) {
+    margin-top: 0.75rem;
+}
+
+.erp-detail-field .form-select,
+.erp-detail-field .form-control {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.erp-detail-field form.d-flex .form-select {
+    flex: 1 1 14rem;
+}
+
+.erp-detail-field .text-muted.small,
+.erp-detail-field small.text-muted {
+    font-size: 0.8125rem;
+    margin-top: 0.35rem;
+}
+
+.erp-detail-field .erp-detail-value,
+.erp-detail-field > div:not(.input-group):not(.d-flex) {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--gray-900);
+    line-height: 1.4;
+}
+
+.erp-detail-field .tabular-nums,
+.erp-detail-field p.tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
