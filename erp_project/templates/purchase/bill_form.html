@@ -81,19 +81,12 @@
         <div class="card-header"><h6 class="mb-0 fw-semibold">Bill details</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-3">
-                    <div class="form-check mt-2">
-                        {{ form.is_active }}
-                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
-                    </div>
-                    {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors|join:", " }}</div>{% endif %}
-                </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Bill date <span class="text-danger">*</span></label>
                     {{ form.bill_date }}
                     {% if form.bill_date.errors %}<div class="text-danger small">{{ form.bill_date.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Due date <span class="text-danger">*</span></label>
                     {{ form.due_date }}
                     {% if form.due_date.errors %}<div class="text-danger small">{{ form.due_date.errors|join:", " }}</div>{% endif %}
@@ -125,7 +118,8 @@
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-md-4">
-                    <div class="form-check mt-4">
+                    <label class="form-label d-block">Goods received</label>
+                    <div class="form-check">
                         {{ form.goods_received }}
                         <label class="form-check-label" for="{{ form.goods_received.id_for_label }}">Goods received</label>
                     </div>
@@ -133,23 +127,23 @@
                     {% if form.goods_received.errors %}<div class="text-danger small">{{ form.goods_received.errors|join:", " }}</div>{% endif %}
                 </div>
                 {% if object and object.pk %}
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted small">Saved subtotal</label>
                     <input type="text" class="form-control" value="AED {{ object.subtotal|floatformat:2 }}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted small">Saved VAT amount</label>
                     <input type="text" class="form-control" value="AED {{ object.vat_amount|floatformat:2 }}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted small">Saved total amount</label>
                     <input type="text" class="form-control fw-semibold" value="AED {{ object.total_amount|floatformat:2 }}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted small">Paid amount</label>
                     <input type="text" class="form-control text-success" value="AED {{ object.paid_amount|floatformat:2 }}" readonly>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-8">
                     <label class="form-label text-muted small">Journal entry</label>
                     {% if object.journal_entry %}
                     <div class="input-group">

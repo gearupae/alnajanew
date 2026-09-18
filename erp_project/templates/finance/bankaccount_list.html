@@ -33,7 +33,7 @@
                     <tr>
                         <td class="fw-medium">{{ ba.name }}</td>
                         <td>{{ ba.bank_name }}</td>
-                        <td><code>{{ ba.account_number }}</code></td>
+                        <td>{% if ba.account_number %}<code>{{ ba.account_number }}</code>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                         <td>{{ ba.gl_account.code }} - {{ ba.gl_account.name }}</td>
                         <td class="text-end fw-bold {% if ba.current_balance < 0 %}text-danger{% else %}text-success{% endif %}">
                             {{ ba.current_balance|floatformat:2 }}

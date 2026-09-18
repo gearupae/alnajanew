@@ -481,7 +481,30 @@ class ProjectUpdateView(UpdatePermissionMixin, UpdateView):
             return redirect('projects:project_detail', pk=project.pk)
         return super().dispatch(request, *args, **kwargs)
 
+    def _edit_focus(self):
+        raw = self.request.GET.get('focus') or self.request.POST.get('_edit_focus') or ''
+        focus = raw.strip().lower()
+        if focus in ('team', 'members', 'technicians'):
+            return focus
+        return ''
+
+    def get_form_class(self):
+        if self._edit_focus():
+            from .forms import ProjectTeamForm
+            return ProjectTeamForm
+        return ProjectForm
+
     def form_valid(self, form):
+        focus = self._edit_focus()
+        if focus:
+            project = self.get_object()
+            if focus in ('team', 'members'):
+                project.members.set(form.cleaned_data.get('members') or [])
+            if focus in ('team', 'technicians'):
+                project.technicians.set(form.cleaned_data.get('technicians') or [])
+            messages.success(self.request, 'Team updated successfully.')
+            return redirect('projects:project_detail', pk=project.pk)
+
         from .conversion_approval import project_awaiting_conversion_approval
 
         prior = Project.objects.filter(pk=self.object.pk).values(
@@ -538,7 +561,16 @@ class ProjectUpdateView(UpdatePermissionMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = f'Edit Project: {self.object.name}'
+        focus = self._edit_focus()
+        context['project_edit_focus'] = focus
+        if focus == 'members':
+            context['title'] = f'Add team members — {self.object.project_code}'
+        elif focus == 'technicians':
+            context['title'] = f'Add technicians — {self.object.project_code}'
+        elif focus == 'team':
+            context['title'] = f'Edit team — {self.object.project_code}'
+        else:
+            context['title'] = f'Edit Project: {self.object.name}'
         return context
 
 

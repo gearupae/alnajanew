@@ -179,6 +179,36 @@ class ProjectForm(forms.ModelForm):
         return status
 
 
+class ProjectTeamForm(forms.ModelForm):
+    """Members / technicians only — used from project detail “Add team” links."""
+
+    class Meta:
+        model = Project
+        fields = ['members', 'technicians']
+        widgets = {
+            'members': forms.SelectMultiple(
+                attrs={'class': 'form-select select2-members', 'data-placeholder': 'Search by name or employee code…'}
+            ),
+            'technicians': forms.SelectMultiple(
+                attrs={'class': 'form-select select2-technicians', 'data-placeholder': 'Search by name or employee code…'}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        staff_qs = project_staff_select_queryset()
+        self.fields['members'].queryset = staff_qs
+        self.fields['members'].required = False
+        self.fields['members'].label = 'Team members'
+        self.fields['members'].label_from_instance = project_staff_choice_label
+        self.fields['members'].help_text = 'Project team (non-field staff).'
+        self.fields['technicians'].queryset = staff_qs
+        self.fields['technicians'].required = False
+        self.fields['technicians'].label = 'Technicians'
+        self.fields['technicians'].label_from_instance = project_staff_choice_label
+        self.fields['technicians'].help_text = 'Field technicians (attendance / labour on this project).'
+
+
 class CustomerTaskCreateForm(forms.Form):
     """Quick task create from CRM customer detail (one task per selected member)."""
 

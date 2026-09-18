@@ -257,7 +257,10 @@ class BankAccountForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        optional_fields = ('account_number', 'branch', 'swift_code', 'iban')
         for field_name, field in self.fields.items():
+            if field_name in optional_fields:
+                field.required = False
             if field_name == 'gl_account':
                 field.widget.attrs['class'] = 'form-select'
                 # Only show bank-type accounts

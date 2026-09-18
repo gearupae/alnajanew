@@ -908,7 +908,7 @@ class BankAccount(BaseModel):
     current_balance is system-calculated only.
     """
     name = models.CharField(max_length=200)
-    account_number = models.CharField(max_length=50)
+    account_number = models.CharField(max_length=50, blank=True, default='')
     bank_name = models.CharField(max_length=200)
     branch = models.CharField(max_length=200, blank=True)
     swift_code = models.CharField(max_length=20, blank=True)

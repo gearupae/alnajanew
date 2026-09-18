@@ -38,7 +38,7 @@ $(function () {
 {% endblock %}
 {% block content %}
 <div class="page-header">
-    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-2"><li class="breadcrumb-item"><a href="{% url 'projects:project_list' %}">Projects</a></li><li class="breadcrumb-item active">{{ title }}</li></ol></nav>
+    <nav aria-label="breadcrumb"><ol class="breadcrumb mb-2"><li class="breadcrumb-item"><a href="{% url 'projects:project_list' %}">Projects</a></li>{% if object and project_edit_focus %}<li class="breadcrumb-item"><a href="{% url 'projects:project_detail' object.pk %}">{{ object.project_code }}</a></li>{% endif %}<li class="breadcrumb-item active">{{ title }}</li></ol></nav>
     <h4 class="mb-0 fw-bold">{{ title }}</h4>
 </div>
 
@@ -48,7 +48,10 @@ $(function () {
 
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    {% if object %}
+    {% if project_edit_focus %}
+    <input type="hidden" name="_edit_focus" value="{{ project_edit_focus }}">
+    {% endif %}
+    {% if object and not project_edit_focus %}
     {% if object.conversion_approval_status == 'pending' and object.status == 'draft' %}
     <div class="alert alert-warning mb-3"><i class="fas fa-clock me-1"></i>Conversion from quotation is <strong>pending approval</strong>. Status remains <strong>Draft</strong> until an approver clicks <strong>Approve conversion</strong> on the project page.</div>
     {% elif object.edit_approval_status == 'pending' %}
@@ -60,6 +63,7 @@ $(function () {
     {% endif %}
     {% endif %}
 
+    {% if not project_edit_focus %}
     <div class="card mb-4">
         <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
         <div class="card-body">
@@ -244,23 +248,30 @@ $(function () {
     {% endif %}
 
     <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Team</h6></div>
+        <div class="card-header"><h6 class="mb-0 fw-semibold">{% if project_edit_focus == 'members' %}Team members{% elif project_edit_focus == 'technicians' %}Technicians{% else %}Team{% endif %}</h6></div>
         <div class="card-body">
             <div class="row g-3">
+                {% if not project_edit_focus or project_edit_focus != 'technicians' %}
                 <div class="col-12">
-                    <label class="form-label" for="{{ form.members.id_for_label }}">Members</label>
+                    <label class="form-label" for="{{ form.members.id_for_label }}">{{ form.members.label }}</label>
                     {{ form.members }}
+                    {% if form.members.help_text %}<div class="form-text">{{ form.members.help_text }}</div>{% endif %}
                     {% if form.members.errors %}<div class="text-danger small">{{ form.members.errors }}</div>{% endif %}
                 </div>
+                {% endif %}
+                {% if not project_edit_focus or project_edit_focus != 'members' %}
                 <div class="col-12">
-                    <label class="form-label" for="{{ form.technicians.id_for_label }}">Technicians</label>
+                    <label class="form-label" for="{{ form.technicians.id_for_label }}">{{ form.technicians.label }}</label>
                     {{ form.technicians }}
+                    {% if form.technicians.help_text %}<div class="form-text">{{ form.technicians.help_text }}</div>{% endif %}
                     {% if form.technicians.errors %}<div class="text-danger small">{{ form.technicians.errors }}</div>{% endif %}
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>
 
+    {% if not project_edit_focus %}
     <div class="card mb-4">
         <div class="card-header"><h6 class="mb-0 fw-semibold">Project status</h6></div>
         <div class="card-body">
@@ -300,6 +311,7 @@ $(function () {
             </div>
         </div>
     </div>
+    {% endif %}
 
     <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
     {% if object %}

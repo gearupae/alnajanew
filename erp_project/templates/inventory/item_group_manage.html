@@ -442,7 +442,7 @@
                             <div class="row g-2 align-items-end mb-3">
                                 <div class="col-md-8">
                                     <label class="form-label small text-muted mb-1" for="simpleSubGroupSelect">Choose a sub-group</label>
-                                    <select id="simpleSubGroupSelect" class="form-select">
+                                    <select id="simpleSubGroupSelect" class="form-select select2-sub-group-picker">
                                         <option value="">— Select sub-group —</option>
                                     </select>
                                 </div>
@@ -558,9 +558,33 @@
         return parts.join(' · ');
     }
 
+    function initSubGroupSelect2() {
+        if (typeof $ === 'undefined' || !$.fn.select2) return;
+        var $sel = $(selectEl);
+        if ($sel.data('select2')) {
+            $sel.select2('destroy');
+        }
+        $sel.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Search sub-group by name…',
+            allowClear: true,
+            minimumResultsForSearch: 0,
+            dropdownParent: $(document.body),
+            dropdownCssClass: 'group-item-select2-dropdown',
+            language: {
+                noResults: function () { return 'No matching sub-groups'; },
+                searching: function () { return 'Searching…'; },
+            },
+        });
+    }
+
     function renderDropdown() {
         var selectedIds = selectedIdsSet();
         var current = selectEl.value;
+        if (typeof $ !== 'undefined' && $.fn.select2 && $(selectEl).data('select2')) {
+            $(selectEl).select2('destroy');
+        }
         selectEl.innerHTML = '';
         var blank = document.createElement('option');
         blank.value = '';
@@ -575,7 +599,10 @@
         });
         if (current && !selectedIds.has(String(current))) {
             selectEl.value = current;
+        } else {
+            selectEl.value = '';
         }
+        initSubGroupSelect2();
     }
 
     function renderSelected() {
@@ -678,7 +705,11 @@
         if (!ids.has(sid)) {
             selectedEntries.push({ id: sid, order: nextOrderValue() });
         }
-        selectEl.value = '';
+        if (typeof $ !== 'undefined' && $.fn.select2 && $(selectEl).data('select2')) {
+            $(selectEl).val(null).trigger('change');
+        } else {
+            selectEl.value = '';
+        }
         renderAll();
     });
 

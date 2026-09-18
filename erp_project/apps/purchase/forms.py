@@ -485,7 +485,7 @@ class VendorBillForm(forms.ModelForm):
     class Meta:
         model = VendorBill
         fields = [
-            'is_active', 'vendor', 'project', 'purchase_order', 'goods_received',
+            'vendor', 'project', 'purchase_order', 'goods_received',
             'vendor_invoice_number', 'bill_date', 'due_date', 'status', 'notes',
             'discount_type', 'discount_value', 'round_off',
         ]
@@ -505,8 +505,6 @@ class VendorBillForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['is_active'].label = 'Is active'
-        self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True)
         self.fields['vendor'].widget.attrs['class'] = 'form-select'
         self.fields['project'].queryset = Project.objects.filter(is_active=True).exclude(
@@ -535,7 +533,6 @@ class VendorBillForm(forms.ModelForm):
             'Adjustment to grand total (e.g. ±0.01 for fils rounding). Use 0 if none.'
         )
         if not self.is_bound and not self.instance.pk:
-            self.fields['is_active'].initial = True
             self.fields['discount_type'].initial = 'none'
             self.fields['discount_value'].initial = Decimal('0.00')
             self.fields['round_off'].initial = Decimal('0.00')
@@ -543,7 +540,6 @@ class VendorBillForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         if self.is_bound:
-            cleaned['is_active'] = 'is_active' in self.data
             cleaned['goods_received'] = 'goods_received' in self.data
         discount_type = cleaned.get('discount_type') or 'none'
         discount_value = cleaned.get('discount_value')
