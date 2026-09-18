@@ -54,106 +54,88 @@
 <div class="card mb-4">
     <div class="card-header"><h6 class="mb-0 fw-semibold">Expense details</h6></div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Is active</h6>
-                <p class="mb-0">{% if expense.is_active %}Yes{% else %}No{% endif %}</p>
+        <div class="erp-detail-grid">
+            <div class="erp-detail-field">
+                <h6>Expense number</h6>
+                <p class="font-monospace">{{ expense.expense_number }}</p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Expense number</h6>
-                <p class="mb-0 font-monospace">{{ expense.expense_number }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Project</h6>
-                <p class="mb-0">
+            <div class="erp-detail-field">
+                <h6>Project</h6>
+                <p>
                     <a href="{% url 'projects:project_detail' expense.project.pk %}">{{ expense.project.project_code }} — {{ expense.project.name }}</a>
                 </p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Category</h6>
-                <p class="mb-0">{{ expense.get_category_display }}</p>
+            <div class="erp-detail-field">
+                <h6>Category</h6>
+                <p>{{ expense.get_category_display }}</p>
             </div>
-            <div class="col-12">
-                <h6 class="text-muted mb-2">Description</h6>
-                <p class="mb-0">{{ expense.description|linebreaksbr }}</p>
+            <div class="erp-detail-field erp-detail-field-full">
+                <h6>Description</h6>
+                <p>{{ expense.description|linebreaksbr }}</p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Expense date</h6>
-                <p class="mb-0">{{ expense.expense_date|date:"d/m/Y" }}</p>
+            <div class="erp-detail-field">
+                <h6>Expense date</h6>
+                <p>{{ expense.expense_date|date:"d/m/Y" }}</p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Amount</h6>
-                <p class="mb-0">AED {{ expense.amount|floatformat:2 }}</p>
+            <div class="erp-detail-field">
+                <h6>Amount</h6>
+                <p>AED {{ expense.amount|floatformat:2 }}</p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">VAT amount</h6>
-                <p class="mb-0">AED {{ expense.vat_amount|floatformat:2 }}</p>
+            <div class="erp-detail-field">
+                <h6>VAT amount</h6>
+                <p>AED {{ expense.vat_amount|floatformat:2 }}</p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Total amount</h6>
-                <p class="mb-0 fw-semibold">AED {{ expense.total_amount|floatformat:2 }}</p>
+            <div class="erp-detail-field">
+                <h6>Total amount</h6>
+                <p class="fw-semibold">AED {{ expense.total_amount|floatformat:2 }}</p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Vendor</h6>
-                <p class="mb-0">
-                    {% if expense.vendor %}
-                    {{ expense.vendor.name }}
-                    {% else %}
-                    <span class="text-muted">—</span>
-                    {% endif %}
-                </p>
+            <div class="erp-detail-field">
+                <h6>Vendor</h6>
+                <p>{% if expense.vendor %}{{ expense.vendor.name }}{% else %}—{% endif %}</p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Invoice reference</h6>
-                <p class="mb-0">{% if expense.invoice_reference %}{{ expense.invoice_reference }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            <div class="erp-detail-field">
+                <h6>Invoice reference</h6>
+                <p>{{ expense.invoice_reference|default:"—" }}</p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Vendor bill</h6>
-                <p class="mb-0">
+            <div class="erp-detail-field">
+                <h6>Vendor bill</h6>
+                <p>
                     {% if expense.vendor_bill %}
                     <a href="{% url 'purchase:bill_detail' expense.vendor_bill.pk %}">{{ expense.vendor_bill.bill_number }}</a>
-                    {% else %}
-                    <span class="text-muted">—</span>
-                    {% endif %}
+                    {% else %}—{% endif %}
                 </p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Status</h6>
-                <p class="mb-0">{{ expense.get_status_display }}</p>
+            <div class="erp-detail-field">
+                <h6>Status</h6>
+                <p>{{ expense.get_status_display }}</p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Approved by</h6>
-                <p class="mb-0">
-                    {% if expense.approved_by %}{{ expense.approved_by.get_full_name|default:expense.approved_by.username }}{% else %}<span class="text-muted">—</span>{% endif %}
-                </p>
+            <div class="erp-detail-field">
+                <h6>Approved by</h6>
+                <p>{% if expense.approved_by %}{{ expense.approved_by.get_full_name|default:expense.approved_by.username }}{% else %}—{% endif %}</p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Approved date</h6>
-                <p class="mb-0">{% if expense.approved_date %}{{ expense.approved_date|date:"d/m/Y H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+            <div class="erp-detail-field">
+                <h6>Approved date</h6>
+                <p>{% if expense.approved_date %}{{ expense.approved_date|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Expense account</h6>
-                <p class="mb-0">
+            <div class="erp-detail-field">
+                <h6>Expense account</h6>
+                <p>
                     {% if expense.expense_account %}
                     {{ expense.expense_account.account_code }} — {{ expense.expense_account.name }}
-                    {% else %}
-                    <span class="text-muted">—</span>
-                    {% endif %}
+                    {% else %}—{% endif %}
                 </p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Journal entry</h6>
-                <p class="mb-0">
+            <div class="erp-detail-field">
+                <h6>Journal entry</h6>
+                <p>
                     {% if expense.journal_entry %}
                     <a href="{% url 'finance:journal_detail' expense.journal_entry.pk %}">{{ expense.journal_entry.entry_number }}</a>
-                    {% else %}
-                    <span class="text-muted">—</span>
-                    {% endif %}
+                    {% else %}—{% endif %}
                 </p>
             </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Posted</h6>
-                <p class="mb-0">{% if expense.posted %}Yes{% else %}No{% endif %}</p>
+            <div class="erp-detail-field">
+                <h6>Posted</h6>
+                <p>{% if expense.posted %}Yes{% else %}No{% endif %}</p>
             </div>
         </div>
     </div>

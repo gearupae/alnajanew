@@ -78,38 +78,34 @@
         <div class="card mb-4">
             <div class="card-header"><h6 class="mb-0 fw-semibold">Request Details</h6></div>
             <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Is active</label>
-                        <p class="mb-0">{% if pr.is_active %}Yes{% else %}No{% endif %}</p>
+                <div class="erp-detail-grid">
+                    <div class="erp-detail-field">
+                        <h6>PR number</h6>
+                        <p class="fw-medium">{{ pr.pr_number }}</p>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">PR number</label>
-                        <p class="mb-0 fw-medium">{{ pr.pr_number }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Date</h6>
+                        <p>{{ pr.date|date:"d/m/Y" }}</p>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Date</label>
-                        <p class="mb-0">{{ pr.date|date:"d/m/Y" }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Required by date</h6>
+                        <p>{{ pr.required_by_date|date:"d/m/Y"|default:"—" }}</p>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Required by date</label>
-                        <p class="mb-0">{{ pr.required_by_date|date:"d/m/Y"|default:"—" }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Requested by</h6>
+                        <p>{{ pr.requested_by.get_full_name|default:pr.requested_by.username }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Requested by</label>
-                        <p class="mb-0">{{ pr.requested_by.get_full_name|default:pr.requested_by.username }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Department</h6>
+                        <p>{{ pr.department.name|default:"—" }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Department</label>
-                        <p class="mb-0">{{ pr.department.name|default:"—" }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Priority</h6>
+                        <p>{{ pr.get_priority_display }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Priority</label>
-                        <p class="mb-0">{{ pr.get_priority_display }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Status</label>
-                        <p class="mb-0">
+                    <div class="erp-detail-field">
+                        <h6>Status</h6>
+                        <p>
                             {% if pr.status == 'draft' %}<span class="badge bg-secondary">Draft</span>
                             {% elif pr.status == 'pending' %}<span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>
                             {% elif pr.status == 'returned' %}<span class="badge bg-warning text-dark">Returned</span>
@@ -119,18 +115,18 @@
                             {% else %}<span class="badge bg-secondary">{{ pr.get_status_display }}</span>{% endif %}
                         </p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Vendor</label>
-                        <p class="mb-0">{% if pr.vendor %}{{ pr.vendor.name }}{% else %}—{% endif %}</p>
+                    <div class="erp-detail-field">
+                        <h6>Vendor</h6>
+                        <p>{% if pr.vendor %}{{ pr.vendor.name }}{% else %}—{% endif %}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Total amount</label>
-                        <p class="mb-0 fw-semibold">AED {{ pr.total_amount|floatformat:2 }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Total amount</h6>
+                        <p class="fw-semibold">AED {{ pr.total_amount|floatformat:2 }}</p>
                     </div>
                     {% if pr.service_request %}
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Service request</label>
-                        <p class="mb-0">
+                    <div class="erp-detail-field">
+                        <h6>Service request</h6>
+                        <p>
                             <a href="{% url 'service_request:sr_detail' pr.service_request.pk %}" class="text-decoration-none">
                                 {{ pr.service_request.sr_number }}
                             </a>
@@ -138,15 +134,15 @@
                     </div>
                     {% endif %}
                     {% if pr.rejection_reason %}
-                    <div class="col-12">
-                        <label class="form-label text-muted small">Rejection reason</label>
-                        <p class="mb-0">{{ pr.rejection_reason }}</p>
+                    <div class="erp-detail-field erp-detail-field-full">
+                        <h6>Rejection reason</h6>
+                        <p>{{ pr.rejection_reason }}</p>
                     </div>
                     {% endif %}
                     {% if pr.notes %}
-                    <div class="col-12">
-                        <label class="form-label text-muted small">Notes</label>
-                        <p class="mb-0">{{ pr.notes|linebreaks }}</p>
+                    <div class="erp-detail-field erp-detail-field-full">
+                        <h6>Notes</h6>
+                        <p>{{ pr.notes|linebreaksbr }}</p>
                     </div>
                     {% endif %}
                 </div>

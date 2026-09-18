@@ -90,30 +90,26 @@
         <div class="card mb-4">
             <div class="card-header"><h6 class="mb-0 fw-semibold">Order details</h6></div>
             <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Is active</label>
-                        <p class="mb-0">{% if po.is_active %}Yes{% else %}No{% endif %}</p>
+                <div class="erp-detail-grid">
+                    <div class="erp-detail-field">
+                        <h6>PO number</h6>
+                        <p class="fw-medium">{{ po.po_number }}</p>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">PO number</label>
-                        <p class="mb-0 fw-medium">{{ po.po_number }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Order date</h6>
+                        <p>{{ po.order_date|date:"d/m/Y" }}</p>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Order date</label>
-                        <p class="mb-0">{{ po.order_date|date:"d/m/Y" }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Expected delivery date</h6>
+                        <p>{{ po.expected_delivery_date|date:"d/m/Y"|default:"—" }}</p>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Expected delivery date</label>
-                        <p class="mb-0">{{ po.expected_delivery_date|date:"d/m/Y"|default:"—" }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Vendor</h6>
+                        <p class="fw-medium">{{ po.vendor.name }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Vendor</label>
-                        <p class="fw-medium mb-0">{{ po.vendor.name }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Project</label>
-                        <p class="mb-0">
+                    <div class="erp-detail-field">
+                        <h6>Project</h6>
+                        <p>
                             {% if po.project %}
                             <a href="{% url 'projects:project_detail' po.project.pk %}" class="text-decoration-none">
                                 {{ po.project.project_code }} — {{ po.project.name }}
@@ -121,9 +117,9 @@
                             {% else %}—{% endif %}
                         </p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Status</label>
-                        <p class="mb-0">
+                    <div class="erp-detail-field">
+                        <h6>Status</h6>
+                        <p>
                             {% if po.status == 'draft' %}
                             <span class="badge bg-secondary">Draft</span>
                             {% elif po.status == 'sent' %}
@@ -142,33 +138,33 @@
                         </p>
                     </div>
                     {% if po.purchase_request %}
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Purchase request</label>
-                        <p class="mb-0"><a href="{% url 'purchase:pr_detail' po.purchase_request.pk %}">{{ po.purchase_request.pr_number }}</a></p>
+                    <div class="erp-detail-field">
+                        <h6>Purchase request</h6>
+                        <p><a href="{% url 'purchase:pr_detail' po.purchase_request.pk %}">{{ po.purchase_request.pr_number }}</a></p>
                     </div>
                     {% endif %}
                     {% if po.service_request %}
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Service request</label>
-                        <p class="mb-0"><a href="{% url 'service_request:sr_detail' po.service_request.pk %}">{{ po.service_request.sr_number }}</a></p>
+                    <div class="erp-detail-field">
+                        <h6>Service request</h6>
+                        <p><a href="{% url 'service_request:sr_detail' po.service_request.pk %}">{{ po.service_request.sr_number }}</a></p>
                     </div>
                     {% endif %}
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Subtotal</label>
-                        <p class="mb-0">AED {{ po.subtotal|floatformat:2 }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Subtotal</h6>
+                        <p>AED {{ po.subtotal|floatformat:2 }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">VAT amount</label>
-                        <p class="mb-0">AED {{ po.vat_amount|floatformat:2 }}</p>
+                    <div class="erp-detail-field">
+                        <h6>VAT amount</h6>
+                        <p>AED {{ po.vat_amount|floatformat:2 }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Total amount</label>
-                        <p class="mb-0 fw-semibold">AED {{ po.total_amount|floatformat:2 }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Total amount</h6>
+                        <p class="fw-semibold">AED {{ po.total_amount|floatformat:2 }}</p>
                     </div>
                     {% if po.notes %}
-                    <div class="col-12">
-                        <label class="form-label text-muted small">Notes</label>
-                        <p class="mb-0">{{ po.notes|linebreaks }}</p>
+                    <div class="erp-detail-field erp-detail-field-full">
+                        <h6>Notes</h6>
+                        <p>{{ po.notes|linebreaksbr }}</p>
                     </div>
                     {% endif %}
                 </div>

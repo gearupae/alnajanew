@@ -658,3 +658,68 @@ hr {
     font-variant-numeric: tabular-nums;
     line-height: 1.2;
 }
+
+/* Entity overview pages — aligned detail field grids (PR, PO, bills, etc.) */
+.erp-detail-grid,
+.pd-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .erp-detail-grid,
+    .pd-detail-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1200px) {
+    .erp-detail-grid,
+    .pd-detail-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.erp-detail-field,
+.pd-field {
+    min-width: 0;
+}
+
+.erp-detail-field h6,
+.pd-field h6 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--gray-600);
+    margin-bottom: 0.25rem;
+    line-height: 1.25;
+}
+
+.erp-detail-field > p,
+.pd-field > p {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--gray-900);
+    line-height: 1.4;
+    margin-bottom: 0;
+    word-break: break-word;
+}
+
+.erp-detail-field-span-2,
+.pd-field-span-2 {
+    grid-column: span 2;
+}
+
+.erp-detail-field-full,
+.pd-field-full {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 767.98px) {
+    .erp-detail-field-span-2,
+    .pd-field-span-2 {
+        grid-column: 1 / -1;
+    }
+}

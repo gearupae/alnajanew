@@ -46,34 +46,30 @@
         <div class="card mb-4">
             <div class="card-header"><h6 class="mb-0 fw-semibold">Bill details</h6></div>
             <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Is active</label>
-                        <p class="mb-0">{% if bill.is_active %}Yes{% else %}No{% endif %}</p>
+                <div class="erp-detail-grid">
+                    <div class="erp-detail-field">
+                        <h6>Bill number</h6>
+                        <p class="fw-medium">{{ bill.bill_number }}</p>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Bill number</label>
-                        <p class="mb-0 fw-medium">{{ bill.bill_number }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Bill date</h6>
+                        <p>{{ bill.bill_date|date:"d/m/Y" }}</p>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Bill date</label>
-                        <p class="mb-0">{{ bill.bill_date|date:"d/m/Y" }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Due date</h6>
+                        <p>{{ bill.due_date|date:"d/m/Y" }}</p>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Due date</label>
-                        <p class="mb-0">{{ bill.due_date|date:"d/m/Y" }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Vendor</h6>
+                        <p class="fw-medium">{{ bill.vendor.name }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Vendor</label>
-                        <p class="fw-medium mb-0">{{ bill.vendor.name }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Vendor invoice number</h6>
+                        <p>{{ bill.vendor_invoice_number|default:"—" }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Vendor invoice number</label>
-                        <p class="mb-0">{{ bill.vendor_invoice_number|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Status</label>
-                        <p class="mb-0">
+                    <div class="erp-detail-field">
+                        <h6>Status</h6>
+                        <p>
                             {% if bill.status == 'draft' %}
                             <span class="badge bg-secondary">Draft</span>
                             {% elif bill.status == 'posted' %}
@@ -91,18 +87,18 @@
                             {% endif %}
                         </p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Purchase order</label>
-                        <p class="mb-0">
+                    <div class="erp-detail-field">
+                        <h6>Purchase order</h6>
+                        <p>
                             {% if bill.purchase_order %}
                             <a href="{% url 'purchase:po_detail' bill.purchase_order.pk %}">{{ bill.purchase_order.po_number }}</a>
                             {% else %}—{% endif %}
                         </p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Project</label>
+                    <div class="erp-detail-field erp-detail-field-span-2">
+                        <h6>Project</h6>
                         {% if can_change_project %}
-                        <form method="post" action="{% url 'purchase:bill_update_project' bill.pk %}" class="d-flex gap-2 align-items-start">
+                        <form method="post" action="{% url 'purchase:bill_update_project' bill.pk %}" class="d-flex flex-wrap gap-2 align-items-start">
                             {% csrf_token %}
                             {{ project_form.project }}
                             <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">
@@ -111,59 +107,59 @@
                         </form>
                         <small class="text-muted d-block mt-1">Accounting entries are not changed when updating the project.</small>
                         {% else %}
-                        <p class="mb-0">
+                        <p>
                             {% if bill.project %}
                             <a href="{% url 'projects:project_detail' bill.project.pk %}" class="text-decoration-none">{{ bill.project.project_code }} — {{ bill.project.name }}</a>
                             {% else %}—{% endif %}
                         </p>
                         {% endif %}
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Goods received</label>
-                        <p class="mb-0">{% if bill.goods_received %}Yes{% else %}No{% endif %}
+                    <div class="erp-detail-field">
+                        <h6>Goods received</h6>
+                        <p>{% if bill.goods_received %}Yes{% else %}No{% endif %}
                             {% if bill.goods_received %}<span class="badge bg-info text-dark ms-1">GRN-matched</span>{% endif %}
                         </p>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Subtotal</label>
-                        <p class="mb-0">AED {{ bill.subtotal|floatformat:2 }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Subtotal</h6>
+                        <p>AED {{ bill.subtotal|floatformat:2 }}</p>
                     </div>
                     {% if bill.discount_applied %}
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Discount</label>
-                        <p class="mb-0 text-danger">- AED {{ bill.discount_applied|floatformat:2 }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Discount</h6>
+                        <p class="text-danger">- AED {{ bill.discount_applied|floatformat:2 }}</p>
                     </div>
                     {% endif %}
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">VAT amount</label>
-                        <p class="mb-0">AED {{ bill.vat_amount|floatformat:2 }}</p>
+                    <div class="erp-detail-field">
+                        <h6>VAT amount</h6>
+                        <p>AED {{ bill.vat_amount|floatformat:2 }}</p>
                     </div>
                     {% if bill.round_off %}
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Round-off</label>
-                        <p class="mb-0">AED {{ bill.round_off|floatformat:2 }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Round-off</h6>
+                        <p>AED {{ bill.round_off|floatformat:2 }}</p>
                     </div>
                     {% endif %}
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Total amount</label>
-                        <p class="mb-0 fw-semibold">AED {{ bill.total_amount|floatformat:2 }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Total amount</h6>
+                        <p class="fw-semibold">AED {{ bill.total_amount|floatformat:2 }}</p>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Paid amount</label>
-                        <p class="mb-0 text-success">AED {{ bill.paid_amount|floatformat:2 }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Paid amount</h6>
+                        <p class="text-success">AED {{ bill.paid_amount|floatformat:2 }}</p>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Journal entry</label>
-                        <p class="mb-0">
+                    <div class="erp-detail-field">
+                        <h6>Journal entry</h6>
+                        <p>
                             {% if bill.journal_entry %}
                             <a href="{% url 'finance:journal_detail' bill.journal_entry.pk %}" class="text-decoration-none">{{ bill.journal_entry.entry_number }}</a>
                             {% else %}—{% endif %}
                         </p>
                     </div>
                     {% if bill.notes %}
-                    <div class="col-12">
-                        <label class="form-label text-muted small">Notes</label>
-                        <p class="mb-0">{{ bill.notes|linebreaks }}</p>
+                    <div class="erp-detail-field erp-detail-field-full">
+                        <h6>Notes</h6>
+                        <p>{{ bill.notes|linebreaksbr }}</p>
                     </div>
                     {% endif %}
                 </div>

@@ -71,61 +71,49 @@
         <div class="card mb-4">
             <div class="card-header"><h6 class="mb-0 fw-semibold">Payment Details</h6></div>
             <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted">Payment Method</span>
-                            <span class="fw-medium">{{ payment.get_payment_method_display }}</span>
-                        </div>
+                <div class="erp-detail-grid">
+                    <div class="erp-detail-field">
+                        <h6>Payment method</h6>
+                        <p>{{ payment.get_payment_method_display }}</p>
                     </div>
                     {% if payment.bank_account %}
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted">Bank Account</span>
-                            <span class="fw-medium">{{ payment.bank_account.name }}</span>
-                        </div>
+                    <div class="erp-detail-field">
+                        <h6>Bank account</h6>
+                        <p>{{ payment.bank_account.name }}</p>
                     </div>
                     {% endif %}
                     {% if payment.cash_account %}
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted">Cash Account</span>
-                            <span class="fw-medium">{{ payment.cash_account.code }} - {{ payment.cash_account.name }}</span>
-                        </div>
+                    <div class="erp-detail-field">
+                        <h6>Cash account</h6>
+                        <p>{{ payment.cash_account.code }} — {{ payment.cash_account.name }}</p>
                     </div>
                     {% endif %}
                     {% if payment.account %}
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted">Posted Account</span>
-                            <span class="fw-medium">{{ payment.account.code }} - {{ payment.account.name }}</span>
-                        </div>
+                    <div class="erp-detail-field">
+                        <h6>Posted account</h6>
+                        <p>{{ payment.account.code }} — {{ payment.account.name }}</p>
                     </div>
                     {% endif %}
                     {% if payment.reference %}
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted">Reference</span>
-                            <span class="fw-medium">{{ payment.reference }}</span>
-                        </div>
+                    <div class="erp-detail-field">
+                        <h6>Reference</h6>
+                        <p>{{ payment.reference }}</p>
                     </div>
                     {% endif %}
                     {% if payment.attachment %}
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="text-muted">Attachment</span>
-                            <a href="{{ payment.attachment.url }}" class="fw-medium" target="_blank" rel="noopener">
+                    <div class="erp-detail-field">
+                        <h6>Attachment</h6>
+                        <p>
+                            <a href="{{ payment.attachment.url }}" target="_blank" rel="noopener">
                                 <i class="fas fa-paperclip me-1"></i>{{ payment.attachment.name|cut:"payments/attachments/" }}
                             </a>
-                        </div>
+                        </p>
                     </div>
                     {% endif %}
                     {% if payment.notes %}
-                    <div class="col-12">
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted">Notes</span>
-                            <span class="fw-medium">{{ payment.notes }}</span>
-                        </div>
+                    <div class="erp-detail-field erp-detail-field-full">
+                        <h6>Notes</h6>
+                        <p>{{ payment.notes|linebreaksbr }}</p>
                     </div>
                     {% endif %}
                 </div>

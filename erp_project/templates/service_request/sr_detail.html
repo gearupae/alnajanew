@@ -56,30 +56,30 @@
         <div class="card mb-4">
             <div class="card-header"><h6 class="mb-0 fw-semibold">Request Details</h6></div>
             <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Date</label>
-                        <p class="mb-0">{{ sr.date|date:"d/m/Y" }}</p>
+                <div class="erp-detail-grid">
+                    <div class="erp-detail-field">
+                        <h6>Date</h6>
+                        <p>{{ sr.date|date:"d/m/Y" }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Required By</label>
-                        <p class="mb-0">{{ sr.required_by_date|date:"d/m/Y"|default:"-" }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Required by</h6>
+                        <p>{{ sr.required_by_date|date:"d/m/Y"|default:"—" }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Department</label>
-                        <p class="mb-0">{{ sr.department.name|default:"-" }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Department</h6>
+                        <p>{{ sr.department.name|default:"—" }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Requested By</label>
-                        <p class="mb-0">{{ sr.requested_by.get_full_name|default:sr.requested_by.username }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Requested by</h6>
+                        <p>{{ sr.requested_by.get_full_name|default:sr.requested_by.username }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Priority</label>
-                        <p class="mb-0">{{ sr.get_priority_display }}</p>
+                    <div class="erp-detail-field">
+                        <h6>Priority</h6>
+                        <p>{{ sr.get_priority_display }}</p>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Status</label>
-                        <p class="mb-0">
+                    <div class="erp-detail-field">
+                        <h6>Status</h6>
+                        <p>
                             {% if sr.status == 'draft' %}<span class="badge bg-secondary">Draft</span>
                             {% elif sr.status == 'pending' %}<span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>
                             {% elif sr.status == 'returned' %}<span class="badge bg-warning text-dark">Returned</span>
@@ -90,9 +90,9 @@
                         </p>
                     </div>
                     {% if sr.notes %}
-                    <div class="col-12">
-                        <label class="form-label text-muted small">Notes / Justification</label>
-                        <p class="mb-0">{{ sr.notes }}</p>
+                    <div class="erp-detail-field erp-detail-field-full">
+                        <h6>Notes / justification</h6>
+                        <p>{{ sr.notes|linebreaksbr }}</p>
                     </div>
                     {% endif %}
                 </div>

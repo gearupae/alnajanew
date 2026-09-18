@@ -58,41 +58,6 @@
     margin-top: 0.75rem;
     padding-top: 0.75rem;
 }
-/* Project details grid — compact, aligned fields */
-.pd-detail-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem 1.25rem;
-}
-@media (min-width: 768px) {
-    .pd-detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-@media (min-width: 1200px) {
-    .pd-detail-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-.pd-field { min-width: 0; }
-.pd-field h6 {
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    color: var(--bs-secondary-color, #64748b);
-    margin-bottom: 0.15rem;
-    line-height: 1.25;
-}
-.pd-field > p {
-    font-weight: 500;
-    font-size: 0.925rem;
-    color: var(--bs-body-color, #0f172a);
-    line-height: 1.35;
-    margin-bottom: 0;
-    word-break: break-word;
-}
-.pd-field-span-2 { grid-column: span 2; }
-.pd-field-full { grid-column: 1 / -1; }
-@media (max-width: 767.98px) {
-    .pd-field-span-2 { grid-column: span 2; }
-}
 .pd-customer-link {
     color: var(--bs-primary);
     text-decoration: none;
