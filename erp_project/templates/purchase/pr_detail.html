@@ -2,6 +2,24 @@
 
 {% block extra_css %}
 <style>
+.pr-detail-overview .overview-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--gray-600);
+    margin-bottom: 0.25rem;
+}
+.pr-detail-overview .overview-value {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--gray-900);
+    line-height: 1.4;
+    word-break: break-word;
+}
+.pr-detail-overview .tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
 .pr-current-stock-header {
     background: #f0f9ff !important;
     color: #0369a1;
@@ -75,37 +93,37 @@
 
 <div class="row">
     <div class="col-lg-12">
-        <div class="card mb-4">
+        <div class="card mb-4 pr-detail-overview">
             <div class="card-header"><h6 class="mb-0 fw-semibold">Request Details</h6></div>
             <div class="card-body">
-                <div class="erp-detail-grid">
-                    <div class="erp-detail-field">
-                        <h6>PR number</h6>
-                        <p class="fw-medium">{{ pr.pr_number }}</p>
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">PR number</div>
+                        <div class="overview-value fw-medium">{{ pr.pr_number }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Date</h6>
-                        <p>{{ pr.date|date:"d/m/Y" }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Date</div>
+                        <div class="overview-value">{{ pr.date|date:"d/m/Y" }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Required by date</h6>
-                        <p>{{ pr.required_by_date|date:"d/m/Y"|default:"—" }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Required by date</div>
+                        <div class="overview-value">{{ pr.required_by_date|date:"d/m/Y"|default:"—" }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Requested by</h6>
-                        <p>{{ pr.requested_by.get_full_name|default:pr.requested_by.username }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Requested by</div>
+                        <div class="overview-value">{{ pr.requested_by.get_full_name|default:pr.requested_by.username }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Department</h6>
-                        <p>{{ pr.department.name|default:"—" }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Department</div>
+                        <div class="overview-value">{{ pr.department.name|default:"—" }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Priority</h6>
-                        <p>{{ pr.get_priority_display }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Priority</div>
+                        <div class="overview-value">{{ pr.get_priority_display }}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Status</h6>
-                        <p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Status</div>
+                        <div class="overview-value">
                             {% if pr.status == 'draft' %}<span class="badge bg-secondary">Draft</span>
                             {% elif pr.status == 'pending' %}<span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>
                             {% elif pr.status == 'returned' %}<span class="badge bg-warning text-dark">Returned</span>
@@ -113,36 +131,36 @@
                             {% elif pr.status == 'rejected' %}<span class="badge badge-inactive">Rejected</span>
                             {% elif pr.status == 'converted' %}<span class="badge bg-success">Converted</span>
                             {% else %}<span class="badge bg-secondary">{{ pr.get_status_display }}</span>{% endif %}
-                        </p>
+                        </div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Vendor</h6>
-                        <p>{% if pr.vendor %}{{ pr.vendor.name }}{% else %}—{% endif %}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Vendor</div>
+                        <div class="overview-value">{% if pr.vendor %}{{ pr.vendor.name }}{% else %}—{% endif %}</div>
                     </div>
-                    <div class="erp-detail-field">
-                        <h6>Total amount</h6>
-                        <p class="fw-semibold">AED {{ pr.total_amount|floatformat:2 }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Total amount</div>
+                        <div class="overview-value fw-semibold tabular-nums">AED {{ pr.total_amount|floatformat:2 }}</div>
                     </div>
                     {% if pr.service_request %}
-                    <div class="erp-detail-field">
-                        <h6>Service request</h6>
-                        <p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Service request</div>
+                        <div class="overview-value">
                             <a href="{% url 'service_request:sr_detail' pr.service_request.pk %}" class="text-decoration-none">
                                 {{ pr.service_request.sr_number }}
                             </a>
-                        </p>
+                        </div>
                     </div>
                     {% endif %}
                     {% if pr.rejection_reason %}
-                    <div class="erp-detail-field erp-detail-field-full">
-                        <h6>Rejection reason</h6>
-                        <p>{{ pr.rejection_reason }}</p>
+                    <div class="col-12">
+                        <div class="overview-label">Rejection reason</div>
+                        <div class="overview-value">{{ pr.rejection_reason }}</div>
                     </div>
                     {% endif %}
                     {% if pr.notes %}
-                    <div class="erp-detail-field erp-detail-field-full">
-                        <h6>Notes</h6>
-                        <p>{{ pr.notes|linebreaksbr }}</p>
+                    <div class="col-12">
+                        <div class="overview-label">Notes</div>
+                        <div class="overview-value">{{ pr.notes|linebreaksbr }}</div>
                     </div>
                     {% endif %}
                 </div>
