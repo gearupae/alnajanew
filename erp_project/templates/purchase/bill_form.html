@@ -191,7 +191,8 @@
                     </thead>
                     <tbody id="itemsBody">
                         {% for item_form in items_formset %}
-                        <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %} data-max-billable="">
+                        <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %} data-max-billable=""
+                            {% if item_form.instance.purchase_order_item_id and item_form.instance.purchase_order_item.inventory_item_id %}data-inventory-item-id="{{ item_form.instance.purchase_order_item.inventory_item_id }}"{% endif %}>
                             <td class="bill-item-cell">
                                 {{ item_form.id }}
                                 {{ item_form.purchase_order_item }}
@@ -327,6 +328,7 @@
     <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
     <a href="{% url 'purchase:bill_list' %}" class="btn btn-light">Cancel</a>
 </form>
+{% endblock %}
 
 {% block extra_js %}
 {{ bill_inventory_items_data|json_script:"bill-inventory-items-data" }}
@@ -402,7 +404,9 @@ function syncBillDescriptionFromSelect(selectEl, row, options) {
         return;
     }
     if (!val) {
-        descInput.value = '';
+        if (!(descInput.value || '').trim()) {
+            descInput.value = '';
+        }
         return;
     }
     if (isBillCustomTagId(val)) {
@@ -515,9 +519,10 @@ function initBillRowInventorySelect(row, inventoryItemId) {
     const selectEl = row.querySelector('.bill-inventory-select');
     if (!selectEl) return;
     const descInput = row.querySelector('.bill-description-input');
+    const rowInvId = row.dataset.inventoryItemId || '';
     const selectValue = resolveBillSelectValue(
         descInput ? descInput.value : '',
-        inventoryItemId != null && inventoryItemId !== '' ? inventoryItemId : ''
+        inventoryItemId != null && inventoryItemId !== '' ? inventoryItemId : rowInvId
     );
     initBillInventorySelect2(selectEl, selectValue || null);
     if (selectValue) {
@@ -1002,15 +1007,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    function visibleItemRows() {
+        return document.querySelectorAll('#itemsBody .item-row:not([style*="display: none"])');
+    }
+
+    function ensureAtLeastOneItemRow() {
+        if (visibleItemRows().length === 0) {
+            addItemRow();
+        }
+    }
+
     const poSelect = document.getElementById('id_purchase_order');
     if (poSelect) {
         poSelect.addEventListener('change', function() {
             const poId = this.value;
             if (poId) {
-                const existingRows = document.querySelectorAll('.item-row:not([style*="display: none"])');
+                const existingRows = visibleItemRows();
                 const hasExistingLines = existingRows.length > 0 && (
                     existingRows.length > 1 || (existingRows[0].querySelector('.item-qty')?.value || '0') !== '0'
                 );
+                if (billExcludeBillId) {
+                    enrichExistingRowsFromPo(poId);
+                    syncPOHeaderFromSelection(poId);
+                    ensureAtLeastOneItemRow();
+                    return;
+                }
                 if (hasExistingLines && !billReceivedMode) {
                     enrichExistingRowsFromPo(poId);
                     syncPOHeaderFromSelection(poId);
@@ -1023,26 +1044,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 loadPOItems(poId);
             } else {
+                if (billExcludeBillId) {
+                    ensureAtLeastOneItemRow();
+                    setPoQtyColumnsVisible(false);
+                    setPoBillingAlert('');
+                    calculateTotals();
+                    return;
+                }
                 loadPOItems(null);
             }
         });
         if (poSelect.value && !formWasPosted) {
-            const existingRows = document.querySelectorAll('.item-row:not([style*="display: none"])');
-            const hasFormsetLines = existingRows.length > 0 && billExcludeBillId;
-            if (hasFormsetLines) {
+            if (billExcludeBillId) {
                 enrichExistingRowsFromPo(poSelect.value);
                 syncPOHeaderFromSelection(poSelect.value);
+                ensureAtLeastOneItemRow();
             } else {
-                loadPOItems(poSelect.value);
+                const existingRows = visibleItemRows();
+                const hasFormsetLines = existingRows.length > 0;
+                if (hasFormsetLines) {
+                    enrichExistingRowsFromPo(poSelect.value);
+                    syncPOHeaderFromSelection(poSelect.value);
+                } else {
+                    loadPOItems(poSelect.value);
+                }
             }
         } else if (poSelect.value && formWasPosted) {
             enrichExistingRowsFromPo(poSelect.value);
             syncPOHeaderFromSelection(poSelect.value);
+            ensureAtLeastOneItemRow();
         } else {
             setPoQtyColumnsVisible(false);
+            if (billExcludeBillId) {
+                ensureAtLeastOneItemRow();
+            }
         }
     } else {
         setPoQtyColumnsVisible(false);
+        if (billExcludeBillId) {
+            ensureAtLeastOneItemRow();
+        }
     }
 
     if (preselectPoId && poSelect && !poSelect.value && !formWasPosted) {
@@ -1051,5 +1092,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-{% endblock %}
 {% endblock %}
