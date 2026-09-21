@@ -72,6 +72,44 @@ def _pr_inventory_items_json():
     return _active_inventory_items_json()
 
 
+def _inventory_id_for_description(description: str):
+    """Match a bill line description to an active inventory item, if possible."""
+    from apps.inventory.models import Item
+
+    text = (description or '').strip()
+    if not text:
+        return ''
+    item_id = Item.usable().filter(name__iexact=text).values_list('pk', flat=True).first()
+    return item_id or ''
+
+
+def _bill_line_inventory_ids(items_formset):
+    ids = []
+    for form in items_formset.forms:
+        inv_id = ''
+        po_item = getattr(form.instance, 'purchase_order_item', None)
+        if po_item and po_item.inventory_item_id:
+            inv_id = po_item.inventory_item_id
+        else:
+            desc = ''
+            if form.instance.pk:
+                desc = form.instance.description or ''
+            if not desc and form.is_bound:
+                desc = (form.data.get(f'{form.prefix}-description') or '').strip()
+            if not desc:
+                desc = (form.initial.get('description') or '').strip()
+            inv_id = _inventory_id_for_description(desc)
+        ids.append(str(inv_id) if inv_id else '')
+    return ids
+
+
+def _bill_formset_context(items_formset):
+    return {
+        'items_formset': items_formset,
+        'bill_lines': list(zip(items_formset, _bill_line_inventory_ids(items_formset))),
+    }
+
+
 def _save_vendor_bill_attachments(request, bill):
     """Persist uploaded files from `attachments` multi-file input."""
     uploaded = request.FILES.getlist('attachments')
@@ -1456,11 +1494,12 @@ class VendorBillCreateView(CreatePermissionMixin, CreateView):
         context['default_tax_code'] = TaxCode.objects.filter(is_active=True, is_default=True).first()
         if 'items_formset' not in kwargs:
             if self.request.POST:
-                context['items_formset'] = VendorBillItemFormSet(self.request.POST)
+                items_formset = VendorBillItemFormSet(self.request.POST)
             else:
-                context['items_formset'] = VendorBillItemFormSet()
+                items_formset = VendorBillItemFormSet()
         else:
-            context['items_formset'] = kwargs['items_formset']
+            items_formset = kwargs['items_formset']
+        context.update(_bill_formset_context(items_formset))
         context['bill_inventory_items_data'] = _active_inventory_items_data()
         return context
     
@@ -1536,11 +1575,12 @@ class VendorBillUpdateView(UpdatePermissionMixin, UpdateView):
         context['default_tax_code'] = TaxCode.objects.filter(is_active=True, is_default=True).first()
         if 'items_formset' not in kwargs:
             if self.request.POST:
-                context['items_formset'] = VendorBillItemFormSet(self.request.POST, instance=self.object)
+                items_formset = VendorBillItemFormSet(self.request.POST, instance=self.object)
             else:
-                context['items_formset'] = VendorBillItemFormSet(instance=self.object)
+                items_formset = VendorBillItemFormSet(instance=self.object)
         else:
-            context['items_formset'] = kwargs['items_formset']
+            items_formset = kwargs['items_formset']
+        context.update(_bill_formset_context(items_formset))
         context['bill_inventory_items_data'] = _active_inventory_items_data()
         return context
     

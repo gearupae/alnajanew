@@ -190,12 +190,14 @@
                         </tr>
                     </thead>
                     <tbody id="itemsBody">
-                        {% for item_form in items_formset %}
+                        {% for item_form, line_inventory_id in bill_lines %}
                         <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %} data-max-billable=""
-                            {% if item_form.instance.purchase_order_item_id and item_form.instance.purchase_order_item.inventory_item_id %}data-inventory-item-id="{{ item_form.instance.purchase_order_item.inventory_item_id }}"{% endif %}>
+                            data-line-description="{{ item_form.instance.description|default:item_form.description.value|default:'' }}"
+                            {% if line_inventory_id %}data-inventory-item-id="{{ line_inventory_id }}"{% endif %}>
                             <td class="bill-item-cell">
                                 {{ item_form.id }}
                                 {{ item_form.purchase_order_item }}
+                                <input type="hidden" name="{{ item_form.prefix }}-is_vat_inclusive" value="{% if item_form.is_vat_inclusive.value %}on{% elif item_form.instance.pk and item_form.instance.is_vat_inclusive %}on{% endif %}">
                                 <select class="form-select form-select-sm bill-inventory-select" aria-label="Search inventory item"></select>
                                 <input type="hidden" name="{{ item_form.prefix }}-description" class="bill-description-input"
                                        value="{{ item_form.description.value|default:'' }}">
@@ -364,21 +366,53 @@ function isBillCustomTagId(val) {
     return String(val || '').indexOf(BILL_CUSTOM_PREFIX) === 0;
 }
 
-function getBillInventoryOptions(selectedId) {
-    const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
-    let html = '<option value=""></option>';
-    if (isBillCustomTagId(selected)) {
-        html += '<option value="' + escapeHtml(selected) + '" selected>' +
-            escapeHtml(selected.slice(BILL_CUSTOM_PREFIX.length)) + '</option>';
+function getBillSelectRawValue(selectEl) {
+    if (!selectEl) return '';
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        const $el = $(selectEl);
+        if ($el.data('select2')) {
+            const val = $el.val();
+            return val != null && val !== '' ? String(val) : '';
+        }
     }
+    return selectEl.value || '';
+}
+
+function billInventoryMeta(selectedId) {
+    if (!selectedId || isBillCustomTagId(selectedId)) {
+        return null;
+    }
+    return BILL_INVENTORY_ITEMS.find(function (row) {
+        return String(row.id) === String(selectedId);
+    }) || null;
+}
+
+function populateBillInventorySelectOptions(selectEl, selectedId, selectedLabel) {
+    const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
+    selectEl.innerHTML = '';
+    selectEl.appendChild(new Option('', '', false, false));
+
+    if (selected && isBillCustomTagId(selected)) {
+        const text = selected.slice(BILL_CUSTOM_PREFIX.length);
+        selectEl.appendChild(new Option(text, selected, true, true));
+        return;
+    }
+
+    if (selected) {
+        const meta = billInventoryMeta(selected);
+        const label = meta ? (meta.label || meta.name || '') : (selectedLabel || selected);
+        selectEl.appendChild(new Option(label, selected, true, true));
+    }
+
     if (!Array.isArray(BILL_INVENTORY_ITEMS) || !BILL_INVENTORY_ITEMS.length) {
-        return html;
+        return;
     }
     BILL_INVENTORY_ITEMS.forEach(function (row) {
-        const sel = selected && selected === String(row.id) ? ' selected' : '';
-        html += '<option value="' + row.id + '"' + sel + '>' + escapeHtml(row.label || '') + '</option>';
+        if (selected && String(row.id) === selected) {
+            return;
+        }
+        selectEl.appendChild(new Option(row.label || row.name || '', String(row.id), false, false));
     });
-    return html;
 }
 
 function resolveBillSelectValue(desc, invId) {
@@ -396,15 +430,25 @@ function resolveBillSelectValue(desc, invId) {
     return '';
 }
 
+function rowLineDescription(row) {
+    const descInput = row.querySelector('.bill-description-input');
+    const datasetDesc = (row.dataset.lineDescription || '').trim();
+    const inputDesc = descInput ? (descInput.value || '').trim() : '';
+    return inputDesc || datasetDesc;
+}
+
 function syncBillDescriptionFromSelect(selectEl, row, options) {
     const forcePrice = !!(options && options.forcePrice);
     const descInput = row.querySelector('.bill-description-input');
-    const val = selectEl.value || '';
+    const val = getBillSelectRawValue(selectEl);
     if (!descInput) {
         return;
     }
     if (!val) {
-        if (!(descInput.value || '').trim()) {
+        const existing = rowLineDescription(row);
+        if (existing) {
+            descInput.value = existing;
+        } else {
             descInput.value = '';
         }
         return;
@@ -473,11 +517,11 @@ function bindBillInventorySelectHandlers(selectEl) {
     });
 }
 
-function initBillInventorySelect2(selectEl, selectedId) {
+function initBillInventorySelect2(selectEl, selectedId, selectedLabel) {
     if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
     const current = selectedId != null && selectedId !== '' ? String(selectedId) : (selectEl.value || '');
     destroyBillInventorySelect2(selectEl);
-    selectEl.innerHTML = getBillInventoryOptions(current);
+    populateBillInventorySelectOptions(selectEl, current, selectedLabel || '');
     const $el = $(selectEl);
     $el.select2({
         theme: 'bootstrap-5',
@@ -519,15 +563,17 @@ function initBillRowInventorySelect(row, inventoryItemId) {
     const selectEl = row.querySelector('.bill-inventory-select');
     if (!selectEl) return;
     const descInput = row.querySelector('.bill-description-input');
+    const lineDesc = rowLineDescription(row);
+    if (descInput && lineDesc && !(descInput.value || '').trim()) {
+        descInput.value = lineDesc;
+    }
     const rowInvId = row.dataset.inventoryItemId || '';
     const selectValue = resolveBillSelectValue(
-        descInput ? descInput.value : '',
+        lineDesc,
         inventoryItemId != null && inventoryItemId !== '' ? inventoryItemId : rowInvId
     );
-    initBillInventorySelect2(selectEl, selectValue || null);
-    if (selectValue) {
-        syncBillDescriptionFromSelect(selectEl, row, { forcePrice: false });
-    }
+    initBillInventorySelect2(selectEl, selectValue || null, lineDesc);
+    syncBillDescriptionFromSelect(selectEl, row, { forcePrice: false });
 }
 
 function initAllBillInventorySelect2() {
@@ -670,7 +716,7 @@ function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId
     const qtyMaxAttr = maxBillable !== '' ? ` max="${maxBillable}"` : '';
     const safeDesc = escapeHtml(description).replace(/"/g, '&quot;');
     newRow.innerHTML = `
-        <td class="bill-item-cell">${poItemField}<select class="form-select form-select-sm bill-inventory-select" aria-label="Search inventory item"></select><input type="hidden" name="items-${formCount}-description" class="bill-description-input" value="${safeDesc}"></td>
+        <td class="bill-item-cell">${poItemField}<input type="hidden" name="items-${formCount}-is_vat_inclusive" value=""><select class="form-select form-select-sm bill-inventory-select" aria-label="Search inventory item"></select><input type="hidden" name="items-${formCount}-description" class="bill-description-input" value="${safeDesc}"></td>
         <td class="text-center po-qty-col"><span class="item-received-qty text-muted">${receivedDisplay}</span></td>
         <td class="bill-qty-col"><input type="number" name="items-${formCount}-quantity" class="form-control form-control-sm item-qty text-center" value="${quantity}" step="${qtyStep}" min="${qtyMin}" inputmode="${qtyInputMode}"${qtyMaxAttr} onchange="calculateRowTotal(this)" onblur="clampBillQtyInput(this); calculateRowTotal(this);">${billableHint}</td>
         <td class="text-center po-qty-col"><span class="item-total-billed-qty text-muted">${billedDisplay}</span></td>
@@ -680,6 +726,12 @@ function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId
         <td class="text-end"><span class="row-total fw-medium">0.00</span></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow(this)"><i class="fas fa-times"></i></button></td>
     `;
+    if (description) {
+        newRow.dataset.lineDescription = description;
+    }
+    if (inventoryItemId) {
+        newRow.dataset.inventoryItemId = String(inventoryItemId);
+    }
     tbody.appendChild(newRow);
     initBillRowInventorySelect(newRow, inventoryItemId);
     formCount++;
@@ -815,8 +867,10 @@ function loadPOItems(poId) {
         });
 }
 
-function reindexItemRows() {
-    document.querySelectorAll('#itemsBody .bill-inventory-select').forEach(destroyBillInventorySelect2);
+function reindexItemRows(reinitSelects) {
+    if (reinitSelects !== false) {
+        document.querySelectorAll('#itemsBody .bill-inventory-select').forEach(destroyBillInventorySelect2);
+    }
     const rows = Array.from(document.querySelectorAll('#itemsBody .item-row')).filter(
         row => row.style.display !== 'none'
     );
@@ -834,7 +888,9 @@ function reindexItemRows() {
     if (totalInput) {
         totalInput.value = formCount;
     }
-    initAllBillInventorySelect2();
+    if (reinitSelects !== false) {
+        initAllBillInventorySelect2();
+    }
 }
 
 function removeItemRow(btn) {
@@ -988,7 +1044,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     syncBillDescriptionFromSelect(sel, row, { forcePrice: false });
                 }
             });
-            reindexItemRows();
+            reindexItemRows(false);
             let invalid = false;
             document.querySelectorAll('.item-row .item-qty').forEach(function (qtyInput) {
                 const row = qtyInput.closest('tr');
