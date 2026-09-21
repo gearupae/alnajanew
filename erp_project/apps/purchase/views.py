@@ -1597,6 +1597,13 @@ class VendorBillDetailView(PermissionRequiredMixin, DetailView):
             .prefetch_related('items', 'attachments')
         )
 
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if obj.items.count() == 0 and (obj.subtotal > 0 or obj.total_amount > 0):
+            obj.calculate_totals()
+            obj.refresh_from_db()
+        return obj
+
     def get_context_data(self, **kwargs):
         from apps.core.audit import get_entity_audit_history
         
