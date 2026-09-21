@@ -39,43 +39,23 @@
     {% csrf_token %}
     
     <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Request details</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-3">
-                    {% if is_edit %}
-                    <label class="form-label">Is active</label>
-                    <input type="text" class="form-control bg-light" value="{% if request_obj.is_active %}Yes{% else %}No{% endif %}" readonly>
-                    {% else %}
-                    <div class="form-check mt-2">
-                        {{ form.is_active }}
-                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
-                    </div>
-                    {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                    {% endif %}
-                </div>
                 {% if is_edit and request_obj %}
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Request number</label>
                     <input type="text" class="form-control bg-light" value="{{ request_obj.request_number }}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Request date</label>
                     <input type="text" class="form-control bg-light" value="{{ request_obj.request_date|date:'d/m/Y' }}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Status</label>
                     <input type="text" class="form-control bg-light" value="{{ request_obj.get_status_display }}" readonly>
                 </div>
                 {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Request details</h6></div>
-        <div class="card-body">
-            <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Requested by</label>
                     <input type="text" class="form-control bg-light" value="{{ request.user.get_full_name|default:request.user.username }}" readonly>
@@ -92,13 +72,13 @@
                     <label class="form-label">Required by date</label>
                     {{ form.required_by_date }}
                 </div>
-                <div class="col-md-8">
+                <div class="col-md-4">
                     <label class="form-label">Project</label>
                     {{ form.project }}
                     {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors }}</div>{% endif %}
                     <small class="text-muted">Link this request to an existing project (optional).</small>
                 </div>
-                <div class="col-12">
+                <div class="col-md-4">
                     <label class="form-label">Remarks</label>
                     {{ form.remarks }}
                 </div>
@@ -157,6 +137,10 @@
         </div>
     </div>
     
+    {% if request_obj and request_obj.is_active or not is_edit %}
+    <input type="hidden" name="is_active" value="on">
+    {% endif %}
+
     <button type="submit" class="btn btn-primary">
         <i class="fas fa-{% if is_edit %}save{% else %}paper-plane{% endif %} me-2"></i>{% if is_edit %}Save changes{% else %}Submit Request{% endif %}
     </button>

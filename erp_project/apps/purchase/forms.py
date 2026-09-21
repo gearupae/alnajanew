@@ -22,6 +22,14 @@ from apps.finance.models import TaxCode
 from apps.projects.models import Project
 
 
+def _resolve_hidden_is_active(form):
+    if 'is_active' in form.data:
+        return True
+    if form.instance.pk:
+        return form.instance.is_active
+    return True
+
+
 class VendorForm(forms.ModelForm):
     """Form for creating/editing vendors."""
     
@@ -169,7 +177,7 @@ class PurchaseRequestForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         if self.is_bound:
-            cleaned['is_active'] = 'is_active' in self.data
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
         return cleaned
 
     def clean_service_request(self):
@@ -344,7 +352,7 @@ class PurchaseOrderForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         if self.is_bound:
-            cleaned['is_active'] = 'is_active' in self.data
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
         return cleaned
 
     def clean_service_request(self):
@@ -731,7 +739,7 @@ class ExpenseClaimForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         if self.is_bound:
-            cleaned['is_active'] = 'is_active' in self.data
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
         return cleaned
 
 
@@ -870,7 +878,7 @@ class RecurringExpenseForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         if self.is_bound:
-            cleaned_data['is_active'] = 'is_active' in self.data
+            cleaned_data['is_active'] = _resolve_hidden_is_active(self)
         payment_mode = cleaned_data.get('payment_mode')
         bank_account = cleaned_data.get('bank_account')
         
@@ -928,7 +936,7 @@ class DebitNoteForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         if self.is_bound:
-            cleaned['is_active'] = 'is_active' in self.data
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
         bill = cleaned.get('original_bill')
         reason = cleaned.get('reason')
         reason_desc = (cleaned.get('reason_description') or '').strip()

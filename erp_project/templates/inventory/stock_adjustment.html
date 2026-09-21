@@ -25,7 +25,7 @@
         <form method="post">
             {% csrf_token %}
             <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Item <span class="text-danger">*</span></label>
                     <select name="item" id="id_item" class="form-select" required>
                         <option value="">Select an item...</option>
@@ -49,7 +49,7 @@
                     </small>
                     {% endif %}
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Warehouse <span class="text-danger">*</span></label>
                     <select name="warehouse" id="id_warehouse" class="form-select" required>
                         <option value="">Select a warehouse...</option>
@@ -72,24 +72,24 @@
                     </small>
                     {% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Movement Type <span class="text-danger">*</span></label>
                     {{ form.movement_type }}
                 </div>
-                <div class="col-md-3" id="reason-group" style="display:none;">
+                <div class="col-md-4" id="reason-group" style="display:none;">
                     <label class="form-label">Adjustment Reason <span class="text-danger">*</span></label>
                     {{ form.adjustment_reason }}
                     {% if form.adjustment_reason.errors %}<div class="text-danger small mt-1">{{ form.adjustment_reason.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Quantity <span class="text-danger">*</span></label>
                     {{ form.quantity }}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Reference</label>
                     {{ form.reference }}
                 </div>
-                <div class="col-12">
+                <div class="col-md-4">
                     <label class="form-label">Notes</label>
                     {{ form.notes }}
                 </div>

@@ -90,19 +90,12 @@
         <div class="card-header"><h6 class="mb-0 fw-semibold">Order details</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-3">
-                    <div class="form-check mt-2">
-                        {{ form.is_active }}
-                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
-                    </div>
-                    {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors|join:", " }}</div>{% endif %}
-                </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Order date <span class="text-danger">*</span></label>
                     {{ form.order_date }}
                     {% if form.order_date.errors %}<div class="text-danger small">{{ form.order_date.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Expected delivery date</label>
                     {{ form.expected_delivery_date }}
                     {% if form.expected_delivery_date.errors %}<div class="text-danger small">{{ form.expected_delivery_date.errors|join:", " }}</div>{% endif %}
@@ -291,6 +284,10 @@
         </div>
     </div>
     
+    {% if object and object.is_active or not object %}
+    <input type="hidden" name="is_active" value="on">
+    {% endif %}
+
     <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
     <a href="{% url 'purchase:po_list' %}" class="btn btn-light">Cancel</a>
 </form>

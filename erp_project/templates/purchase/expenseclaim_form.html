@@ -21,18 +21,11 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-3">
-                    <div class="form-check mt-2">
-                        {{ form.is_active }}
-                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
-                    </div>
-                    {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Employee</label>
                     <input type="text" class="form-control bg-light" value="{{ request.user.get_full_name|default:request.user.username }}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Status</label>
                     <input type="text" class="form-control bg-light" value="Draft" readonly>
                 </div>
@@ -41,15 +34,15 @@
                     {{ form.claim_date }}
                     {% for err in form.claim_date.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
-                <div class="col-md-8">
-                    <label class="form-label">Description</label>
-                    {{ form.description }}
-                    {% for err in form.description.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
                 <div class="col-md-4">
                     <label class="form-label">Project <span class="text-muted fw-normal small">(optional)</span></label>
                     {{ form.project }}
                     {% for err in form.project.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Description</label>
+                    {{ form.description }}
+                    {% for err in form.description.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
             </div>
         </div>
@@ -123,6 +116,10 @@
         <code>Dr Expense Account, Dr VAT Recoverable, Cr Employee Payable</code>
     </div>
     
+    {% if object and object.is_active or not object %}
+    <input type="hidden" name="is_active" value="on">
+    {% endif %}
+
     <div class="card border-0 shadow-sm">
         <div class="card-body">
             <button type="submit" class="btn btn-dark">

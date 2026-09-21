@@ -3,11 +3,31 @@
 <div class="page-header mb-4"><h4 class="mb-1 fw-bold">{{ title }}</h4></div>
 <div class="card"><div class="card-body">
 <form method="post" id="templateForm" novalidate>{% csrf_token %}
-    {% for field in form %}
-    {% if field.name != 'allowance_lines' %}
-    <div class="mb-3">{{ field.label_tag }} {{ field.errors }} {% if field.name == 'is_active' %}<div class="form-check">{{ field }}<label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label></div>{% else %}{{ field }}{% endif %}</div>
-    {% endif %}
-    {% endfor %}
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <label class="form-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+            {{ form.name.errors }}
+            {{ form.name }}
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="{{ form.company.id_for_label }}">{{ form.company.label }}</label>
+            {{ form.company.errors }}
+            {{ form.company }}
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="{{ form.location.id_for_label }}">{{ form.location.label }}</label>
+            {{ form.location.errors }}
+            {{ form.location }}
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="{{ form.basic_salary.id_for_label }}">{{ form.basic_salary.label }}</label>
+            {{ form.basic_salary.errors }}
+            {{ form.basic_salary }}
+            {% if form.basic_salary.help_text %}<div class="form-text">{{ form.basic_salary.help_text }}</div>{% endif %}
+        </div>
+    </div>
+
+    {{ form.allowance_lines }}
 
     <h6 class="small text-muted text-uppercase mb-2">Allowance lines</h6>
     <div class="table-responsive">
@@ -26,14 +46,16 @@
     </div>
     <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="add-allowance-row"><i class="fas fa-plus me-1"></i>Add allowance</button>
 
-    {{ form.allowance_lines }}
-
     <div class="border rounded p-3 bg-light mb-3">
         <div class="d-flex justify-content-between"><span>Total allowances</span><strong>AED <span id="tplAllowTotal">0.00</span></strong></div>
         <div class="d-flex justify-content-between small text-muted"><span>Basic <span class="text-muted">(optional, added if entered)</span></span><strong class="text-body">AED <span id="tplBasicDisplay">0.00</span></strong></div>
         <hr class="my-2"/>
         <div class="d-flex justify-content-between fs-6"><span class="fw-semibold">Total package</span><strong>AED <span id="tplPkgTotal">0.00</span></strong></div>
     </div>
+
+    {% if object and object.is_active or not object %}
+    <input type="hidden" name="is_active" value="on">
+    {% endif %}
 
     <button type="submit" class="btn btn-primary">Save</button>
     <a href="{% url 'hr:payroll_template_list' %}" class="btn btn-light">Cancel</a>

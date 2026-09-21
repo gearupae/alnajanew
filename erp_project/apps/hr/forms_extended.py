@@ -23,6 +23,14 @@ from apps.hr.payroll_allowances import normalize_template_allowance_lines_json
 from apps.projects.models import Project
 
 
+def _resolve_hidden_is_active(form):
+    if 'is_active' in form.data:
+        return True
+    if form.instance.pk:
+        return form.instance.is_active
+    return True
+
+
 class PayrollSettingsForm(forms.ModelForm):
     class Meta:
         model = PayrollSettings
@@ -100,6 +108,8 @@ class PayrollTemplateForm(forms.ModelForm):
             raise ValidationError(
                 {'name': 'A template with this name already exists for this company.'}
             )
+        if self.is_bound:
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
         return cleaned
 
 
@@ -288,10 +298,8 @@ class AttendanceRecordForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if self.data:
-            cleaned['is_active'] = 'is_active' in self.data
-        elif not self.instance.pk:
-            cleaned['is_active'] = True
+        if self.is_bound:
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
         if self.instance.pk and self.fields['source'].disabled:
             cleaned['source'] = self.instance.source
 

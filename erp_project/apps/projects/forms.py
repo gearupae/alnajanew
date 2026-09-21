@@ -166,8 +166,13 @@ class ProjectForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if self.data:
-            cleaned['is_active'] = 'is_active' in self.data
+        if self.is_bound:
+            if 'is_active' in self.data:
+                cleaned['is_active'] = True
+            elif self.instance.pk:
+                cleaned['is_active'] = self.instance.is_active
+            else:
+                cleaned['is_active'] = True
         return cleaned
 
     def clean_status(self):
@@ -344,8 +349,13 @@ class TaskForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if self.data:
-            cleaned['is_active'] = 'is_active' in self.data
+        if self.is_bound:
+            if 'is_active' in self.data:
+                cleaned['is_active'] = True
+            elif self.instance.pk:
+                cleaned['is_active'] = self.instance.is_active
+            else:
+                cleaned['is_active'] = True
 
         if self.project is not None:
             cleaned['project'] = self.project
@@ -488,8 +498,13 @@ class ProjectExpenseForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if self.data:
-            cleaned['is_active'] = 'is_active' in self.data
+        if self.is_bound:
+            if 'is_active' in self.data:
+                cleaned['is_active'] = True
+            elif self.instance.pk:
+                cleaned['is_active'] = self.instance.is_active
+            else:
+                cleaned['is_active'] = True
 
         if self.instance.pk and self.instance.vendor_bill_id:
             cleaned['project'] = self.instance.project

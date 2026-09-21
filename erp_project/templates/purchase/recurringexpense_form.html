@@ -20,18 +20,11 @@
         <div class="col-md-8">
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-white py-3">
-                    <h6 class="mb-0 fw-bold"><i class="fas fa-id-card me-2 text-primary"></i>Account</h6>
+                    <h6 class="mb-0 fw-bold"><i class="fas fa-id-card me-2 text-primary"></i>Details</h6>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-3">
-                            <div class="form-check mt-2">
-                                {{ form.is_active }}
-                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
-                            </div>
-                            {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                        </div>
-                        <div class="col-md-5">
+                        <div class="col-md-4">
                             <label class="form-label">Name <span class="text-danger">*</span></label>
                             {{ form.name }}
                             <small class="text-muted">e.g. Office rent, internet subscription</small>
@@ -52,12 +45,12 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Vendor <span class="text-danger">*</span></label>
                             {{ form.vendor }}
                             {% for err in form.vendor.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Expense account <span class="text-danger">*</span></label>
                             {{ form.expense_account }}
                             {% for err in form.expense_account.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
@@ -143,7 +136,7 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Payment mode <span class="text-danger">*</span></label>
                             {{ form.payment_mode }}
                             <small class="text-muted d-block">
@@ -152,13 +145,13 @@
                             </small>
                             {% for err in form.payment_mode.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Bank account</label>
                             {{ form.bank_account }}
                             <small class="text-muted">Required if payment mode is direct bank</small>
                             {% for err in form.bank_account.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                         </div>
-                        <div class="col-12">
+                        <div class="col-md-4">
                             <label class="form-label">Description</label>
                             {{ form.description }}
                             {% for err in form.description.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
@@ -202,6 +195,10 @@
         </div>
     </div>
     
+    {% if object and object.is_active or not object %}
+    <input type="hidden" name="is_active" value="on">
+    {% endif %}
+
     <div class="card border-0 shadow-sm">
         <div class="card-body">
             <button type="submit" class="btn btn-dark">

@@ -23,18 +23,13 @@
     </div>
     <form method="post">
         {% csrf_token %}
+        <input type="hidden" name="is_active" value="on">
         <div class="row g-3">
-            <div class="col-md-2">
-                <div class="form-check mt-4">
-                    <input type="checkbox" name="is_active" id="warehouseInlineIsActive" class="form-check-input" value="on" checked>
-                    <label class="form-check-label" for="warehouseInlineIsActive">Is active</label>
-                </div>
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <label class="form-label">Code</label>
                 <input type="text" name="code" class="form-control" placeholder="Auto-generated if blank">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <label class="form-label">Name <span class="text-danger">*</span></label>
                 <input type="text" name="name" class="form-control" required>
             </div>

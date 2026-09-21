@@ -54,7 +54,7 @@
                     <label class="form-label" for="{{ form.pay_type.id_for_label }}">{{ form.pay_type.label }}</label>
                     {{ form.pay_type }}
                 </div>
-                <div class="col-12">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
                     {{ form.description }}
                 </div>
@@ -79,7 +79,7 @@
                     {{ form.min_service_days }}
                     {% if form.min_service_days.help_text %}<div class="form-text">{{ form.min_service_days.help_text }}</div>{% endif %}
                 </div>
-                <div class="col-md-6 col-lg-4">
+                <div class="col-md-4">
                     <div class="form-check pt-2">
                         {{ form.is_gender_specific }}
                         <label class="form-check-label" for="{{ form.is_gender_specific.id_for_label }}">{{ form.is_gender_specific.label }}</label>
@@ -93,57 +93,55 @@
         <div class="card-header"><h6 class="mb-0 fw-semibold">Leave rules</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6 col-lg-4">
+                <div class="col-md-4">
                     <div class="form-check">
                         {{ form.religion_restricted }}
                         <label class="form-check-label" for="{{ form.religion_restricted.id_for_label }}">{{ form.religion_restricted.label }}</label>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-4">
+                <div class="col-md-4">
                     <div class="form-check">
                         {{ form.requires_medical_certificate }}
                         <label class="form-check-label" for="{{ form.requires_medical_certificate.id_for_label }}">{{ form.requires_medical_certificate.label }}</label>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-4">
+                <div class="col-md-4">
                     <div class="form-check">
                         {{ form.probation_allowed }}
                         <label class="form-check-label" for="{{ form.probation_allowed.id_for_label }}">{{ form.probation_allowed.label }}</label>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-4">
+                <div class="col-md-4">
                     <div class="form-check">
                         {{ form.once_in_service }}
                         <label class="form-check-label" for="{{ form.once_in_service.id_for_label }}">{{ form.once_in_service.label }}</label>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-4">
+                <div class="col-md-4">
                     <div class="form-check">
                         {{ form.carry_forward_allowed }}
                         <label class="form-check-label" for="{{ form.carry_forward_allowed.id_for_label }}">{{ form.carry_forward_allowed.label }}</label>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-4">
+                <div class="col-md-4">
                     <div class="form-check">
                         {{ form.is_probation_only }}
                         <label class="form-check-label" for="{{ form.is_probation_only.id_for_label }}">{{ form.is_probation_only.label }}</label>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-4">
+                <div class="col-md-4">
                     <div class="form-check">
                         {{ form.is_paid }}
                         <label class="form-check-label" for="{{ form.is_paid.id_for_label }}">{{ form.is_paid.label }}</label>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-4">
-                    <div class="form-check">
-                        {{ form.is_active }}
-                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
+
+    {% if object and object.is_active or not object %}
+    <input type="hidden" name="is_active" value="on">
+    {% endif %}
 
     <div class="d-flex flex-wrap gap-2">
         <button type="submit" class="btn btn-primary">Save</button>

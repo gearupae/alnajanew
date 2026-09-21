@@ -9,7 +9,7 @@
         <form method="post">{% csrf_token %}
             <div class="row g-3">
                 {% for field in form %}
-                <div class="col-md-6">
+                <div class="col-md-4">
                     {% if field.name == 'auto_mark_absent' %}
                     <div class="form-check mt-4">
                         {{ field }}

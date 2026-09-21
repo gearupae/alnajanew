@@ -57,52 +57,43 @@
     </div>
     {% endif %}
     
-    <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <div class="form-check mt-2">
-                        {{ form.is_active }}
-                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
-                    </div>
-                    {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-                {% if form.instance.pk %}
-                <div class="col-md-3">
-                    <label class="form-label">Item code</label>
-                    <input type="text" class="form-control bg-light" value="{{ form.instance.item_code }}" readonly>
-                </div>
-                {% endif %}
-                <div class="col-md-3">
-                    <label class="form-label">Status</label>
-                    {{ form.status }}
-                </div>
-            </div>
-        </div>
-    </div>
+    {% if form.instance.pk and form.instance.is_active or not form.instance.pk %}
+    <input type="hidden" name="is_active" value="on">
+    {% endif %}
 
     <div class="card mb-4">
         <div class="card-header"><h6 class="mb-0 fw-semibold">Basic Information</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6">
+                {% if form.instance.pk %}
+                <div class="col-md-4">
+                    <label class="form-label">Item code</label>
+                    <input type="text" class="form-control bg-light" value="{{ form.instance.item_code }}" readonly>
+                </div>
+                {% endif %}
+                <div class="col-md-4">
                     <label class="form-label">Name <span class="text-danger">*</span></label>
                     {{ form.name }}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Category</label>
                     {{ form.category }}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Item type</label>
                     {{ form.item_type }}
                 </div>
-                <div class="col-12">
+                {% if form.instance.pk and form.status %}
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    {{ form.status }}
+                </div>
+                {% endif %}
+                <div class="col-md-4">
                     <label class="form-label">Groups</label>
                     {{ form.item_groups }}
                 </div>
-                <div class="col-12">
+                <div class="col-md-4">
                     <label class="form-label">Description</label>
                     {{ form.description }}
                 </div>
@@ -114,15 +105,15 @@
         <div class="card-header"><h6 class="mb-0 fw-semibold">Pricing & Stock</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Purchase Price</label>
                     {{ form.purchase_price }}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Selling Price</label>
                     {{ form.selling_price }}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Minimum Selling Price</label>
                     <div class="btn-group btn-group-sm w-100 selling-bound-type-toggle mb-2" role="group" aria-label="Minimum selling price type">
                         {% for radio in form.minimum_selling_price_type %}
@@ -138,7 +129,7 @@
                     <small class="text-muted d-block selling-bound-effective" data-bound="min"></small>
                     {% if form.minimum_selling_price.errors %}<div class="text-danger small">{{ form.minimum_selling_price.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Maximum Selling Price</label>
                     <div class="btn-group btn-group-sm w-100 selling-bound-type-toggle mb-2" role="group" aria-label="Maximum selling price type">
                         {% for radio in form.maximum_selling_price_type %}
@@ -154,35 +145,35 @@
                     <small class="text-muted d-block selling-bound-effective" data-bound="max"></small>
                     {% if form.maximum_selling_price.errors %}<div class="text-danger small">{{ form.maximum_selling_price.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Tax Code</label>
                     {{ form.tax_code }}
                     <small class="text-muted">Determines VAT on sales</small>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">VAT Rate</label>
                     <input type="text" class="form-control bg-light" id="vat-rate-display" readonly
                            value="{% if form.instance.pk %}{{ form.instance.vat_rate|floatformat:2 }}{% else %}0.00{% endif %}%">
                     <small class="text-muted">Auto from tax code</small>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Unit</label>
                     {{ form.unit }}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Minimum stock</label>
                     {{ form.minimum_stock }}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Condition status</label>
                     {{ form.condition_status }}
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Condition notes</label>
                     {{ form.condition_notes }}
                 </div>
                 {% if form.instance.pk %}
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Condition changed at</label>
                     <input type="text" class="form-control bg-light" readonly
                            value="{% if form.instance.condition_changed_at %}{{ form.instance.condition_changed_at|date:'d/m/Y H:i' }}{% else %}—{% endif %}">
@@ -250,7 +241,7 @@
         <div class="card-header"><h6 class="mb-0 fw-semibold">Storage &amp; identification</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Storage location master</label>
                     <div class="input-group">
                         {{ form.storage_location_master }}
@@ -260,12 +251,12 @@
                     </div>
                     <small class="text-muted">Optional preset from the locations master list</small>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Storage location</label>
                     {{ form.storage_location }}
                     <small class="text-muted">Free-text shelf or rack when no preset is selected</small>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Barcode / Asset Code</label>
                     <div class="input-group">
                         {{ form.barcode }}
@@ -276,7 +267,7 @@
                     <small class="text-muted">Manual entry, camera scan (when supported), or a USB scanner (keyboard wedge).</small>
                 </div>
                 {% if form.instance.pk %}
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">QR code</label>
                     {% if form.instance.qr_code %}
                     <div class="d-flex align-items-center gap-3">

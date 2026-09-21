@@ -69,63 +69,52 @@
     {% csrf_token %}
 
     <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
-        <div class="card-body">
-            <div class="form-check">
-                {{ form.is_active }}
-                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
-            </div>
-            {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors|join:", " }}</div>{% endif %}
-        </div>
-    </div>
-
-    <div class="card mb-4">
         <div class="card-header"><h6 class="mb-0 fw-semibold">Attendance details</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.employee.id_for_label }}">Employee <span class="text-danger">*</span></label>
                     {{ form.employee }}
                     {% if form.employee.errors %}<div class="text-danger small">{{ form.employee.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.date.id_for_label }}">Date <span class="text-danger">*</span></label>
                     {{ form.date }}
                     {% if form.date.errors %}<div class="text-danger small">{{ form.date.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.check_in.id_for_label }}">Check in</label>
                     {{ form.check_in }}
                     {% if form.check_in.errors %}<div class="text-danger small">{{ form.check_in.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.check_out.id_for_label }}">Check out</label>
                     {{ form.check_out }}
                     {% if form.check_out.errors %}<div class="text-danger small">{{ form.check_out.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.status.id_for_label }}">Status</label>
                     {{ form.status }}
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.overtime_type.id_for_label }}">Overtime type</label>
                     {{ form.overtime_type }}
                     {% if form.overtime_type.errors %}<div class="text-danger small">{{ form.overtime_type.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.project.id_for_label }}">Project</label>
                     {{ form.project }}
                     {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
                 </div>
                 {% if not is_edit %}
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.source.id_for_label }}">Source</label>
                     {{ form.source }}
                     {% if form.source.errors %}<div class="text-danger small">{{ form.source.errors|join:", " }}</div>{% endif %}
                 </div>
                 {% endif %}
-                <div class="col-12">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.notes.id_for_label }}">Notes</label>
                     {{ form.notes }}
                     {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors|join:", " }}</div>{% endif %}
@@ -140,41 +129,45 @@
         <div class="card-body">
             <p class="small text-muted mb-3">Geo coordinates come from public/self-service punch. Hours and late minutes are recalculated on save.</p>
             <div class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted">Check in latitude</label>
                     <input type="text" class="form-control bg-light" readonly value="{% if object.check_in_latitude is not None %}{{ object.check_in_latitude }}{% else %}—{% endif %}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted">Check in longitude</label>
                     <input type="text" class="form-control bg-light" readonly value="{% if object.check_in_longitude is not None %}{{ object.check_in_longitude }}{% else %}—{% endif %}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted">Check out latitude</label>
                     <input type="text" class="form-control bg-light" readonly value="{% if object.check_out_latitude is not None %}{{ object.check_out_latitude }}{% else %}—{% endif %}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted">Check out longitude</label>
                     <input type="text" class="form-control bg-light" readonly value="{% if object.check_out_longitude is not None %}{{ object.check_out_longitude }}{% else %}—{% endif %}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted">Working hours</label>
                     <input type="text" class="form-control bg-light" readonly value="{% if object.working_hours is not None %}{{ object.working_hours }}{% else %}—{% endif %}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted">Late minutes</label>
                     <input type="text" class="form-control bg-light" readonly value="{{ object.late_minutes }}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted">Overtime hours</label>
                     <input type="text" class="form-control bg-light" readonly value="{{ object.overtime_hours }}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted">Source</label>
                     <input type="text" class="form-control bg-light" readonly value="{{ object.get_source_display }}">
                 </div>
             </div>
         </div>
     </div>
+    {% endif %}
+
+    {% if object and object.is_active or not object %}
+    <input type="hidden" name="is_active" value="on">
     {% endif %}
 
     <div class="d-flex gap-2">

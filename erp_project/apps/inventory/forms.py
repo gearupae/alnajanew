@@ -18,6 +18,14 @@ from .models import (
 )
 
 
+def _resolve_hidden_is_active(form):
+    if 'is_active' in form.data:
+        return True
+    if form.instance.pk:
+        return form.instance.is_active
+    return True
+
+
 class LocaleDecimalField(forms.DecimalField):
     """DecimalField that accepts comma as decimal separator (e.g. 10,50)."""
     def to_python(self, value):
@@ -79,8 +87,8 @@ class CategoryForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if self.data:
-            cleaned['is_active'] = 'is_active' in self.data
+        if self.is_bound:
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
         return cleaned
 
 
@@ -111,8 +119,8 @@ class WarehouseForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if self.data:
-            cleaned['is_active'] = 'is_active' in self.data
+        if self.is_bound:
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
         return cleaned
 
 
@@ -295,8 +303,8 @@ class ItemForm(forms.ModelForm):
     def clean(self):
         from decimal import Decimal
         cleaned = super().clean()
-        if self.data:
-            cleaned['is_active'] = 'is_active' in self.data
+        if self.is_bound:
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
         track = cleaned.get('track_by_serial')
         item_type = cleaned.get('item_type')
         if track and item_type == 'service':
@@ -433,8 +441,8 @@ class ConsumableRequestForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if self.data:
-            cleaned['is_active'] = 'is_active' in self.data
+        if self.is_bound:
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
         return cleaned
 
 

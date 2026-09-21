@@ -3,20 +3,32 @@
 <div class="page-header mb-4"><h4 class="mb-1 fw-bold">{{ title }}</h4></div>
 <div class="card"><div class="card-body">
     <form method="post">{% csrf_token %}
-        {% for field in form %}
-        <div class="mb-3">
-            {% if field.name == 'is_recurring' %}
-            <div class="form-check">
-                {{ field }}
-                <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                {{ form.name.errors }}
+                {{ form.name }}
             </div>
-            {% else %}
-            {{ field.label_tag }} {{ field.errors }} {{ field }}
-            {% endif %}
+            <div class="col-md-4">
+                <label class="form-label" for="{{ form.date.id_for_label }}">{{ form.date.label }}</label>
+                {{ form.date.errors }}
+                {{ form.date }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="{{ form.location.id_for_label }}">{{ form.location.label }}</label>
+                {{ form.location.errors }}
+                {{ form.location }}
+            </div>
+            <div class="col-md-4">
+                <div class="form-check mt-4">
+                    {{ form.is_recurring }}
+                    <label class="form-check-label" for="{{ form.is_recurring.id_for_label }}">{{ form.is_recurring.label }}</label>
+                </div>
+                {{ form.is_recurring.errors }}
+            </div>
         </div>
-        {% endfor %}
-        <button type="submit" class="btn btn-primary">Save</button>
-        <a href="{% url 'hr:holiday_list' %}" class="btn btn-light">Cancel</a>
+        <button type="submit" class="btn btn-primary mt-3">Save</button>
+        <a href="{% url 'hr:holiday_list' %}" class="btn btn-light mt-3">Cancel</a>
     </form>
 </div></div>
 {% endblock %}

@@ -20,37 +20,26 @@
     {% csrf_token %}
 
     <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
-        <div class="card-body">
-            <div class="form-check">
-                {{ form.is_active }}
-                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
-            </div>
-            {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-        </div>
-    </div>
-
-    <div class="card mb-4">
         <div class="card-header"><h6 class="mb-0 fw-semibold">Task details</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.project.id_for_label }}">Project</label>
                     {{ form.project }}
                     {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.customer.id_for_label }}">Customer / lead</label>
                     {{ form.customer }}
                     {% if form.customer.errors %}<div class="text-danger small">{{ form.customer.errors|join:", " }}</div>{% endif %}
                     <div class="form-text">Link to a project or a CRM customer/lead (at least one required).</div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.name.id_for_label }}">Name <span class="text-danger">*</span></label>
                     {{ form.name }}
                     {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.assigned_to.id_for_label }}">Assigned to</label>
                     {{ form.assigned_to }}
                     {% if form.assigned_to.errors %}<div class="text-danger small">{{ form.assigned_to.errors|join:", " }}</div>{% endif %}
@@ -88,6 +77,10 @@
             </div>
         </div>
     </div>
+
+    {% if object and object.is_active or not object %}
+    <input type="hidden" name="is_active" value="on">
+    {% endif %}
 
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">Save</button>

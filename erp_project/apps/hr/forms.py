@@ -44,6 +44,15 @@ class MonthInput(forms.DateInput):
                 return value.strftime('%Y-%m')
         return value
 
+
+def _resolve_hidden_is_active(form):
+    if 'is_active' in form.data:
+        return True
+    if form.instance.pk:
+        return form.instance.is_active
+    return True
+
+
 class DepartmentForm(forms.ModelForm):
     class Meta:
         model = Department
@@ -70,8 +79,8 @@ class DepartmentForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if self.data:
-            cleaned['is_active'] = 'is_active' in self.data
+        if self.is_bound:
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
         return cleaned
 
 
@@ -253,8 +262,8 @@ class EmployeeForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if self.data:
-            cleaned['is_active'] = 'is_active' in self.data
+        if self.is_bound:
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
         dept = cleaned.get('department')
         desig = cleaned.get('designation')
         if dept and desig and desig.department_id != dept.pk:
@@ -385,6 +394,12 @@ class LeaveTypeForm(forms.ModelForm):
             else:
                 field.widget.attrs.setdefault('class', 'form-control')
 
+    def clean(self):
+        cleaned = super().clean()
+        if self.is_bound:
+            cleaned['is_active'] = _resolve_hidden_is_active(self)
+        return cleaned
+
 
 class LeaveRequestForm(forms.ModelForm):
     overflow_action = forms.ChoiceField(
@@ -483,8 +498,8 @@ class LeaveRequestForm(forms.ModelForm):
         )
 
         cleaned_data = super().clean()
-        if self.data:
-            cleaned_data['is_active'] = 'is_active' in self.data
+        if self.is_bound:
+            cleaned_data['is_active'] = _resolve_hidden_is_active(self)
             cleaned_data['is_half_day'] = 'is_half_day' in self.data
         start_date = cleaned_data.get('start_date')
         end_date = cleaned_data.get('end_date')
@@ -694,10 +709,8 @@ class PayrollForm(forms.ModelForm):
     
     def clean(self):
         cleaned_data = super().clean()
-        if self.data:
-            cleaned_data['is_active'] = 'is_active' in self.data
-        elif not self.instance.pk:
-            cleaned_data['is_active'] = True
+        if self.is_bound:
+            cleaned_data['is_active'] = _resolve_hidden_is_active(self)
         return cleaned_data
 
     def save(self, commit=True):

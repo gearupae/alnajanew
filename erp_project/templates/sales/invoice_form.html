@@ -58,7 +58,7 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Title bar text <span class="text-danger">*</span></label>
                     {{ form.document_title }}
                     <datalist id="invoice-title-suggestions">
@@ -80,37 +80,37 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Customer <span class="text-danger">*</span></label>
                     {{ form.customer }}
                     {% if form.customer.errors %}<div class="text-danger small">{{ form.customer.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.estimate.id_for_label }}">Estimate</label>
                     {{ form.estimate }}
                     {% if form.estimate.errors %}<div class="text-danger small">{{ form.estimate.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Project</label>
                     {{ form.project }}
                     {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Invoice date <span class="text-danger">*</span></label>
                     {{ form.invoice_date }}
                     {% if form.invoice_date.errors %}<div class="text-danger small">{{ form.invoice_date.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Due date <span class="text-danger">*</span></label>
                     {{ form.due_date }}
                     {% if form.due_date.errors %}<div class="text-danger small">{{ form.due_date.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Status</label>
                     {{ form.status }}
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Tax Inclusive <span class="text-danger">*</span></label>
                     {% if prices_include_vat_editable %}
                     {{ form.prices_include_vat }}
@@ -146,27 +146,27 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted small">Subtotal</label>
                     <input type="text" class="form-control" value="AED {{ object.subtotal|floatformat:2 }}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted small">VAT amount</label>
                     <input type="text" class="form-control" value="AED {{ object.vat_amount|floatformat:2 }}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted small">Total amount</label>
                     <input type="text" class="form-control fw-semibold" value="AED {{ object.total_amount|floatformat:2 }}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted small">Paid amount</label>
                     <input type="text" class="form-control" value="AED {{ object.paid_amount|floatformat:2 }}" readonly id="savedPaidAmount">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label text-muted small">Balance</label>
                     <input type="text" class="form-control fw-semibold {% if object.balance > 0 %}text-danger{% else %}text-success{% endif %}" value="AED {{ object.balance|floatformat:2 }}" readonly>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label text-muted small">Journal entry</label>
                     {% if object.journal_entry %}
                     <div class="input-group">
@@ -323,16 +323,10 @@
         </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-body py-3">
-            <div class="form-check">
-                {{ form.is_active }}
-                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
-            </div>
-            {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors|join:", " }}</div>{% endif %}
-        </div>
-    </div>
-    
+    {% if object and object.is_active or not object %}
+    <input type="hidden" name="is_active" value="on">
+    {% endif %}
+
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">
             <i class="fas fa-save me-2"></i>Save Invoice

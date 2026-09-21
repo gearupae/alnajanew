@@ -442,7 +442,12 @@ class InvoiceForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         if self.is_bound:
-            cleaned['is_active'] = 'is_active' in self.data
+            if 'is_active' in self.data:
+                cleaned['is_active'] = True
+            elif self.instance.pk:
+                cleaned['is_active'] = self.instance.is_active
+            else:
+                cleaned['is_active'] = True
             cleaned['prices_include_vat'] = self.data.get('prices_include_vat') == 'yes'
         customer = cleaned.get('customer')
         project = cleaned.get('project')
@@ -576,7 +581,12 @@ class CreditNoteForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         if self.is_bound:
-            cleaned['is_active'] = 'is_active' in self.data
+            if 'is_active' in self.data:
+                cleaned['is_active'] = True
+            elif self.instance.pk:
+                cleaned['is_active'] = self.instance.is_active
+            else:
+                cleaned['is_active'] = True
         invoice = cleaned.get('original_invoice')
         issue_date = cleaned.get('issue_date')
         trigger_date = cleaned.get('trigger_event_date')

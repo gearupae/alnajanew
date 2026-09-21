@@ -65,64 +65,49 @@ $(function () {
 
     {% if not project_edit_focus %}
     <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Project details</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-3">
-                    <div class="form-check mt-2">
-                        {{ form.is_active }}
-                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
-                    </div>
-                    {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
                 {% if object %}
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Project code</label>
                     <input type="text" class="form-control bg-light" value="{{ object.project_code }}" readonly>
                 </div>
                 {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Project details</h6></div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Name <span class="text-danger">*</span></label>
                     {{ form.name }}
                     {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Customer</label>
                     {{ form.customer }}
                     {% if form.customer.errors %}<div class="text-danger small">{{ form.customer.errors }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Manager</label>
                     {{ form.manager }}
                     {% if form.manager.errors %}<div class="text-danger small">{{ form.manager.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Start date</label>
+                    {{ form.start_date }}
+                    {% if form.start_date.errors %}<div class="text-danger small">{{ form.start_date.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">End date</label>
+                    {{ form.end_date }}
+                    {% if form.end_date.errors %}<div class="text-danger small">{{ form.end_date.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Billing type</label>
+                    {{ form.billing_type }}
+                    {% if form.billing_type.errors %}<div class="text-danger small">{{ form.billing_type.errors }}</div>{% endif %}
                 </div>
                 <div class="col-12">
                     <label class="form-label">Description</label>
                     {{ form.description }}
                     {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Start date</label>
-                    {{ form.start_date }}
-                    {% if form.start_date.errors %}<div class="text-danger small">{{ form.start_date.errors }}</div>{% endif %}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">End date</label>
-                    {{ form.end_date }}
-                    {% if form.end_date.errors %}<div class="text-danger small">{{ form.end_date.errors }}</div>{% endif %}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Billing type</label>
-                    {{ form.billing_type }}
-                    {% if form.billing_type.errors %}<div class="text-danger small">{{ form.billing_type.errors }}</div>{% endif %}
                 </div>
             </div>
         </div>
@@ -132,55 +117,55 @@ $(function () {
         <div class="card-header"><h6 class="mb-0 fw-semibold">Financials</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Budget</label>
                     {{ form.budget }}
                     {% if form.budget.errors %}<div class="text-danger small">{{ form.budget.errors }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Estimated cost</label>
                     {{ form.estimated_cost }}
                     {% if form.estimated_cost.errors %}<div class="text-danger small">{{ form.estimated_cost.errors }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Contract value</label>
                     {{ form.contract_value }}
                     {% if form.contract_value.errors %}<div class="text-danger small">{{ form.contract_value.errors }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">LPO number</label>
                     {{ form.lpo_number }}
                     {% if form.lpo_number.errors %}<div class="text-danger small">{{ form.lpo_number.errors }}</div>{% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Payment terms</label>
                     {{ form.payment_terms }}
                     {% if form.payment_terms.errors %}<div class="text-danger small">{{ form.payment_terms.errors }}</div>{% endif %}
                 </div>
-                {% if object %}
-                <div class="col-md-3">
-                    <label class="form-label">Total expenses</label>
-                    <input type="text" class="form-control bg-light" value="AED {{ object.total_expenses|floatformat:2 }}" readonly>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Total revenue</label>
-                    <input type="text" class="form-control bg-light" value="AED {{ object.total_revenue|floatformat:2 }}" readonly>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Total billed</label>
-                    <input type="text" class="form-control bg-light" value="AED {{ object.total_billed|floatformat:2 }}" readonly>
-                </div>
-                {% endif %}
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Expense account</label>
                     {{ form.expense_account }}
                     {% if form.expense_account.errors %}<div class="text-danger small">{{ form.expense_account.errors }}</div>{% endif %}
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Revenue account</label>
                     {{ form.revenue_account }}
                     {% if form.revenue_account.errors %}<div class="text-danger small">{{ form.revenue_account.errors }}</div>{% endif %}
                 </div>
+                {% if object %}
+                <div class="col-md-4">
+                    <label class="form-label">Total expenses</label>
+                    <input type="text" class="form-control bg-light" value="AED {{ object.total_expenses|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Total revenue</label>
+                    <input type="text" class="form-control bg-light" value="AED {{ object.total_revenue|floatformat:2 }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Total billed</label>
+                    <input type="text" class="form-control bg-light" value="AED {{ object.total_billed|floatformat:2 }}" readonly>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -312,6 +297,10 @@ $(function () {
             </div>
         </div>
     </div>
+    {% endif %}
+
+    {% if object and object.is_active or not object %}
+    <input type="hidden" name="is_active" value="on">
     {% endif %}
 
     <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>

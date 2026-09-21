@@ -27,46 +27,33 @@
     {% csrf_token %}
 
     <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Account</h6></div>
+        <div class="card-header"><h6 class="mb-0 fw-semibold">Expense details</h6></div>
         <div class="card-body">
-            <div class="row g-3 align-items-center">
-                <div class="col-md-3">
-                    <div class="form-check">
-                        {{ form.is_active }}
-                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
-                    </div>
-                    {% for err in form.is_active.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
+            <div class="row g-3">
                 {% if object %}
                 <div class="col-md-4">
                     <label class="form-label">Expense number</label>
                     <input type="text" class="form-control bg-light" value="{{ object.expense_number }}" readonly>
                 </div>
                 {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-header"><h6 class="mb-0 fw-semibold">Expense details</h6></div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.project.id_for_label }}">Project <span class="text-danger">*</span></label>
                     {{ form.project }}
                     {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
                     {% if form.project.help_text %}<div class="form-text">{{ form.project.help_text }}</div>{% endif %}
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.category.id_for_label }}">Category <span class="text-danger">*</span></label>
                     {{ form.category }}
                     {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-12">
+                {% if not object %}
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.description.id_for_label }}">Description <span class="text-danger">*</span></label>
                     {{ form.description }}
                     {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors|join:", " }}</div>{% endif %}
                 </div>
+                {% endif %}
                 <div class="col-md-4">
                     <label class="form-label" for="{{ form.expense_date.id_for_label }}">Expense date <span class="text-danger">*</span></label>
                     {{ form.expense_date }}
@@ -83,6 +70,13 @@
                     {{ form.vat_amount }}
                     {% if form.vat_amount.errors %}<div class="text-danger small">{{ form.vat_amount.errors|join:", " }}</div>{% endif %}
                 </div>
+                {% if object %}
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.description.id_for_label }}">Description <span class="text-danger">*</span></label>
+                    {{ form.description }}
+                    {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors|join:", " }}</div>{% endif %}
+                </div>
+                {% endif %}
                 <div class="col-md-4">
                     <label class="form-label">Total amount</label>
                     <input type="text" class="form-control bg-light" id="expense-total-preview" readonly
@@ -97,23 +91,23 @@
         <div class="card-header"><h6 class="mb-0 fw-semibold">Vendor</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.vendor.id_for_label }}">Vendor</label>
                     {{ form.vendor }}
                     {% if form.vendor.errors %}<div class="text-danger small">{{ form.vendor.errors|join:", " }}</div>{% endif %}
                     {% if form.vendor.help_text %}<div class="form-text">{{ form.vendor.help_text }}</div>{% endif %}
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.invoice_reference.id_for_label }}">Invoice reference</label>
                     {{ form.invoice_reference }}
                     {% if form.invoice_reference.errors %}<div class="text-danger small">{{ form.invoice_reference.errors|join:", " }}</div>{% endif %}
                     {% if form.invoice_reference.help_text %}<div class="form-text">{{ form.invoice_reference.help_text }}</div>{% endif %}
                 </div>
                 {% if object %}
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Vendor bill</label>
                     {% if object.vendor_bill %}
-                    <div><a href="{% url 'purchase:bill_detail' object.vendor_bill.pk %}">{{ object.vendor_bill.bill_number }}</a></div>
+                    <div class="form-control bg-light"><a href="{% url 'purchase:bill_detail' object.vendor_bill.pk %}">{{ object.vendor_bill.bill_number }}</a></div>
                     {% else %}
                     <input type="text" class="form-control bg-light" value="—" readonly>
                     {% endif %}
@@ -127,7 +121,7 @@
         <div class="card-header"><h6 class="mb-0 fw-semibold">Accounting</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label" for="{{ form.expense_account.id_for_label }}">Expense account</label>
                     {{ form.expense_account }}
                     {% if form.expense_account.errors %}<div class="text-danger small">{{ form.expense_account.errors|join:", " }}</div>{% endif %}
@@ -142,23 +136,23 @@
         <div class="card-header"><h6 class="mb-0 fw-semibold">Approval &amp; posting</h6></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Status</label>
                     <input type="text" class="form-control bg-light" value="{{ object.get_status_display }}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Approved by</label>
                     <input type="text" class="form-control bg-light" value="{% if object.approved_by %}{{ object.approved_by.get_full_name|default:object.approved_by.username }}{% else %}—{% endif %}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Approved date</label>
                     <input type="text" class="form-control bg-light" value="{% if object.approved_date %}{{ object.approved_date|date:'d/m/Y H:i' }}{% else %}—{% endif %}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Posted</label>
                     <input type="text" class="form-control bg-light" value="{% if object.posted %}Yes{% else %}No{% endif %}" readonly>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Journal entry</label>
                     {% if object.journal_entry %}
                     <div class="form-control bg-light">
@@ -171,6 +165,10 @@
             </div>
         </div>
     </div>
+    {% endif %}
+
+    {% if object and object.is_active or not object %}
+    <input type="hidden" name="is_active" value="on">
     {% endif %}
 
     <div class="d-flex gap-2">

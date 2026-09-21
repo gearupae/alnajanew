@@ -43,47 +43,33 @@
                 <form method="post" id="transferForm">
                     {% csrf_token %}
                     
-                    <!-- Item Selection -->
-                    <div class="mb-4">
-                        <label class="form-label fw-medium">Item <span class="text-danger">*</span></label>
-                        {{ form.item }}
-                        <small class="text-muted mt-1 d-block"><i class="fas fa-info-circle me-1"></i>Only active product items are shown</small>
-                    </div>
-                    
-                    <!-- Warehouse Selection -->
                     <div class="row g-3 mb-4">
-                        <div class="col-md-5">
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Item <span class="text-danger">*</span></label>
+                            {{ form.item }}
+                            <small class="text-muted mt-1 d-block"><i class="fas fa-info-circle me-1"></i>Only active product items are shown</small>
+                        </div>
+                        <div class="col-md-4">
                             <label class="form-label fw-medium">From Warehouse <span class="text-danger">*</span></label>
                             {{ form.from_warehouse }}
                             <div id="fromStockInfo" class="mt-1"></div>
                         </div>
-                        <div class="col-md-2 d-flex align-items-center justify-content-center">
-                            <div class="text-center" style="margin-top: 20px;">
-                                <i class="fas fa-arrow-right fa-2x text-primary"></i>
-                            </div>
-                        </div>
-                        <div class="col-md-5">
+                        <div class="col-md-4">
                             <label class="form-label fw-medium">To Warehouse <span class="text-danger">*</span></label>
                             {{ form.to_warehouse }}
                         </div>
-                    </div>
-                    
-                    <!-- Quantity -->
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label fw-medium">Quantity <span class="text-danger">*</span></label>
                             {{ form.quantity }}
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label fw-medium">Reference</label>
                             {{ form.reference }}
                         </div>
-                    </div>
-                    
-                    <!-- Notes -->
-                    <div class="mb-4">
-                        <label class="form-label fw-medium">Notes</label>
-                        {{ form.notes }}
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Notes</label>
+                            {{ form.notes }}
+                        </div>
                     </div>
                     
                     <hr>

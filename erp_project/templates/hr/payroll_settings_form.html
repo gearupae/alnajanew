@@ -5,7 +5,7 @@
     <form method="post">{% csrf_token %}
         <div class="row g-3">
             {% for field in form %}
-            <div class="{% if field.name == 'iloe_deduct_via_payroll' %}col-12{% else %}col-md-6{% endif %}">
+            <div class="{% if field.name == 'iloe_deduct_via_payroll' %}col-md-4{% else %}col-md-4{% endif %}">
                 {% if field.name == 'iloe_deduct_via_payroll' %}
                 <div class="form-check mt-2">
                     {{ field }}

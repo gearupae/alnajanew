@@ -18,26 +18,22 @@
             {% csrf_token %}
             {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
-            <h6 class="fw-semibold mb-3"><i class="fas fa-id-card me-2 text-dark"></i>Account</h6>
-            <div class="row g-3 mb-4">
-                <div class="col-md-3">
-                    <label class="form-label">Status</label>
-                    {{ form.status }}
-                    {% for err in form.status.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-            </div>
-
             <h6 class="fw-semibold mb-3"><i class="fas fa-industry me-2 text-dark"></i>Vendor details</h6>
             <div class="row g-3 mb-4">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Name <span class="text-danger">*</span></label>
                     {{ form.name }}
                     {% for err in form.name.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Contact person</label>
                     {{ form.contact_person }}
                     {% for err in form.contact_person.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    {{ form.status }}
+                    {% for err in form.status.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Email</label>
@@ -54,7 +50,7 @@
                     {{ form.website }}
                     {% for err in form.website.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
-                <div class="col-12">
+                <div class="col-md-4">
                     <label class="form-label">Address</label>
                     {{ form.address }}
                     {% for err in form.address.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
@@ -78,7 +74,7 @@
 
             <h6 class="fw-semibold mb-3"><i class="fas fa-file-alt me-2 text-dark"></i>Documents</h6>
             <div class="row g-3 mb-4">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">TRN document</label>
                     {% if object.trn_document %}
                     <div class="d-flex align-items-center gap-2 mb-2 p-2 bg-light rounded border">
@@ -96,7 +92,7 @@
                     {{ form.trn_document }}
                     {% for err in form.trn_document.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Trade license</label>
                     {% if object.trade_license_document %}
                     <div class="d-flex align-items-center gap-2 mb-2 p-2 bg-light rounded border">
@@ -128,12 +124,16 @@
                     {{ form.credit_limit }}
                     {% for err in form.credit_limit.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
-                <div class="col-12">
+                <div class="col-md-4">
                     <label class="form-label">Notes</label>
                     {{ form.notes }}
                     {% for err in form.notes.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
             </div>
+
+            {% if object and object.is_active or not object %}
+            <input type="hidden" name="is_active" value="on">
+            {% endif %}
 
             {% if object %}
             {% include 'documents/entity_documents_panel.html' %}
