@@ -83,31 +83,80 @@ def _inventory_id_for_description(description: str):
     return item_id or ''
 
 
-def _bill_line_inventory_ids(items_formset):
-    ids = []
-    for form in items_formset.forms:
-        inv_id = ''
-        po_item = getattr(form.instance, 'purchase_order_item', None)
-        if po_item and po_item.inventory_item_id:
-            inv_id = po_item.inventory_item_id
-        else:
-            desc = ''
-            if form.instance.pk:
-                desc = form.instance.description or ''
-            if not desc and form.is_bound:
-                desc = (form.data.get(f'{form.prefix}-description') or '').strip()
-            if not desc:
-                desc = (form.initial.get('description') or '').strip()
-            inv_id = _inventory_id_for_description(desc)
-        ids.append(str(inv_id) if inv_id else '')
-    return ids
+def _bill_line_description(form):
+    if form.instance.pk and form.instance.description:
+        return form.instance.description.strip()
+    if form.is_bound:
+        return (form.data.get(f'{form.prefix}-description') or '').strip()
+    return (form.initial.get('description') or '').strip()
+
+
+def _bill_line_meta(form):
+    from apps.inventory.models import Item
+
+    inv_id = ''
+    po_item = getattr(form.instance, 'purchase_order_item', None)
+    if po_item and po_item.inventory_item_id:
+        inv_id = po_item.inventory_item_id
+    else:
+        inv_id = _inventory_id_for_description(_bill_line_description(form))
+
+    label = ''
+    name = _bill_line_description(form)
+    purchase_price = ''
+    if inv_id:
+        item = Item.usable().filter(pk=inv_id).only('name', 'item_code', 'purchase_price').first()
+        if item:
+            label = str(item)
+            name = item.name
+            purchase_price = str(item.purchase_price)
+    elif name:
+        label = name
+
+    return {
+        'inventory_id': str(inv_id) if inv_id else '',
+        'description': name,
+        'label': label,
+        'purchase_price': purchase_price,
+    }
 
 
 def _bill_formset_context(items_formset):
     return {
         'items_formset': items_formset,
-        'bill_lines': list(zip(items_formset, _bill_line_inventory_ids(items_formset))),
+        'bill_lines': [(form, _bill_line_meta(form)) for form in items_formset.forms],
     }
+
+
+@login_required
+def bill_item_picker_search(request):
+    """JSON search for vendor bill line item picker (Select2 AJAX)."""
+    from apps.inventory.models import Item
+
+    if not (
+        request.user.is_superuser
+        or PermissionChecker.has_permission(request.user, 'purchase', 'view')
+        or PermissionChecker.has_permission(request.user, 'purchase', 'create')
+        or PermissionChecker.has_permission(request.user, 'purchase', 'edit')
+        or PermissionChecker.has_permission(request.user, 'inventory', 'view')
+    ):
+        return JsonResponse({'results': []})
+
+    q = (request.GET.get('q') or request.GET.get('term') or '').strip()
+    qs = Item.usable().order_by('item_code', 'name')
+    if q:
+        qs = qs.filter(Q(item_code__icontains=q) | Q(name__icontains=q))
+
+    results = [
+        {
+            'id': item.pk,
+            'text': f'{item.item_code} — {item.name}',
+            'name': item.name,
+            'purchase_price': str(item.purchase_price),
+        }
+        for item in qs[:50]
+    ]
+    return JsonResponse({'results': results})
 
 
 def _save_vendor_bill_attachments(request, bill):
@@ -1500,7 +1549,6 @@ class VendorBillCreateView(CreatePermissionMixin, CreateView):
         else:
             items_formset = kwargs['items_formset']
         context.update(_bill_formset_context(items_formset))
-        context['bill_inventory_items_data'] = _active_inventory_items_data()
         return context
     
     def post(self, request, *args, **kwargs):
@@ -1581,7 +1629,6 @@ class VendorBillUpdateView(UpdatePermissionMixin, UpdateView):
         else:
             items_formset = kwargs['items_formset']
         context.update(_bill_formset_context(items_formset))
-        context['bill_inventory_items_data'] = _active_inventory_items_data()
         return context
     
     def post(self, request, *args, **kwargs):

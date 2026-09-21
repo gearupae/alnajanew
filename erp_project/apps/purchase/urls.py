@@ -65,6 +65,7 @@ urlpatterns = [
     path('bills/<int:pk>/pay/', views.bill_make_payment, name='bill_pay'),
     path('bills/bulk-pay/prepare/', views.bill_bulk_pay_prepare, name='bill_bulk_pay_prepare'),
     path('bills/bulk-pay/', views.bill_bulk_pay, name='bill_bulk_pay'),
+    path('api/bill-item-picker-search/', views.bill_item_picker_search, name='bill_item_picker_search'),
 
     # Debit Notes
     path('debit-notes/', debit_note_views.DebitNoteListView.as_view(), name='debit_note_list'),

@@ -190,15 +190,19 @@
                         </tr>
                     </thead>
                     <tbody id="itemsBody">
-                        {% for item_form, line_inventory_id in bill_lines %}
+                        {% for item_form, line_meta in bill_lines %}
                         <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %} data-max-billable=""
-                            data-line-description="{{ item_form.instance.description|default:item_form.description.value|default:'' }}"
-                            {% if line_inventory_id %}data-inventory-item-id="{{ line_inventory_id }}"{% endif %}>
+                            data-line-description="{{ line_meta.description }}"
+                            data-line-label="{{ line_meta.label }}"
+                            {% if line_meta.purchase_price %}data-line-purchase-price="{{ line_meta.purchase_price }}"{% endif %}
+                            {% if line_meta.inventory_id %}data-inventory-item-id="{{ line_meta.inventory_id }}"{% endif %}>
                             <td class="bill-item-cell">
                                 {{ item_form.id }}
                                 {{ item_form.purchase_order_item }}
                                 <input type="hidden" name="{{ item_form.prefix }}-is_vat_inclusive" value="{% if item_form.is_vat_inclusive.value %}on{% elif item_form.instance.pk and item_form.instance.is_vat_inclusive %}on{% endif %}">
                                 <select class="form-select form-select-sm bill-inventory-select" aria-label="Search inventory item"></select>
+                                <input type="hidden" name="{{ item_form.prefix }}-inventory_picker" class="bill-inventory-picker-id"
+                                       value="{{ line_meta.inventory_id }}">
                                 <input type="hidden" name="{{ item_form.prefix }}-description" class="bill-description-input"
                                        value="{{ item_form.description.value|default:'' }}">
                             </td>
@@ -333,7 +337,6 @@
 {% endblock %}
 
 {% block extra_js %}
-{{ bill_inventory_items_data|json_script:"bill-inventory-items-data" }}
 <script>
 // Tax Code data for JavaScript
 const taxCodes = [
@@ -346,7 +349,7 @@ const preselectPoId = {% if preselect_po %}'{{ preselect_po }}'{% else %}null{% 
 const billExcludeBillId = {% if object.pk %}{{ object.pk }}{% else %}null{% endif %};
 const billReceivedMode = {% if bill_received_mode != '0' %}true{% else %}false{% endif %};
 const formWasPosted = {% if form_was_posted %}true{% else %}false{% endif %};
-const BILL_INVENTORY_ITEMS = JSON.parse(document.getElementById('bill-inventory-items-data').textContent);
+const BILL_ITEM_SEARCH_URL = '{% url "purchase:bill_item_picker_search" %}';
 const BILL_CUSTOM_PREFIX = 'custom:';
 
 let formCount = {{ items_formset.total_form_count }};
@@ -378,41 +381,40 @@ function getBillSelectRawValue(selectEl) {
     return selectEl.value || '';
 }
 
-function billInventoryMeta(selectedId) {
-    if (!selectedId || isBillCustomTagId(selectedId)) {
-        return null;
+function createBillInventoryOption(row, isSelected) {
+    const opt = new Option(
+        row.text || row.name || String(row.id),
+        String(row.id),
+        !!isSelected,
+        !!isSelected
+    );
+    if (row.name) {
+        opt.dataset.itemName = row.name;
     }
-    return BILL_INVENTORY_ITEMS.find(function (row) {
-        return String(row.id) === String(selectedId);
-    }) || null;
+    if (row.purchase_price != null && row.purchase_price !== '') {
+        opt.dataset.purchasePrice = String(row.purchase_price);
+    }
+    return opt;
 }
 
-function populateBillInventorySelectOptions(selectEl, selectedId, selectedLabel) {
+function seedBillInventorySelectOptions(selectEl, selectedId, selectedLabel, purchasePrice) {
     const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
     selectEl.innerHTML = '';
     selectEl.appendChild(new Option('', '', false, false));
-
-    if (selected && isBillCustomTagId(selected)) {
+    if (!selected) {
+        return;
+    }
+    if (isBillCustomTagId(selected)) {
         const text = selected.slice(BILL_CUSTOM_PREFIX.length);
         selectEl.appendChild(new Option(text, selected, true, true));
         return;
     }
-
-    if (selected) {
-        const meta = billInventoryMeta(selected);
-        const label = meta ? (meta.label || meta.name || '') : (selectedLabel || selected);
-        selectEl.appendChild(new Option(label, selected, true, true));
+    const label = (selectedLabel || selected).trim() || selected;
+    const opt = new Option(label, selected, true, true);
+    if (purchasePrice != null && purchasePrice !== '') {
+        opt.dataset.purchasePrice = String(purchasePrice);
     }
-
-    if (!Array.isArray(BILL_INVENTORY_ITEMS) || !BILL_INVENTORY_ITEMS.length) {
-        return;
-    }
-    BILL_INVENTORY_ITEMS.forEach(function (row) {
-        if (selected && String(row.id) === selected) {
-            return;
-        }
-        selectEl.appendChild(new Option(row.label || row.name || '', String(row.id), false, false));
-    });
+    selectEl.appendChild(opt);
 }
 
 function resolveBillSelectValue(desc, invId) {
@@ -421,10 +423,6 @@ function resolveBillSelectValue(desc, invId) {
     }
     const text = (desc || '').trim();
     if (text) {
-        const matched = guessInventoryIdFromDescription(text);
-        if (matched) {
-            return matched;
-        }
         return billCustomTagId(text);
     }
     return '';
@@ -437,6 +435,87 @@ function rowLineDescription(row) {
     return inputDesc || datasetDesc;
 }
 
+function billLabelFromOptionText(text) {
+    const t = String(text || '').trim();
+    if (!t) {
+        return '';
+    }
+    const parts = t.split('—');
+    return (parts.length > 1 ? parts[parts.length - 1] : t).trim();
+}
+
+function getBillSelectItemData(selectEl, val) {
+    if (!selectEl || !val || isBillCustomTagId(val)) {
+        return null;
+    }
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        const $el = $(selectEl);
+        if ($el.data('select2')) {
+            const data = $el.select2('data');
+            if (data && data.length) {
+                const d = data[0];
+                const text = d.text || '';
+                return {
+                    name: d.name || billLabelFromOptionText(text) || text,
+                    purchase_price: d.purchase_price,
+                    text: text,
+                };
+            }
+        }
+    }
+    const opt = selectEl.querySelector('option[value="' + String(val).replace(/"/g, '\\"') + '"]');
+    if (opt && opt.textContent) {
+        const text = opt.textContent.trim();
+        return {
+            name: opt.dataset.itemName || billLabelFromOptionText(text) || text,
+            purchase_price: opt.dataset.purchasePrice || '',
+            text: text,
+        };
+    }
+    const row = selectEl.closest('tr');
+    if (!row) {
+        return null;
+    }
+    const label = (row.dataset.lineLabel || '').trim();
+    const desc = rowLineDescription(row) || (row.dataset.lineDescription || '');
+    return {
+        name: desc || billLabelFromOptionText(label) || label,
+        purchase_price: row.dataset.linePurchasePrice || '',
+        text: label || desc,
+    };
+}
+
+function syncBillInventoryPickerId(selectEl, row, val) {
+    const pickerInput = row.querySelector('.bill-inventory-picker-id');
+    if (!pickerInput) {
+        return;
+    }
+    if (!val) {
+        pickerInput.value = '';
+        return;
+    }
+    pickerInput.value = String(val);
+}
+
+function applyBillRowUnitPrice(row, purchasePrice, force) {
+    const priceEl = row.querySelector('.item-price');
+    if (!priceEl || purchasePrice == null || purchasePrice === '') {
+        return;
+    }
+    const p = parseFloat(purchasePrice);
+    if (isNaN(p)) {
+        return;
+    }
+    const cur = parseFloat(priceEl.value);
+    if (force || !cur || cur === 0) {
+        priceEl.value = p.toFixed(2);
+        const qtyInput = row.querySelector('.item-qty');
+        if (qtyInput) {
+            calculateRowTotal(qtyInput);
+        }
+    }
+}
+
 function syncBillDescriptionFromSelect(selectEl, row, options) {
     const forcePrice = !!(options && options.forcePrice);
     const descInput = row.querySelector('.bill-description-input');
@@ -446,52 +525,32 @@ function syncBillDescriptionFromSelect(selectEl, row, options) {
     }
     if (!val) {
         const existing = rowLineDescription(row);
-        if (existing) {
-            descInput.value = existing;
-        } else {
-            descInput.value = '';
-        }
+        descInput.value = existing || '';
         return;
     }
+    syncBillInventoryPickerId(selectEl, row, val);
     if (isBillCustomTagId(val)) {
         descInput.value = val.slice(BILL_CUSTOM_PREFIX.length);
+        row.dataset.inventoryItemId = '';
         return;
     }
-    const meta = BILL_INVENTORY_ITEMS.find(function (x) { return String(x.id) === String(val); });
-    if (!meta) {
-        descInput.value = '';
-        return;
-    }
-    descInput.value = meta.name || meta.label || '';
-    const price = row.querySelector('.item-price');
-    if (price) {
-        const cur = parseFloat(price.value);
-        if (forcePrice || !cur || cur === 0) {
-            const p = parseFloat(meta.purchase_price);
-            price.value = (isNaN(p) ? 0 : p).toFixed(2);
+    const meta = getBillSelectItemData(selectEl, val);
+    if (!meta || !meta.name) {
+        const existing = rowLineDescription(row);
+        if (existing) {
+            descInput.value = existing;
         }
+        return;
     }
-    const qtyInput = row.querySelector('.item-qty');
-    if (qtyInput) {
-        calculateRowTotal(qtyInput);
+    descInput.value = meta.name;
+    row.dataset.inventoryItemId = String(val);
+    if (meta.text) {
+        row.dataset.lineLabel = meta.text;
     }
-}
-
-function guessInventoryIdFromDescription(desc) {
-    if (!desc) return '';
-    const d = desc.trim().toLowerCase();
-    if (!d) return '';
-    for (let i = 0; i < BILL_INVENTORY_ITEMS.length; i++) {
-        const row = BILL_INVENTORY_ITEMS[i];
-        if ((row.name || '').toLowerCase() === d) return String(row.id);
-        if ((row.label || '').toLowerCase() === d) return String(row.id);
+    if (meta.purchase_price != null && meta.purchase_price !== '') {
+        row.dataset.linePurchasePrice = String(meta.purchase_price);
     }
-    for (let j = 0; j < BILL_INVENTORY_ITEMS.length; j++) {
-        const row2 = BILL_INVENTORY_ITEMS[j];
-        const name = (row2.name || '').toLowerCase();
-        if (name && (d.indexOf(name) !== -1 || name.indexOf(d) !== -1)) return String(row2.id);
-    }
-    return '';
+    applyBillRowUnitPrice(row, meta.purchase_price, forcePrice);
 }
 
 function destroyBillInventorySelect2(selectEl) {
@@ -511,47 +570,108 @@ function bindBillInventorySelectHandlers(selectEl) {
     if (!selectEl || typeof $ === 'undefined') return;
     const $el = $(selectEl);
     $el.off('change.billInv select2:select.billInv select2:clear.billInv');
-    $el.on('change.billInv select2:select.billInv select2:clear.billInv', function () {
+    $el.on('select2:select.billInv', function (e) {
+        const row = selectEl.closest('tr');
+        const data = e.params && e.params.data ? e.params.data : null;
+        if (data && data.id && !isBillCustomTagId(String(data.id))) {
+            row.dataset.inventoryItemId = String(data.id);
+            if (data.name) {
+                row.dataset.lineDescription = data.name;
+            }
+            if (data.purchase_price != null) {
+                row.dataset.linePurchasePrice = String(data.purchase_price);
+            }
+            if (data.text) {
+                row.dataset.lineLabel = data.text;
+            }
+        } else if (data && isBillCustomTagId(String(data.id))) {
+            row.dataset.inventoryItemId = '';
+            row.dataset.lineDescription = data.text || '';
+        }
+        const pickedInventory = data && data.id && !isBillCustomTagId(String(data.id));
+        syncBillDescriptionFromSelect(selectEl, row, { forcePrice: pickedInventory });
+    });
+    $el.on('change.billInv select2:clear.billInv', function () {
         const row = selectEl.closest('tr');
         syncBillDescriptionFromSelect(selectEl, row, { forcePrice: false });
     });
 }
 
-function initBillInventorySelect2(selectEl, selectedId, selectedLabel) {
-    if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
-    const current = selectedId != null && selectedId !== '' ? String(selectedId) : (selectEl.value || '');
-    destroyBillInventorySelect2(selectEl);
-    populateBillInventorySelectOptions(selectEl, current, selectedLabel || '');
+function triggerBillSelect2AjaxSearch() {
+    setTimeout(function () {
+        const search = document.querySelector('.bill-inventory-select2-dropdown .select2-search__field')
+            || document.querySelector('.select2-container--open .select2-search__field');
+        if (!search) {
+            return;
+        }
+        const $search = $(search);
+        if (!$search.val()) {
+            $search.val(' ').trigger('input');
+            $search.val('').trigger('input');
+        } else {
+            $search.trigger('input');
+        }
+    }, 50);
+}
+
+function appendBillInventoryOptions(selectEl, results, selectedId) {
+    if (!Array.isArray(results) || !results.length) {
+        return;
+    }
+    const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
+    results.forEach(function (row) {
+        if (!row || row.id == null) {
+            return;
+        }
+        if (selected && String(row.id) === selected) {
+            return;
+        }
+        selectEl.appendChild(createBillInventoryOption(row, false));
+    });
+}
+
+function mountBillInventorySelect2(selectEl, current) {
     const $el = $(selectEl);
     $el.select2({
         theme: 'bootstrap-5',
         width: '100%',
-        placeholder: 'Search item or type custom description…',
+        placeholder: 'Search by code or name…',
         allowClear: true,
         tags: true,
         dropdownParent: $(document.body),
-        minimumResultsForSearch: 0,
+        minimumInputLength: 0,
         dropdownAutoWidth: true,
         dropdownCssClass: 'bill-inventory-select2-dropdown',
+        ajax: {
+            url: BILL_ITEM_SEARCH_URL,
+            dataType: 'json',
+            delay: 200,
+            cache: true,
+            data: function (params) {
+                return { q: params.term || '' };
+            },
+            processResults: function (data) {
+                return { results: (data && data.results) ? data.results : [] };
+            },
+        },
         createTag: function (params) {
             const term = $.trim(params.term);
             if (!term) {
                 return null;
             }
-            const lower = term.toLowerCase();
-            const exists = BILL_INVENTORY_ITEMS.some(function (row) {
-                return (row.label || '').toLowerCase() === lower ||
-                    (row.name || '').toLowerCase() === lower ||
-                    (row.item_code || '').toLowerCase() === lower;
-            });
-            if (exists) {
-                return null;
-            }
             return { id: billCustomTagId(term), text: term, newTag: true };
         },
-        language: {
-            noResults: function () { return 'Press Enter to use as custom description'; },
+        insertTag: function (data, tag) {
+            data.push(tag);
         },
+        language: {
+            inputTooShort: function () { return 'Type to search items…'; },
+            noResults: function () { return 'No matching items — press Enter for custom description'; },
+            searching: function () { return 'Searching…'; },
+        },
+    });
+    $el.off('select2:open.billAjaxSearch').on('select2:open.billAjaxSearch', function () {
+        triggerBillSelect2AjaxSearch();
     });
     if (current) {
         $el.val(current).trigger('change.select2');
@@ -559,11 +679,29 @@ function initBillInventorySelect2(selectEl, selectedId, selectedLabel) {
     bindBillInventorySelectHandlers(selectEl);
 }
 
+function initBillInventorySelect2(selectEl, selectedId, selectedLabel, purchasePrice) {
+    if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
+    const current = selectedId != null && selectedId !== '' ? String(selectedId) : '';
+    destroyBillInventorySelect2(selectEl);
+    seedBillInventorySelectOptions(selectEl, current, selectedLabel || '', purchasePrice || '');
+
+    $.getJSON(BILL_ITEM_SEARCH_URL, { q: '' })
+        .done(function (data) {
+            appendBillInventoryOptions(selectEl, data.results || [], current);
+            mountBillInventorySelect2(selectEl, current);
+        })
+        .fail(function () {
+            mountBillInventorySelect2(selectEl, current);
+        });
+}
+
 function initBillRowInventorySelect(row, inventoryItemId) {
     const selectEl = row.querySelector('.bill-inventory-select');
     if (!selectEl) return;
     const descInput = row.querySelector('.bill-description-input');
     const lineDesc = rowLineDescription(row);
+    const lineLabel = (row.dataset.lineLabel || '').trim();
+    const linePurchasePrice = (row.dataset.linePurchasePrice || '').trim();
     if (descInput && lineDesc && !(descInput.value || '').trim()) {
         descInput.value = lineDesc;
     }
@@ -572,7 +710,8 @@ function initBillRowInventorySelect(row, inventoryItemId) {
         lineDesc,
         inventoryItemId != null && inventoryItemId !== '' ? inventoryItemId : rowInvId
     );
-    initBillInventorySelect2(selectEl, selectValue || null, lineDesc);
+    const displayLabel = lineLabel || lineDesc;
+    initBillInventorySelect2(selectEl, selectValue || null, displayLabel, linePurchasePrice);
     syncBillDescriptionFromSelect(selectEl, row, { forcePrice: false });
 }
 
@@ -618,10 +757,14 @@ function configureQtyInput(qtyInput, requiresWholeQty, maxBillable) {
         qtyInput.min = '0.01';
         qtyInput.inputMode = 'decimal';
     }
-    if (maxBillable !== '' && maxBillable != null) {
-        qtyInput.max = maxBillable;
+    const cap = effectiveMaxBillable(maxBillable);
+    if (cap !== '') {
+        qtyInput.max = cap;
     } else {
         qtyInput.removeAttribute('max');
+        if (row) {
+            delete row.dataset.maxBillable;
+        }
     }
 }
 
@@ -674,14 +817,16 @@ function applyPoQtyCells(row, receivedQty, totalBilledQty, maxBillable, requires
         billedEl.textContent = totalBilledQty !== '' && totalBilledQty != null ? formatQty(totalBilledQty, whole) : '—';
     }
     const qtyInput = row.querySelector('.item-qty');
-    if (maxBillable !== '' && maxBillable != null) {
-        row.dataset.maxBillable = maxBillable;
-        configureQtyInput(qtyInput, whole, maxBillable);
+    const cap = effectiveMaxBillable(maxBillable);
+    if (cap !== '') {
+        row.dataset.maxBillable = cap;
+        configureQtyInput(qtyInput, whole, cap);
         if (hint) {
-            hint.textContent = 'Max ' + formatQty(maxBillable, whole);
+            hint.textContent = 'Max ' + formatQty(cap, whole);
             hint.classList.remove('d-none');
         }
     } else {
+        delete row.dataset.maxBillable;
         configureQtyInput(qtyInput, whole, '');
         if (hint) {
             hint.classList.add('d-none');
@@ -697,8 +842,9 @@ function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId
     const newRow = document.createElement('tr');
     newRow.className = 'item-row';
     newRow.dataset.requiresWholeQty = requiresWholeQty ? '1' : '0';
-    if (maxBillable !== '') {
-        newRow.dataset.maxBillable = maxBillable;
+    const billableCap = effectiveMaxBillable(maxBillable);
+    if (billableCap !== '') {
+        newRow.dataset.maxBillable = billableCap;
     }
     const hasPoLine = !!poItemId;
     const whole = !!requiresWholeQty;
@@ -710,13 +856,13 @@ function addItemRow(description = '', quantity = '1', unitPrice = '0', taxCodeId
         : `<input type="hidden" name="items-${formCount}-purchase_order_item" value="">`;
     const receivedDisplay = hasPoLine ? formatQty(receivedQty, whole) : '—';
     const billedDisplay = hasPoLine ? formatQty(totalBilledQty, whole) : '—';
-    const billableHint = maxBillable !== ''
-        ? `<small class="text-muted item-billable-hint d-block">Max ${formatQty(maxBillable, whole)}</small>`
+    const billableHint = billableCap !== ''
+        ? `<small class="text-muted item-billable-hint d-block">Max ${formatQty(billableCap, whole)}</small>`
         : `<small class="text-muted item-billable-hint d-none"></small>`;
-    const qtyMaxAttr = maxBillable !== '' ? ` max="${maxBillable}"` : '';
+    const qtyMaxAttr = billableCap !== '' ? ` max="${billableCap}"` : '';
     const safeDesc = escapeHtml(description).replace(/"/g, '&quot;');
     newRow.innerHTML = `
-        <td class="bill-item-cell">${poItemField}<input type="hidden" name="items-${formCount}-is_vat_inclusive" value=""><select class="form-select form-select-sm bill-inventory-select" aria-label="Search inventory item"></select><input type="hidden" name="items-${formCount}-description" class="bill-description-input" value="${safeDesc}"></td>
+        <td class="bill-item-cell">${poItemField}<input type="hidden" name="items-${formCount}-is_vat_inclusive" value=""><select class="form-select form-select-sm bill-inventory-select" aria-label="Search inventory item"></select><input type="hidden" name="items-${formCount}-inventory_picker" class="bill-inventory-picker-id" value="${inventoryItemId || ''}"><input type="hidden" name="items-${formCount}-description" class="bill-description-input" value="${safeDesc}"></td>
         <td class="text-center po-qty-col"><span class="item-received-qty text-muted">${receivedDisplay}</span></td>
         <td class="bill-qty-col"><input type="number" name="items-${formCount}-quantity" class="form-control form-control-sm item-qty text-center" value="${quantity}" step="${qtyStep}" min="${qtyMin}" inputmode="${qtyInputMode}"${qtyMaxAttr} onchange="calculateRowTotal(this)" onblur="clampBillQtyInput(this); calculateRowTotal(this);">${billableHint}</td>
         <td class="text-center po-qty-col"><span class="item-total-billed-qty text-muted">${billedDisplay}</span></td>
@@ -754,6 +900,25 @@ function setPoBillingAlert(message, isError) {
     el.textContent = message;
 }
 
+function poBillReceivedOnly() {
+    const grnCheck = document.getElementById('id_goods_received');
+    if (grnCheck) {
+        return grnCheck.checked;
+    }
+    return !!billReceivedMode;
+}
+
+function effectiveMaxBillable(maxBillable) {
+    if (!poBillReceivedOnly()) {
+        return '';
+    }
+    const n = parseFloat(maxBillable);
+    if (isNaN(n) || n <= 0) {
+        return '';
+    }
+    return String(maxBillable);
+}
+
 function poItemsUrl(poId, billReceivedOnly) {
     const receivedOnly = billReceivedOnly !== false;
     let url = `/purchase/orders/${poId}/items/?bill_received=${receivedOnly ? '1' : '0'}`;
@@ -761,6 +926,20 @@ function poItemsUrl(poId, billReceivedOnly) {
         url += `&exclude_bill=${billExcludeBillId}`;
     }
     return url;
+}
+
+function isBillRowFilled(row) {
+    if (!row || row.style.display === 'none') {
+        return false;
+    }
+    const desc = (row.querySelector('.bill-description-input')?.value || '').trim();
+    const picker = (row.querySelector('.bill-inventory-picker-id')?.value || '').trim();
+    const poItem = (row.querySelector('input[name$="-purchase_order_item"]')?.value || '').trim();
+    return !!(desc || picker || poItem);
+}
+
+function hasFilledBillRows() {
+    return Array.from(document.querySelectorAll('#itemsBody .item-row')).some(isBillRowFilled);
 }
 
 function enrichExistingRowsFromPo(poId) {
@@ -790,7 +969,7 @@ function enrichExistingRowsFromPo(poId) {
                     row,
                     stats.quantity_received,
                     stats.quantity_billed,
-                    stats.quantity_billable,
+                    effectiveMaxBillable(stats.quantity_billable),
                     stats.requires_whole_quantity
                 );
             });
@@ -813,15 +992,16 @@ function loadPOItems(poId) {
         calculateTotals();
         return;
     }
-    
-    fetch(poItemsUrl(poId, true))
+
+    const billReceivedOnly = poBillReceivedOnly();
+    fetch(poItemsUrl(poId, billReceivedOnly))
         .then(response => response.json())
         .then(data => {
             document.querySelectorAll('#itemsBody .bill-inventory-select').forEach(destroyBillInventorySelect2);
             const tbody = document.getElementById('itemsBody');
             tbody.innerHTML = '';
             formCount = 0;
-            
+
             if (data.items && data.items.length > 0) {
                 data.items.forEach(item => {
                     addItemRow(
@@ -830,7 +1010,7 @@ function loadPOItems(poId) {
                         item.unit_price || '0',
                         item.tax_code_id || defaultTaxCodeId,
                         item.po_item_id || '',
-                        item.quantity_billable || '',
+                        effectiveMaxBillable(item.quantity_billable),
                         item.quantity_received || '',
                         item.quantity_billed || '',
                         item.requires_whole_quantity,
@@ -838,26 +1018,40 @@ function loadPOItems(poId) {
                     );
                 });
                 setPoQtyColumnsVisible(true);
-                setPoBillingAlert(
-                    `PO ${data.po_number || ''} lines loaded. Bill up to the received qty minus any amount already billed on other bills.`,
-                    false
-                );
+                if (billReceivedOnly) {
+                    setPoBillingAlert(
+                        `PO ${data.po_number || ''} lines loaded. Bill up to the received qty minus any amount already billed on other bills.`,
+                        false
+                    );
+                } else {
+                    setPoBillingAlert(
+                        `PO ${data.po_number || ''} lines loaded with ordered quantities.`,
+                        false
+                    );
+                }
             } else {
                 addItemRow();
                 setPoQtyColumnsVisible(false);
-                setPoBillingAlert(
-                    data.has_received_items
-                        ? 'All received quantities on this PO are already billed.'
-                        : 'No received items on this PO yet — receive goods first, or enter bill lines manually.',
-                    true
-                );
+                if (billReceivedOnly) {
+                    setPoBillingAlert(
+                        data.has_received_items
+                            ? 'All received quantities on this PO are already billed.'
+                            : 'No received items on this PO yet — uncheck "Goods received" to bill against the PO order qty, or receive goods first.',
+                        true
+                    );
+                } else {
+                    setPoBillingAlert(
+                        `PO ${data.po_number || ''} has no line items to load.`,
+                        true
+                    );
+                }
             }
 
             const grnCheck = document.getElementById('id_goods_received');
-            if (grnCheck && data.has_received_items) {
+            if (grnCheck && data.has_received_items && billReceivedOnly) {
                 grnCheck.checked = true;
             }
-            
+
             applyPOHeaderFields(data);
             calculateTotals();
         })
@@ -1073,40 +1267,41 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function loadPoItemsFromSelection(poId, skipConfirm) {
+        if (!poId) {
+            return;
+        }
+        if (billExcludeBillId) {
+            enrichExistingRowsFromPo(poId);
+            syncPOHeaderFromSelection(poId);
+            ensureAtLeastOneItemRow();
+            return;
+        }
+        if (!skipConfirm && hasFilledBillRows()) {
+            if (!confirm('Loading PO items will replace existing items. Continue?')) {
+                return;
+            }
+        }
+        loadPOItems(poId);
+    }
+
+    if (!formWasPosted && !preselectPoId) {
+        ensureAtLeastOneItemRow();
+    }
+
     const poSelect = document.getElementById('id_purchase_order');
+    const grnCheck = document.getElementById('id_goods_received');
     if (poSelect) {
         poSelect.addEventListener('change', function() {
             const poId = this.value;
             if (poId) {
-                const existingRows = visibleItemRows();
-                const hasExistingLines = existingRows.length > 0 && (
-                    existingRows.length > 1 || (existingRows[0].querySelector('.item-qty')?.value || '0') !== '0'
-                );
-                if (billExcludeBillId) {
-                    enrichExistingRowsFromPo(poId);
-                    syncPOHeaderFromSelection(poId);
-                    ensureAtLeastOneItemRow();
-                    return;
-                }
-                if (hasExistingLines && !billReceivedMode) {
-                    enrichExistingRowsFromPo(poId);
-                    syncPOHeaderFromSelection(poId);
-                    return;
-                }
-                if (hasExistingLines) {
-                    if (!confirm('Loading PO items will replace existing items. Continue?')) {
-                        return;
-                    }
-                }
-                loadPOItems(poId);
+                loadPoItemsFromSelection(poId, false);
+            } else if (billExcludeBillId) {
+                ensureAtLeastOneItemRow();
+                setPoQtyColumnsVisible(false);
+                setPoBillingAlert('');
+                calculateTotals();
             } else {
-                if (billExcludeBillId) {
-                    ensureAtLeastOneItemRow();
-                    setPoQtyColumnsVisible(false);
-                    setPoBillingAlert('');
-                    calculateTotals();
-                    return;
-                }
                 loadPOItems(null);
             }
         });
@@ -1116,14 +1311,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 syncPOHeaderFromSelection(poSelect.value);
                 ensureAtLeastOneItemRow();
             } else {
-                const existingRows = visibleItemRows();
-                const hasFormsetLines = existingRows.length > 0;
-                if (hasFormsetLines) {
-                    enrichExistingRowsFromPo(poSelect.value);
-                    syncPOHeaderFromSelection(poSelect.value);
-                } else {
-                    loadPOItems(poSelect.value);
-                }
+                loadPoItemsFromSelection(poSelect.value, true);
             }
         } else if (poSelect.value && formWasPosted) {
             enrichExistingRowsFromPo(poSelect.value);
@@ -1131,20 +1319,22 @@ document.addEventListener('DOMContentLoaded', function() {
             ensureAtLeastOneItemRow();
         } else {
             setPoQtyColumnsVisible(false);
-            if (billExcludeBillId) {
-                ensureAtLeastOneItemRow();
-            }
         }
     } else {
         setPoQtyColumnsVisible(false);
-        if (billExcludeBillId) {
-            ensureAtLeastOneItemRow();
-        }
+    }
+
+    if (grnCheck) {
+        grnCheck.addEventListener('change', function() {
+            if (poSelect && poSelect.value) {
+                loadPoItemsFromSelection(poSelect.value, true);
+            }
+        });
     }
 
     if (preselectPoId && poSelect && !poSelect.value && !formWasPosted) {
         poSelect.value = preselectPoId;
-        loadPOItems(preselectPoId);
+        loadPoItemsFromSelection(preselectPoId, true);
     }
 });
 </script>

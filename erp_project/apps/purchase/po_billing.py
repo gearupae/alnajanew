@@ -33,6 +33,14 @@ def quantity_billable_for_po_item(po_item, *, exclude_bill_id=None):
     return max(Decimal('0.00'), billable)
 
 
+def quantity_unbilled_order_for_po_item(po_item, *, exclude_bill_id=None):
+    """PO order qty minus qty already on vendor bills (expense / pre-GRN billing)."""
+    ordered = po_item.quantity or Decimal('0')
+    billed = quantity_billed_for_po_item(po_item.pk, exclude_bill_id=exclude_bill_id)
+    unbilled = (ordered - billed).quantize(Decimal('0.01'))
+    return max(Decimal('0.00'), unbilled)
+
+
 def annotate_po_item_billing(po_item, *, exclude_bill_id=None):
     po_item.quantity_billed = quantity_billed_for_po_item(
         po_item.pk, exclude_bill_id=exclude_bill_id
@@ -151,7 +159,11 @@ def po_items_billing_payload(po, *, bill_received_only=True, exclude_bill_id=Non
 
 def validate_vendor_bill_po_lines(bill, line_items, *, exclude_bill_id=None):
     """
-    Validate bill line quantities against PO received/unbilled caps.
+    Validate bill line quantities against PO caps.
+
+    goods_received=True  → cap at received qty minus already billed
+    goods_received=False → cap at PO order qty minus already billed
+
     Returns list of error strings (empty if valid).
     """
     from apps.inventory.models import Item
@@ -214,12 +226,21 @@ def validate_vendor_bill_po_lines(bill, line_items, *, exclude_bill_id=None):
                 )
                 continue
             qty = Item.normalize_quantity(inv, qty)
-        billable = quantity_billable_for_po_item(po_item, exclude_bill_id=exclude_bill_id)
+        if bill.goods_received:
+            billable = quantity_billable_for_po_item(
+                po_item, exclude_bill_id=exclude_bill_id
+            )
+            cap_label = 'unbilled received qty'
+        else:
+            billable = quantity_unbilled_order_for_po_item(
+                po_item, exclude_bill_id=exclude_bill_id
+            )
+            cap_label = 'unbilled PO order qty'
         if inv and inv.requires_whole_quantity():
             billable = Item.normalize_quantity(inv, billable)
         if qty > billable:
             errors.append(
-                f'"{po_item.description}": bill qty {qty} exceeds unbilled received qty {billable}.'
+                f'"{po_item.description}": bill qty {qty} exceeds {cap_label} {billable}.'
             )
 
     if bill.goods_received and not po_has_received_items(po):

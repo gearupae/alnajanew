@@ -601,7 +601,8 @@ class VendorBillItemForm(forms.ModelForm):
     Form for vendor bill line items.
     Tax Code determines VAT rate - No Tax Code = 0% VAT (Out of Scope)
     """
-    
+    inventory_picker = forms.CharField(required=False, widget=forms.HiddenInput())
+
     class Meta:
         model = VendorBillItem
         fields = ['description', 'quantity', 'unit_price', 'tax_code', 'is_vat_inclusive', 'purchase_order_item']
@@ -631,10 +632,32 @@ class VendorBillItemForm(forms.ModelForm):
             if default_tax_code:
                 self.fields['tax_code'].initial = default_tax_code
 
+    def _resolve_description_from_picker(self, cleaned_data):
+        """Resolve line description from inventory picker when JS sync missed it."""
+        description = (cleaned_data.get('description') or '').strip()
+        if description:
+            return description
+
+        picker = (cleaned_data.get('inventory_picker') or '').strip()
+        if not picker:
+            return ''
+
+        if picker.startswith('custom:'):
+            return picker[7:].strip()
+
+        from apps.inventory.models import Item
+
+        item = Item.usable().filter(pk=picker).only('name').first()
+        return item.name if item else ''
+
     def clean(self):
         cleaned_data = super().clean()
         if cleaned_data.get('DELETE'):
             return cleaned_data
+
+        resolved = self._resolve_description_from_picker(cleaned_data)
+        if resolved:
+            cleaned_data['description'] = resolved
 
         description = (cleaned_data.get('description') or '').strip()
         unit_price = cleaned_data.get('unit_price')
