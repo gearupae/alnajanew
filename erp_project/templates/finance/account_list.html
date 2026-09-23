@@ -113,7 +113,7 @@
                             <span class="badge badge-inactive">Expense</span>
                             {% endif %}
                         </td>
-                        <td>{{ account.parent.code|default:"-" }}</td>
+                        <td>{{ account.resolved_parent.name|default:"-" }}</td>
                         <td class="text-end {% if account.balance < 0 %}text-danger{% endif %}">{{ account.balance|floatformat:2 }}</td>
                         <td class="text-center">
                             {% if can_edit and not account.is_system %}

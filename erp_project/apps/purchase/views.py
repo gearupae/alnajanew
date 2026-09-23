@@ -888,6 +888,16 @@ def po_items_json(request, pk):
 
 # ============ PURCHASE ORDER VIEWS ============
 
+def _sync_po_line_vat_and_totals(purchase_order):
+    """Align line VAT flags with PO tax setting and refresh header totals."""
+    inclusive = purchase_order.prices_include_vat
+    for item in purchase_order.items.all():
+        if item.is_vat_inclusive != inclusive:
+            item.is_vat_inclusive = inclusive
+            item.save(update_fields=['is_vat_inclusive', 'total', 'vat_amount'])
+    purchase_order.calculate_totals()
+
+
 class PurchaseOrderListView(PermissionRequiredMixin, ListView):
     model = PurchaseOrder
     template_name = 'purchase/po_list.html'
@@ -986,7 +996,7 @@ class PurchaseOrderCreateView(CreatePermissionMixin, CreateView):
         self.object = form.save()
         items_formset.instance = self.object
         items_formset.save()
-        self.object.calculate_totals()
+        _sync_po_line_vat_and_totals(self.object)
         # When PO is created from PR, update PR status to converted
         if self.object.purchase_request:
             self.object.purchase_request.status = 'converted'
@@ -1043,7 +1053,7 @@ class PurchaseOrderUpdateView(UpdatePermissionMixin, UpdateView):
         self.object = form.save()
         items_formset.instance = self.object
         items_formset.save()
-        self.object.calculate_totals()
+        _sync_po_line_vat_and_totals(self.object)
         messages.success(self.request, f'Purchase Order {self.object.po_number} updated.')
         return redirect('purchase:po_detail', pk=self.object.pk)
     

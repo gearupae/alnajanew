@@ -2,6 +2,8 @@
 from decimal import Decimal
 from datetime import date
 
+from django.db.models import Q
+
 from apps.finance.models import (
     Payment,
     BankAccount,
@@ -11,6 +13,58 @@ from apps.finance.models import (
     AccountType,
     AccountMapping,
 )
+
+CASH_PAYMENT_METHODS = frozenset({'cash', 'petty_cash', 'cash_in_office'})
+
+CASH_PAYMENT_LOOKUPS = {
+    'petty_cash': {
+        'label': 'Petty Cash',
+        'name_patterns': ['petty cash'],
+        'fallback_codes': ['1020'],
+    },
+    'cash_in_office': {
+        'label': 'Cash in Office',
+        'name_patterns': ['cash in office', 'cash in hand', 'cash on hand'],
+        'fallback_codes': ['1010'],
+    },
+    'cash': {
+        'label': 'Cash',
+        'name_patterns': ['cash in hand', 'cash on hand', 'cash in office'],
+        'fallback_codes': ['1010'],
+    },
+}
+
+
+def is_cash_payment_method(payment_method: str) -> bool:
+    if payment_method in CASH_PAYMENT_METHODS:
+        return True
+    return payment_method.startswith('cash_') and payment_method not in CASH_PAYMENT_METHODS
+
+
+def resolve_cash_gl_account(payment_method: str):
+    """Resolve the GL account for a cash-style payment method."""
+    lookup = CASH_PAYMENT_LOOKUPS.get(payment_method)
+    if lookup:
+        name_query = Q()
+        for pattern in lookup['name_patterns']:
+            name_query |= Q(name__icontains=pattern)
+
+        account = Account.objects.filter(is_active=True, is_cash_account=True).filter(name_query).first()
+        if account:
+            return account
+
+        for code in lookup.get('fallback_codes', []):
+            account = Account.objects.filter(is_active=True, code=code).first()
+            if account:
+                return account
+
+        return None
+
+    if payment_method.startswith('cash_'):
+        account_id = payment_method.split('_', 1)[1]
+        return Account.objects.filter(pk=account_id, is_active=True).first()
+
+    return None
 
 
 def record_vendor_bill_payment(
@@ -42,9 +96,18 @@ def record_vendor_bill_payment(
     if payment_method in ('bank', 'cheque') and not bank_account:
         return None, 'Bank account is required for bank transfer and cheque payments.'
 
+    cash_gl_account = None
+    stored_payment_method = payment_method
+    if is_cash_payment_method(payment_method):
+        cash_gl_account = resolve_cash_gl_account(payment_method)
+        if not cash_gl_account:
+            label = CASH_PAYMENT_LOOKUPS.get(payment_method, {}).get('label', 'Cash')
+            return None, f'{label} account is not configured in Chart of Accounts.'
+        stored_payment_method = 'cash'
+
     payment = Payment.objects.create(
         payment_type='made',
-        payment_method=payment_method,
+        payment_method=stored_payment_method,
         payment_date=payment_date,
         party_type='vendor',
         party_id=bill.vendor_id,
@@ -53,6 +116,7 @@ def record_vendor_bill_payment(
         reference=reference or bill.bill_number,
         bill=bill,
         bank_account=bank_account,
+        cash_account=cash_gl_account,
         status='draft',
     )
 
@@ -68,14 +132,8 @@ def record_vendor_bill_payment(
 
     if payment_method in ('bank', 'cheque', 'card') and bank_account and bank_account.gl_account:
         bank_gl_account = bank_account.gl_account
-    elif payment_method == 'cash':
-        bank_gl_account = Account.objects.filter(
-            account_type=AccountType.ASSET, is_active=True, name__icontains='cash'
-        ).first()
-        if not bank_gl_account:
-            bank_gl_account = Account.objects.filter(
-                account_type=AccountType.ASSET, is_active=True
-            ).first()
+    elif is_cash_payment_method(payment_method):
+        bank_gl_account = cash_gl_account
     else:
         payment.delete()
         return None, 'Bank account GL is required for this payment method.'
@@ -133,7 +191,7 @@ def record_vendor_bill_payment(
 
 def resolve_bank_account(payment_method, bank_account_id):
     """Return active BankAccount for bank/cheque/card payments, or None for cash."""
-    if payment_method == 'cash':
+    if is_cash_payment_method(payment_method):
         return None
 
     if payment_method not in ('bank', 'cheque', 'card'):

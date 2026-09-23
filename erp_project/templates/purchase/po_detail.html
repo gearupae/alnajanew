@@ -185,6 +185,10 @@
                 <div class="overview-section-title">Amounts</div>
                 <div class="row g-3">
                     <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Tax inclusive</div>
+                        <div class="overview-value">{% if po.prices_include_vat %}Yes{% else %}No{% endif %}</div>
+                    </div>
+                    <div class="col-6 col-md-4 col-xl-3">
                         <div class="overview-label">Subtotal</div>
                         <div class="overview-value tabular-nums">AED {{ po.subtotal|floatformat:2 }}</div>
                     </div>
@@ -192,6 +196,12 @@
                         <div class="overview-label">VAT amount</div>
                         <div class="overview-value tabular-nums">AED {{ po.vat_amount|floatformat:2 }}</div>
                     </div>
+                    {% if po.round_off %}
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Round-off</div>
+                        <div class="overview-value tabular-nums">AED {{ po.round_off|floatformat:2 }}</div>
+                    </div>
+                    {% endif %}
                     <div class="col-6 col-md-4 col-xl-3">
                         <div class="overview-label">Total amount</div>
                         <div class="overview-value fw-semibold tabular-nums">AED {{ po.total_amount|floatformat:2 }}</div>
@@ -275,6 +285,12 @@
                                 <td colspan="10" class="text-end">VAT:</td>
                                 <td class="text-end fw-medium">AED {{ po.vat_amount|floatformat:2 }}</td>
                             </tr>
+                            {% if po.round_off %}
+                            <tr>
+                                <td colspan="10" class="text-end">Round-off:</td>
+                                <td class="text-end fw-medium">AED {{ po.round_off|floatformat:2 }}</td>
+                            </tr>
+                            {% endif %}
                             <tr>
                                 <td colspan="10" class="text-end fw-bold">Total:</td>
                                 <td class="text-end fw-bold">AED {{ po.total_amount|floatformat:2 }}</td>

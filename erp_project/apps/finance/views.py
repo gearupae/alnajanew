@@ -38,6 +38,7 @@ from .forms import (
 from django import forms
 from apps.core.mixins import PermissionRequiredMixin, CreatePermissionMixin, UpdatePermissionMixin
 from apps.core.utils import PermissionChecker
+from apps.finance.coa_utils import resolve_parent_accounts
 
 
 # ============ CHART OF ACCOUNTS VIEWS ============
@@ -50,7 +51,7 @@ class AccountListView(PermissionRequiredMixin, ListView):
     permission_type = 'view'
     
     def get_queryset(self):
-        queryset = Account.objects.filter(is_active=True)
+        queryset = Account.objects.filter(is_active=True).select_related('parent')
         
         search = self.request.GET.get('search')
         if search:
@@ -73,10 +74,15 @@ class AccountListView(PermissionRequiredMixin, ListView):
         context['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'finance', 'edit')
         context['can_delete'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'finance', 'delete')
         
-        # Flag abnormal balances
-        for account in context['accounts']:
+        accounts = list(context['accounts'])
+        parent_map = resolve_parent_accounts(accounts)
+
+        # Flag abnormal balances and attach resolved parent for display
+        for account in accounts:
             account.abnormal = account.has_abnormal_balance
-        
+            account.resolved_parent = parent_map.get(account.id)
+
+        context['accounts'] = accounts
         return context
     
     def post(self, request, *args, **kwargs):

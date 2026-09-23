@@ -287,11 +287,15 @@ class PurchaseOrderForm(forms.ModelForm):
         fields = [
             'is_active', 'vendor', 'project', 'purchase_request', 'service_request',
             'order_date', 'expected_delivery_date', 'status', 'notes',
+            'prices_include_vat', 'round_off',
         ]
         widgets = {
             'order_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'expected_delivery_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'round_off': forms.NumberInput(
+                attrs={'class': 'form-control', 'step': '0.01', 'id': 'id_round_off'},
+            ),
         }
     
     # Fields to exclude when editing (source is set at creation only)
@@ -312,13 +316,19 @@ class PurchaseOrderForm(forms.ModelForm):
             self.fields['is_active'].initial = True
         
         self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True, status='active')
-        self.fields['vendor'].widget.attrs['class'] = 'form-select'
+        self.fields['vendor'].widget.attrs.update({
+            'class': 'form-select select2-po-vendor',
+            'id': 'id_vendor',
+        })
 
         self.fields['project'].queryset = Project.objects.filter(is_active=True).exclude(
             status='cancelled'
         ).order_by('project_code', 'name')
         self.fields['project'].required = False
-        self.fields['project'].widget.attrs['class'] = 'form-select'
+        self.fields['project'].widget.attrs.update({
+            'class': 'form-select select2-po-project',
+            'id': 'id_project',
+        })
         self.fields['project'].empty_label = '— None (not charged to a project) —'
         
         if not is_edit:
@@ -348,11 +358,37 @@ class PurchaseOrderForm(forms.ModelForm):
         self.fields['status'].choices = PurchaseOrder.STATUS_CHOICES
         self.fields['expected_delivery_date'].required = False
         self.fields['notes'].required = False
+
+        tax_inclusive = (
+            self.instance.prices_include_vat
+            if self.instance.pk
+            else False
+        )
+        if self.is_bound:
+            tax_inclusive = self.data.get('prices_include_vat') == 'yes'
+        self.fields['prices_include_vat'] = forms.ChoiceField(
+            choices=[('yes', 'Yes (VAT included)'), ('no', 'No (VAT excluded)')],
+            label='Tax Inclusive',
+            required=True,
+            initial='yes' if tax_inclusive else 'no',
+            widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_prices_include_vat'}),
+            help_text='Yes = unit prices include VAT. No = prices are before VAT.',
+        )
+        self.fields['round_off'].label = 'Round-off'
+        self.fields['round_off'].help_text = (
+            'Adjustment to grand total (e.g. ±0.01 for fils rounding). Use 0 if none.'
+        )
+        if not self.instance.pk and not self.is_bound:
+            self.fields['round_off'].initial = Decimal('0.00')
     
     def clean(self):
         cleaned = super().clean()
         if self.is_bound:
             cleaned['is_active'] = _resolve_hidden_is_active(self)
+            cleaned['prices_include_vat'] = self.data.get('prices_include_vat') == 'yes'
+        round_off = cleaned.get('round_off')
+        if round_off is None:
+            self.add_error('round_off', 'Round-off is required.')
         return cleaned
 
     def clean_service_request(self):

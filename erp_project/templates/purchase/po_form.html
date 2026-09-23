@@ -20,6 +20,13 @@
 .po-inventory-select2-dropdown .select2-search__field {
     width: 100% !important;
 }
+.po-header-select2-dropdown {
+    min-width: 20rem !important;
+    z-index: 1060;
+}
+.po-header-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
 .po-current-stock-header {
     background: #f0f9ff !important;
     color: #0369a1;
@@ -116,6 +123,14 @@
                     {{ form.status }}
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tax Inclusive <span class="text-danger">*</span></label>
+                    {{ form.prices_include_vat }}
+                    {% if form.prices_include_vat.help_text %}
+                    <small class="text-muted d-block">{{ form.prices_include_vat.help_text }}</small>
+                    {% endif %}
+                    {% if form.prices_include_vat.errors %}<div class="text-danger small">{{ form.prices_include_vat.errors|join:", " }}</div>{% endif %}
+                </div>
                 {% if 'purchase_request' in form.fields %}
                 <div class="col-md-4">
                     <label class="form-label">Purchase request</label>
@@ -202,7 +217,7 @@
                             <th style="width:32%">Inventory item</th>
                             <th style="width:8%" class="text-center po-current-stock-header">Current stock</th>
                             <th style="width:9%">Qty</th>
-                            <th style="width:11%">Unit Price</th>
+                            <th style="width:11%" id="unitPriceColHeader">Unit Price</th>
                             <th style="width:16%">Tax Code</th>
                             <th style="width:9%">VAT</th>
                             <th style="width:9%" class="text-end">Total</th>
@@ -264,7 +279,7 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="6" class="text-end">Subtotal (live):</td>
+                            <td colspan="6" class="text-end"><span id="subtotalLabel">Subtotal (excl. VAT)</span> (live):</td>
                             <td class="text-end fw-medium" id="subtotal">0.00</td>
                             <td></td>
                         </tr>
@@ -273,8 +288,13 @@
                             <td class="text-end fw-medium" id="vatTotal">0.00</td>
                             <td></td>
                         </tr>
+                        <tr id="roundOffRow" class="d-none">
+                            <td colspan="6" class="text-end">Round-off (live):</td>
+                            <td class="text-end fw-medium" id="roundOffDisplay">0.00</td>
+                            <td></td>
+                        </tr>
                         <tr>
-                            <td colspan="6" class="text-end fw-bold">Total amount (live):</td>
+                            <td colspan="6" class="text-end fw-bold"><span id="grandLabel">Total amount</span> (live):</td>
                             <td class="text-end fw-bold" id="grandTotal">0.00</td>
                             <td></td>
                         </tr>
@@ -284,6 +304,20 @@
         </div>
     </div>
     
+    <div class="card mb-4">
+        <div class="card-header"><h6 class="mb-0 fw-semibold"><i class="fas fa-calculator me-2"></i>Round-Off</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.round_off.id_for_label }}">Round-off <span class="text-danger">*</span></label>
+                    {{ form.round_off }}
+                    {% if form.round_off.help_text %}<small class="text-muted d-block">{{ form.round_off.help_text }}</small>{% endif %}
+                    {% if form.round_off.errors %}<div class="text-danger small">{{ form.round_off.errors|join:", " }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
     {% if object and object.is_active or not object %}
     <input type="hidden" name="is_active" value="on">
     {% endif %}
@@ -575,7 +609,7 @@ function addItemRow(inventoryItemId = null, quantity = '0', unitPrice = '0', tax
     const hiddenVat = document.createElement('input');
     hiddenVat.type = 'hidden';
     hiddenVat.name = `items-${idx}-is_vat_inclusive`;
-    hiddenVat.value = 'false';
+    hiddenVat.value = pricesIncludeVatEnabled() ? 'true' : 'false';
     tdInv.appendChild(hiddenVat);
     const invSel = buildInventorySelect(`items-${idx}-inventory_item`, hasInv ? inventoryItemId : null);
     tdInv.appendChild(invSel);
@@ -626,6 +660,45 @@ function removeItemRow(btn) {
     }
 }
 
+function pricesIncludeVatEnabled() {
+    const el = document.getElementById('id_prices_include_vat');
+    if (!el) return false;
+    return el.value === 'yes';
+}
+
+function splitLineAmounts(gross, vatRate, inclusive) {
+    gross = Math.round(gross * 100) / 100;
+    if (inclusive && vatRate > 0) {
+        const divisor = 1 + vatRate / 100;
+        let taxable = Math.round((gross / divisor) * 100) / 100;
+        let vat = Math.round((gross - taxable) * 100) / 100;
+        if (Math.round((taxable + vat) * 100) / 100 !== gross) {
+            taxable = Math.round((gross - vat) * 100) / 100;
+        }
+        return { taxable, vat, gross };
+    }
+    const taxable = gross;
+    const vat = vatRate > 0 ? Math.round(taxable * vatRate) / 100 : 0;
+    return { taxable, vat, gross: Math.round((taxable + vat) * 100) / 100 };
+}
+
+function syncLineVatInclusiveFlags() {
+    const on = pricesIncludeVatEnabled();
+    document.querySelectorAll('[name$="-is_vat_inclusive"]').forEach(inp => {
+        inp.value = on ? 'true' : 'false';
+    });
+}
+
+function updateVatPricingLabels() {
+    const inclusive = pricesIncludeVatEnabled();
+    const unitHdr = document.getElementById('unitPriceColHeader');
+    const subLbl = document.getElementById('subtotalLabel');
+    const grandLbl = document.getElementById('grandLabel');
+    if (unitHdr) unitHdr.textContent = inclusive ? 'Unit Price (incl. VAT)' : 'Unit Price';
+    if (subLbl) subLbl.textContent = inclusive ? 'Subtotal (incl. VAT basis)' : 'Subtotal (excl. VAT)';
+    if (grandLbl) grandLbl.textContent = 'Total amount';
+}
+
 function calculateRowTotal(input) {
     const row = input.closest('tr');
     const qtyEl = row.querySelector('.item-qty');
@@ -634,17 +707,14 @@ function calculateRowTotal(input) {
     const price = parseFloat(priceEl && priceEl.value) || 0;
     const taxCodeSelect = row.querySelector('.item-tax-code');
     
-    // Get VAT rate from selected Tax Code
     let vatRate = 0;
     if (taxCodeSelect && taxCodeSelect.selectedOptions.length) {
         vatRate = parseFloat(taxCodeSelect.selectedOptions[0].dataset.rate) || 0;
     }
     
-    const net = qty * price;
-    const vat = net * (vatRate / 100);
-    
-    row.querySelector('.row-vat').textContent = vat.toFixed(2);
-    row.querySelector('.row-total').textContent = net.toFixed(2);
+    const splits = splitLineAmounts(qty * price, vatRate, pricesIncludeVatEnabled());
+    row.querySelector('.row-vat').textContent = splits.vat.toFixed(2);
+    row.querySelector('.row-total').textContent = splits.gross.toFixed(2);
     calculateTotals();
     if (!suppressTrailingEmptyRow) {
         ensureTrailingEmptyRow();
@@ -652,7 +722,8 @@ function calculateRowTotal(input) {
 }
 
 function calculateTotals() {
-    let subtotal = 0, vatTotal = 0;
+    let subtotal = 0;
+    let vatTotal = 0;
     document.querySelectorAll('.item-row').forEach(row => {
         if (row.style.display === 'none') return;
         const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
@@ -664,14 +735,87 @@ function calculateTotals() {
             vatRate = parseFloat(taxCodeSelect.selectedOptions[0].dataset.rate) || 0;
         }
         
-        const net = qty * price;
-        const vat = net * (vatRate / 100);
-        subtotal += net;
-        vatTotal += vat;
+        const splits = splitLineAmounts(qty * price, vatRate, pricesIncludeVatEnabled());
+        subtotal += splits.taxable;
+        vatTotal += splits.vat;
     });
+    const roundOff = parseFloat(document.querySelector('[name="round_off"]')?.value) || 0;
+    const grandTotal = subtotal + vatTotal + roundOff;
     document.getElementById('subtotal').textContent = subtotal.toFixed(2);
     document.getElementById('vatTotal').textContent = vatTotal.toFixed(2);
-    document.getElementById('grandTotal').textContent = (subtotal + vatTotal).toFixed(2);
+    const showRoundOff = Math.abs(roundOff) >= 0.005;
+    document.getElementById('roundOffRow')?.classList.toggle('d-none', !showRoundOff);
+    if (showRoundOff) {
+        const sign = roundOff > 0 ? '+' : '';
+        document.getElementById('roundOffDisplay').textContent = sign + roundOff.toFixed(2);
+    }
+    document.getElementById('grandTotal').textContent = grandTotal.toFixed(2);
+}
+
+function setPoSelect2Value(selectId, value) {
+    const el = document.getElementById(selectId);
+    if (!el) return;
+    const strVal = value != null && value !== '' ? String(value) : '';
+    if (typeof $ !== 'undefined' && $(el).data('select2')) {
+        $(el).val(strVal || null).trigger('change.select2');
+    } else {
+        el.value = strVal;
+    }
+}
+
+function initPoHeaderSelect2() {
+    if (typeof $ === 'undefined' || !$.fn.select2) return;
+
+    const vendorSel = document.getElementById('id_vendor');
+    if (vendorSel) {
+        const $vendor = $(vendorSel);
+        if ($vendor.data('select2')) {
+            $vendor.select2('destroy');
+        }
+        $vendor.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Search vendor by code or name…',
+            allowClear: false,
+            minimumResultsForSearch: 0,
+            dropdownParent: $(document.body),
+            dropdownCssClass: 'po-header-select2-dropdown',
+        });
+    }
+
+    const projectSel = document.getElementById('id_project');
+    if (projectSel) {
+        const $project = $(projectSel);
+        if ($project.data('select2')) {
+            $project.select2('destroy');
+        }
+        $project.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Search project by code or name…',
+            allowClear: true,
+            minimumResultsForSearch: 0,
+            dropdownParent: $(document.body),
+            dropdownCssClass: 'po-header-select2-dropdown',
+        });
+    }
+
+    const srSel = document.getElementById('id_service_request');
+    if (srSel) {
+        const $sr = $(srSel);
+        if ($sr.data('select2')) {
+            $sr.select2('destroy');
+        }
+        $sr.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Search service request…',
+            allowClear: true,
+            minimumResultsForSearch: 0,
+            dropdownParent: $(document.body),
+            dropdownCssClass: 'po-header-select2-dropdown',
+        });
+    }
 }
 
 function loadPRItems(prId) {
@@ -710,16 +854,13 @@ function loadPRItems(prId) {
             }
             
             if (data.vendor_id) {
-                const vendorSelect = document.getElementById('id_vendor');
-                if (vendorSelect) {
-                    vendorSelect.value = String(data.vendor_id);
-                }
+                setPoSelect2Value('id_vendor', data.vendor_id);
+            }
+            if (data.project_id) {
+                setPoSelect2Value('id_project', data.project_id);
             }
             if (data.service_request_id) {
-                const srSelect = document.getElementById('id_service_request');
-                if (srSelect) {
-                    srSelect.value = String(data.service_request_id);
-                }
+                setPoSelect2Value('id_service_request', data.service_request_id);
             }
 
             hydrateTaxCodeDataRates();
@@ -776,7 +917,38 @@ function loadSRItems(srId) {
 }
 
 $(function() {
+    initPoHeaderSelect2();
     hydrateTaxCodeDataRates();
+    updateVatPricingLabels();
+    syncLineVatInclusiveFlags();
+    document.querySelector('[name="round_off"]')?.addEventListener('input', calculateTotals);
+    const vatToggle = document.getElementById('id_prices_include_vat');
+    if (vatToggle) {
+        let prevVatInclusive = pricesIncludeVatEnabled();
+        vatToggle.addEventListener('change', function() {
+            const hasLines = Array.from(document.querySelectorAll('#itemsBody .item-row')).some(row => {
+                if (row.style.display === 'none') return false;
+                const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
+                const price = parseFloat(row.querySelector('.item-price')?.value) || 0;
+                return qty > 0 && price > 0;
+            });
+            if (hasLines) {
+                const ok = confirm('Changing tax inclusive setting recalculates all line totals. Continue?');
+                if (!ok) {
+                    vatToggle.value = prevVatInclusive ? 'yes' : 'no';
+                    return;
+                }
+            }
+            prevVatInclusive = pricesIncludeVatEnabled();
+            updateVatPricingLabels();
+            syncLineVatInclusiveFlags();
+            document.querySelectorAll('#itemsBody .item-row').forEach(row => {
+                if (row.style.display === 'none') return;
+                const qty = row.querySelector('.item-qty');
+                if (qty) calculateRowTotal(qty);
+            });
+        });
+    }
     initAllPoInventorySelect2();
     const itemsBody = document.getElementById('itemsBody');
     itemsBody.addEventListener('change', function(e) {
@@ -818,7 +990,7 @@ $(function() {
             if (prId) {
                 if (srSelect && srSelect.value) {
                     if (!confirm('Loading PR items will replace existing items. Continue?')) return;
-                    srSelect.value = '';
+                    setPoSelect2Value('id_service_request', '');
                 }
                 loadPRItems(prId);
             } else {
@@ -828,17 +1000,22 @@ $(function() {
     }
     
     if (srSelect) {
-        srSelect.addEventListener('change', function() {
+        $(srSelect).on('change select2:select select2:clear', function() {
             const srId = this.value;
             if (srId) {
                 if (prSelect && prSelect.value) {
-                    if (!confirm('Loading SR items will replace existing items. Continue?')) return;
+                    if (!confirm('Loading SR items will replace existing items. Continue?')) {
+                        setPoSelect2Value('id_service_request', $(this).data('prev-sr') || '');
+                        return;
+                    }
                     prSelect.value = '';
                 }
                 loadSRItems(srId);
             } else {
                 loadSRItems(null);
             }
+        }).on('select2:select', function() {
+            $(this).data('prev-sr', this.value);
         });
     }
     
@@ -846,7 +1023,7 @@ $(function() {
     const preselectPr = '{{ preselect_pr }}';
     if (preselectPr && prSelect && document.querySelector('#id_purchase_request option[value="' + preselectPr + '"]')) {
         prSelect.value = preselectPr;
-        if (srSelect) srSelect.value = '';
+        setPoSelect2Value('id_service_request', '');
         loadPRItems(preselectPr);
     }
     {% endif %}
@@ -854,7 +1031,7 @@ $(function() {
     {% if preselect_sr %}
     const preselectSr = '{{ preselect_sr }}';
     if (preselectSr && srSelect && document.querySelector('#id_service_request option[value="' + preselectSr + '"]')) {
-        srSelect.value = preselectSr;
+        setPoSelect2Value('id_service_request', preselectSr);
         if (prSelect) prSelect.value = '';
         loadSRItems(preselectSr);
     }

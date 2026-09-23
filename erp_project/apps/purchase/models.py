@@ -271,6 +271,17 @@ class PurchaseOrder(BaseModel):
     expected_delivery_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     notes = models.TextField(blank=True)
+
+    prices_include_vat = models.BooleanField(
+        default=False,
+        help_text='If true, unit prices on line items include VAT',
+    )
+    round_off = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Adjustment applied to grand total (e.g. fils rounding)',
+    )
     
     # Amounts
     subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
@@ -292,7 +303,8 @@ class PurchaseOrder(BaseModel):
         items = self.items.all()
         self.subtotal = sum(item.total for item in items)
         self.vat_amount = sum(item.vat_amount for item in items)
-        self.total_amount = self.subtotal + self.vat_amount
+        round_off = self.round_off if self.round_off is not None else Decimal('0.00')
+        self.total_amount = (self.subtotal + self.vat_amount + round_off).quantize(Decimal('0.01'))
         self.save(update_fields=['subtotal', 'vat_amount', 'total_amount'])
 
 

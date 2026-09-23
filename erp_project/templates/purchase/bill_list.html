@@ -234,7 +234,8 @@
                             <label class="form-label">Payment Method</label>
                             <select name="payment_method" class="form-select" id="bulkPaymentMethod">
                                 <option value="bank" selected>Bank Transfer</option>
-                                <option value="cash">Cash</option>
+                                <option value="petty_cash">Petty Cash</option>
+                                <option value="cash_in_office">Cash in Office</option>
                                 <option value="cheque">Cheque</option>
                                 <option value="card">Credit/Debit Card</option>
                             </select>
@@ -330,7 +331,9 @@
     var bankDiv = document.getElementById('bulkBankAccountDiv');
     if (paymentMethod && bankDiv) {
         paymentMethod.addEventListener('change', function() {
-            bankDiv.style.display = this.value === 'cash' ? 'none' : 'block';
+            var method = this.value;
+            var isCash = method === 'petty_cash' || method === 'cash_in_office' || method === 'cash';
+            bankDiv.style.display = isCash ? 'none' : 'block';
         });
     }
 

@@ -45,7 +45,8 @@
                             <label class="form-label">Payment Method</label>
                             <select name="payment_method" class="form-select" id="paymentMethod">
                                 <option value="bank" selected>Bank Transfer</option>
-                                <option value="cash">Cash</option>
+                                <option value="petty_cash">Petty Cash</option>
+                                <option value="cash_in_office">Cash in Office</option>
                                 <option value="cheque">Cheque</option>
                                 <option value="card">Credit/Debit Card</option>
                             </select>
@@ -154,11 +155,15 @@ document.querySelector('input[name="amount"]').addEventListener('input', functio
     document.getElementById('creditAmount').textContent = formatted;
 });
 
+function isCashPaymentMethod(method) {
+    return method === 'petty_cash' || method === 'cash_in_office' || method === 'cash';
+}
+
 function syncBankRequired() {
     var bankDiv = document.getElementById('bankAccountDiv');
     var bankSelect = bankDiv.querySelector('select[name="bank_account"]');
     var method = document.getElementById('paymentMethod').value;
-    if (method === 'cash') {
+    if (isCashPaymentMethod(method)) {
         bankDiv.style.display = 'none';
         bankSelect.required = false;
     } else {
