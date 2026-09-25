@@ -411,6 +411,9 @@
                         {% if selected_base_group and not request.GET.new %}Save{% else %}Create{% endif %}
                     </button>
                     {% if selected_base_group and not request.GET.new %}
+                    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#copyBaseGroupModal">
+                        <i class="fas fa-copy me-1"></i>Copy
+                    </button>
                     <button type="button" class="btn btn-outline-danger"
                             onclick="if(confirm('Delete this base group? Sub-groups will be unassigned but not deleted.')) document.getElementById('deleteBaseGroupForm').submit();">
                         Delete
@@ -442,8 +445,15 @@
                             <div class="row g-2 align-items-end mb-3">
                                 <div class="col-md-8">
                                     <label class="form-label small text-muted mb-1" for="simpleSubGroupSelect">Choose a sub-group</label>
-                                    <select id="simpleSubGroupSelect" class="form-select select2-sub-group-picker">
+                                    <select id="simpleSubGroupSelect" class="form-select" size="1">
                                         <option value="">— Select sub-group —</option>
+                                        {% for sg in all_sub_groups %}
+                                        {% if not selected_base_group or request.GET.new or sg.base_group_id != selected_base_group.pk %}
+                                        <option value="{{ sg.pk }}">
+                                            {{ sg.name }} ({{ sg.member_count }} item{{ sg.member_count|pluralize }}{% if sg.base_group_id and selected_base_group and sg.base_group_id != selected_base_group.pk %}, in {{ sg.base_group.name }}{% elif sg.base_group_id and not selected_base_group %}, in {{ sg.base_group.name }}{% endif %})
+                                        </option>
+                                        {% endif %}
+                                        {% endfor %}
                                     </select>
                                 </div>
                                 <div class="col-md-4">
@@ -452,6 +462,7 @@
                                     </button>
                                 </div>
                             </div>
+                            <p class="small text-muted mb-0">Sub-groups already added below are hidden here. Others show even if linked to another base group (e.g. “in group1”).</p>
                             <p class="small fw-semibold mb-2">Added to this base group <span class="text-muted fw-normal" id="simpleSubGroupCount"></span></p>
                             <div class="d-none row g-2 small text-muted fw-semibold px-2 mb-1" id="simpleSubGroupListHeader">
                                 <div class="col">Sub-group</div>
@@ -459,6 +470,9 @@
                                 <div class="col-auto" style="width:5.5rem;"></div>
                             </div>
                             <ul class="list-group base-sub-group-added-list mb-0" id="simpleSubGroupList"></ul>
+                            <p class="small text-muted mt-2 mb-0 d-none" id="simpleSubGroupNoAvailable">
+                                No more sub-groups to add. Create a new one on the <a href="?tab=sub">Sub-groups</a> tab, or remove one from another base group first.
+                            </p>
                             <p class="small text-muted mt-2 mb-0" id="simpleSubGroupEmpty">None added yet — optional; you can add sub-groups later.</p>
                             <p class="small text-muted mt-1 mb-0 d-none" id="simpleSubGroupOrderHint">Order controls sub-group sequence when loading scope of work on an estimate.</p>
                             <div id="simpleSubGroupHidden"></div>
@@ -476,6 +490,39 @@
                     <input type="hidden" name="action" value="delete_base">
                     <input type="hidden" name="base_id" value="{{ selected_base_group.pk }}">
                 </form>
+                <div class="modal fade" id="copyBaseGroupModal" tabindex="-1" aria-labelledby="copyBaseGroupModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="tab" value="base">
+                                <input type="hidden" name="action" value="copy_base_group">
+                                <input type="hidden" name="base_id" value="{{ selected_base_group.pk }}">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="copyBaseGroupModalLabel">Copy base group</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p class="small text-muted mb-3">
+                                        Creates a new base group with duplicated sub-groups and the same inventory items,
+                                        quantities, and order as <strong>{{ selected_base_group.name }}</strong>.
+                                        The original is unchanged.
+                                    </p>
+                                    <label class="form-label fw-semibold" for="copyBaseGroupNameInput">New base group name</label>
+                                    <input type="text" id="copyBaseGroupNameInput" name="copy_base_group_name" class="form-control"
+                                           value="{{ selected_base_group.name }} (copy)" maxlength="200" required
+                                           placeholder="e.g. {{ selected_base_group.name }} (copy)">
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-dark">
+                                        <i class="fas fa-copy me-1"></i>Create copy
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -501,7 +548,7 @@
 
 {% block extra_js %}
 <script>
-(function () {
+document.addEventListener('DOMContentLoaded', function () {
     var dataEl = document.getElementById('sub-group-picker-data');
     var selectEl = document.getElementById('simpleSubGroupSelect');
     var listEl = document.getElementById('simpleSubGroupList');
@@ -511,6 +558,7 @@
     var addBtn = document.getElementById('simpleSubGroupAddBtn');
     var listHeaderEl = document.getElementById('simpleSubGroupListHeader');
     var orderHintEl = document.getElementById('simpleSubGroupOrderHint');
+    var noAvailableEl = document.getElementById('simpleSubGroupNoAvailable');
     var baseForm = document.getElementById('baseGroupForm');
     if (!dataEl || !selectEl || !listEl || !hiddenEl || !addBtn) return;
 
@@ -558,43 +606,30 @@
         return parts.join(' · ');
     }
 
-    function initSubGroupSelect2() {
-        if (typeof $ === 'undefined' || !$.fn.select2) return;
-        var $sel = $(selectEl);
-        if ($sel.data('select2')) {
-            $sel.select2('destroy');
+    function subGroupOptionLabel(item) {
+        var label = item.name + ' (' + item.member_count + ' item' + (item.member_count === 1 ? '' : 's');
+        if (item.other_base) {
+            label += ', in ' + item.other_base;
         }
-        $sel.select2({
-            theme: 'bootstrap-5',
-            width: '100%',
-            placeholder: 'Search sub-group by name…',
-            allowClear: true,
-            minimumResultsForSearch: 0,
-            dropdownParent: $(document.body),
-            dropdownCssClass: 'group-item-select2-dropdown',
-            language: {
-                noResults: function () { return 'No matching sub-groups'; },
-                searching: function () { return 'Searching…'; },
-            },
-        });
+        label += ')';
+        return label;
     }
 
     function renderDropdown() {
         var selectedIds = selectedIdsSet();
         var current = selectEl.value;
-        if (typeof $ !== 'undefined' && $.fn.select2 && $(selectEl).data('select2')) {
-            $(selectEl).select2('destroy');
-        }
         selectEl.innerHTML = '';
         var blank = document.createElement('option');
         blank.value = '';
         blank.textContent = '— Select sub-group —';
         selectEl.appendChild(blank);
+        var availableCount = 0;
         allItems.forEach(function (item) {
             if (selectedIds.has(String(item.id))) return;
+            availableCount += 1;
             var opt = document.createElement('option');
-            opt.value = item.id;
-            opt.textContent = item.name + ' (' + item.member_count + ' items' + (item.other_base ? ', in ' + item.other_base : '') + ')';
+            opt.value = String(item.id);
+            opt.textContent = subGroupOptionLabel(item);
             selectEl.appendChild(opt);
         });
         if (current && !selectedIds.has(String(current))) {
@@ -602,7 +637,12 @@
         } else {
             selectEl.value = '';
         }
-        initSubGroupSelect2();
+        if (addBtn) {
+            addBtn.disabled = availableCount === 0;
+        }
+        if (noAvailableEl) {
+            noAvailableEl.classList.toggle('d-none', availableCount > 0);
+        }
     }
 
     function renderSelected() {
@@ -705,11 +745,7 @@
         if (!ids.has(sid)) {
             selectedEntries.push({ id: sid, order: nextOrderValue() });
         }
-        if (typeof $ !== 'undefined' && $.fn.select2 && $(selectEl).data('select2')) {
-            $(selectEl).val(null).trigger('change');
-        } else {
-            selectEl.value = '';
-        }
+        selectEl.value = '';
         renderAll();
     });
 
@@ -728,7 +764,7 @@
     }
 
     renderAll();
-})();
+});
 
 $(function () {
     var itemSelect = document.getElementById('groupAddItemSelect');

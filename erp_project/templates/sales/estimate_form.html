@@ -74,8 +74,31 @@
     padding-right: 0.3rem;
 }
 /* Percent widths sum to 100% — keeps table inside card (no overflow-x scroll) */
+.estimate-items-table .items-col-drag {
+    width: 2%;
+    padding-left: 0.1rem !important;
+    padding-right: 0.1rem !important;
+    vertical-align: middle;
+    text-align: center;
+}
+.estimate-items-table .estimate-row-drag-handle {
+    cursor: grab;
+    line-height: 1;
+    opacity: 0.45;
+}
+.estimate-items-table .estimate-row-drag-handle:hover,
+.estimate-items-table .estimate-row-drag-handle:focus {
+    opacity: 0.85;
+}
+.estimate-items-table tr.item-row.estimate-row-sortable-ghost {
+    opacity: 0.45;
+    background: #f8f9fa;
+}
+.estimate-items-table tr.item-row.estimate-row-sortable-chosen {
+    background: #fff8e6;
+}
 .estimate-items-table .items-col-group {
-    width: 11%;
+    width: 10%;
 }
 .estimate-items-table .items-col-group-mult {
     width: 5%;
@@ -503,20 +526,29 @@
                     {{ form.discount_value }}
                     <small class="text-muted d-block">Use % or fixed amount based on type</small>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <div class="form-check form-switch mb-2">
-                        {% if prices_include_vat_editable %}
-                        {{ form.prices_include_vat }}
-                        <label class="form-check-label" for="id_prices_include_vat">Prices include VAT</label>
-                        {% elif object %}
-                        {% if object.prices_include_vat %}<input type="hidden" name="prices_include_vat" value="on">{% endif %}
-                        <input class="form-check-input" type="checkbox" id="id_prices_include_vat" disabled {% if object.prices_include_vat %}checked{% endif %}>
-                        <label class="form-check-label text-muted" for="id_prices_include_vat">Prices include VAT</label>
-                        {% else %}
-                        {{ form.prices_include_vat }}
-                        <label class="form-check-label" for="id_prices_include_vat">Prices include VAT</label>
-                        {% endif %}
-                    </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="id_prices_include_vat">Tax inclusive</label>
+                    {% if prices_include_vat_editable %}
+                    {{ form.prices_include_vat }}
+                    {% elif object %}
+                    <input type="hidden" name="prices_include_vat" value="{% if object.prices_include_vat %}yes{% else %}no{% endif %}">
+                    <select class="form-select" id="id_prices_include_vat" disabled>
+                        <option value="yes" {% if object.prices_include_vat %}selected{% endif %}>Yes</option>
+                        <option value="no" {% if not object.prices_include_vat %}selected{% endif %}>No</option>
+                    </select>
+                    {% else %}
+                    {{ form.prices_include_vat }}
+                    {% endif %}
+                    {% if form.prices_include_vat.help_text %}
+                    <small class="text-muted d-block">{{ form.prices_include_vat.help_text }}</small>
+                    {% endif %}
+                    {% if form.prices_include_vat.errors %}<div class="text-danger small">{{ form.prices_include_vat.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.round_off.id_for_label }}">Round-off</label>
+                    {{ form.round_off }}
+                    {% if form.round_off.help_text %}<small class="text-muted d-block">{{ form.round_off.help_text }}</small>{% endif %}
+                    {% if form.round_off.errors %}<div class="text-danger small">{{ form.round_off.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-md-4">
                     <div class="form-check form-switch mb-0">
@@ -587,6 +619,7 @@
         <div class="card-body p-0">
             <p class="text-muted small px-3 pt-3 mb-2 mb-md-3">
                 <strong>Scope of work:</strong> choosing a main group loads all of its sub-groups and items below (group name = sub-group on each line).
+                Use the <i class="fas fa-grip-vertical"></i> handle to drag rows into your preferred order (saved on view and edit).
                 <strong>How each line is calculated:</strong>
                 <strong>Rate</strong> = base per unit + profit — if profit is <strong>%</strong>, rate = base × (1 + %÷100) (e.g. base 10 and 100% → 20/unit).
                 If profit is <strong>Amt</strong>, rate = base + AED <em>per unit</em> (e.g. base 10 + 100 → 110/unit).
@@ -599,6 +632,7 @@
                     <table class="table mb-0 table-sm align-middle estimate-items-table" id="itemsTableHead">
                         <thead class="table-light">
                             <tr>
+                                <th class="items-col-drag" title="Drag rows to change line order"></th>
                                 <th class="items-col-group" title="Choose a group on the left to load items; edit the PDF section title on the right (screen layout only—does not change inventory).">Group</th>
                                 <th class="items-col-group-mult" title="Multiplied with qty for all lines in this group">Group ×</th>
                                 <th class="items-col-inventory">Inventory</th>
@@ -621,6 +655,11 @@
                         <tbody id="itemsBody">
                         {% for item_form in items_formset %}
                         <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %}>
+                            <td class="items-col-drag">
+                                <button type="button" class="btn btn-sm btn-link text-muted p-0 estimate-row-drag-handle" tabindex="-1" aria-label="Drag to reorder" title="Drag to reorder">
+                                    <i class="fas fa-grip-vertical"></i>
+                                </button>
+                            </td>
                             <td class="items-col-group">
                                 {{ item_form.id }}
                                 <div class="input-group input-group-sm flex-nowrap estimate-group-combo">
@@ -658,6 +697,7 @@
                     <div class="fw-medium py-1" id="subtotalRow"><span id="subtotalLabel">Subtotal (excl. VAT)</span>: <span id="subtotal">0.00</span></div>
                     <div id="discountRow" class="d-none fw-medium text-danger py-1">Discount: <span id="discountDisplay">0.00</span></div>
                     <div class="fw-medium py-1" id="vatRow"><span id="vatLabel">VAT</span>: <span id="vatTotal">0.00</span></div>
+                    <div id="roundOffRow" class="d-none fw-medium py-1">Round-off: <span id="roundOffDisplay">0.00</span></div>
                     <div class="fw-bold py-1" id="grandRow"><span id="grandLabel">Total (incl. VAT)</span>: <span id="grandTotal">0.00</span></div>
                 </div>
             </div>
@@ -753,6 +793,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 const taxCodes = [
     {% for tc in tax_codes %}
@@ -1440,7 +1481,9 @@ function getVatRatePercent(taxSel) {
 
 function pricesIncludeVatEnabled() {
     const el = document.getElementById('id_prices_include_vat');
-    return !!(el && el.checked);
+    if (!el) return false;
+    if (el.type === 'checkbox') return el.checked;
+    return el.value === 'yes';
 }
 
 function splitLineAmounts(gross, vatRate, inclusive) {
@@ -1658,6 +1701,68 @@ function appendGroupItemsToEstimate(g, startRow, options) {
         if (!deferTrailing) ensureTrailingEmptyRow();
         scrollLineItemsToLastRow();
     }
+    syncEstimateItemSortOrder();
+    refreshEstimateRowDragStates();
+}
+
+function syncEstimateItemSortOrder() {
+    getVisibleEstimateRows().forEach(function(row, idx) {
+        const inp = row.querySelector('input[name$="-sort_order"]');
+        if (inp) inp.value = String(idx);
+    });
+}
+
+function reorderEstimateRowsFromSortOrder() {
+    const tbody = document.getElementById('itemsBody');
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('.item-row'));
+    rows.sort(function(a, b) {
+        const sa = parseInt(a.querySelector('input[name$="-sort_order"]')?.value || '0', 10);
+        const sb = parseInt(b.querySelector('input[name$="-sort_order"]')?.value || '0', 10);
+        if (sa !== sb) return sa - sb;
+        const ia = a.querySelector('input[name$="-id"]')?.value || '';
+        const ib = b.querySelector('input[name$="-id"]')?.value || '';
+        return ia.localeCompare(ib);
+    });
+    rows.forEach(function(row) { tbody.appendChild(row); });
+}
+
+function refreshEstimateRowDragStates() {
+    document.querySelectorAll('#itemsBody .item-row').forEach(function(row) {
+        row.classList.toggle('estimate-row-no-drag', isTrailingEmptyRow(row));
+    });
+}
+
+function moveTrailingEmptyRowToEnd() {
+    const tbody = document.getElementById('itemsBody');
+    if (!tbody) return;
+    const visible = getVisibleEstimateRows();
+    const last = visible[visible.length - 1];
+    if (last && isEstimateRowEmpty(last) && visible.length > 1) {
+        tbody.appendChild(last);
+    }
+}
+
+function initEstimateLineItemsSortable() {
+    if (typeof Sortable === 'undefined') return;
+    const tbody = document.getElementById('itemsBody');
+    if (!tbody || tbody.dataset.sortableInit === '1') return;
+    tbody.dataset.sortableInit = '1';
+    Sortable.create(tbody, {
+        animation: 150,
+        handle: '.estimate-row-drag-handle',
+        draggable: '.item-row',
+        filter: '.estimate-row-no-drag',
+        preventOnFilter: false,
+        ghostClass: 'estimate-row-sortable-ghost',
+        chosenClass: 'estimate-row-sortable-chosen',
+        onEnd: function() {
+            moveTrailingEmptyRowToEnd();
+            syncEstimateItemSortOrder();
+            refreshEstimateRowDragStates();
+            closeOpenInventorySelect2();
+        },
+    });
 }
 
 function compareSubGroupsInBaseGroup(a, b) {
@@ -1705,6 +1810,8 @@ function loadLineItemsForScopeOfWork(baseGroupName) {
         suppressTrailingEmptyRow = false;
         removeInteriorEmptyRows();
         calculateTotals();
+        syncEstimateItemSortOrder();
+        refreshEstimateRowDragStates();
     }
     document.getElementById('lineItemsCardHeader')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return true;
@@ -1798,6 +1905,11 @@ function addItemRow(options) {
     const tr = document.createElement('tr');
     tr.className = 'item-row';
     tr.innerHTML = `
+        <td class="items-col-drag">
+            <button type="button" class="btn btn-sm btn-link text-muted p-0 estimate-row-drag-handle" tabindex="-1" aria-label="Drag to reorder" title="Drag to reorder">
+                <i class="fas fa-grip-vertical"></i>
+            </button>
+        </td>
         <td class="items-col-group">
             <input type="hidden" name="items-${formCount}-id" id="id_items-${formCount}-id">
             <div class="input-group input-group-sm flex-nowrap estimate-group-combo">
@@ -1845,6 +1957,8 @@ function addItemRow(options) {
     if (scrollToRow) {
         scrollLineItemsToLastRow();
     }
+    syncEstimateItemSortOrder();
+    refreshEstimateRowDragStates();
 }
 
 function getVisibleEstimateRows() {
@@ -1895,6 +2009,7 @@ function ensureTrailingEmptyRow() {
     if (isEstimateRowFilled(last)) {
         addItemRow({ scroll: true });
     }
+    refreshEstimateRowDragStates();
 }
 
 function removeItemRow(btn) {
@@ -1922,6 +2037,8 @@ function removeItemRow(btn) {
     if (!skipTrailingEnsure) {
         ensureTrailingEmptyRow();
     }
+    syncEstimateItemSortOrder();
+    refreshEstimateRowDragStates();
 }
 
 function calculateRowTotal(input) {
@@ -2073,7 +2190,8 @@ function calculateTotals() {
         }
     });
 
-    const grand = subtotal - disc + vatTotal;
+    const roundOff = parseFloat(document.querySelector('[name="round_off"]')?.value) || 0;
+    const grand = subtotal - disc + vatTotal + roundOff;
     document.getElementById('subtotal').textContent = subtotal.toFixed(2);
     const showDiscount = disc > 0;
     document.getElementById('discountRow')?.classList.toggle('d-none', !showDiscount);
@@ -2081,6 +2199,12 @@ function calculateTotals() {
         document.getElementById('discountDisplay').textContent = disc.toFixed(2);
     }
     document.getElementById('vatTotal').textContent = vatTotal.toFixed(2);
+    const showRoundOff = Math.abs(roundOff) >= 0.005;
+    document.getElementById('roundOffRow')?.classList.toggle('d-none', !showRoundOff);
+    if (showRoundOff) {
+        const sign = roundOff > 0 ? '+' : '';
+        document.getElementById('roundOffDisplay').textContent = sign + roundOff.toFixed(2);
+    }
     document.getElementById('grandTotal').textContent = grand.toFixed(2);
     updateVatPricingLabels();
     updateExpenseTypeTotals();
@@ -2214,6 +2338,7 @@ function setupEstimateTextTemplateSelect(selectId, templates, textareaName, auto
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    reorderEstimateRowsFromSortOrder();
     bindLineItemsTableEvents();
     setupLineItemsInventoryScrollFix();
     setupEstimateItemsCsvLabel();
@@ -2248,11 +2373,15 @@ document.addEventListener('DOMContentLoaded', function() {
     {% else %}
     ensureTrailingEmptyRow();
     {% endif %}
+    syncEstimateItemSortOrder();
+    refreshEstimateRowDragStates();
+    initEstimateLineItemsSortable();
     document.querySelector('[name="discount_type"]')?.addEventListener('change', calculateTotals);
     document.querySelector('[name="discount_value"]')?.addEventListener('input', calculateTotals);
+    document.querySelector('[name="round_off"]')?.addEventListener('input', calculateTotals);
     const vatToggle = document.getElementById('id_prices_include_vat');
     if (vatToggle && !vatToggle.disabled) {
-        let prevVatToggle = vatToggle.checked;
+        let prevVatToggle = pricesIncludeVatEnabled();
         vatToggle.addEventListener('change', function() {
             const hasLines = Array.from(document.querySelectorAll('#itemsBody .item-row')).some(row => {
                 if (row.style.display === 'none') return false;
@@ -2265,11 +2394,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Switching changes how entered prices are interpreted. Totals will recalculate. Continue?'
                 );
                 if (!ok) {
-                    vatToggle.checked = prevVatToggle;
+                    vatToggle.value = prevVatToggle ? 'yes' : 'no';
+                    if (typeof $ !== 'undefined' && $(vatToggle).data('select2')) {
+                        $(vatToggle).trigger('change.select2');
+                    }
                     return;
                 }
             }
-            prevVatToggle = vatToggle.checked;
+            prevVatToggle = pricesIncludeVatEnabled();
             syncLineVatInclusiveFlags();
             document.querySelectorAll('#itemsBody .item-row').forEach(row => {
                 const q = row.querySelector('.item-qty');
@@ -2294,6 +2426,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.getElementById('estimateForm')?.addEventListener('submit', function(e) {
+        moveTrailingEmptyRowToEnd();
+        syncEstimateItemSortOrder();
         if (!validateAllSellingRates(true)) {
             e.preventDefault();
             const firstInvalid = document.querySelector(
@@ -2309,6 +2443,27 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+function ensureSelectEmptyOption(el, label) {
+    if (!el || el.querySelector('option[value=""]')) return;
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = label || '';
+    el.insertBefore(opt, el.firstChild);
+}
+
+function initEstimateCustomerProjectSync() {
+    const customerEl = document.getElementById('id_customer');
+    const projectEl = document.getElementById('id_project');
+    if (!customerEl || !projectEl || typeof $ === 'undefined') return;
+    const $customer = $(customerEl);
+    const $project = $(projectEl);
+    $customer.off('change.estimateCustProj select2:select.estimateCustProj select2:clear.estimateCustProj');
+    $customer.on('change.estimateCustProj select2:select.estimateCustProj select2:clear.estimateCustProj', function() {
+        if (!$project.val()) return;
+        $project.val(null).trigger('change.select2');
+    });
+}
+
 function initEstimateCustomerSelect2() {
     const el = document.getElementById('id_customer');
     if (!el || typeof $ === 'undefined' || !$.fn.select2) return;
@@ -2316,12 +2471,14 @@ function initEstimateCustomerSelect2() {
     if ($el.data('select2')) {
         $el.select2('destroy');
     }
+    ensureSelectEmptyOption(el, '— Select customer —');
+    el.removeAttribute('required');
     const searchUrl = '{% url "crm:customer_picker_search" %}';
     $el.select2({
         theme: 'bootstrap-5',
         width: '100%',
         dropdownParent: $(document.body),
-        allowClear: !el.required,
+        allowClear: true,
         minimumInputLength: 0,
         dropdownCssClass: 'estimate-header-select2-dropdown',
         placeholder: 'Search by number, name, or company…',
@@ -2379,6 +2536,7 @@ function initEstimateHeaderSelect2() {
         '#id_type_of_occupancy',
         '#id_type_of_work',
         '#id_discount_type',
+        '#id_prices_include_vat',
         '#clientNoteTemplateSelect',
         '#termsTemplateSelect',
     ];
@@ -2389,14 +2547,17 @@ function initEstimateHeaderSelect2() {
         if ($el.data('select2')) {
             $el.select2('destroy');
         }
+        const emptyLabel = el.querySelector('option[value=""]')?.textContent?.trim() || '';
+        ensureSelectEmptyOption(el, emptyLabel);
+        el.removeAttribute('required');
         $el.select2({
             theme: 'bootstrap-5',
             width: '100%',
             dropdownParent: $(document.body),
             minimumResultsForSearch: 0,
-            allowClear: !el.required,
+            allowClear: true,
             dropdownCssClass: 'estimate-header-select2-dropdown',
-            placeholder: el.querySelector('option[value=""]')?.textContent?.trim() || undefined,
+            placeholder: emptyLabel || undefined,
         });
     });
     const scopeEl = document.getElementById('id_scope');
@@ -2419,6 +2580,7 @@ function initEstimateHeaderSelect2() {
 $(function() {
     initEstimateCustomerSelect2();
     initEstimateHeaderSelect2();
+    initEstimateCustomerProjectSync();
     initEstimateScopeOfWorkHandler();
     initAllInventorySelect2();
     window.addEventListener('resize', syncAllInventoryFieldHeights);

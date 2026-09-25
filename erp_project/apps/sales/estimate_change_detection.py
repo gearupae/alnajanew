@@ -2,7 +2,9 @@
 from decimal import Decimal, InvalidOperation
 
 # Header fields that change subtotal / discount / VAT / grand total.
-AMOUNT_HEADER_FIELDS = frozenset({'discount_type', 'discount_value'})
+AMOUNT_HEADER_FIELDS = frozenset({
+    'discount_type', 'discount_value', 'round_off', 'prices_include_vat',
+})
 
 # Line fields that change line net, VAT, or grand total (excludes description / group label).
 AMOUNT_ITEM_FIELDS = frozenset({
@@ -34,6 +36,8 @@ def capture_estimate_pricing_snapshot(estimate) -> dict:
     return {
         'discount_type': estimate.discount_type or '',
         'discount_value': _normalize_decimal(estimate.discount_value),
+        'round_off': _normalize_decimal(estimate.round_off),
+        'prices_include_vat': bool(estimate.prices_include_vat),
         'lines': tuple(
             (
                 _normalize_decimal(row['quantity']),

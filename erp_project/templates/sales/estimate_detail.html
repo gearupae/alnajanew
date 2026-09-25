@@ -478,6 +478,12 @@
                     <span class="text-danger">− AED {{ estimate.discount_applied|floatformat:2 }}</span>
                 </div>
                 {% endif %}
+                {% if estimate.round_off %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Round-off</span>
+                    <span>AED {{ estimate.round_off|floatformat:2 }}</span>
+                </div>
+                {% endif %}
                 <hr>
                 <div class="d-flex justify-content-between">
                     <span class="fw-bold">Taxable Amount</span>
@@ -498,6 +504,12 @@
                     <span>VAT</span>
                     <span>AED {{ estimate.vat_amount|floatformat:2 }}</span>
                 </div>
+                {% if estimate.round_off %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Round-off</span>
+                    <span>AED {{ estimate.round_off|floatformat:2 }}</span>
+                </div>
+                {% endif %}
                 <hr>
                 <div class="d-flex justify-content-between">
                     <span class="fw-bold">Total</span>

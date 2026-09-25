@@ -196,6 +196,12 @@ class Estimate(BaseModel):
         default=False,
         help_text='If true, entered line rates are VAT-inclusive; VAT is back-calculated.',
     )
+    round_off = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Adjustment applied to grand total (e.g. fils rounding)',
+    )
 
     # Calculated fields
     subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
@@ -370,7 +376,17 @@ class Estimate(BaseModel):
         result = []
         for item, line_disc in zip(items, allocations):
             line_net = (item.total - line_disc).quantize(Decimal('0.01'))
-            line_vat = (line_net * item.vat_rate / Decimal('100')).quantize(Decimal('0.01'))
+            if self.prices_include_vat and item.vat_rate > 0:
+                from .vat_pricing import split_line_amounts
+
+                gross_after_disc = (
+                    line_net * (Decimal('1') + item.vat_rate / Decimal('100'))
+                ).quantize(Decimal('0.01'))
+                line_net, line_vat = split_line_amounts(
+                    gross_after_disc, item.vat_rate, True
+                )
+            else:
+                line_vat = (line_net * item.vat_rate / Decimal('100')).quantize(Decimal('0.01'))
             result.append((line_net, line_vat))
         return result, subtotal, discount_amt
 
@@ -395,10 +411,13 @@ class Estimate(BaseModel):
         items = list(self.items.all())
         line_amounts, subtotal, discount_amt = self.discounted_line_amounts(items)
         vat_sum = sum((lv for _, lv in line_amounts), Decimal('0.00'))
+        round_off = self.round_off if self.round_off is not None else Decimal('0.00')
         self.subtotal = subtotal
         self.discount_applied = discount_amt
         self.vat_amount = vat_sum
-        self.total_amount = (subtotal - discount_amt + vat_sum).quantize(Decimal('0.01'))
+        self.total_amount = (
+            subtotal - discount_amt + vat_sum + round_off
+        ).quantize(Decimal('0.01'))
         self.save(update_fields=['subtotal', 'vat_amount', 'total_amount', 'discount_applied'])
 
     @property

@@ -1328,6 +1328,8 @@ def estimate_duplicate(request, pk):
             terms_and_conditions=source.terms_and_conditions,
             discount_type=source.discount_type,
             discount_value=source.discount_value,
+            prices_include_vat=source.prices_include_vat,
+            round_off=source.round_off,
             show_rates_on_pdf=source.show_rates_on_pdf,
             show_group_totals_on_pdf=source.show_group_totals_on_pdf,
             show_brand_name_on_pdf=source.show_brand_name_on_pdf,
@@ -1574,6 +1576,7 @@ def estimate_convert_to_invoice(request, pk):
         prices_include_vat=estimate.prices_include_vat,
         discount_type=estimate.discount_type,
         discount_value=estimate.discount_value,
+        round_off=estimate.round_off,
     )
 
     copy_estimate_lines_to_invoice(estimate, invoice)

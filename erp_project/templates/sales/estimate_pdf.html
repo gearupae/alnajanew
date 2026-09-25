@@ -856,6 +856,12 @@
                     <span class="totals-label">Total VAT (AED)</span>
                     <span class="totals-value">AED {{ estimate.vat_amount|floatformat:2 }}</span>
                 </div>
+                {% if estimate.round_off %}
+                <div class="totals-row">
+                    <span class="totals-label">Round-off</span>
+                    <span class="totals-value">AED {{ estimate.round_off|floatformat:2 }}</span>
+                </div>
+                {% endif %}
                 <div class="totals-row total">
                     <span class="totals-label">Grand total</span>
                     <span class="totals-value">AED {{ estimate.total_amount|floatformat:2 }}</span>

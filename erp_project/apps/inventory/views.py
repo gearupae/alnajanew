@@ -439,6 +439,65 @@ def _apply_base_group_sub_groups(base_group, sub_ids, post=None):
         )
 
 
+def _unique_item_group_name(base_name):
+    """Return a sub-group name that does not collide with existing ItemGroup names."""
+    name = (base_name or '').strip()[:200]
+    if not name:
+        name = 'Sub-group'
+    candidates = [f'{name} (copy)']
+    candidates.extend(f'{name} (copy {n})' for n in range(2, 1000))
+    for candidate in candidates:
+        label = candidate[:200]
+        if not ItemGroup.objects.filter(name__iexact=label).exists():
+            return label
+    raise ValidationError('Could not generate a unique sub-group name.')
+
+
+@transaction.atomic
+def _copy_base_group_with_items(source_base, new_base_name):
+    """
+    Duplicate a base group: new base group name, new sub-groups with the same
+    inventory items, quantities, and order as the source.
+    """
+    new_name = (new_base_name or '').strip()[:200]
+    if not new_name:
+        raise ValidationError('Enter a name for the copied base group.')
+    if ItemBaseGroup.objects.filter(name__iexact=new_name).exists():
+        raise ValidationError('A base group with that name already exists.')
+
+    new_base = ItemBaseGroup.objects.create(name=new_name)
+    source_subs = list(
+        ItemGroup.objects.filter(base_group=source_base)
+        .order_by('base_group_sort_order', 'name', 'pk')
+    )
+    sub_count = 0
+    item_count = 0
+    for order, source_sub in enumerate(source_subs):
+        new_sub_name = _unique_item_group_name(source_sub.name)
+        new_sub = ItemGroup.objects.create(
+            name=new_sub_name,
+            base_group=new_base,
+            base_group_sort_order=order,
+            hide_items_on_pdf=source_sub.hide_items_on_pdf,
+            expense_type=source_sub.expense_type,
+        )
+        memberships = list(
+            ItemGroupMembership.objects.filter(group=source_sub).order_by('sort_order', 'pk')
+        )
+        ItemGroupMembership.objects.bulk_create([
+            ItemGroupMembership(
+                group=new_sub,
+                item=m.item,
+                default_quantity=m.default_quantity,
+                sort_order=m.sort_order,
+            )
+            for m in memberships
+        ])
+        sub_count += 1
+        item_count += len(memberships)
+    return new_base, sub_count, item_count
+
+
 def _resolve_subgroup_expense_type(raw):
     """Return active ItemSubGroupExpenseType from POST value, or None to clear."""
     from apps.settings_app.models import ItemSubGroupExpenseType
@@ -531,6 +590,24 @@ def item_group_manage(request):
             return _redirect(tab='base', base=bg)
 
         base_pk = request.POST.get('base_id')
+
+        if action == 'copy_base_group':
+            if not base_pk or not str(base_pk).isdigit():
+                messages.warning(request, 'Choose a base group first.')
+                return _redirect(tab='base')
+            source_base = get_object_or_404(ItemBaseGroup, pk=int(base_pk))
+            copy_name = (request.POST.get('copy_base_group_name') or '').strip()[:200]
+            try:
+                new_base, sub_count, item_count = _copy_base_group_with_items(source_base, copy_name)
+            except ValidationError as exc:
+                messages.error(request, str(exc))
+                return _redirect(tab='base', base=source_base)
+            messages.success(
+                request,
+                f'Copied "{source_base.name}" to "{new_base.name}" '
+                f'with {sub_count} sub-group(s) and {item_count} item link(s).',
+            )
+            return _redirect(tab='base', base=new_base)
 
         if action == 'save_base_group':
             if not base_pk or not str(base_pk).isdigit():

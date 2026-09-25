@@ -49,7 +49,7 @@ class EstimateForm(forms.ModelForm):
             'is_active', 'customer', 'assigned_to', 'prepared_by', 'project',
             'scope', 'type_of_occupancy', 'type_of_work', 'scope_of_work',
             'date', 'valid_until',
-            'discount_type', 'discount_value', 'prices_include_vat',
+            'discount_type', 'discount_value', 'prices_include_vat', 'round_off',
             'show_rates_on_pdf', 'show_group_totals_on_pdf',
             'show_brand_name_on_pdf',
             'notes', 'client_note', 'terms_and_conditions',
@@ -69,8 +69,8 @@ class EstimateForm(forms.ModelForm):
             'terms_and_conditions': forms.Textarea(attrs={'rows': 5, 'class': 'form-control'}),
             'prepared_by': forms.TextInput(attrs={'class': 'form-control'}),
             'discount_value': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
-            'prices_include_vat': forms.CheckboxInput(
-                attrs={'class': 'form-check-input', 'role': 'switch', 'id': 'id_prices_include_vat'},
+            'round_off': forms.NumberInput(
+                attrs={'class': 'form-control', 'step': '0.01', 'id': 'id_round_off'},
             ),
             'authorized_signature': forms.FileInput(attrs={'class': 'form-control'}),
             'show_rates_on_pdf': forms.CheckboxInput(
@@ -90,10 +90,14 @@ class EstimateForm(forms.ModelForm):
         self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['customer'].queryset = Customer.objects.filter(is_active=True)
         self.fields['customer'].label_from_instance = lambda c: c.picker_option_label
+        self.fields['customer'].empty_label = '— Select customer —'
+        # Keep Django validation required but omit HTML required (blocks Select2 clear).
+        self.fields['customer'].widget.is_required = False
         self.fields['customer'].widget.attrs['class'] = 'form-select estimate-customer-select'
         self.fields['project'].queryset = Project.objects.filter(is_active=True).order_by('-created_at')
         self.fields['project'].required = False
         self.fields['project'].empty_label = '— Select project —'
+        self.fields['project'].widget.is_required = False
         self.fields['project'].widget.attrs['class'] = 'form-select'
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name', 'username')
         self.fields['assigned_to'].widget.attrs['class'] = 'form-select'
@@ -127,11 +131,29 @@ class EstimateForm(forms.ModelForm):
         self.fields['show_group_totals_on_pdf'].required = False
         self.fields['show_brand_name_on_pdf'].label = 'Show brand name'
         self.fields['show_brand_name_on_pdf'].required = False
-        self.fields['prices_include_vat'].label = 'Prices include VAT'
-        self.fields['prices_include_vat'].required = False
+        tax_inclusive = (
+            self.instance.prices_include_vat
+            if self.instance.pk
+            else default_prices_include_vat()
+        )
+        if self.is_bound:
+            tax_inclusive = self.data.get('prices_include_vat') == 'yes'
+        self.fields['prices_include_vat'] = forms.ChoiceField(
+            choices=[('yes', 'Yes'), ('no', 'No')],
+            label='Tax inclusive',
+            required=True,
+            initial='yes' if tax_inclusive else 'no',
+            widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_prices_include_vat'}),
+            help_text='Yes = line rates include VAT. No = rates are before VAT.',
+        )
+        self.fields['round_off'].label = 'Round-off'
+        self.fields['round_off'].help_text = (
+            'Adjustment to grand total (e.g. ±0.01 for fils rounding). Use 0 if none.'
+        )
         if not self.instance.pk and not self.is_bound:
             self.fields['show_brand_name_on_pdf'].initial = True
             self.fields['is_active'].initial = True
+            self.fields['round_off'].initial = Decimal('0.00')
 
         if self.instance.pk:
             self.initial['scope'] = list(self.instance.scope or [])
@@ -145,9 +167,12 @@ class EstimateForm(forms.ModelForm):
                 'show_rates_on_pdf',
                 'show_group_totals_on_pdf',
                 'show_brand_name_on_pdf',
-                'prices_include_vat',
             ):
                 cleaned_data[field_name] = field_name in self.data
+            cleaned_data['prices_include_vat'] = self.data.get('prices_include_vat') == 'yes'
+        round_off = cleaned_data.get('round_off')
+        if round_off is None:
+            self.add_error('round_off', 'Round-off is required.')
         project = cleaned_data.get('project')
         customer = cleaned_data.get('customer')
         if project and customer and project.customer_id and project.customer_id != customer.pk:

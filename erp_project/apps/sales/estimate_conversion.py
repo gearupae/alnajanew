@@ -144,7 +144,8 @@ def apply_estimate_totals_to_invoice(estimate, invoice):
     net_subtotal = (estimate.subtotal or Decimal('0')) - (estimate.discount_applied or Decimal('0'))
     invoice.subtotal = net_subtotal.quantize(Decimal('0.01'))
     invoice.vat_amount = (estimate.vat_amount or Decimal('0')).quantize(Decimal('0.01'))
+    invoice.round_off = estimate.round_off if estimate.round_off is not None else Decimal('0.00')
     invoice.total_amount = (estimate.total_amount or Decimal('0')).quantize(Decimal('0.01'))
-    invoice.save(update_fields=['subtotal', 'vat_amount', 'total_amount'])
+    invoice.save(update_fields=['subtotal', 'vat_amount', 'total_amount', 'round_off'])
     return invoice
 
