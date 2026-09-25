@@ -97,6 +97,16 @@
     border-top: 3px solid #212529;
     font-weight: 600;
 }
+.base-sub-group-select2-dropdown {
+    z-index: 1060;
+}
+.base-sub-group-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+.base-sub-group-select2-dropdown .select2-results__options {
+    max-height: 240px;
+    overflow-y: auto;
+}
 </style>
 {% endblock %}
 
@@ -445,15 +455,8 @@
                             <div class="row g-2 align-items-end mb-3">
                                 <div class="col-md-8">
                                     <label class="form-label small text-muted mb-1" for="simpleSubGroupSelect">Choose a sub-group</label>
-                                    <select id="simpleSubGroupSelect" class="form-select" size="1">
-                                        <option value="">— Select sub-group —</option>
-                                        {% for sg in all_sub_groups %}
-                                        {% if not selected_base_group or request.GET.new or sg.base_group_id != selected_base_group.pk %}
-                                        <option value="{{ sg.pk }}">
-                                            {{ sg.name }} ({{ sg.member_count }} item{{ sg.member_count|pluralize }}{% if sg.base_group_id and selected_base_group and sg.base_group_id != selected_base_group.pk %}, in {{ sg.base_group.name }}{% elif sg.base_group_id and not selected_base_group %}, in {{ sg.base_group.name }}{% endif %})
-                                        </option>
-                                        {% endif %}
-                                        {% endfor %}
+                                    <select id="simpleSubGroupSelect" class="form-select form-select-sm">
+                                        <option value=""></option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
@@ -462,7 +465,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <p class="small text-muted mb-0">Sub-groups already added below are hidden here. Others show even if linked to another base group (e.g. “in group1”).</p>
+                            <p class="small text-muted mb-0">Search by name or base group. Already added below are hidden; others show even if linked to another base group.</p>
                             <p class="small fw-semibold mb-2">Added to this base group <span class="text-muted fw-normal" id="simpleSubGroupCount"></span></p>
                             <div class="d-none row g-2 small text-muted fw-semibold px-2 mb-1" id="simpleSubGroupListHeader">
                                 <div class="col">Sub-group</div>
@@ -548,7 +551,7 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+$(function () {
     var dataEl = document.getElementById('sub-group-picker-data');
     var selectEl = document.getElementById('simpleSubGroupSelect');
     var listEl = document.getElementById('simpleSubGroupList');
@@ -561,6 +564,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var noAvailableEl = document.getElementById('simpleSubGroupNoAvailable');
     var baseForm = document.getElementById('baseGroupForm');
     if (!dataEl || !selectEl || !listEl || !hiddenEl || !addBtn) return;
+    if (typeof $.fn.select2 === 'undefined') return;
 
     var payload = { all: [], selected: [] };
     try {
@@ -615,33 +619,66 @@ document.addEventListener('DOMContentLoaded', function () {
         return label;
     }
 
-    function renderDropdown() {
+    var $subGroupSelect = $(selectEl);
+    var subGroupSelectReady = false;
+
+    function availableSubGroups(term) {
         var selectedIds = selectedIdsSet();
-        var current = selectEl.value;
-        selectEl.innerHTML = '';
-        var blank = document.createElement('option');
-        blank.value = '';
-        blank.textContent = '— Select sub-group —';
-        selectEl.appendChild(blank);
-        var availableCount = 0;
-        allItems.forEach(function (item) {
-            if (selectedIds.has(String(item.id))) return;
-            availableCount += 1;
-            var opt = document.createElement('option');
-            opt.value = String(item.id);
-            opt.textContent = subGroupOptionLabel(item);
-            selectEl.appendChild(opt);
+        var q = (term || '').trim().toLowerCase();
+        return allItems.filter(function (item) {
+            if (selectedIds.has(String(item.id))) return false;
+            if (!q) return true;
+            var hay = (item.name + ' ' + (item.other_base || '')).toLowerCase();
+            return hay.indexOf(q) !== -1;
         });
-        if (current && !selectedIds.has(String(current))) {
-            selectEl.value = current;
-        } else {
-            selectEl.value = '';
+    }
+
+    function destroySubGroupSelect2() {
+        if (!subGroupSelectReady) return;
+        $subGroupSelect.off('.subGroupPicker');
+        if ($subGroupSelect.data('select2')) {
+            $subGroupSelect.select2('destroy');
         }
+        $subGroupSelect.removeClass('select2-hidden-accessible');
+        $subGroupSelect.next('.select2-container').remove();
+        subGroupSelectReady = false;
+    }
+
+    function buildSelect2Data() {
+        return availableSubGroups('').map(function (item) {
+            return { id: String(item.id), text: subGroupOptionLabel(item) };
+        });
+    }
+
+    function initSubGroupSelect2() {
+        destroySubGroupSelect2();
+        $subGroupSelect.empty();
+        $subGroupSelect.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Search sub-group by name or base group…',
+            allowClear: true,
+            dropdownParent: $(document.body),
+            minimumResultsForSearch: 0,
+            dropdownCssClass: 'base-sub-group-select2-dropdown',
+            data: buildSelect2Data(),
+            language: {
+                noResults: function () { return 'No matching sub-groups'; },
+                searching: function () { return 'Searching…'; },
+            },
+        });
+        subGroupSelectReady = true;
+    }
+
+    function renderDropdown() {
+        var totalAvailable = availableSubGroups('').length;
+        initSubGroupSelect2();
+        $subGroupSelect.val(null).trigger('change.select2');
         if (addBtn) {
-            addBtn.disabled = availableCount === 0;
+            addBtn.disabled = totalAvailable === 0;
         }
         if (noAvailableEl) {
-            noAvailableEl.classList.toggle('d-none', availableCount > 0);
+            noAvailableEl.classList.toggle('d-none', totalAvailable > 0);
         }
     }
 
@@ -738,14 +775,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     addBtn.addEventListener('click', function () {
-        var id = selectEl.value;
+        var id = $subGroupSelect.val();
         if (!id) return;
         var sid = String(id);
         var ids = selectedIdsSet();
         if (!ids.has(sid)) {
             selectedEntries.push({ id: sid, order: nextOrderValue() });
         }
-        selectEl.value = '';
         renderAll();
     });
 
