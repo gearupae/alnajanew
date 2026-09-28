@@ -51,6 +51,7 @@ def _serialize_estimate_snapshot(estimate: Estimate) -> dict:
         'discount_applied': str(estimate.discount_applied),
         'vat_amount': str(estimate.vat_amount),
         'total_amount': str(estimate.total_amount),
+        'document_title': estimate.document_title,
         'scope_of_work': estimate.scope_of_work,
         'type_of_work': estimate.type_of_work,
         'type_of_occupancy': estimate.type_of_occupancy,

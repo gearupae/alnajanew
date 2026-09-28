@@ -73,6 +73,7 @@ class SnapshotEstimateProxy:
         self.customer_signature = None
         self.notes = live_estimate.notes
         self.prepared_by = live_estimate.prepared_by
+        self.document_title = data.get('document_title') or live_estimate.document_title
 
         self.status = snapshot.status_at_snapshot or data.get('status', live_estimate.status)
         self.subtotal = _decimal(data.get('subtotal', live_estimate.subtotal))
@@ -172,11 +173,12 @@ def render_revision_snapshot_pdf_bytes(request, snapshot: EstimateRevisionSnapsh
 
     context = _build_estimate_pdf_context(request, proxy, for_weasyprint=True)
     context['pdf_item_groups'] = build_pdf_item_groups_for_line_items(line_items)
+    title = (getattr(proxy, 'document_title', None) or 'QUOTATION').strip()
     context.update(
         {
-            'document_heading': 'QUOTATION',
+            'document_heading': title,
             'document_number': snapshot.display_number,
-            'page_title': f'Quotation — {snapshot.display_number}',
+            'page_title': f'{title} — {snapshot.display_number}',
             'print_button_label': 'Print quotation',
             'show_pdf_status': True,
             'pdf_variant': 'quotation',

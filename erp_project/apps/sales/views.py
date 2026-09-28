@@ -870,6 +870,18 @@ class EstimateUpdateView(UpdatePermissionMixin, UpdateView):
             self.object,
             revision_hint=context['revision_hint'],
         )
+        context['can_copy_public_link'] = (
+            self.request.user.is_superuser
+            or PermissionChecker.has_permission(self.request.user, 'sales', 'view')
+        ) and self.object.is_active
+        context['estimate_public_link'] = (
+            self.object.build_public_view_url(self.request)
+            if self.object.allows_public_view()
+            else ''
+        )
+        context['estimate_public_link_pending'] = (
+            context['can_copy_public_link'] and self.object.status == 'draft'
+        )
         return context
     
     def post(self, request, *args, **kwargs):
@@ -1317,6 +1329,7 @@ def estimate_duplicate(request, pk):
             customer=source.customer,
             assigned_to=source.assigned_to,
             prepared_by=source.prepared_by,
+            document_title=source.document_title,
             type_of_occupancy=source.type_of_occupancy,
             type_of_work=source.type_of_work,
             scope_of_work=source.scope_of_work,
@@ -1572,6 +1585,9 @@ def estimate_convert_to_invoice(request, pk):
         invoice_date=date.today(),
         due_date=date.today(),
         status='draft',
+        document_title='TAX INVOICE',
+        source='standard',
+        pos_payment_method='cash',
         notes=estimate.notes,
         prices_include_vat=estimate.prices_include_vat,
         discount_type=estimate.discount_type,
@@ -1777,10 +1793,11 @@ def estimate_public_view(request, token):
     _record_public_estimate_view(request, estimate)
 
     context = _build_estimate_pdf_context(request, estimate)
+    title = (estimate.document_title or 'QUOTATION').strip()
     context.update({
-        'document_heading': 'QUOTATION',
+        'document_heading': title,
         'document_number': estimate.display_estimate_number,
-        'page_title': f'Quotation — {estimate.display_estimate_number}',
+        'page_title': f'{title} — {estimate.display_estimate_number}',
         'print_button_label': 'Print quotation',
         'show_pdf_status': False,
         'pdf_variant': 'quotation',
@@ -1932,10 +1949,11 @@ def estimate_pdf(request, pk):
         return redirect('sales:estimate_list')
 
     context = _build_estimate_pdf_context(request, estimate)
+    title = (estimate.document_title or 'QUOTATION').strip()
     context.update({
-        'document_heading': 'QUOTATION',
+        'document_heading': title,
         'document_number': estimate.display_estimate_number,
-        'page_title': f'Quotation — {estimate.display_estimate_number}',
+        'page_title': f'{title} — {estimate.display_estimate_number}',
         'print_button_label': 'Print quotation',
         'show_pdf_status': True,
         'pdf_variant': 'quotation',

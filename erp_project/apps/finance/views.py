@@ -471,8 +471,6 @@ class PaymentCreateView(CreatePermissionMixin, CreateView):
         return context
 
     def form_valid(self, form):
-        form.instance.party_type = 'customer' if form.instance.payment_type == 'received' else 'vendor'
-        form.instance.party_id = 0
         messages.success(self.request, 'Payment created.')
         return super().form_valid(form)
 

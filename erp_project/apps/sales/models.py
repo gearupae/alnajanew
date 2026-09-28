@@ -96,6 +96,11 @@ class Estimate(BaseModel):
         related_name='assigned_estimates',
     )
     prepared_by = models.CharField(max_length=200, blank=True, help_text='Name shown on estimate document')
+    document_title = models.CharField(
+        max_length=100,
+        default='QUOTATION',
+        help_text='Heading shown on the quotation PDF title bar',
+    )
     project = models.ForeignKey(
         'projects.Project',
         on_delete=models.SET_NULL,
@@ -724,6 +729,50 @@ class Invoice(BaseModel):
         max_length=100,
         default='TAX INVOICE',
         help_text='Heading shown on the invoice PDF title bar',
+    )
+    SOURCE_CHOICES = [
+        ('standard', 'Standard'),
+        ('pos', 'Point of sale'),
+    ]
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default='standard',
+        help_text='How this invoice was created (standard sales vs POS).',
+    )
+    pos_payment_method = models.CharField(
+        max_length=30,
+        default='cash',
+        help_text='Payment method when created from POS (cash, card, etc.).',
+    )
+    pos_location = models.CharField(max_length=500, blank=True, default='')
+    pos_salesperson_name = models.CharField(max_length=200, blank=True, default='')
+    pos_salesperson = models.ForeignKey(
+        'hr.Employee',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pos_invoices',
+        db_column='pos_salesperson_id',
+    )
+    pos_warehouse = models.ForeignKey(
+        'inventory.Warehouse',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pos_invoices',
+        db_column='pos_warehouse_id',
+    )
+    pos_whatsapp_phone = models.CharField(max_length=30, blank=True, default='')
+    pos_whatsapp_shared = models.BooleanField(default=False)
+    pos_whatsapp_shared_at = models.DateTimeField(null=True, blank=True)
+    pos_whatsapp_shared_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='invoices_whatsapp_shared',
+        db_column='pos_whatsapp_shared_by_id',
     )
     notes = models.TextField(blank=True)
     prices_include_vat = models.BooleanField(

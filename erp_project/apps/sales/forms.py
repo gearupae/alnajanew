@@ -46,7 +46,7 @@ class EstimateForm(forms.ModelForm):
     class Meta:
         model = Estimate
         fields = [
-            'is_active', 'customer', 'assigned_to', 'prepared_by', 'project',
+            'is_active', 'customer', 'assigned_to', 'prepared_by', 'document_title', 'project',
             'scope', 'type_of_occupancy', 'type_of_work', 'scope_of_work',
             'date', 'valid_until',
             'discount_type', 'discount_value', 'prices_include_vat', 'round_off',
@@ -68,6 +68,11 @@ class EstimateForm(forms.ModelForm):
             'client_note': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
             'terms_and_conditions': forms.Textarea(attrs={'rows': 5, 'class': 'form-control'}),
             'prepared_by': forms.TextInput(attrs={'class': 'form-control'}),
+            'document_title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'QUOTATION',
+                'list': 'estimate-title-suggestions',
+            }),
             'discount_value': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
             'round_off': forms.NumberInput(
                 attrs={'class': 'form-control', 'step': '0.01', 'id': 'id_round_off'},
@@ -111,6 +116,10 @@ class EstimateForm(forms.ModelForm):
         self.fields['client_note'].required = False
         self.fields['terms_and_conditions'].required = False
         self.fields['prepared_by'].required = False
+        self.fields['document_title'].label = 'Title (PDF header)'
+        self.fields['document_title'].required = True
+        if not self.instance.pk and not self.is_bound:
+            self.fields['document_title'].initial = 'QUOTATION'
         for field_name in ('type_of_occupancy', 'type_of_work'):
             field = self.fields[field_name]
             field.required = False
@@ -173,6 +182,11 @@ class EstimateForm(forms.ModelForm):
         round_off = cleaned_data.get('round_off')
         if round_off is None:
             self.add_error('round_off', 'Round-off is required.')
+        document_title = (cleaned_data.get('document_title') or '').strip()
+        if not document_title:
+            self.add_error('document_title', 'Title is required.')
+        else:
+            cleaned_data['document_title'] = document_title
         project = cleaned_data.get('project')
         customer = cleaned_data.get('customer')
         if project and customer and project.customer_id and project.customer_id != customer.pk:

@@ -1,5 +1,16 @@
 {% extends 'base.html' %}
 
+{% block extra_css %}
+<style>
+.payment-select2-dropdown {
+    z-index: 1060;
+}
+.payment-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <nav aria-label="breadcrumb">
@@ -13,7 +24,7 @@
 
 <div class="card">
     <div class="card-body">
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" id="paymentForm">
             {% csrf_token %}
             {% if form.non_field_errors %}
             <div class="alert alert-danger">{{ form.non_field_errors }}</div>
@@ -30,10 +41,19 @@
                 <div class="col-md-4">
                     <label class="form-label">Payment Date <span class="text-danger">*</span></label>
                     {{ form.payment_date }}
+                    {% if form.payment_date.errors %}<div class="text-danger small">{{ form.payment_date.errors }}</div>{% endif %}
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label">Party Name <span class="text-danger">*</span></label>
-                    {{ form.party_name }}
+                <div class="col-md-6" id="party-customer-field">
+                    <label class="form-label">Party name <span class="text-danger">*</span></label>
+                    {{ form.party_customer }}
+                    <small class="text-muted d-block">Customer receiving or paying you.</small>
+                    {% if form.party_customer.errors %}<div class="text-danger small">{{ form.party_customer.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-6 d-none" id="party-vendor-field">
+                    <label class="form-label">Party name <span class="text-danger">*</span></label>
+                    {{ form.party_vendor }}
+                    <small class="text-muted d-block">Vendor you are paying.</small>
+                    {% if form.party_vendor.errors %}<div class="text-danger small">{{ form.party_vendor.errors }}</div>{% endif %}
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Amount <span class="text-danger">*</span></label>
@@ -81,12 +101,24 @@
         </form>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-(function () {
+$(function () {
     const methodField = document.getElementById('id_payment_method');
+    const typeField = document.getElementById('id_payment_type');
     const bankField = document.getElementById('bank-account-field');
     const cashField = document.getElementById('cash-account-field');
+    const partyCustomerField = document.getElementById('party-customer-field');
+    const partyVendorField = document.getElementById('party-vendor-field');
+    const dateField = document.getElementById('id_payment_date');
+
+    function ensureTodayDate() {
+        if (!dateField || dateField.value) return;
+        const today = '{{ today|default:"" }}';
+        if (today) dateField.value = today;
+    }
 
     function toggleFundsAccount() {
         const method = methodField ? methodField.value : 'bank';
@@ -95,10 +127,40 @@
         if (cashField) cashField.classList.toggle('d-none', !isCash);
     }
 
-    if (methodField) {
-        methodField.addEventListener('change', toggleFundsAccount);
-        toggleFundsAccount();
+    function togglePartyField() {
+        const paymentType = typeField ? typeField.value : 'received';
+        const isReceived = paymentType === 'received';
+        if (partyCustomerField) partyCustomerField.classList.toggle('d-none', !isReceived);
+        if (partyVendorField) partyVendorField.classList.toggle('d-none', isReceived);
     }
-})();
+
+    function initPaymentSelect2(selector, placeholder) {
+        if (typeof $.fn.select2 === 'undefined') return;
+        $(selector).each(function () {
+            const $el = $(this);
+            if ($el.data('select2')) return;
+            $el.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: placeholder,
+                allowClear: true,
+                minimumResultsForSearch: 0,
+                dropdownParent: $(document.body),
+                dropdownCssClass: 'payment-select2-dropdown',
+            });
+        });
+    }
+
+    ensureTodayDate();
+    toggleFundsAccount();
+    togglePartyField();
+
+    if (methodField) methodField.addEventListener('change', toggleFundsAccount);
+    if (typeField) typeField.addEventListener('change', togglePartyField);
+
+    initPaymentSelect2('#id_party_customer', 'Search customer…');
+    initPaymentSelect2('#id_party_vendor', 'Search vendor…');
+    initPaymentSelect2('#id_account', 'Search account by code or name…');
+});
 </script>
 {% endblock %}

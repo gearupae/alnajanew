@@ -129,6 +129,47 @@ def _bill_formset_context(items_formset):
 
 
 @login_required
+def vendor_picker_search(request):
+    """JSON search for vendor Select2 pickers (payments, etc.)."""
+    if not (
+        request.user.is_superuser
+        or PermissionChecker.has_permission(request.user, 'purchase', 'view')
+        or PermissionChecker.has_permission(request.user, 'purchase', 'create')
+        or PermissionChecker.has_permission(request.user, 'finance', 'view')
+        or PermissionChecker.has_permission(request.user, 'finance', 'create')
+    ):
+        return JsonResponse({'results': []}, status=403)
+
+    q = (request.GET.get('q') or request.GET.get('term') or '').strip()
+    selected_raw = (request.GET.get('selected') or '').strip()
+    selected_ids = [int(x) for x in selected_raw.split(',') if x.isdigit()]
+
+    qs = Vendor.objects.filter(is_active=True, status='active').order_by('name')
+    if q:
+        qs = qs.filter(
+            Q(vendor_number__icontains=q)
+            | Q(name__icontains=q)
+            | Q(email__icontains=q)
+            | Q(phone__icontains=q)
+        )
+
+    results = []
+    seen = set()
+    if selected_ids:
+        for vendor in Vendor.objects.filter(pk__in=selected_ids, is_active=True):
+            results.append({'id': vendor.pk, 'text': f'{vendor.vendor_number} — {vendor.name}'})
+            seen.add(vendor.pk)
+
+    for vendor in qs[:50]:
+        if vendor.pk in seen:
+            continue
+        results.append({'id': vendor.pk, 'text': f'{vendor.vendor_number} — {vendor.name}'})
+        seen.add(vendor.pk)
+
+    return JsonResponse({'results': results})
+
+
+@login_required
 def bill_item_picker_search(request):
     """JSON search for vendor bill line item picker (Select2 AJAX)."""
     from apps.inventory.models import Item

@@ -293,6 +293,8 @@ def customer_picker_search(request):
         or PermissionChecker.has_permission(request.user, 'crm', 'view')
         or PermissionChecker.has_permission(request.user, 'sales', 'view')
         or PermissionChecker.has_permission(request.user, 'sales', 'create')
+        or PermissionChecker.has_permission(request.user, 'finance', 'view')
+        or PermissionChecker.has_permission(request.user, 'finance', 'create')
     ):
         return JsonResponse({'results': []}, status=403)
 

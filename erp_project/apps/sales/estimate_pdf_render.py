@@ -31,11 +31,12 @@ def render_estimate_quotation_pdf_bytes(request, estimate):
     from .views import _build_estimate_pdf_context
 
     context = _build_estimate_pdf_context(request, estimate, for_weasyprint=True)
+    title = (getattr(estimate, 'document_title', None) or 'QUOTATION').strip()
     context.update(
         {
-            'document_heading': 'QUOTATION',
+            'document_heading': title,
             'document_number': estimate.display_estimate_number,
-            'page_title': f'Quotation — {estimate.display_estimate_number}',
+            'page_title': f'{title} — {estimate.display_estimate_number}',
             'print_button_label': 'Print quotation',
             'show_pdf_status': True,
             'pdf_variant': 'quotation',

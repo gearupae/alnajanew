@@ -1,6 +1,8 @@
 """
 Finance Forms - UAE VAT & Corporate Tax Compliant
 """
+from datetime import date
+
 from django import forms
 from django.core.exceptions import ValidationError
 from .models import (
@@ -173,14 +175,30 @@ JournalEntryLineFormSet = forms.inlineformset_factory(
 
 
 class PaymentForm(forms.ModelForm):
+    party_customer = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        label='Party name',
+        widget=forms.Select(attrs={'class': 'form-select payment-party-select', 'id': 'id_party_customer'}),
+    )
+    party_vendor = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        label='Party name',
+        widget=forms.Select(attrs={'class': 'form-select payment-party-select', 'id': 'id_party_vendor'}),
+    )
+
     class Meta:
         model = Payment
         fields = [
-            'payment_type', 'payment_method', 'payment_date', 'party_name', 'amount',
+            'payment_type', 'payment_method', 'payment_date', 'amount',
             'reference', 'notes', 'bank_account', 'cash_account', 'account', 'attachment',
         ]
         widgets = {
-            'payment_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'payment_date': forms.DateInput(
+                attrs={'type': 'date', 'class': 'form-control'},
+                format='%Y-%m-%d',
+            ),
             'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
             'attachment': forms.ClearableFileInput(attrs={
                 'class': 'form-control',
@@ -189,12 +207,37 @@ class PaymentForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        from apps.crm.models import Customer
+        from apps.purchase.models import Vendor
+
         super().__init__(*args, **kwargs)
+        self.fields['party_customer'].queryset = Customer.objects.filter(is_active=True).order_by('name')
+        self.fields['party_vendor'].queryset = Vendor.objects.filter(
+            is_active=True, status='active'
+        ).order_by('name')
+        self.fields['party_customer'].label_from_instance = lambda c: c.picker_option_label
+        self.fields['party_vendor'].label_from_instance = (
+            lambda v: f'{v.vendor_number} — {v.name}'
+        )
+
         for field_name, field in self.fields.items():
             if field_name in ['payment_type', 'payment_method', 'bank_account', 'cash_account', 'account']:
                 field.widget.attrs['class'] = 'form-select'
-            elif field_name not in ['notes', 'payment_date', 'attachment']:
+            elif field_name not in [
+                'notes', 'payment_date', 'attachment', 'party_customer', 'party_vendor',
+            ]:
                 field.widget.attrs['class'] = 'form-control'
+
+        self.fields['payment_date'].input_formats = ['%Y-%m-%d']
+        if not self.instance.pk and not self.is_bound:
+            self.fields['payment_date'].initial = date.today()
+            self.fields['payment_type'].initial = 'received'
+
+        if self.instance.pk and self.instance.party_id:
+            if self.instance.party_type == 'customer':
+                self.fields['party_customer'].initial = self.instance.party_id
+            elif self.instance.party_type == 'vendor':
+                self.fields['party_vendor'].initial = self.instance.party_id
 
         self.fields['bank_account'].queryset = BankAccount.objects.filter(is_active=True)
         self.fields['bank_account'].required = False
@@ -214,6 +257,8 @@ class PaymentForm(forms.ModelForm):
         )
         self.fields['account'].required = True
         self.fields['account'].label_from_instance = lambda obj: f'{obj.code} - {obj.name}'
+        self.fields['account'].widget.attrs['class'] = 'form-select select2-post-to-account'
+        self.fields['account'].widget.attrs['data-placeholder'] = 'Search account by code or name…'
 
     @staticmethod
     def _get_post_to_account_queryset():
@@ -243,7 +288,44 @@ class PaymentForm(forms.ModelForm):
         if payment_method != 'cash' and cash_account:
             cleaned_data['cash_account'] = None
 
+        payment_type = cleaned_data.get('payment_type')
+        party_customer = cleaned_data.get('party_customer')
+        party_vendor = cleaned_data.get('party_vendor')
+        if payment_type == 'received':
+            if not party_customer:
+                self.add_error('party_customer', 'Select a customer.')
+            else:
+                cleaned_data['party_type'] = 'customer'
+                cleaned_data['party_id'] = party_customer.pk
+                cleaned_data['party_name'] = party_customer.display_name or party_customer.name
+        elif payment_type == 'made':
+            if not party_vendor:
+                self.add_error('party_vendor', 'Select a vendor.')
+            else:
+                cleaned_data['party_type'] = 'vendor'
+                cleaned_data['party_id'] = party_vendor.pk
+                cleaned_data['party_name'] = party_vendor.name
+
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        payment_type = self.cleaned_data.get('payment_type')
+        if payment_type == 'received':
+            customer = self.cleaned_data.get('party_customer')
+            if customer:
+                instance.party_type = 'customer'
+                instance.party_id = customer.pk
+                instance.party_name = customer.display_name or customer.name
+        elif payment_type == 'made':
+            vendor = self.cleaned_data.get('party_vendor')
+            if vendor:
+                instance.party_type = 'vendor'
+                instance.party_id = vendor.pk
+                instance.party_name = vendor.name
+        if commit:
+            instance.save()
+        return instance
 
 
 class BankAccountForm(forms.ModelForm):

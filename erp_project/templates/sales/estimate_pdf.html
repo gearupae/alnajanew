@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page_title|default:"Quotation" }}</title>
+    <title>{{ page_title|default:estimate.document_title|default:"Quotation" }}</title>
     <style>
         @page {
             size: A4;
@@ -542,7 +542,7 @@
         <!-- Top heading -->
         <div class="title-strip">
             <div class="title-strip-main">
-                <div class="estimate-title-text">{{ document_heading|default:"QUOTATION" }}</div>
+                <div class="estimate-title-text">{{ document_heading|default:estimate.document_title|default:"QUOTATION" }}</div>
                 <div class="estimate-number">{{ document_number|default:estimate.display_estimate_number }}</div>
                 {% if show_pdf_status|default:True and pdf_variant != 'quotation' %}
                 <div class="status-badge status-{{ estimate.status }}">{{ estimate.get_status_display }}</div>

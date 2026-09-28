@@ -369,6 +369,12 @@
     <datalist id="estimate-group-names">
         {% for gn in inventory_group_names %}<option value="{{ gn }}">{% endfor %}
     </datalist>
+    <datalist id="estimate-title-suggestions">
+        <option value="QUOTATION"></option>
+        <option value="PROPOSAL"></option>
+        <option value="PRICE QUOTATION"></option>
+        <option value="COMMERCIAL QUOTATION"></option>
+    </datalist>
 
     <div class="card mb-4">
         <div class="card-header">
@@ -376,16 +382,6 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
-                {% if object %}
-                <div class="col-md-4">
-                    <label class="form-label">Status</label>
-                    <input type="text" class="form-control" value="{{ object.get_status_display }}" readonly>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Public view count</label>
-                    <input type="text" class="form-control" value="{{ object.public_view_count }}" readonly>
-                </div>
-                {% endif %}
                 <div class="col-md-4">
                     <label class="form-label">Customer <span class="text-danger">*</span></label>
                     {{ form.customer }}
@@ -435,6 +431,54 @@
                 <div class="col-md-4">
                     <label class="form-label">Valid Until</label>
                     {{ form.valid_until }}
+                </div>
+
+                <div class="col-12"><hr class="my-1 text-muted"></div>
+
+                {% if object %}
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <input type="text" class="form-control" value="{{ object.get_status_display }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Public view count</label>
+                    <input type="text" class="form-control" value="{{ object.public_view_count }}" readonly>
+                </div>
+                {% endif %}
+                <div class="col-md-4">
+                    <label class="form-label d-block">&nbsp;</label>
+                    <div class="form-check">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
+                    </div>
+                    {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+                </div>
+                {% if object and can_copy_public_link %}
+                <div class="col-12">
+                    <label class="form-label">Public quotation link</label>
+                    {% if estimate_public_link %}
+                    <p class="small text-muted mb-2">Share with your customer — view online without logging in.</p>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control font-monospace small" id="estimate-public-link" readonly value="{{ estimate_public_link }}">
+                        <button type="button" class="btn btn-outline-primary" id="estimate-public-link-copy" title="Copy link">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <a href="{{ estimate_public_link }}" class="btn btn-outline-secondary" target="_blank" rel="noopener" title="Open link">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                    {% elif estimate_public_link_pending %}
+                    <p class="small text-muted mb-0">
+                        Public link becomes available after this quotation is marked <strong>Sent</strong> (or any status other than Draft).
+                    </p>
+                    {% endif %}
+                </div>
+                {% endif %}
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ form.document_title.id_for_label }}">Title (PDF header) <span class="text-danger">*</span></label>
+                    {{ form.document_title }}
+                    <small class="text-muted d-block">Heading on the quotation PDF (e.g. QUOTATION, PROPOSAL).</small>
+                    {% if form.document_title.errors %}<div class="text-danger small">{{ form.document_title.errors|join:", " }}</div>{% endif %}
                 </div>
             </div>
         </div>
@@ -756,16 +800,6 @@
         </div>
     </div>
     
-    <div class="card mb-4">
-        <div class="card-body py-3">
-            <div class="form-check">
-                {{ form.is_active }}
-                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Is active</label>
-            </div>
-            {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors|join:", " }}</div>{% endif %}
-        </div>
-    </div>
-
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">
             <i class="fas fa-save me-2"></i>Save Estimate
@@ -2586,4 +2620,29 @@ $(function() {
     window.addEventListener('resize', syncAllInventoryFieldHeights);
 });
 </script>
+{% if object and estimate_public_link %}
+<script>
+(function () {
+    var copyBtn = document.getElementById('estimate-public-link-copy');
+    var input = document.getElementById('estimate-public-link');
+    if (!copyBtn || !input) return;
+    copyBtn.addEventListener('click', function () {
+        var text = input.value;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () {
+                if (window.toastr) toastr.success('Link copied.');
+            }).catch(function () {
+                input.select();
+                document.execCommand('copy');
+                if (window.toastr) toastr.success('Link copied.');
+            });
+        } else {
+            input.select();
+            document.execCommand('copy');
+            if (window.toastr) toastr.success('Link copied.');
+        }
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}
