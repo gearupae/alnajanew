@@ -430,11 +430,13 @@ class PDCCheque(BaseModel):
     def post_received_journal(self, user):
         """
         Post journal when the incoming cheque is received from a customer.
-        Immediately recognizes the cheque as a current asset and clears AR.
+        Immediately recognizes the cheque as a current asset (PDC control).
 
-        Journal Entry:
-        Dr PDC Receivable (1210)
-        Cr Accounts Receivable (1200 control)
+        The credit leg depends on the cheque's purpose:
+          - purpose == 'advance' (money received before any invoice/AR exists):
+                Dr PDC Control / Cr Customer Advance (liability)
+          - otherwise (settlement of an outstanding invoice):
+                Dr PDC Control / Cr Accounts Receivable (control)
         """
         from apps.finance.models import JournalEntry, JournalEntryLine, AccountMapping, FiscalYear
 
@@ -450,12 +452,24 @@ class PDCCheque(BaseModel):
                 "Expected account 1210 or set up 'pdc_control' in Finance → Account Mapping."
             )
 
-        ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
-        if not ar_account:
-            raise ValidationError(
-                'Accounts Receivable control account not configured. '
-                "Expected account 1200 or set up 'sales_invoice_receivable' in Finance → Account Mapping."
+        # Credit leg: Customer Advance for advance cheques, AR for invoice cheques.
+        if self.purpose == 'advance':
+            credit_account = AccountMapping.require_account(
+                'customer_advance_liability',
+                not_configured_message=(
+                    'Customer Advance account not configured. '
+                    "Set up 'customer_advance_liability' in Finance → Account Mapping."
+                ),
             )
+            credit_desc = f"Customer advance via PDC {self.cheque_number}"
+        else:
+            credit_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
+            if not credit_account:
+                raise ValidationError(
+                    'Accounts Receivable control account not configured. '
+                    "Expected account 1200 or set up 'sales_invoice_receivable' in Finance → Account Mapping."
+                )
+            credit_desc = f"AR cleared by PDC {self.cheque_number}"
 
         journal = JournalEntry.objects.create(
             date=self.received_date or date.today(),
@@ -477,10 +491,10 @@ class PDCCheque(BaseModel):
 
         JournalEntryLine.objects.create(
             journal_entry=journal,
-            account=ar_account,
+            account=credit_account,
             debit=Decimal('0.00'),
             credit=self.amount,
-            description=f"AR cleared by PDC {self.cheque_number}",
+            description=credit_desc,
         )
 
         journal.calculate_totals()

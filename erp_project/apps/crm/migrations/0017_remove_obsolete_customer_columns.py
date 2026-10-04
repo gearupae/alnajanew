@@ -4,13 +4,19 @@ from django.db import migrations
 
 
 def drop_obsolete_columns(apps, schema_editor):
+    # Backend-portable + idempotent: `DROP COLUMN IF EXISTS` is PostgreSQL-only
+    # (SQLite rejects the IF EXISTS clause), so introspect and drop only the
+    # columns that are actually present. Safe on a DB that never had them.
+    conn = schema_editor.connection
     table = 'crm_customer'
     obsolete = ('cr_number', 'billboard', 'billboard_document')
-    with schema_editor.connection.cursor() as cursor:
-        for column in obsolete:
-            cursor.execute(
-                f'ALTER TABLE {table} DROP COLUMN IF EXISTS {column};'
-            )
+    with conn.cursor() as cursor:
+        existing = {c.name for c in conn.introspection.get_table_description(cursor, table)}
+    for column in obsolete:
+        if column not in existing:
+            continue
+        with conn.cursor() as cursor:
+            cursor.execute(f'ALTER TABLE {table} DROP COLUMN {column}')
 
 
 class Migration(migrations.Migration):

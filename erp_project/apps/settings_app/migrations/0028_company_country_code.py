@@ -2,6 +2,20 @@
 from django.db import migrations, models
 
 
+def add_country_code_column(apps, schema_editor):
+    # Backend-portable + idempotent. The original RunSQL used PostgreSQL-only syntax
+    # (ADD COLUMN IF NOT EXISTS, ALTER COLUMN SET DEFAULT/NOT NULL) which SQLite
+    # rejects. Add the column only when it is missing.
+    conn = schema_editor.connection
+    table = 'settings_app_company'
+    with conn.cursor() as cursor:
+        existing = {c.name for c in conn.introspection.get_table_description(cursor, table)}
+    if 'country_code' not in existing:
+        ddl = "varchar(3) NOT NULL DEFAULT 'AE'"
+        with conn.cursor() as cursor:
+            cursor.execute(f'ALTER TABLE {table} ADD COLUMN country_code {ddl}')
+
+
 def backfill_country_code(apps, schema_editor):
     Company = apps.get_model('settings_app', 'Company')
     mapping = {'uae': 'AE', 'ksa': 'SA', 'other': 'XX'}
@@ -32,26 +46,9 @@ class Migration(migrations.Migration):
                 ),
             ],
             database_operations=[
-                migrations.RunSQL(
-                    sql="""
-                    ALTER TABLE settings_app_company
-                    ADD COLUMN IF NOT EXISTS country_code varchar(3);
-                    UPDATE settings_app_company
-                    SET country_code = CASE country
-                        WHEN 'uae' THEN 'AE'
-                        WHEN 'ksa' THEN 'SA'
-                        ELSE 'XX'
-                    END
-                    WHERE country_code IS NULL OR country_code = '';
-                    ALTER TABLE settings_app_company
-                    ALTER COLUMN country_code SET DEFAULT 'AE';
-                    UPDATE settings_app_company
-                    SET country_code = 'AE'
-                    WHERE country_code IS NULL;
-                    ALTER TABLE settings_app_company
-                    ALTER COLUMN country_code SET NOT NULL;
-                    """,
-                    reverse_sql=migrations.RunSQL.noop,
+                migrations.RunPython(
+                    add_country_code_column,
+                    migrations.RunPython.noop,
                 ),
             ],
         ),

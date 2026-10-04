@@ -5345,6 +5345,29 @@ def _finalize_payment_post(request, payment, journal):
         payment.status = 'confirmed'
         payment.save()
 
+        # Sync the document sub-ledger with the GL: posting a document-linked
+        # payment clears AR/AP in the journal, so the invoice/bill paid_amount
+        # and status must advance too (mirror image of payment_cancel's rollback).
+        amt = (payment.allocated_amount or payment.amount or Decimal('0.00')).quantize(Decimal('0.01'))
+        if amt > 0:
+            invoice = payment.resolve_linked_invoice()
+            if invoice:
+                invoice.paid_amount = (invoice.paid_amount + amt).quantize(Decimal('0.01'))
+                if invoice.paid_amount >= invoice.total_amount:
+                    invoice.status = 'paid'
+                else:
+                    invoice.status = 'partial'
+                invoice.save(update_fields=['paid_amount', 'status'])
+            else:
+                bill = payment.resolve_linked_bill()
+                if bill:
+                    bill.paid_amount = (bill.paid_amount + amt).quantize(Decimal('0.01'))
+                    if bill.paid_amount >= bill.total_amount:
+                        bill.status = 'paid'
+                    else:
+                        bill.status = 'partial'
+                    bill.save(update_fields=['paid_amount', 'status'])
+
         from apps.core.audit import audit_payment_post
         audit_payment_post(payment, request.user, request=request)
 
