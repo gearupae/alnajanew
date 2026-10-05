@@ -370,14 +370,14 @@ class Payroll(BaseModel):
         
         # Account determination: Account Mapping first, then hard-coded defaults.
         # NO generic fallback — posting to the wrong account is worse than failing.
-        salary_expense = AccountMapping.get_account_or_default('payroll_salary_expense', '5300')
+        salary_expense = AccountMapping.require_account('payroll_salary_expense')
         if not salary_expense:
             raise ValidationError(
                 "Salary Expense account not configured. "
                 "Expected account 5300 or set up 'payroll_salary_expense' in Finance → Account Mapping."
             )
 
-        salary_payable = AccountMapping.get_account_or_default('payroll_salary_payable', '2200')
+        salary_payable = AccountMapping.require_account('payroll_salary_payable')
         if not salary_payable:
             raise ValidationError(
                 "Salary Payable account not configured. "
@@ -456,9 +456,9 @@ class Payroll(BaseModel):
         
         # Account determination: Account Mapping first, then hard-coded default.
         # NO generic fallback — posting to the wrong account is worse than failing.
-        salary_payable = AccountMapping.get_account_or_default('payroll_payment_clear', '2200')
+        salary_payable = AccountMapping.require_account('payroll_payment_clear')
         if not salary_payable:
-            salary_payable = AccountMapping.get_account_or_default('payroll_salary_payable', '2200')
+            salary_payable = AccountMapping.require_account('payroll_salary_payable')
         if not salary_payable:
             raise ValidationError(
                 "Salary Payable account not configured. "

@@ -729,7 +729,7 @@ class VendorBill(BaseModel):
             )
             debit_label = "GRN Clearing"
         else:
-            debit_account = AccountMapping.get_account_or_default('vendor_bill_expense', '5000')
+            debit_account = AccountMapping.require_account('vendor_bill_expense')
             if not debit_account:
                 raise ValidationError(
                     "Expense account not configured. "
@@ -737,7 +737,7 @@ class VendorBill(BaseModel):
                 )
             debit_label = "Expense"
 
-        vat_account = AccountMapping.get_account_or_default('vendor_bill_vat', '1300')
+        vat_account = AccountMapping.require_account('vendor_bill_vat')
 
         journal = JournalEntry.objects.create(
             date=self.bill_date,
@@ -1061,9 +1061,9 @@ class PurchaseCreditNote(BaseModel):
             raise ValidationError("Credit note cannot exceed original bill amount.")
         
         # Get accounts
-        ap_account = AccountMapping.get_account_or_default('vendor_bill_payable', '2000')
-        expense_account = AccountMapping.get_account_or_default('vendor_bill_expense', '5000')
-        vat_account = AccountMapping.get_account_or_default('vendor_bill_vat', '1300')
+        ap_account = AccountMapping.require_account('vendor_bill_payable')
+        expense_account = AccountMapping.require_account('vendor_bill_expense')
+        vat_account = AccountMapping.require_account('vendor_bill_vat')
         
         if not ap_account:
             raise ValidationError("Accounts Payable account not configured.")
@@ -1335,7 +1335,7 @@ class DebitNote(BaseModel):
                 return inventory_account
 
         if bill.journal_entry_id:
-            vat_account = AccountMapping.get_account_or_default('vendor_bill_vat', '1300')
+            vat_account = AccountMapping.require_account('vendor_bill_vat')
             debit_lines = bill.journal_entry.lines.filter(debit__gt=0)
             if vat_account:
                 debit_lines = debit_lines.exclude(account=vat_account)
@@ -1343,7 +1343,7 @@ class DebitNote(BaseModel):
             if debit_line:
                 return debit_line.account
 
-        return AccountMapping.get_account_or_default('vendor_bill_expense', '5000')
+        return AccountMapping.require_account('vendor_bill_expense')
 
     def post_to_accounting(self, user=None):
         from apps.finance.models import JournalEntry, JournalEntryLine, AccountMapping, FiscalYear
@@ -1356,8 +1356,8 @@ class DebitNote(BaseModel):
         self.validate_totals()
         FiscalYear.validate_posting_allowed(self.vendor_credit_note_date)
 
-        ap_account = AccountMapping.get_account_or_default('vendor_bill_payable', '2000')
-        vat_account = AccountMapping.get_account_or_default('vendor_bill_vat', '1300')
+        ap_account = AccountMapping.require_account('vendor_bill_payable')
+        vat_account = AccountMapping.require_account('vendor_bill_vat')
         credit_account = self._get_credit_account()
 
         if not ap_account:
@@ -1600,7 +1600,7 @@ class ExpenseClaim(BaseModel):
             raise ValidationError("Journal entry already exists for this claim.")
         
         # Get Employee Payable account using Account Mapping (SAP/Oracle standard)
-        employee_payable = AccountMapping.get_account_or_default('expense_claim_payable', '2100')
+        employee_payable = AccountMapping.require_account('expense_claim_payable')
         if not employee_payable:
             employee_payable = Account.objects.filter(
                 account_type=AccountType.LIABILITY, is_active=True, name__icontains='payable'
@@ -1612,14 +1612,14 @@ class ExpenseClaim(BaseModel):
             )
         
         # Get VAT Recoverable account using Account Mapping
-        vat_recoverable = AccountMapping.get_account_or_default('expense_claim_vat', '1300')
+        vat_recoverable = AccountMapping.require_account('expense_claim_vat')
         if not vat_recoverable:
             vat_recoverable = Account.objects.filter(
                 account_type=AccountType.ASSET, is_active=True, code__startswith='13'
             ).first()
         
         # Get default expense account using Account Mapping
-        default_expense = AccountMapping.get_account_or_default('expense_claim_expense', '5000')
+        default_expense = AccountMapping.require_account('expense_claim_expense')
         if not default_expense:
             default_expense = Account.objects.filter(
                 account_type=AccountType.EXPENSE, is_active=True
@@ -1702,7 +1702,7 @@ class ExpenseClaim(BaseModel):
             raise ValidationError("Payment journal already exists for this claim.")
         
         # Get Employee Payable account using Account Mapping (SAP/Oracle standard)
-        employee_payable = AccountMapping.get_account_or_default('expense_claim_clear', '2100')
+        employee_payable = AccountMapping.require_account('expense_claim_clear')
         if not employee_payable:
             employee_payable = Account.objects.filter(
                 account_type=AccountType.LIABILITY, is_active=True, name__icontains='payable'

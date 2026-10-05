@@ -3103,7 +3103,7 @@ def invoice_receive_payment(request, pk):
         )
         
         # Get accounts using Account Mapping — strict AR resolution, no Revenue fallback
-        ar_account = AccountMapping.get_account_or_default('customer_receipt_ar_clear', '1200')
+        ar_account = AccountMapping.require_account('customer_receipt_ar_clear')
         if not ar_account:
             ar_account = Account.objects.filter(
                 account_type=AccountType.ASSET, is_active=True, name__icontains='receivable'

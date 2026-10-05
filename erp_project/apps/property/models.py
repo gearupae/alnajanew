@@ -445,7 +445,7 @@ class PDCCheque(BaseModel):
 
         FiscalYear.validate_posting_allowed(self.received_date or date.today())
 
-        pdc_receivable = AccountMapping.get_account_or_default('pdc_control', '1210')
+        pdc_receivable = AccountMapping.require_account('pdc_control')
         if not pdc_receivable:
             raise ValidationError(
                 "PDC Receivable account not configured. "
@@ -463,7 +463,7 @@ class PDCCheque(BaseModel):
             )
             credit_desc = f"Customer advance via PDC {self.cheque_number}"
         else:
-            credit_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
+            credit_account = AccountMapping.require_account('sales_invoice_receivable')
             if not credit_account:
                 raise ValidationError(
                     'Accounts Receivable control account not configured. '
@@ -542,7 +542,7 @@ class PDCCheque(BaseModel):
 
         FiscalYear.validate_posting_allowed(clearing_date)
 
-        pdc_receivable = AccountMapping.get_account_or_default('pdc_control', '1210')
+        pdc_receivable = AccountMapping.require_account('pdc_control')
         if not pdc_receivable:
             raise ValidationError(
                 "PDC Receivable account not configured. "
@@ -611,7 +611,7 @@ class PDCCheque(BaseModel):
 
         FiscalYear.validate_posting_allowed(bounce_date)
 
-        ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
+        ar_account = AccountMapping.require_account('sales_invoice_receivable')
         if not ar_account:
             raise ValidationError(
                 'Accounts Receivable control account not configured. '
@@ -621,7 +621,7 @@ class PDCCheque(BaseModel):
         if self.status == 'cleared':
             credit_account = self.deposited_to_bank.gl_account
         else:
-            pdc_receivable = AccountMapping.get_account_or_default('pdc_control', '1210')
+            pdc_receivable = AccountMapping.require_account('pdc_control')
             if not pdc_receivable:
                 raise ValidationError(
                     "PDC Receivable account not configured. "

@@ -131,8 +131,8 @@ class CustomerAdvance(BaseModel):
         FiscalYear.validate_posting_allowed(self.date)
 
         bank_gl = self.bank_account.gl_account
-        adv_account = AccountMapping.get_account_or_default('customer_advance_liability', '2310')
-        vat_account = AccountMapping.get_account_or_default('sales_invoice_vat', '2100')
+        adv_account = AccountMapping.require_account('customer_advance_liability')
+        vat_account = AccountMapping.require_account('sales_invoice_vat')
 
         if not adv_account:
             raise ValidationError(
@@ -267,9 +267,9 @@ class CustomerAdvanceApplication(BaseModel):
 
             FiscalYear.validate_posting_allowed(app.date)
 
-            adv_account = AccountMapping.get_account_or_default('customer_advance_liability', '2310')
-            ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
-            vat_account = AccountMapping.get_account_or_default('sales_invoice_vat', '2200')
+            adv_account = AccountMapping.require_account('customer_advance_liability')
+            ar_account = AccountMapping.require_account('sales_invoice_receivable')
+            vat_account = AccountMapping.require_account('sales_invoice_vat')
 
             if not adv_account:
                 raise ValidationError('Customer Advance (2310) account not configured.')
@@ -419,7 +419,7 @@ class VendorAdvance(BaseModel):
         FiscalYear.validate_posting_allowed(self.date)
 
         bank_gl = self.bank_account.gl_account
-        adv_account = AccountMapping.get_account_or_default('vendor_advance_asset', '1320')
+        adv_account = AccountMapping.require_account('vendor_advance_asset')
 
         if not adv_account:
             raise ValidationError(
@@ -535,8 +535,8 @@ class VendorAdvanceApplication(BaseModel):
 
             FiscalYear.validate_posting_allowed(app.date)
 
-            ap_account = AccountMapping.get_account_or_default('vendor_bill_payable', '2000')
-            adv_account = AccountMapping.get_account_or_default('vendor_advance_asset', '1320')
+            ap_account = AccountMapping.require_account('vendor_bill_payable')
+            adv_account = AccountMapping.require_account('vendor_advance_asset')
 
             if not ap_account:
                 raise ValidationError('Accounts Payable (2000) account not configured.')
@@ -689,8 +689,8 @@ class SecurityChequeOutward(BaseModel):
 
         FiscalYear.validate_posting_allowed(self.issued_date)
 
-        deposit_account = AccountMapping.get_account_or_default('vendor_security_deposit', '1360')
-        payable_account = AccountMapping.get_account_or_default('security_cheques_payable', '2360')
+        deposit_account = AccountMapping.require_account('vendor_security_deposit')
+        payable_account = AccountMapping.require_account('security_cheques_payable')
 
         if not deposit_account:
             raise ValidationError('Vendor Security Deposit (1360) account not found.')
@@ -746,8 +746,8 @@ class SecurityChequeOutward(BaseModel):
 
         FiscalYear.validate_posting_allowed(encash_date)
 
-        payable_account = AccountMapping.get_account_or_default('security_cheques_payable', '2360')
-        deposit_account = AccountMapping.get_account_or_default('vendor_security_deposit', '1360')
+        payable_account = AccountMapping.require_account('security_cheques_payable')
+        deposit_account = AccountMapping.require_account('vendor_security_deposit')
         forfeiture_account = AccountMapping.get_account_or_default('security_cheque_forfeiture', '5800')
         if not payable_account:
             raise ValidationError('Security Cheques Payable (2360) account not found.')
@@ -818,8 +818,8 @@ class SecurityChequeOutward(BaseModel):
 
         FiscalYear.validate_posting_allowed(return_date)
 
-        deposit_account = AccountMapping.get_account_or_default('vendor_security_deposit', '1360')
-        payable_account = AccountMapping.get_account_or_default('security_cheques_payable', '2360')
+        deposit_account = AccountMapping.require_account('vendor_security_deposit')
+        payable_account = AccountMapping.require_account('security_cheques_payable')
 
         if not deposit_account:
             raise ValidationError('Vendor Security Deposit (1360) account not found.')

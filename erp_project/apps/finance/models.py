@@ -1048,7 +1048,7 @@ class PettyCashExpense(BaseModel):
             )
         
         # Get VAT account
-        vat_account = AccountMapping.get_account_or_default('vendor_bill_vat', '1300')
+        vat_account = AccountMapping.require_account('vendor_bill_vat')
         
         # Create journal entry
         journal = JournalEntry.objects.create(

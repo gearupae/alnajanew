@@ -3975,8 +3975,8 @@ def tax_reconciliation(request):
 
         # --- 2B & 2C: VAT Liability Reconciliation ---
         # GL balances for Output VAT and Input VAT accounts
-        output_vat_account = AccountMapping.get_account_or_default('vat_output', '2110')
-        input_vat_account = AccountMapping.get_account_or_default('vat_input', '1300')
+        output_vat_account = AccountMapping.require_account('vat_output')
+        input_vat_account = AccountMapping.require_account('vat_input')
 
         gl_output_balance = Decimal('0.00')
         gl_input_balance = Decimal('0.00')
@@ -4005,7 +4005,7 @@ def tax_reconciliation(request):
         output_match = output_diff == Decimal('0.00')
         input_match = input_diff == Decimal('0.00')
 
-        vat_payable_account = AccountMapping.get_account_or_default('vat_payable', '2120')
+        vat_payable_account = AccountMapping.require_account('vat_payable')
         gl_vat_payable = vat_payable_account.balance if vat_payable_account else Decimal('0.00')
         payable_expected = vr_net if is_settled else Decimal('0.00')
         payable_diff = gl_vat_payable - payable_expected
@@ -5284,8 +5284,8 @@ def _post_document_linked_payment(request, payment):
         source_module='payment',
     )
 
-    ar_account = AccountMapping.get_account_or_default('customer_receipt_ar_clear', '1200')
-    ap_account = AccountMapping.get_account_or_default('vendor_payment_ap_clear', '2000')
+    ar_account = AccountMapping.require_account('customer_receipt_ar_clear')
+    ap_account = AccountMapping.require_account('vendor_payment_ap_clear')
 
     if payment.payment_type == 'received':
         if not ar_account:

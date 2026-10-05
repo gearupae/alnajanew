@@ -681,9 +681,9 @@ class ProjectExpense(BaseModel):
         
         # Get accounts
         expense_account = self.expense_account or self.project.expense_account or \
-                         AccountMapping.get_account_or_default('project_expense', '5000')
+                         AccountMapping.require_account('project_expense')
         ap_account = AccountMapping.get_account_or_default('project_expense_clearing', '2000')
-        vat_recoverable = AccountMapping.get_account_or_default('vendor_bill_vat', '1300')
+        vat_recoverable = AccountMapping.require_account('vendor_bill_vat')
         
         if not expense_account:
             raise ValidationError("Project Expense account not configured.")

@@ -937,7 +937,7 @@ class Invoice(BaseModel):
         
         # Get accounts using Account Mapping (SAP/Oracle standard)
         # Fallback to hardcoded codes for backward compatibility
-        ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
+        ar_account = AccountMapping.require_account('sales_invoice_receivable')
         if not ar_account:
             ar_account = Account.objects.filter(
                 account_type=AccountType.ASSET, is_active=True, name__icontains='receivable'
@@ -952,7 +952,7 @@ class Invoice(BaseModel):
                 "Please set up Account Mapping in Finance → Account Mapping."
             )
         
-        sales_account = AccountMapping.get_account_or_default('sales_invoice_revenue', '4000')
+        sales_account = AccountMapping.require_account('sales_invoice_revenue')
         if not sales_account:
             sales_account = Account.objects.filter(
                 account_type=AccountType.INCOME, is_active=True, name__icontains='sales'
@@ -967,7 +967,7 @@ class Invoice(BaseModel):
                 "Please set up Account Mapping in Finance → Account Mapping."
             )
         
-        vat_payable_account = AccountMapping.get_account_or_default('sales_invoice_vat', '2100')
+        vat_payable_account = AccountMapping.require_account('sales_invoice_vat')
         if not vat_payable_account:
             vat_payable_account = Account.objects.filter(
                 account_type=AccountType.LIABILITY, is_active=True, name__icontains='vat'
@@ -1209,9 +1209,9 @@ class SalesCreditNote(BaseModel):
         self.validate_for_posting()
         
         # Get accounts
-        ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
-        sales_account = AccountMapping.get_account_or_default('sales_invoice_revenue', '4000')
-        vat_account = AccountMapping.get_account_or_default('sales_invoice_vat', '2100')
+        ar_account = AccountMapping.require_account('sales_invoice_receivable')
+        sales_account = AccountMapping.require_account('sales_invoice_revenue')
+        vat_account = AccountMapping.require_account('sales_invoice_vat')
         
         if not ar_account:
             raise ValidationError("Accounts Receivable account not configured.")
@@ -1500,9 +1500,9 @@ class CreditNote(BaseModel):
 
         sales_return = AccountMapping.get_account_or_default('sales_return', None)
         if not sales_return:
-            sales_return = AccountMapping.get_account_or_default('sales_invoice_revenue', '4000')
-        ar_account = AccountMapping.get_account_or_default('sales_invoice_receivable', '1200')
-        vat_account = AccountMapping.get_account_or_default('sales_invoice_vat', '2100')
+            sales_return = AccountMapping.require_account('sales_invoice_revenue')
+        ar_account = AccountMapping.require_account('sales_invoice_receivable')
+        vat_account = AccountMapping.require_account('sales_invoice_vat')
 
         if not sales_return:
             raise ValidationError('Sales return / revenue account not configured.')

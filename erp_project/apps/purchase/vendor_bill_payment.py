@@ -120,7 +120,7 @@ def record_vendor_bill_payment(
         status='draft',
     )
 
-    ap_account = AccountMapping.get_account_or_default('vendor_payment_ap_clear', '2000')
+    ap_account = AccountMapping.require_account('vendor_payment_ap_clear')
     if not ap_account:
         ap_account = Account.objects.filter(
             account_type=AccountType.LIABILITY, is_active=True, name__icontains='payable'
