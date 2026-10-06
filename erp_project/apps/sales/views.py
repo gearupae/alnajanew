@@ -20,7 +20,13 @@ from collections import defaultdict
 import json
 
 from .models import Estimate, EstimateItem, EstimateProformaInvoice, EstimateRevisionSnapshot, Invoice, InvoiceItem
-from .forms import EstimateForm, EstimateItemFormSet, InvoiceForm, InvoiceItemFormSet
+from .forms import (
+    EstimateForm,
+    EstimateItemFormSet,
+    InvoiceForm,
+    InvoiceItemCreateFormSet,
+    InvoiceItemFormSet,
+)
 from .estimate_csv import get_default_estimate_csv_tax_code
 from .vat_pricing import (
     default_prices_include_vat,
@@ -2610,8 +2616,8 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
                     initial['project'] = est.project_id
                 initial['prices_include_vat'] = est.prices_include_vat
         customer_pk = self.request.GET.get('customer')
-        if customer_pk and 'customer' not in initial:
-            initial['customer'] = customer_pk
+        if customer_pk and str(customer_pk).isdigit() and 'customer' not in initial:
+            initial['customer'] = int(customer_pk)
         if 'prices_include_vat' not in initial:
             initial['prices_include_vat'] = default_prices_include_vat()
         return initial
@@ -2627,9 +2633,9 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
         context['default_tax_code'] = get_default_estimate_csv_tax_code()
         if 'items_formset' not in kwargs:
             if self.request.POST:
-                context['items_formset'] = InvoiceItemFormSet(self.request.POST)
+                context['items_formset'] = InvoiceItemCreateFormSet(self.request.POST)
             else:
-                context['items_formset'] = InvoiceItemFormSet()
+                context['items_formset'] = InvoiceItemCreateFormSet()
         else:
             context['items_formset'] = kwargs['items_formset']
         context.update(_invoice_form_project_context())
@@ -2639,7 +2645,7 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
     def post(self, request, *args, **kwargs):
         self.object = None
         form = self.get_form()
-        items_formset = InvoiceItemFormSet(request.POST)
+        items_formset = InvoiceItemCreateFormSet(request.POST)
         
         if form.is_valid() and items_formset.is_valid():
             return self.form_valid(form, items_formset)
@@ -2757,9 +2763,13 @@ class InvoiceDetailView(PermissionRequiredMixin, DetailView):
             .select_related('customer', 'estimate')
             .prefetch_related(
                 Prefetch(
+                    'items',
+                    queryset=InvoiceItem.objects.select_related('inventory_item').order_by('id'),
+                ),
+                Prefetch(
                     'project_links',
                     queryset=ProjectInvoice.objects.filter(is_active=True).select_related('project'),
-                )
+                ),
             )
         )
     
@@ -2926,8 +2936,13 @@ def invoice_pdf(request, pk):
     from apps.settings_app.models import CompanySettings
     
     invoice = get_object_or_404(
-        Invoice.objects.select_related('customer', 'estimate').prefetch_related('items'),
-        pk=pk
+        Invoice.objects.select_related('customer', 'estimate').prefetch_related(
+            Prefetch(
+                'items',
+                queryset=InvoiceItem.objects.select_related('inventory_item').order_by('id'),
+            ),
+        ),
+        pk=pk,
     )
     
     if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'sales', 'view')):

@@ -282,7 +282,10 @@ def customer_advance_post(request, pk):
         try:
             advance.post_to_accounting(user=request.user)
             messages.success(request, f'Advance {advance.advance_number} posted to accounting.')
-        except (ValidationError, Exception) as exc:
+        except ValidationError as exc:
+            detail = '; '.join(getattr(exc, 'messages', [str(exc)]))
+            messages.error(request, f'Error posting: {detail}')
+        except Exception as exc:
             messages.error(request, f'Error posting: {exc}')
     return redirect('advances:customer_advance_detail', pk=pk)
 

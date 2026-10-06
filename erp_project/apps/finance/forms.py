@@ -212,9 +212,11 @@ class PaymentForm(forms.ModelForm):
 
         super().__init__(*args, **kwargs)
         self.fields['party_customer'].queryset = Customer.objects.filter(is_active=True).order_by('name')
+        self.fields['party_customer'].empty_label = ''
         self.fields['party_vendor'].queryset = Vendor.objects.filter(
             is_active=True, status='active'
         ).order_by('name')
+        self.fields['party_vendor'].empty_label = ''
         self.fields['party_customer'].label_from_instance = lambda c: c.picker_option_label
         self.fields['party_vendor'].label_from_instance = (
             lambda v: f'{v.vendor_number} — {v.name}'

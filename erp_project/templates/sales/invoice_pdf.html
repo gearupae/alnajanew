@@ -122,7 +122,7 @@
                 {% for item in invoice.items.all %}
                 <tr>
                     <td class="item-number">{{ forloop.counter }}</td>
-                    <td class="item-description">{{ item.description }}</td>
+                    <td class="item-description">{% include 'sales/_invoice_line_description.html' with item=item pdf_mode=True %}</td>
                     <td class="text-center">{{ item.quantity|floatformat:2 }}</td>
                     <td class="text-right">{{ item.unit_price|floatformat:2 }}</td>
                     <td class="text-right">{{ item.total|floatformat:2 }}</td>

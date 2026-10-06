@@ -20,8 +20,8 @@
     font-size: inherit;
     line-height: 1.4;
 }
-.crm-customer-table th:not(.col-actions),
-.crm-customer-table td:not(.col-actions) {
+.crm-customer-table th:not(.col-actions):not(.col-id),
+.crm-customer-table td:not(.col-actions):not(.col-id) {
     overflow: hidden;
 }
 .crm-customer-table thead th {
@@ -61,8 +61,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.crm-customer-table .col-id { width: 6%; }
-.crm-customer-table .col-company { width: 22%; }
+.crm-customer-table .col-id {
+    width: 11%;
+    min-width: 9.5rem;
+    white-space: nowrap;
+    overflow: visible;
+}
+.crm-customer-table .col-company { width: 18%; }
 .crm-customer-table .col-name { width: 12%; }
 .crm-customer-table .col-email { width: 14%; }
 .crm-customer-table .col-phone { width: 9%; }
@@ -90,12 +95,15 @@
 .crm-customer-table .col-company .text-truncate,
 .crm-customer-table .col-name .text-truncate,
 .crm-customer-table .col-email a,
-.crm-customer-table .col-phone a,
-.crm-customer-table .col-id a {
+.crm-customer-table .col-phone a {
     display: block;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.crm-customer-table .col-id a {
+    display: inline-block;
     white-space: nowrap;
 }
 .crm-customer-table .col-actions .table-actions-inner {
@@ -248,6 +256,12 @@
 .crm-customers-filter-toolbar .form-control,
 .crm-customers-filter-toolbar .form-select {
     min-height: 38px;
+}
+.crm-salesperson-select2-dropdown {
+    z-index: 1060;
+}
+.crm-salesperson-select2-dropdown .select2-search__field {
+    width: 100% !important;
 }
 </style>
 {% endblock %}
@@ -464,7 +478,7 @@
             {% if not crm_sales_rep_only %}
             <div class="crm-filter-field crm-filter-salesman">
                 <label class="form-label small text-muted">Salesman</label>
-                <select name="salesman" class="form-select">
+                <select name="salesman" class="form-select select2-crm-salesperson" data-placeholder="All salesmen">
                     <option value="">All salesmen</option>
                     {% for item in salesman_choice_options %}
                     <option value="{{ item.id }}" {% if request.GET.salesman == item.id|stringformat:'s' %}selected{% endif %}>{{ item.label }}</option>
@@ -509,163 +523,32 @@
                         <th class="text-center col-actions">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for customer in customers %}
-                    <tr>
-                        <td class="col-id">
-                            <a href="{% url 'crm:customer_detail' customer.pk %}" class="text-decoration-none fw-medium" title="{{ customer.customer_number }}">
-                                {{ customer.customer_number }}
-                            </a>
-                        </td>
-                        <td class="col-company">
-                            <div class="d-flex align-items-center min-w-0">
-                                <div class="bg-{{ customer.customer_type|yesno:'primary,success' }} text-white rounded-circle d-flex align-items-center justify-content-center me-1 customer-avatar">
-                                    {% if customer.company %}{{ customer.company.0|upper }}{% elif customer.name %}{{ customer.name.0|upper }}{% else %}?{% endif %}
-                                </div>
-                                {% if customer.company %}
-                                <span class="text-truncate fw-medium min-w-0 flex-grow-1" title="{{ customer.company }}">{{ customer.company }}</span>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td class="col-name">
-                            {% if customer.name %}
-                            <span class="text-truncate d-block" title="{{ customer.name }}">{{ customer.name }}</span>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="col-email">
-                            {% if customer.email %}
-                            <a href="mailto:{{ customer.email }}" class="text-decoration-none" title="{{ customer.email }}">{{ customer.email }}</a>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="col-phone">
-                            {% if customer.phone %}
-                            <a href="tel:{{ customer.phone }}" class="text-decoration-none" title="{{ customer.phone }}">{{ customer.phone }}</a>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="col-type">
-                            {% if can_edit %}
-                            <form method="post" action="{% url 'crm:customer_inline_update' customer.pk %}" class="crm-inline-field-form">
-                                {% csrf_token %}
-                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                <select name="customer_type" class="form-select form-select-sm crm-inline-select crm-inline-type-{{ customer.customer_type }}" aria-label="Type" onchange="this.form.submit()">
-                                    {% for value, label in crm_customer_type_choices %}
-                                    <option value="{{ value }}" {% if customer.customer_type == value %}selected{% endif %}>{{ label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </form>
-                            {% else %}
-                            {% if customer.customer_type == 'lead' %}
-                                <span class="badge badge-lead fw-normal">
-                                    <i class="fas fa-user-clock me-1"></i>Lead
-                                </span>
-                            {% else %}
-                                <span class="badge badge-customer fw-normal">
-                                    <i class="fas fa-user-check me-1"></i>Customer
-                                </span>
-                            {% endif %}
-                            {% endif %}
-                        </td>
-                        {% if show_assign_salesman %}
-                        <td class="col-salesman small">
-                            {% if customer.assigned_salesperson %}
-                            {{ customer.assigned_salesman_label }}
-                            {% else %}
-                            <span class="text-muted">—</span>
-                            {% endif %}
-                        </td>
-                        {% endif %}
-                        <td class="col-status">
-                            {% if can_edit %}
-                            <form method="post" action="{% url 'crm:customer_inline_update' customer.pk %}" class="crm-inline-field-form">
-                                {% csrf_token %}
-                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                <select name="status" class="form-select form-select-sm crm-inline-select crm-inline-status-{{ customer.status }}" aria-label="Status" onchange="this.form.submit()">
-                                    {% for value, label in crm_status_choices %}
-                                    <option value="{{ value }}" {% if customer.status == value %}selected{% endif %}>{{ label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </form>
-                            {% else %}
-                            {% if customer.status == 'active' %}
-                                <span class="badge badge-active fw-normal">Active</span>
-                            {% elif customer.status == 'prospect' %}
-                                <span class="badge bg-warning-subtle text-warning fw-normal">Prospect</span>
-                            {% else %}
-                                <span class="badge badge-inactive fw-normal">Inactive</span>
-                            {% endif %}
-                            {% endif %}
-                        </td>
-                        <td class="text-center col-actions">
-                            <div class="table-actions-inner">
-                            {% if can_edit %}
-                            <a href="{% url 'crm:customer_edit' customer.pk %}" class="btn btn-action btn-outline-primary" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            {% endif %}
-                            {% if can_edit and customer.customer_type == 'lead' %}
-                            <a href="{% url 'crm:customer_convert' customer.pk %}" class="btn btn-action btn-outline-success" title="Convert to Customer" onclick="return confirm('Convert {{ customer.name }} to a customer?');">
-                                <i class="fas fa-user-check"></i>
-                            </a>
-                            {% endif %}
-                            {% if can_delete %}
-                            <a href="{% url 'crm:customer_delete' customer.pk %}" class="btn btn-action btn-outline-danger" title="Delete" onclick="return confirm('Are you sure you want to deactivate {{ customer.name }}?');">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                            {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
-                            <i class="fas fa-users fa-3x mb-3 d-block"></i>
-                            <p class="mb-2">No customers found</p>
-                            {% if can_create %}
-                            <button class="btn btn-primary btn-sm" onclick="toggleInlineForm('customerForm')">
-                                <i class="fas fa-plus me-1"></i>Add Your First Customer
-                            </button>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
+                <tbody id="crmCustomerListBody">
+                    {% include 'crm/_customer_list_rows.html' %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
-<!-- Pagination -->
-{% if page_obj.has_other_pages %}
-<nav class="mt-4">
-    <ul class="pagination justify-content-center">
-        {% if page_obj.has_previous %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                <i class="fas fa-chevron-left me-1"></i>Previous
-            </a>
-        </li>
-        {% endif %}
-        
-        <li class="page-item disabled">
-            <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-        </li>
-        
+<!-- Load more -->
+{% if page_obj.paginator.count %}
+<nav class="mt-4" id="crmCustomerListPager" {% if not page_obj.has_next %}class="d-none"{% endif %}>
+    <div class="d-flex flex-column flex-sm-row align-items-center justify-content-center gap-2">
+        <span class="text-muted small" id="crmCustomerListStatus">
+            Showing {{ customers|length }} of {{ page_obj.paginator.count }}
+            {% if page_obj.paginator.num_pages > 1 %}
+            · loaded page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            {% endif %}
+        </span>
         {% if page_obj.has_next %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                Next<i class="fas fa-chevron-right ms-1"></i>
-            </a>
-        </li>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="crmCustomerLoadMore"
+                data-next-page="{{ page_obj.next_page_number }}"
+                data-total="{{ page_obj.paginator.count }}">
+            Next<i class="fas fa-chevron-right ms-1"></i>
+        </button>
         {% endif %}
-    </ul>
+    </div>
 </nav>
 {% endif %}
     </div><!-- end #crmTabList -->
@@ -677,6 +560,7 @@
 <script src="{% static 'js/crm_customer_validation.js' %}"></script>
 <script src="{% static 'js/crm_customer_lookup.js' %}"></script>
 <script src="{% static 'js/crm_customer_form_toggle.js' %}"></script>
+<script src="{% static 'js/crm_salesperson_select2.js' %}"></script>
 <script>
 (function () {
     document.addEventListener('DOMContentLoaded', function () {
@@ -698,6 +582,69 @@
                 defaultDate: defaultDates.length ? defaultDates : undefined,
             });
         }
+    });
+})();
+</script>
+<script>
+(function () {
+    document.addEventListener('DOMContentLoaded', function () {
+        var loadBtn = document.getElementById('crmCustomerLoadMore');
+        var tbody = document.getElementById('crmCustomerListBody');
+        var pager = document.getElementById('crmCustomerListPager');
+        var statusEl = document.getElementById('crmCustomerListStatus');
+        if (!loadBtn || !tbody) return;
+
+        function updateStatus(visibleCount, totalCount, page, numPages) {
+            if (!statusEl) return;
+            var text = 'Showing ' + visibleCount + ' of ' + totalCount;
+            if (numPages > 1) {
+                text += ' · loaded page ' + page + ' of ' + numPages;
+            }
+            statusEl.textContent = text;
+        }
+
+        loadBtn.addEventListener('click', function () {
+            var nextPage = loadBtn.dataset.nextPage;
+            if (!nextPage) return;
+            var url = new URL(window.location.href);
+            url.searchParams.set('page', nextPage);
+            url.searchParams.set('partial', 'rows');
+            loadBtn.disabled = true;
+            var originalHtml = loadBtn.innerHTML;
+            loadBtn.innerHTML = 'Loading…';
+
+            fetch(url.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            })
+                .then(function (response) {
+                    if (!response.ok) throw new Error('Failed to load customers');
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data.html) {
+                        tbody.insertAdjacentHTML('beforeend', data.html);
+                    }
+                    var visibleCount = Array.from(tbody.querySelectorAll('tr')).filter(function (row) {
+                        return !row.querySelector('td[colspan]');
+                    }).length;
+                    updateStatus(visibleCount, data.total_count, data.page, data.num_pages);
+                    if (data.has_next && data.next_page) {
+                        loadBtn.dataset.nextPage = String(data.next_page);
+                        loadBtn.disabled = false;
+                        loadBtn.innerHTML = originalHtml;
+                    } else {
+                        loadBtn.remove();
+                        if (pager && !pager.querySelector('#crmCustomerLoadMore')) {
+                            pager.classList.add('d-none');
+                        }
+                    }
+                })
+                .catch(function () {
+                    loadBtn.disabled = false;
+                    loadBtn.innerHTML = originalHtml;
+                    window.alert('Could not load the next customers. Please try again.');
+                });
+        });
     });
 })();
 </script>

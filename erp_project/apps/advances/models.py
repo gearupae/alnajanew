@@ -118,7 +118,7 @@ class CustomerAdvance(BaseModel):
             Cr Customer Advance   → amount  (2310)
         """
         from apps.finance.models import (
-            JournalEntry, JournalEntryLine, AccountMapping, FiscalYear,
+            Account, JournalEntry, JournalEntryLine, AccountMapping, FiscalYear,
         )
 
         if self.status != 'draft':
@@ -130,15 +130,23 @@ class CustomerAdvance(BaseModel):
 
         FiscalYear.validate_posting_allowed(self.date)
 
-        bank_gl = self.bank_account.gl_account
-        adv_account = AccountMapping.require_account('customer_advance_liability')
-        vat_account = AccountMapping.require_account('sales_invoice_vat')
+        adv_account = AccountMapping.require_account(
+            'customer_advance_liability',
+            not_configured_message=(
+                'Customer Advance liability account is not mapped. '
+                'Configure customer_advance_liability in Finance → Account Mapping.'
+            ),
+        )
+        vat_account = None
+        if self.vat_amount > 0:
+            vat_account = AccountMapping.require_account('sales_invoice_vat')
 
-        if not adv_account:
-            raise ValidationError(
-                'Customer Advance (2310) account not found. '
-                'Please seed it via management command or Finance → Chart of Accounts.'
-            )
+        Account.ensure_accounts_leaf_for_posting([
+            ('bank receipt', self.bank_account.gl_account),
+            ('customer advance liability', adv_account),
+            ('output VAT', vat_account),
+        ])
+        bank_gl = self.bank_account.gl_account
 
         journal = JournalEntry.objects.create(
             date=self.date,
@@ -406,7 +414,7 @@ class VendorAdvance(BaseModel):
         Cr Bank                    → amount
         """
         from apps.finance.models import (
-            JournalEntry, JournalEntryLine, AccountMapping, FiscalYear,
+            Account, JournalEntry, JournalEntryLine, AccountMapping, FiscalYear,
         )
 
         if self.status != 'draft':
@@ -418,14 +426,19 @@ class VendorAdvance(BaseModel):
 
         FiscalYear.validate_posting_allowed(self.date)
 
-        bank_gl = self.bank_account.gl_account
-        adv_account = AccountMapping.require_account('vendor_advance_asset')
+        adv_account = AccountMapping.require_account(
+            'vendor_advance_asset',
+            not_configured_message=(
+                'Vendor advance asset account is not mapped. '
+                'Configure vendor_advance_asset in Finance → Account Mapping.'
+            ),
+        )
 
-        if not adv_account:
-            raise ValidationError(
-                'Advance to Vendor (1320) account not found. '
-                'Run: python manage.py seed_advance_accounts && seed_advance_mappings'
-            )
+        Account.ensure_accounts_leaf_for_posting([
+            ('bank payment', self.bank_account.gl_account),
+            ('vendor advance asset', adv_account),
+        ])
+        bank_gl = self.bank_account.gl_account
 
         journal = JournalEntry.objects.create(
             date=self.date,

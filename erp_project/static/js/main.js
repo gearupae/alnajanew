@@ -42,6 +42,9 @@ function toggleInlineForm(formId) {
                     window.CrmCustomerFormToggle.attach(compact);
                 }
             }
+            if (formId === 'customerForm' && window.initCrmSalespersonSelect2) {
+                window.initCrmSalespersonSelect2(form);
+            }
         }
     }
 }

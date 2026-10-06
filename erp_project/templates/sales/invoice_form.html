@@ -20,6 +20,18 @@
 .invoice-inventory-select2-dropdown .select2-search__field {
     width: 100% !important;
 }
+.invoice-header-select2-dropdown {
+    z-index: 1060;
+}
+.invoice-header-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+.invoice-item-cell .invoice-inventory-select {
+    margin-bottom: 0.25rem;
+}
+.invoice-item-cell .invoice-description-input {
+    margin-top: 0.25rem;
+}
 </style>
 {% endblock %}
 
@@ -204,9 +216,12 @@
                         <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %}>
                             <td class="invoice-item-cell">
                                 {{ item_form.id }}
+                                {{ item_form.inventory_item }}
                                 <select class="form-select form-select-sm invoice-inventory-select" aria-label="Search inventory item"></select>
-                                <input type="hidden" name="{{ item_form.prefix }}-description" class="invoice-description-input"
-                                       value="{{ item_form.description.value|default:'' }}">
+                                <input type="text" name="{{ item_form.prefix }}-description"
+                                       class="form-control form-control-sm invoice-description-input"
+                                       value="{{ item_form.description.value|default:'' }}"
+                                       placeholder="Optional custom description…">
                             </td>
                             <td>
                                 <input type="number" name="{{ item_form.prefix }}-quantity" class="form-control form-control-sm item-qty" 
@@ -340,8 +355,7 @@ const taxCodes = [
 const defaultTaxCodeId = {% if default_tax_code %}{{ default_tax_code.id }}{% else %}null{% endif %};
 const invoicePaidAmount = {% if object %}{{ object.paid_amount|default:0 }}{% else %}0{% endif %};
 const INVOICE_INVENTORY_ITEMS = {{ invoice_inventory_items_json|default:"[]"|safe }};
-const INVOICE_CUSTOM_PREFIX = 'custom:';
-
+const INVOICE_PROJECT_OPTIONS = {{ invoice_project_options_json|default:"[]"|safe }};
 let formCount = {{ items_formset.total_form_count }};
 
 function escapeHtml(text) {
@@ -351,21 +365,9 @@ function escapeHtml(text) {
         .replace(/"/g, '&quot;');
 }
 
-function invoiceCustomTagId(text) {
-    return INVOICE_CUSTOM_PREFIX + String(text || '').trim();
-}
-
-function isInvoiceCustomTagId(val) {
-    return String(val || '').indexOf(INVOICE_CUSTOM_PREFIX) === 0;
-}
-
 function getInvoiceInventoryOptions(selectedId) {
     const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
     let html = '<option value=""></option>';
-    if (isInvoiceCustomTagId(selected)) {
-        html += '<option value="' + escapeHtml(selected) + '" selected>' +
-            escapeHtml(selected.slice(INVOICE_CUSTOM_PREFIX.length)) + '</option>';
-    }
     if (!Array.isArray(INVOICE_INVENTORY_ITEMS) || !INVOICE_INVENTORY_ITEMS.length) {
         return html;
     }
@@ -393,39 +395,38 @@ function guessInvoiceInventoryIdFromDescription(desc) {
     return '';
 }
 
-function resolveInvoiceSelectValue(desc) {
-    const text = (desc || '').trim();
-    if (text) {
-        const matched = guessInvoiceInventoryIdFromDescription(text);
-        if (matched) {
-            return matched;
-        }
-        return invoiceCustomTagId(text);
-    }
-    return '';
+function getInvoiceRowInventoryId(row) {
+    const hiddenInv = row?.querySelector('.invoice-inventory-id-input');
+    return hiddenInv ? (hiddenInv.value || '') : '';
 }
 
-function syncInvoiceDescriptionFromSelect(selectEl, row, options) {
+function setInvoiceRowInventoryId(row, inventoryId) {
+    const hiddenInv = row?.querySelector('.invoice-inventory-id-input');
+    if (hiddenInv) {
+        hiddenInv.value = inventoryId ? String(inventoryId) : '';
+    }
+}
+
+function resolveInvoiceRowInventorySelectValue(row) {
+    const savedId = getInvoiceRowInventoryId(row);
+    if (savedId) {
+        return savedId;
+    }
+    const descInput = row?.querySelector('.invoice-description-input');
+    return guessInvoiceInventoryIdFromDescription(descInput ? descInput.value : '');
+}
+
+function syncInvoiceRowFromSelect(selectEl, row, options) {
     const forcePrice = !!(options && options.forcePrice);
-    const descInput = row.querySelector('.invoice-description-input');
     const val = selectEl.value || '';
-    if (!descInput) {
-        return;
-    }
+    setInvoiceRowInventoryId(row, val);
     if (!val) {
-        descInput.value = '';
-        return;
-    }
-    if (isInvoiceCustomTagId(val)) {
-        descInput.value = val.slice(INVOICE_CUSTOM_PREFIX.length);
         return;
     }
     const meta = INVOICE_INVENTORY_ITEMS.find(function (x) { return String(x.id) === String(val); });
     if (!meta) {
-        descInput.value = '';
         return;
     }
-    descInput.value = meta.name || meta.label || '';
     const price = row.querySelector('.item-price');
     if (price) {
         const cur = parseFloat(price.value);
@@ -459,7 +460,7 @@ function bindInvoiceInventorySelectHandlers(selectEl) {
     $el.off('change.invoiceInv select2:select.invoiceInv select2:clear.invoiceInv');
     $el.on('change.invoiceInv select2:select.invoiceInv select2:clear.invoiceInv', function () {
         const row = selectEl.closest('tr');
-        syncInvoiceDescriptionFromSelect(selectEl, row, { forcePrice: false });
+        syncInvoiceRowFromSelect(selectEl, row, { forcePrice: false });
     });
 }
 
@@ -473,32 +474,12 @@ function initInvoiceInventorySelect2(selectEl, selectedId) {
     $el.select2({
         theme: 'bootstrap-5',
         width: '100%',
-        placeholder: 'Search inventory or type custom title…',
+        placeholder: 'Search inventory item…',
         allowClear: true,
-        tags: true,
         dropdownParent: $(document.body),
         minimumResultsForSearch: 0,
         dropdownAutoWidth: true,
         dropdownCssClass: 'invoice-inventory-select2-dropdown',
-        createTag: function (params) {
-            const term = $.trim(params.term);
-            if (!term) {
-                return null;
-            }
-            const lower = term.toLowerCase();
-            const exists = INVOICE_INVENTORY_ITEMS.some(function (row) {
-                return (row.label || '').toLowerCase() === lower ||
-                    (row.name || '').toLowerCase() === lower ||
-                    (row.item_code || '').toLowerCase() === lower;
-            });
-            if (exists) {
-                return null;
-            }
-            return { id: invoiceCustomTagId(term), text: term, newTag: true };
-        },
-        language: {
-            noResults: function () { return 'Press Enter to use as custom description'; },
-        },
     });
     if (current) {
         $el.val(current).trigger('change.select2');
@@ -509,12 +490,26 @@ function initInvoiceInventorySelect2(selectEl, selectedId) {
 function initInvoiceRowInventorySelect(row) {
     const selectEl = row.querySelector('.invoice-inventory-select');
     if (!selectEl) return;
-    const descInput = row.querySelector('.invoice-description-input');
-    const selectValue = resolveInvoiceSelectValue(descInput ? descInput.value : '');
+    const selectValue = resolveInvoiceRowInventorySelectValue(row);
     initInvoiceInventorySelect2(selectEl, selectValue || null);
     if (selectValue) {
-        syncInvoiceDescriptionFromSelect(selectEl, row, { forcePrice: false });
+        setInvoiceRowInventoryId(row, selectValue);
+        syncInvoiceRowFromSelect(selectEl, row, { forcePrice: false });
     }
+}
+
+function resolveInvoiceLineDescriptionForSubmit(row) {
+    const descInput = row.querySelector('.invoice-description-input');
+    const customDesc = (descInput?.value || '').trim();
+    if (customDesc) {
+        return customDesc;
+    }
+    const val = getInvoiceRowInventoryId(row);
+    if (!val) {
+        return '';
+    }
+    const meta = INVOICE_INVENTORY_ITEMS.find(function (x) { return String(x.id) === String(val); });
+    return meta ? (meta.name || meta.label || '').trim() : '';
 }
 
 function initAllInvoiceInventorySelect2() {
@@ -662,7 +657,7 @@ function addItemRow() {
     const row = document.createElement('tr');
     row.className = 'item-row';
     row.innerHTML = `
-        <td class="invoice-item-cell"><select class="form-select form-select-sm invoice-inventory-select" aria-label="Search inventory item"></select><input type="hidden" name="items-${idx}-description" class="invoice-description-input" value=""></td>
+        <td class="invoice-item-cell"><input type="hidden" name="items-${idx}-inventory_item" class="invoice-inventory-id-input" value=""><select class="form-select form-select-sm invoice-inventory-select" aria-label="Search inventory item"></select><input type="text" name="items-${idx}-description" class="form-control form-control-sm invoice-description-input" value="" placeholder="Optional custom description…"></td>
         <td><input type="number" name="items-${idx}-quantity" class="form-control form-control-sm item-qty" value="1" step="0.01" min="0.01" onchange="calculateRowTotal(this)"></td>
         <td><input type="number" name="items-${idx}-unit_price" class="form-control form-control-sm item-price" value="0" step="0.01" min="0" onchange="calculateRowTotal(this)"></td>
         <td>
@@ -703,7 +698,173 @@ function removeItemRow(btn) {
     calculateTotals();
 }
 
+function ensureSelectEmptyOption(el, label) {
+    if (!el || el.querySelector('option[value=""]')) return;
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = label || '';
+    el.insertBefore(opt, el.firstChild);
+}
+
+function getSelectedInvoiceCustomerId() {
+    const el = document.getElementById('id_customer');
+    const val = el ? el.value : '';
+    if (!val) return null;
+    const parsed = parseInt(val, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+}
+
+function rebuildInvoiceProjectOptions(customerId, selectedProjectId) {
+    const el = document.getElementById('id_project');
+    if (!el) return;
+    const selected = selectedProjectId != null && selectedProjectId !== ''
+        ? parseInt(selectedProjectId, 10)
+        : null;
+    el.innerHTML = '';
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = customerId ? '— Select project —' : '— Select customer first —';
+    el.appendChild(empty);
+    if (!customerId) return;
+    INVOICE_PROJECT_OPTIONS.forEach(function (project) {
+        if (parseInt(project.customer_id, 10) !== customerId) return;
+        const opt = document.createElement('option');
+        opt.value = String(project.id);
+        opt.textContent = project.label;
+        if (selected && project.id === selected) {
+            opt.selected = true;
+        }
+        el.appendChild(opt);
+    });
+}
+
+function initInvoiceProjectSelect2() {
+    const el = document.getElementById('id_project');
+    if (!el || typeof $ === 'undefined' || !$.fn.select2) return;
+    const $el = $(el);
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+    const customerId = getSelectedInvoiceCustomerId();
+    const placeholder = customerId
+        ? 'Search by project code or name…'
+        : 'Select a customer first…';
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        dropdownParent: $(document.body),
+        allowClear: true,
+        minimumResultsForSearch: 0,
+        dropdownCssClass: 'invoice-header-select2-dropdown',
+        placeholder: placeholder,
+    });
+}
+
+function refreshInvoiceProjectSelect(options) {
+    const el = document.getElementById('id_project');
+    if (!el) return;
+    const preserveSelection = !!(options && options.preserveSelection);
+    const customerId = getSelectedInvoiceCustomerId();
+    let selectedId = preserveSelection ? (el.value || '') : null;
+    if (selectedId && customerId) {
+        const pid = parseInt(selectedId, 10);
+        const allowed = INVOICE_PROJECT_OPTIONS.some(function (project) {
+            return project.id === pid && parseInt(project.customer_id, 10) === customerId;
+        });
+        if (!allowed) {
+            selectedId = null;
+        }
+    } else if (!customerId) {
+        selectedId = null;
+    }
+    rebuildInvoiceProjectOptions(customerId, selectedId);
+    initInvoiceProjectSelect2();
+    if (selectedId) {
+        $(el).val(String(selectedId)).trigger('change.select2');
+    }
+}
+
+function initInvoiceCustomerProjectSync() {
+    const customerEl = document.getElementById('id_customer');
+    if (!customerEl || typeof $ === 'undefined') return;
+    const $customer = $(customerEl);
+    $customer.off('change.invoiceCustProj select2:select.invoiceCustProj select2:clear.invoiceCustProj');
+    $customer.on('change.invoiceCustProj select2:select.invoiceCustProj select2:clear.invoiceCustProj', function () {
+        refreshInvoiceProjectSelect({ preserveSelection: false });
+    });
+}
+
+function finalizeInvoiceCustomerSelection($el, searchUrl) {
+    const val = $el.val();
+    if (!val) return;
+    const el = $el.get(0);
+    const opt = el.querySelector('option[value="' + val + '"]');
+    const label = opt ? (opt.textContent || '').trim() : '';
+    if (label && label !== val) {
+        $el.trigger('change.select2');
+        refreshInvoiceProjectSelect({ preserveSelection: true });
+        return;
+    }
+    $.ajax({
+        url: searchUrl,
+        dataType: 'json',
+        data: { q: '', selected: val },
+    }).done(function (data) {
+        const hit = (data.results || []).find(function (r) {
+            return String(r.id) === String(val);
+        });
+        if (!hit) return;
+        if (opt) {
+            opt.textContent = hit.text;
+        } else {
+            $el.append(new Option(hit.text, hit.id, true, true));
+        }
+        $el.val(String(val)).trigger('change.select2');
+        refreshInvoiceProjectSelect({ preserveSelection: true });
+    });
+}
+
+function initInvoiceCustomerSelect2() {
+    const el = document.getElementById('id_customer');
+    if (!el || typeof $ === 'undefined' || !$.fn.select2) return;
+    const $el = $(el);
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+    ensureSelectEmptyOption(el, '— Select customer —');
+    el.removeAttribute('required');
+    const searchUrl = '{% url "crm:customer_picker_search" %}';
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        dropdownParent: $(document.body),
+        allowClear: true,
+        minimumInputLength: 0,
+        dropdownCssClass: 'invoice-header-select2-dropdown',
+        placeholder: 'Search by number, name, or company…',
+        ajax: {
+            url: searchUrl,
+            dataType: 'json',
+            delay: 200,
+            data: function (params) {
+                return { q: params.term || '', selected: $el.val() || '' };
+            },
+            processResults: function (data) {
+                return { results: data.results || [] };
+            },
+        },
+        language: {
+            noResults: function () { return 'No matching customers — try number, name, or company'; },
+            searching: function () { return 'Searching…'; },
+        },
+    });
+    finalizeInvoiceCustomerSelection($el, searchUrl);
+}
+
 $(function () {
+    initInvoiceCustomerSelect2();
+    refreshInvoiceProjectSelect({ preserveSelection: true });
+    initInvoiceCustomerProjectSync();
     initAllInvoiceInventorySelect2();
     updateVatPricingLabels();
     syncLineVatInclusiveFlags();
@@ -751,7 +912,13 @@ $(function () {
                 if (row.style.display === 'none') return;
                 const sel = row.querySelector('.invoice-inventory-select');
                 if (sel) {
-                    syncInvoiceDescriptionFromSelect(sel, row, { forcePrice: false });
+                    setInvoiceRowInventoryId(row, sel.value || '');
+                }
+                const descInput = row.querySelector('.invoice-description-input');
+                if (!descInput || (descInput.value || '').trim()) return;
+                const resolved = resolveInvoiceLineDescriptionForSubmit(row);
+                if (resolved) {
+                    descInput.value = resolved;
                 }
             });
         });

@@ -8,6 +8,16 @@
 .payment-select2-dropdown .select2-search__field {
     width: 100% !important;
 }
+/* Ensure Select2 clear (×) is clickable — arrow was blocking it */
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear {
+    position: relative;
+    z-index: 2;
+    cursor: pointer;
+    margin-right: 1.75rem;
+}
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+    z-index: 1;
+}
 </style>
 {% endblock %}
 
@@ -134,19 +144,25 @@ $(function () {
         if (partyVendorField) partyVendorField.classList.toggle('d-none', isReceived);
     }
 
-    function initPaymentSelect2(selector, placeholder) {
+    function initPaymentSelect2(selector, placeholder, allowClear) {
         if (typeof $.fn.select2 === 'undefined') return;
         $(selector).each(function () {
             const $el = $(this);
             if ($el.data('select2')) return;
+            if (!$el.find('option[value=""]').length) {
+                $el.prepend(new Option('', ''));
+            }
             $el.select2({
                 theme: 'bootstrap-5',
                 width: '100%',
                 placeholder: placeholder,
-                allowClear: true,
+                allowClear: allowClear !== false,
                 minimumResultsForSearch: 0,
                 dropdownParent: $(document.body),
                 dropdownCssClass: 'payment-select2-dropdown',
+            });
+            $el.on('select2:clear', function () {
+                $(this).val(null).trigger('change');
             });
         });
     }
@@ -158,9 +174,9 @@ $(function () {
     if (methodField) methodField.addEventListener('change', toggleFundsAccount);
     if (typeField) typeField.addEventListener('change', togglePartyField);
 
-    initPaymentSelect2('#id_party_customer', 'Search customer…');
-    initPaymentSelect2('#id_party_vendor', 'Search vendor…');
-    initPaymentSelect2('#id_account', 'Search account by code or name…');
+    initPaymentSelect2('#id_party_customer', 'Search customer…', true);
+    initPaymentSelect2('#id_party_vendor', 'Search vendor…', true);
+    initPaymentSelect2('#id_account', 'Search account by code or name…', false);
 });
 </script>
 {% endblock %}

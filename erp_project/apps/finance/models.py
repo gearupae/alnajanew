@@ -162,6 +162,37 @@ class Account(BaseModel):
     def is_leaf(self):
         """Returns True if this is a leaf account (no children)."""
         return not self.children.filter(is_active=True).exists()
+
+    def ensure_leaf_for_posting(self, *, context=''):
+        """Return self when postable; raise ValidationError for parent/control accounts."""
+        if self.is_leaf:
+            return self
+        children = list(self.children.filter(is_active=True).order_by('code')[:6])
+        suggestions = ', '.join(f'{child.code} ({child.name})' for child in children)
+        label = f' for {context}' if context else ''
+        hint = (
+            f' Use a leaf sub-account such as: {suggestions}.'
+            if suggestions
+            else ' Map a detail (leaf) account instead.'
+        )
+        raise ValidationError(
+            f'Account {self.code} — {self.name}{label} is a parent/control account and cannot be posted to.{hint} '
+            f'Update Finance → Account Mapping or Finance → Bank Accounts.'
+        )
+
+    @classmethod
+    def ensure_accounts_leaf_for_posting(cls, account_specs):
+        """Validate multiple accounts; raise one ValidationError listing all blockers."""
+        errors = []
+        for context, account in account_specs:
+            if not account:
+                continue
+            try:
+                account.ensure_leaf_for_posting(context=context)
+            except ValidationError as exc:
+                errors.extend(getattr(exc, 'messages', [str(exc)]))
+        if errors:
+            raise ValidationError(errors)
     
     @property
     def debit_increases(self):
@@ -3919,6 +3950,15 @@ class AccountMapping(models.Model):
             f"Account mapping not configured for '{transaction_type}'. "
             f"Please configure in Finance → Account Mapping."
         )
+
+    @classmethod
+    def require_posting_account(cls, transaction_type, *, not_configured_message=None, context=''):
+        """Return mapped leaf account or raise ValidationError."""
+        account = cls.require_account(
+            transaction_type,
+            not_configured_message=not_configured_message,
+        )
+        return account.ensure_leaf_for_posting(context=context or transaction_type.replace('_', ' '))
 
     @classmethod
     def get_missing_core_mappings(cls):

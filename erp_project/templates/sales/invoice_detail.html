@@ -105,7 +105,7 @@
                         <tbody>
                             {% for item in invoice.items.all %}
                             <tr>
-                                <td>{{ item.description }}</td>
+                                <td>{% include 'sales/_invoice_line_description.html' with item=item pdf_mode=False %}</td>
                                 <td class="text-center">{{ item.quantity }}</td>
                                 <td class="text-end">{{ item.unit_price|floatformat:2 }}</td>
                                 <td class="text-end">{{ item.total|floatformat:2 }}</td>

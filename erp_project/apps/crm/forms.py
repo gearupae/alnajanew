@@ -81,7 +81,6 @@ class CustomerForm(forms.ModelForm):
             self.fields['trn'].label = 'VAT (TRN)'
             self.fields['trn_document'].label = 'TRN certificate'
             self.fields['trade_license_document'].label = 'Trade license'
-            self.fields['assigned_salesperson'].widget.attrs['class'] = 'form-select'
         else:
             self.fields['is_active'].label = 'Is active'
             self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
@@ -133,8 +132,10 @@ class CustomerForm(forms.ModelForm):
         self.fields['assigned_salesperson'].required = True
         self.fields['assigned_salesperson'].empty_label = '— Select salesman —'
         self.fields['assigned_salesperson'].label_from_instance = salesperson_display_name
-        if not compact:
-            self.fields['assigned_salesperson'].widget.attrs['class'] = 'form-select select2'
+        self.fields['assigned_salesperson'].widget.attrs.update({
+            'class': 'form-select select2-crm-salesperson',
+            'data-placeholder': 'Search by name or employee code…',
+        })
         self.fields['assigned_salesperson'].label = 'Assigned salesman'
         self.fields['name'].required = False
         self.fields['company'].required = True

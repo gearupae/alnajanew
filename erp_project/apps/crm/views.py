@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 from django.urls import reverse_lazy
 from django.http import JsonResponse, HttpResponseNotAllowed
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
@@ -137,6 +138,23 @@ class CustomerListView(PermissionRequiredMixin, ListView):
     module_name = 'crm'
     permission_type = 'view'
     paginate_by = 25
+
+    def get(self, request, *args, **kwargs):
+        if request.GET.get('partial') == 'rows':
+            self.object_list = self.get_queryset()
+            context = self.get_context_data()
+            page_obj = context['page_obj']
+            html = render_to_string('crm/_customer_list_rows.html', context, request=request)
+            return JsonResponse({
+                'html': html,
+                'has_next': page_obj.has_next(),
+                'next_page': page_obj.next_page_number() if page_obj.has_next() else None,
+                'page': page_obj.number,
+                'num_pages': page_obj.paginator.num_pages,
+                'loaded_count': len(context['customers']),
+                'total_count': page_obj.paginator.count,
+            })
+        return super().get(request, *args, **kwargs)
     
     def get_queryset(self):
         queryset = filter_customers_for_user(
@@ -186,6 +204,11 @@ class CustomerListView(PermissionRequiredMixin, ListView):
         context['crm_customer_type_choices'] = Customer.CUSTOMER_TYPE_CHOICES
         context['crm_status_choices'] = Customer.STATUS_CHOICES
         context['crm_filter_date_range'] = customer_date_range_display(self.request.GET)
+        return_params = self.request.GET.copy()
+        return_params.pop('partial', None)
+        return_params.pop('page', None)
+        query = return_params.urlencode()
+        context['customer_list_return_url'] = self.request.path + (f'?{query}' if query else '')
 
         # Kanban board (leads pipeline + fixed customers column)
         board_stages = list(
@@ -295,6 +318,8 @@ def customer_picker_search(request):
         or PermissionChecker.has_permission(request.user, 'sales', 'create')
         or PermissionChecker.has_permission(request.user, 'finance', 'view')
         or PermissionChecker.has_permission(request.user, 'finance', 'create')
+        or PermissionChecker.has_permission(request.user, 'projects', 'view')
+        or PermissionChecker.has_permission(request.user, 'projects', 'create')
     ):
         return JsonResponse({'results': []}, status=403)
 
@@ -318,7 +343,7 @@ def customer_picker_search(request):
     results = []
     seen = set()
     if selected_ids:
-        for customer in Customer.objects.filter(pk__in=selected_ids, is_active=True):
+        for customer in Customer.objects.filter(pk__in=selected_ids):
             results.append({'id': customer.pk, 'text': customer.picker_option_label})
             seen.add(customer.pk)
 

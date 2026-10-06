@@ -1,0 +1,8 @@
+{% if item.inventory_item %}
+{% if pdf_mode %}<strong>{{ item.inventory_item.name }}</strong>{% else %}<span class="fw-medium">{{ item.inventory_item.name }}</span>{% endif %}
+{% if item.description and item.description != item.inventory_item.name %}
+<br>{% if pdf_mode %}<span style="font-size:9px;color:#525252;">{% else %}<small class="text-muted">{% endif %}{{ item.description }}{% if pdf_mode %}</span>{% else %}</small>{% endif %}
+{% endif %}
+{% else %}
+{{ item.description }}
+{% endif %}

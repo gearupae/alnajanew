@@ -116,9 +116,24 @@ class ProjectForm(forms.ModelForm):
         self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         if not self.instance.pk:
             self.fields['is_active'].initial = True
+        self.fields['customer'].queryset = Customer.objects.filter(is_active=True)
+        self.fields['customer'].label_from_instance = lambda c: c.picker_option_label
+        self.fields['customer'].required = False
+        self.fields['customer'].empty_label = '— Select customer —'
+        self.fields['customer'].widget.is_required = False
+        self.fields['customer'].widget.attrs['class'] = 'form-select project-customer-select'
+        self.fields['customer'].widget.attrs['id'] = 'id_customer'
         staff_qs = project_staff_select_queryset()
-        manager_qs = User.objects.filter(is_active=True).order_by('first_name', 'last_name', 'username')
-        self.fields['manager'].queryset = manager_qs
+        self.fields['manager'].queryset = (
+            User.objects.filter(is_active=True)
+            .select_related('employee_profile')
+            .order_by('first_name', 'last_name', 'username')
+        )
+        self.fields['manager'].label_from_instance = project_staff_choice_label
+        self.fields['manager'].required = False
+        self.fields['manager'].empty_label = '— Select manager —'
+        self.fields['manager'].widget.attrs['class'] = 'form-select select2-manager'
+        self.fields['manager'].widget.attrs['data-placeholder'] = 'Search by name or employee code…'
         self.fields['members'].queryset = staff_qs
         self.fields['members'].required = False
         self.fields['members'].label = 'Members'
@@ -140,9 +155,9 @@ class ProjectForm(forms.ModelForm):
         self.fields['status_attachment'].required = False
         self.fields['status_attachment'].label = 'Attachment'
         for name, field in self.fields.items():
-            if name in ['customer', 'manager', 'status', 'billing_type', 'expense_account', 'revenue_account']:
+            if name in ['status', 'billing_type', 'expense_account', 'revenue_account']:
                 field.widget.attrs['class'] = 'form-select'
-            elif name in ('members', 'technicians', 'is_active'):
+            elif name in ('customer', 'manager', 'members', 'technicians', 'is_active'):
                 pass
             else:
                 field.widget.attrs['class'] = 'form-control'

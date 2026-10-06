@@ -1,7 +1,88 @@
 {% extends 'base.html' %}
+{% block extra_css %}
+<style>
+.project-customer-select2-dropdown {
+    z-index: 1060;
+}
+.project-customer-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+.project-manager-select2-dropdown {
+    z-index: 1060;
+}
+.project-manager-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+</style>
+{% endblock %}
 {% block extra_js %}
 <script>
+function ensureProjectSelectEmptyOption(el, label) {
+    if (!el || el.querySelector('option[value=""]')) return;
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = label || '';
+    el.insertBefore(opt, el.firstChild);
+}
+
+function initProjectCustomerSelect2() {
+    const el = document.getElementById('id_customer');
+    if (!el || typeof $ === 'undefined' || !$.fn.select2 || el.disabled) return;
+    const $el = $(el);
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+    ensureProjectSelectEmptyOption(el, '— Select customer —');
+    el.removeAttribute('required');
+    const searchUrl = '{% url "crm:customer_picker_search" %}';
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        dropdownParent: $(document.body),
+        allowClear: true,
+        minimumInputLength: 0,
+        dropdownCssClass: 'project-customer-select2-dropdown',
+        placeholder: 'Search by number, name, or company…',
+        ajax: {
+            url: searchUrl,
+            dataType: 'json',
+            delay: 200,
+            data: function (params) {
+                return { q: params.term || '', selected: $el.val() || '' };
+            },
+            processResults: function (data) {
+                return { results: data.results || [] };
+            },
+        },
+        language: {
+            noResults: function () { return 'No matching customers — try number, name, or company'; },
+            searching: function () { return 'Searching…'; },
+        },
+    });
+}
+
+function initProjectManagerSelect2() {
+    const el = document.getElementById('id_manager');
+    if (!el || typeof $ === 'undefined' || !$.fn.select2 || el.disabled) return;
+    const $el = $(el);
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+    ensureProjectSelectEmptyOption(el, '— Select manager —');
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        dropdownParent: $(document.body),
+        allowClear: true,
+        minimumResultsForSearch: 0,
+        dropdownCssClass: 'project-manager-select2-dropdown',
+        placeholder: el.dataset.placeholder || 'Search by name or employee code…',
+    });
+}
+
 $(function () {
+    initProjectCustomerSelect2();
+    initProjectManagerSelect2();
     if ($('.select2-members').length) {
         $('.select2-members').select2({
             theme: 'bootstrap-5',

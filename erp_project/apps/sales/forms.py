@@ -13,6 +13,7 @@ from .models import Estimate, EstimateItem, Invoice, InvoiceItem, CreditNote, Cr
 from apps.crm.models import Customer
 from apps.finance.models import TaxCode
 from apps.inventory.models import ItemBaseGroup
+from apps.projects.forms import project_staff_choice_label
 from apps.projects.models import Project
 from .estimate_csv import get_default_estimate_csv_tax_code
 from .vat_pricing import default_prices_include_vat
@@ -104,7 +105,12 @@ class EstimateForm(forms.ModelForm):
         self.fields['project'].empty_label = '— Select project —'
         self.fields['project'].widget.is_required = False
         self.fields['project'].widget.attrs['class'] = 'form-select'
-        self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('first_name', 'last_name', 'username')
+        self.fields['assigned_to'].queryset = (
+            User.objects.filter(is_active=True)
+            .select_related('employee_profile')
+            .order_by('first_name', 'last_name', 'username')
+        )
+        self.fields['assigned_to'].label_from_instance = project_staff_choice_label
         self.fields['assigned_to'].widget.attrs['class'] = 'form-select'
         self.fields['assigned_to'].required = False
         self.fields['assigned_to'].label = 'Assigned to'
@@ -385,6 +391,18 @@ EstimateItemFormSet = forms.inlineformset_factory(
 class InvoiceForm(forms.ModelForm):
     """Form for creating/editing invoices."""
 
+    def _resolve_customer_preset_id(self):
+        if self.instance.pk and self.instance.customer_id:
+            return self.instance.customer_id
+        if self.is_bound:
+            raw = (self.data.get('customer') or '').strip()
+            if raw.isdigit():
+                return int(raw)
+        raw = self.initial.get('customer')
+        if raw is not None and str(raw).isdigit():
+            return int(raw)
+        return None
+
     project = forms.ModelChoiceField(
         queryset=Project.objects.none(),
         required=False,
@@ -422,8 +440,14 @@ class InvoiceForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['is_active'].label = 'Is active'
         self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
-        self.fields['customer'].queryset = Customer.objects.filter(is_active=True)
+        preset_customer_id = self._resolve_customer_preset_id()
+        if preset_customer_id:
+            self.fields['customer'].queryset = Customer.objects.filter(pk=preset_customer_id)
+        else:
+            self.fields['customer'].queryset = Customer.objects.none()
         self.fields['customer'].label_from_instance = lambda c: c.picker_option_label
+        self.fields['customer'].empty_label = '— Select customer —'
+        self.fields['customer'].widget.is_required = False
         self.fields['customer'].widget.attrs['class'] = 'form-select estimate-customer-select'
         self.fields['customer'].widget.attrs['id'] = 'id_customer'
         self.fields['estimate'].queryset = Estimate.objects.filter(is_active=True).select_related('customer').order_by('-created_at')
@@ -537,18 +561,24 @@ class InvoiceItemForm(forms.ModelForm):
     
     class Meta:
         model = InvoiceItem
-        fields = ['description', 'quantity', 'unit_price', 'tax_code', 'is_vat_inclusive']
+        fields = [
+            'inventory_item', 'description', 'quantity', 'unit_price', 'tax_code', 'is_vat_inclusive',
+        ]
         widgets = {
+            'inventory_item': forms.HiddenInput(attrs={'class': 'invoice-inventory-id-input'}),
             'is_vat_inclusive': forms.HiddenInput(),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['inventory_item'].required = False
         self.fields['description'].required = False
         self.fields['unit_price'].required = False
         for field_name, field in self.fields.items():
             if field_name in ['tax_code']:
                 field.widget.attrs['class'] = 'form-select'
+            elif field_name == 'inventory_item':
+                field.widget.attrs['class'] = 'invoice-inventory-id-input'
             else:
                 field.widget.attrs['class'] = 'form-control'
         
@@ -578,10 +608,20 @@ InvoiceItemFormSet = forms.inlineformset_factory(
     Invoice,
     InvoiceItem,
     form=InvoiceItemForm,
+    extra=0,
+    can_delete=True,
+    validate_min=False,
+    min_num=0,
+)
+
+InvoiceItemCreateFormSet = forms.inlineformset_factory(
+    Invoice,
+    InvoiceItem,
+    form=InvoiceItemForm,
     extra=1,
     can_delete=True,
     validate_min=False,
-    min_num=0
+    min_num=0,
 )
 
 
