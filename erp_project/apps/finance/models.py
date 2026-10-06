@@ -671,9 +671,13 @@ class JournalEntry(BaseModel):
                         f"Direct expense booking bypasses AP and leaves invoices unpaid."
                     )
 
-        # VAT control accounts (1300, 2110, 2120) must only be moved by
-        # system-generated modules (sales, purchase, vat, vat_return).
+        # VAT / tax control accounts must only be moved by system-generated
+        # modules (sales, purchase, vat, vat_return, ...).
         # Manual or payment postings to VAT accounts create FTA compliance risk.
+        # VAT accounts are identified by account_category (tax_receivables /
+        # tax_payables) only — never by hardcoded account codes, because code
+        # numbers vary per chart of accounts (e.g. 1300 is an Inventory account
+        # in some charts, not VAT).
         _VAT_ALLOWED_SOURCES = frozenset({
             'sales', 'purchase', 'vat', 'vat_return', 'opening_balance', 'system',
             'sales_credit_note', 'purchase_debit_note',
@@ -684,7 +688,6 @@ class JournalEntry(BaseModel):
             vat_touched = [
                 l for l in lines_list
                 if l.account.account_category in _vat_cats
-                or l.account.code in ('1300', '2110', '2120')
             ]
             if vat_touched:
                 vat_names = ', '.join(
@@ -1712,8 +1715,7 @@ class VATReturn(BaseModel):
                 account_type=AccountType.ASSET
             ).filter(
                 models.Q(name__icontains='input vat') |
-                models.Q(name__icontains='vat recoverable') |
-                models.Q(code='1200') | models.Q(code='1300')
+                models.Q(name__icontains='vat recoverable')
             ).first()
         
         # VAT Payable to FTA Account (Liability - Net amount owed to FTA)

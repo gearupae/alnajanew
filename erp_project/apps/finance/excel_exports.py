@@ -831,14 +831,23 @@ def export_vat_report(data, start_date, end_date):
         c.fill = PatternFill(start_color='DDDDDD', fill_type='solid')
     r += 1
 
-    from apps.finance.models import Account, JournalEntryLine, GL_REPORT_STATUSES
+    from apps.finance.models import Account, JournalEntryLine, GL_REPORT_STATUSES, AccountMapping
     from django.db.models import Sum, Q
     from django.db.models.functions import Coalesce
     from decimal import Decimal
 
-    vat_out_accs = Account.objects.filter(code='2110', is_active=True)
-    vat_in_accs = Account.objects.filter(code='1300', is_active=True)
-    vat_net_accs = Account.objects.filter(code='2120', is_active=True)
+    # Resolve VAT control accounts from Account Mapping (transaction_type),
+    # never from hardcoded codes — code numbers differ per chart of accounts
+    # (e.g. 1300 is an Inventory account in some charts, not input VAT).
+    def _mapped_accs(transaction_type, fallback_code):
+        m = AccountMapping.objects.filter(transaction_type=transaction_type).first()
+        if m and m.account:
+            return Account.objects.filter(pk=m.account.pk, is_active=True)
+        return Account.objects.filter(code=fallback_code, is_active=True)
+
+    vat_out_accs = _mapped_accs('vat_output', '2100')
+    vat_in_accs = _mapped_accs('vat_input', '1260')
+    vat_net_accs = _mapped_accs('vat_payable', '2110')
 
     def _gl_bal(accounts, normal='credit'):
         agg = JournalEntryLine.objects.filter(

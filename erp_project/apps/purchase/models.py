@@ -760,7 +760,7 @@ class VendorBill(BaseModel):
             if not vat_account:
                 raise ValidationError(
                     "VAT Recoverable account not configured. "
-                    "Expected account 1300 or set up 'vendor_bill_vat' in Finance → Account Mapping."
+                    "Set up 'vendor_bill_vat' (Input VAT Recoverable) in Finance → Account Mapping."
                 )
             JournalEntryLine.objects.create(
                 journal_entry=journal,
