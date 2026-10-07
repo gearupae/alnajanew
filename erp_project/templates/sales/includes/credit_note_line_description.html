@@ -1,0 +1,11 @@
+{% if line.invoice_line and line.invoice_line.inventory_item %}
+{% if line.description and line.description != line.invoice_line.inventory_item.name %}
+<small class="text-muted">{{ line.description }}</small>
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}
+{% elif line.invoice_line %}
+<span class="text-muted">—</span>
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}

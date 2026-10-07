@@ -2,14 +2,20 @@
 
 {% block extra_css %}
 <style>
-#itemsBody td:first-child .select2-container {
+.pr-item-cell .item-inventory-select {
+    margin-bottom: 0.25rem;
+}
+.pr-item-cell .item-description-input {
+    margin-top: 0.25rem;
+}
+.pr-item-cell .select2-container {
     width: 100% !important;
 }
-#itemsBody td:first-child .select2-selection--single {
+.pr-item-cell .select2-selection--single {
     min-height: 31px;
     font-size: 0.875rem;
 }
-#itemsBody td:first-child .select2-selection__rendered {
+.pr-item-cell .select2-selection__rendered {
     padding-left: 0.35rem;
     line-height: 1.5;
 }
@@ -206,27 +212,27 @@
                 <table class="table mb-0">
                     <thead>
                         <tr>
-                            <th style="width:40%">Inventory item</th>
+                            <th style="width:34%">Item</th>
                             <th style="width:8%" class="text-center pr-current-stock-header">Current stock</th>
-                            <th style="width:10%">Qty</th>
-                            <th style="width:12%">Unit</th>
-                            <th style="width:13%">Est. Price</th>
-                            <th style="width:12%">Total</th>
-                            <th style="width:13%"></th>
+                            <th style="width:8%">Qty</th>
+                            <th style="width:10%">Unit</th>
+                            <th style="width:11%">Est. Price</th>
+                            <th style="width:10%">Total</th>
+                            <th style="width:8%"></th>
                         </tr>
                     </thead>
                     <tbody id="itemsBody">
                         {% for item_form in items_formset %}
                         <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %}>
-                            <td>
+                            <td class="pr-item-cell">
                                 {{ item_form.id }}
-                                {{ item_form.description }}
                                 {{ item_form.inventory_item }}
-                                {% if item_form.instance.description and not item_form.instance.inventory_item_id %}
-                                <div class="small fw-medium item-service-label">{{ item_form.instance.description }}</div>
-                                {% endif %}
+                                {{ item_form.description }}
                                 {% if item_form.inventory_item.errors %}
                                 <div class="text-danger small">{{ item_form.inventory_item.errors|join:", " }}</div>
+                                {% endif %}
+                                {% if item_form.description.errors %}
+                                <div class="text-danger small">{{ item_form.description.errors|join:", " }}</div>
                                 {% endif %}
                                 {% if item_form.non_field_errors %}
                                 <div class="text-danger small">{{ item_form.non_field_errors|join:", " }}</div>
@@ -469,9 +475,13 @@ function updateRowStock(row, stockValue) {
 
 function applyInventoryDefaults(selectEl, row) {
     const id = parseInt(selectEl.value, 10);
+    const descInput = row.querySelector('.item-description-input');
     if (!id) {
         updateRowStock(row, null);
         return;
+    }
+    if (descInput) {
+        descInput.value = '';
     }
     const meta = PR_INVENTORY_ITEMS.find(x => String(x.id) === String(id));
     if (!meta) {
@@ -514,7 +524,7 @@ function addInventoryItemRow() {
     newRow.className = 'item-row';
     const idx = formCount;
     newRow.innerHTML = `
-        <td class="td-inv"></td>
+        <td class="pr-item-cell td-inv"></td>
         <td class="text-center text-nowrap align-middle item-current-stock pr-current-stock-cell text-muted small">—</td>
         <td><input type="number" name="items-${idx}-quantity" class="form-control item-qty" value="0" step="1" min="0"></td>
         <td><select name="items-${idx}-unit" class="form-select item-unit-select"><option value="pcs">Pcs</option><option value="box">Box</option><option value="kg">Kg</option><option value="ltr">Ltr</option><option value="set">Set</option><option value="other">Other</option></select></td>
@@ -524,14 +534,15 @@ function addInventoryItemRow() {
     `;
     tbody.appendChild(newRow);
     const tdInv = newRow.querySelector('.td-inv');
-    const descInput = document.createElement('input');
-    descInput.type = 'hidden';
-    descInput.name = `items-${idx}-description`;
-    descInput.className = 'item-description-input';
-    descInput.value = '';
-    tdInv.appendChild(descInput);
     const invSel = buildInventorySelect(`items-${idx}-inventory_item`);
     tdInv.appendChild(invSel);
+    const descInput = document.createElement('input');
+    descInput.type = 'text';
+    descInput.name = `items-${idx}-description`;
+    descInput.className = 'form-control form-control-sm item-description-input';
+    descInput.placeholder = 'Optional custom description…';
+    descInput.value = '';
+    tdInv.appendChild(descInput);
     initPrInventorySelect2(invSel);
     formCount++;
     document.getElementById('id_items-TOTAL_FORMS').value = formCount;
@@ -546,7 +557,9 @@ function addServiceItemRow(description, quantity, unit, estimatedPrice) {
     const idx = formCount;
     const prUnit = SR_UNIT_TO_PR[(unit || '').toLowerCase()] || 'other';
     newRow.innerHTML = `
-        <td class="td-inv"></td>
+        <td class="pr-item-cell">
+            <input type="text" name="items-${idx}-description" class="form-control form-control-sm item-description-input" value="${escapeHtml(description || '')}" placeholder="Service / line description…">
+        </td>
         <td class="text-center text-nowrap align-middle item-current-stock pr-current-stock-cell text-muted small">—</td>
         <td><input type="number" name="items-${idx}-quantity" class="form-control item-qty" value="${escapeHtml(String(quantity || '0'))}" step="1" min="0"></td>
         <td><select name="items-${idx}-unit" class="form-select item-unit-select"><option value="pcs">Pcs</option><option value="box">Box</option><option value="kg">Kg</option><option value="ltr">Ltr</option><option value="set">Set</option><option value="other">Other</option></select></td>
@@ -555,17 +568,6 @@ function addServiceItemRow(description, quantity, unit, estimatedPrice) {
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow(this)"><i class="fas fa-times"></i></button></td>
     `;
     tbody.appendChild(newRow);
-    const tdInv = newRow.querySelector('.td-inv');
-    const descInput = document.createElement('input');
-    descInput.type = 'hidden';
-    descInput.name = `items-${idx}-description`;
-    descInput.className = 'item-description-input';
-    descInput.value = description || '';
-    tdInv.appendChild(descInput);
-    const label = document.createElement('div');
-    label.className = 'small fw-medium item-service-label';
-    label.textContent = description || '';
-    tdInv.appendChild(label);
     const unitSel = newRow.querySelector('.item-unit-select');
     if (unitSel) unitSel.value = prUnit;
     formCount++;

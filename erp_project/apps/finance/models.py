@@ -9,7 +9,7 @@ Compliance:
 - Accrual accounting
 """
 from django.db import models
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
@@ -179,6 +179,143 @@ class Account(BaseModel):
             f'Account {self.code} — {self.name}{label} is a parent/control account and cannot be posted to.{hint} '
             f'Update Finance → Account Mapping or Finance → Bank Accounts.'
         )
+
+    AR_POSTING_FALLBACK_CODES = ('1201', '1202', '1110', '1210', '1120')
+    INVENTORY_ASSET_FALLBACK_CODES = ('1300', '1310', '1320', '1330', '1340', '1500')
+    INVENTORY_COGS_FALLBACK_CODES = ('5010', '5020', '5030', '5040', '5100', '5200')
+    INVENTORY_CLEARING_FALLBACK_CODES = ('2025', '2010', '2020')
+
+    @classmethod
+    def _first_leaf_by_codes(cls, codes, *, name_hints=()):
+        if name_hints:
+            for hint in name_hints:
+                for account in cls.objects.filter(is_active=True, name__icontains=hint).order_by('code'):
+                    if account.is_leaf:
+                        return account
+        for code in codes:
+            fallback = cls.objects.filter(code=code, is_active=True).first()
+            if fallback and fallback.is_leaf:
+                if not name_hints or any(h.lower() in fallback.name.lower() for h in name_hints):
+                    return fallback
+        for code in codes:
+            fallback = cls.objects.filter(code=code, is_active=True).first()
+            if fallback and fallback.is_leaf:
+                return fallback
+        return None
+
+    @classmethod
+    def resolve_for_posting(cls, account, *, transaction_type='', context=''):
+        """Return a postable leaf account, resolving parent/control mappings when possible."""
+        if not account:
+            return account
+        if account.is_leaf:
+            return account
+
+        label = context or transaction_type.replace('_', ' ')
+        ar_types = {
+            'sales_invoice_receivable',
+            'customer_receipt_ar_clear',
+            'sales_return',
+            'intercompany_receivable',
+            'trade_debtors_property',
+        }
+        inventory_asset_types = {'inventory_asset', 'inventory_revaluation'}
+        inventory_cogs_types = {
+            'inventory_cogs',
+            'inventory_variance',
+            'inventory_damage_expense',
+        }
+        inventory_clearing_types = {'inventory_grn_clearing'}
+
+        if transaction_type in inventory_asset_types:
+            child = (
+                account.children.filter(is_active=True)
+                .filter(Q(name__icontains='inventory') | Q(code__startswith='13'))
+                .order_by('code')
+                .first()
+            )
+            if child and child.is_leaf:
+                return child
+            fallback = cls._first_leaf_by_codes(
+                cls.INVENTORY_ASSET_FALLBACK_CODES,
+                name_hints=('inventory',),
+            )
+            if fallback:
+                return fallback
+
+        if transaction_type in inventory_cogs_types:
+            child = (
+                account.children.filter(is_active=True)
+                .filter(
+                    Q(name__icontains='cost')
+                    | Q(name__icontains='cogs')
+                    | Q(name__icontains='inventory')
+                    | Q(code__startswith='50')
+                    | Q(code__startswith='51')
+                    | Q(code__startswith='52')
+                )
+                .order_by('code')
+                .first()
+            )
+            if child and child.is_leaf:
+                return child
+            fallback = cls._first_leaf_by_codes(
+                cls.INVENTORY_COGS_FALLBACK_CODES,
+                name_hints=('cost', 'cogs', 'goods sold'),
+            )
+            if fallback:
+                return fallback
+
+        if transaction_type in inventory_clearing_types:
+            child = (
+                account.children.filter(is_active=True)
+                .filter(
+                    Q(name__icontains='clear')
+                    | Q(name__icontains='grn')
+                    | Q(name__icontains='gr/i')
+                )
+                .order_by('code')
+                .first()
+            )
+            if child and child.is_leaf:
+                return child
+            fallback = cls._first_leaf_by_codes(
+                cls.INVENTORY_CLEARING_FALLBACK_CODES,
+                name_hints=('grn', 'clear', 'gr/i'),
+            )
+            if fallback:
+                return fallback
+
+        if transaction_type not in ar_types:
+            child = (
+                account.children.filter(is_active=True)
+                .exclude(Q(name__icontains='bank') | Q(is_cash_account=True))
+                .filter(
+                    Q(name__icontains='receiv')
+                    | Q(name__icontains='debtor')
+                    | Q(name__icontains='trade')
+                )
+                .order_by('code')
+                .first()
+            )
+            if child and child.is_leaf:
+                return child
+
+        if transaction_type in ar_types:
+            fallback = cls._first_leaf_by_codes(cls.AR_POSTING_FALLBACK_CODES)
+            if fallback:
+                return fallback
+            fallback = (
+                cls.objects.filter(is_active=True, account_type=AccountType.ASSET)
+                .exclude(Q(name__icontains='bank') | Q(is_cash_account=True))
+                .filter(Q(name__icontains='debtor') | Q(name__icontains='receivable'))
+                .order_by('code')
+            )
+            for candidate in fallback:
+                if candidate.is_leaf:
+                    return candidate
+
+        return account.ensure_leaf_for_posting(context=label)
 
     @classmethod
     def ensure_accounts_leaf_for_posting(cls, account_specs):
@@ -3960,7 +4097,11 @@ class AccountMapping(models.Model):
             transaction_type,
             not_configured_message=not_configured_message,
         )
-        return account.ensure_leaf_for_posting(context=context or transaction_type.replace('_', ' '))
+        return Account.resolve_for_posting(
+            account,
+            transaction_type=transaction_type,
+            context=context or transaction_type.replace('_', ' '),
+        )
 
     @classmethod
     def get_missing_core_mappings(cls):

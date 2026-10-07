@@ -10,10 +10,12 @@ urlpatterns = [
     path('', views.ProjectListView.as_view(), name='project_list'),
     path('create/', views.ProjectCreateView.as_view(), name='project_create'),
     path('tasks/', views.TaskListView.as_view(), name='task_list'),
+    path('api/project-picker-search/', views.project_picker_search, name='project_picker_search'),
     path('tasks/create/', views.TaskCreateView.as_view(), name='task_create'),
     path('tasks/<int:pk>/', views.TaskDetailView.as_view(), name='task_detail'),
     path('tasks/<int:pk>/edit/', views.TaskUpdateView.as_view(), name='task_edit'),
     path('<int:pk>/report/pdf/', views.project_report_pdf, name='project_report_pdf'),
+    path('<int:pk>/delivery-note/pdf/', views.project_delivery_note_pdf, name='project_delivery_note_pdf'),
     path('<int:project_pk>/gatepass/<int:pk>/delete/', views.project_gatepass_delete, name='project_gatepass_delete'),
     path('<int:pk>/', views.ProjectDetailView.as_view(), name='project_detail'),
     path('<int:pk>/edit/', views.ProjectUpdateView.as_view(), name='project_edit'),
@@ -43,6 +45,7 @@ urlpatterns = [
     path('item-deliveries/', views.ItemDeliveryListView.as_view(), name='item_delivery_list'),
     path('item-deliveries/create/', views.ItemDeliveryCreateView.as_view(), name='item_delivery_create'),
     path('item-deliveries/<int:pk>/', views.ItemDeliveryDetailView.as_view(), name='item_delivery_detail'),
+    path('item-deliveries/<int:pk>/delivery-note/pdf/', views.item_delivery_note_pdf, name='item_delivery_note_pdf'),
 ]
 
 

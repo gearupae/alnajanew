@@ -738,6 +738,25 @@ function rebuildInvoiceProjectOptions(customerId, selectedProjectId) {
     });
 }
 
+function initInvoiceEstimateSelect2() {
+    const el = document.getElementById('id_estimate');
+    if (!el || typeof $ === 'undefined' || !$.fn.select2) return;
+    const $el = $(el);
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+    ensureSelectEmptyOption(el, '— No linked estimate —');
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        dropdownParent: $(document.body),
+        allowClear: true,
+        minimumResultsForSearch: 0,
+        dropdownCssClass: 'invoice-header-select2-dropdown',
+        placeholder: 'Search by quote number or customer…',
+    });
+}
+
 function initInvoiceProjectSelect2() {
     const el = document.getElementById('id_project');
     if (!el || typeof $ === 'undefined' || !$.fn.select2) return;
@@ -863,6 +882,7 @@ function initInvoiceCustomerSelect2() {
 
 $(function () {
     initInvoiceCustomerSelect2();
+    initInvoiceEstimateSelect2();
     refreshInvoiceProjectSelect({ preserveSelection: true });
     initInvoiceCustomerProjectSync();
     initAllInvoiceInventorySelect2();

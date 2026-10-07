@@ -24,6 +24,9 @@
             <a href="{% url 'inventory:item_detail' delivery.item.pk %}" class="btn btn-light btn-sm">
                 <i class="fas fa-box me-1"></i>Item
             </a>
+            <a href="{% url 'projects:item_delivery_note_pdf' delivery.pk %}" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">
+                <i class="fas fa-file-download me-1"></i>Delivery note
+            </a>
         </div>
     </div>
 </div>

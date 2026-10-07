@@ -49,6 +49,20 @@ class AccountForm(forms.ModelForm):
         if qs.exists():
             raise ValidationError("Account code already exists.")
         return code
+
+    def clean_name(self):
+        name = (self.cleaned_data.get('name') or '').strip()
+        if not name:
+            return name
+        qs = Account.objects.filter(name__iexact=name)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            existing = qs.first()
+            raise ValidationError(
+                f'An account with this name already exists ({existing.code} — {existing.name}).'
+            )
+        return name
     
     def clean_opening_balance(self):
         opening_balance = self.cleaned_data['opening_balance']

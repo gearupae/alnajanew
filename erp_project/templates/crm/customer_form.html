@@ -27,10 +27,18 @@
 <script src="{% static 'js/crm_customer_validation.js' %}"></script>
 <script src="{% static 'js/crm_customer_lookup.js' %}"></script>
 <script src="{% static 'js/crm_customer_form_toggle.js' %}"></script>
-<script src="{% static 'js/crm_salesperson_select2.js' %}"></script>
+{% include 'crm/includes/customer_salesperson_select2.html' %}
+<script>
+jQuery(function () {
+    if (window.crmInitAssignedSalespersonSelect2) {
+        window.crmInitAssignedSalespersonSelect2();
+    }
+});
+</script>
 {% endblock %}
 
 {% block content %}
+{{ salesman_choice_options|json_script:"crm-salesman-options" }}
 <div class="page-header">
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb mb-2">

@@ -7,6 +7,7 @@ from decimal import Decimal
 from django.db.models import Count, Sum
 
 from apps.projects.item_delivery import (
+    project_delivery_history_rows,
     project_inventory_spend_total,
     project_item_delivered_qty,
 )
@@ -88,61 +89,7 @@ def _item_returned_qty(project, item):
 
 def _utilization_rows(project):
     """All items issued / delivered to the project site."""
-    from apps.inventory.models import ItemSerialNumber
-
-    rows = []
-
-    for delivery in (
-        ProjectItemDelivery.objects.filter(project=project)
-        .select_related('item', 'delivered_by')
-        .order_by('-delivered_date', '-pk')
-    ):
-        # Serial-tracked deliveries are listed per unit below (model number).
-        if delivery.item.track_by_serial:
-            continue
-        rows.append(
-            {
-                'item_name': delivery.item.name,
-                'item_code': delivery.item.item_code,
-                'detail': f'Qty {delivery.quantity}',
-                'quantity': delivery.quantity,
-                'delivered_date': delivery.delivered_date,
-                'delivered_by': (
-                    delivery.delivered_by.get_full_name() or delivery.delivered_by.username
-                    if delivery.delivered_by
-                    else '—'
-                ),
-                'sort_date': delivery.delivered_date,
-            }
-        )
-
-    for sn in (
-        ItemSerialNumber.objects.filter(
-            assigned_project=project,
-            status=ItemSerialNumber.STATUS_DELIVERED,
-            is_active=True,
-        )
-        .select_related('item', 'delivered_by')
-        .order_by('-delivered_date', 'model_number')
-    ):
-        rows.append(
-            {
-                'item_name': sn.item.name,
-                'item_code': sn.item.item_code,
-                'detail': sn.model_number,
-                'quantity': Decimal('1'),
-                'delivered_date': sn.delivered_date,
-                'delivered_by': (
-                    sn.delivered_by.get_full_name() or sn.delivered_by.username
-                    if sn.delivered_by
-                    else '—'
-                ),
-                'sort_date': sn.delivered_date,
-            }
-        )
-
-    rows.sort(key=lambda r: (r['sort_date'] or project.start_date, r['item_name']), reverse=True)
-    return rows
+    return project_delivery_history_rows(project)
 
 
 def _return_rows(project):

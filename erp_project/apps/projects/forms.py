@@ -1,3 +1,5 @@
+from datetime import date
+
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Prefetch
@@ -116,6 +118,8 @@ class ProjectForm(forms.ModelForm):
         self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         if not self.instance.pk:
             self.fields['is_active'].initial = True
+            if not self.is_bound and not self.initial.get('start_date'):
+                self.fields['start_date'].initial = date.today()
         self.fields['customer'].queryset = Customer.objects.filter(is_active=True)
         self.fields['customer'].label_from_instance = lambda c: c.picker_option_label
         self.fields['customer'].required = False
@@ -324,13 +328,17 @@ class TaskForm(forms.ModelForm):
         self.fields['project'].queryset = (
             Project.objects.filter(is_active=True).order_by('project_code', 'name')
         )
+        self.fields['project'].label_from_instance = (
+            lambda p: f'{p.project_code} — {p.name}'
+        )
         self.fields['customer'].queryset = (
             Customer.objects.filter(is_active=True).order_by('customer_number', 'name')
         )
+        self.fields['customer'].label_from_instance = lambda c: c.picker_option_label
         self.fields['project'].required = False
         self.fields['customer'].required = False
-        self.fields['project'].empty_label = '-- None --'
-        self.fields['customer'].empty_label = '-- None --'
+        self.fields['project'].empty_label = '— None —'
+        self.fields['customer'].empty_label = '— None —'
 
         self.fields['assigned_to'].queryset = (
             User.objects.filter(is_active=True)
@@ -347,7 +355,13 @@ class TaskForm(forms.ModelForm):
         for name, field in self.fields.items():
             if name == 'is_active':
                 continue
-            if name in ['assigned_to', 'status', 'priority', 'project', 'customer']:
+            if name == 'project':
+                field.widget.attrs['class'] = 'form-select task-project-select'
+            elif name == 'customer':
+                field.widget.attrs['class'] = 'form-select task-customer-select'
+            elif name == 'assigned_to':
+                field.widget.attrs['class'] = 'form-select task-assigned-select'
+            elif name in ['status', 'priority']:
                 field.widget.attrs['class'] = 'form-select'
             else:
                 field.widget.attrs['class'] = 'form-control'
@@ -479,8 +493,14 @@ class ProjectExpenseForm(forms.ModelForm):
         self.fields['project'].widget.attrs['class'] = 'form-select select2-project'
         self.fields['project'].widget.attrs['data-placeholder'] = 'Search by code or customer…'
 
-        self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True)
+        self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True).order_by('name')
         self.fields['vendor'].required = False
+        self.fields['vendor'].empty_label = '— Select vendor —'
+        self.fields['vendor'].label_from_instance = (
+            lambda v: f'{v.vendor_number} — {v.name}'
+        )
+        self.fields['vendor'].widget.attrs['class'] = 'form-select select2-vendor'
+        self.fields['vendor'].widget.attrs['data-placeholder'] = 'Search by vendor number or name…'
 
         self.fields['expense_account'].queryset = Account.objects.filter(
             is_active=True,
@@ -494,8 +514,10 @@ class ProjectExpenseForm(forms.ModelForm):
         for name, field in self.fields.items():
             if name == 'is_active':
                 continue
-            if name in ['category', 'vendor']:
+            if name == 'category':
                 field.widget.attrs['class'] = 'form-select'
+            elif name == 'vendor':
+                pass
             elif name == 'expense_account':
                 field.widget.attrs.setdefault('class', 'form-select select2-expense-account')
             elif name == 'project':

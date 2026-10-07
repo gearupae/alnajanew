@@ -911,7 +911,7 @@ class StockMovement(BaseModel):
         Adjustment (+): Dr Inventory Asset, Cr Stock Variance
         Adjustment (-): Dr Stock Variance, Cr Inventory Asset
         """
-        from apps.finance.models import JournalEntry, JournalEntryLine, AccountMapping
+        from apps.finance.models import Account, JournalEntry, JournalEntryLine, AccountMapping
         
         if self.posted:
             raise ValidationError("Movement already posted to accounting.")
@@ -919,17 +919,20 @@ class StockMovement(BaseModel):
         if self.total_cost <= 0:
             raise ValidationError("Movement cost must be greater than zero for accounting.")
         
-        inventory_account = AccountMapping.require_account(
+        inventory_account = AccountMapping.require_posting_account(
             'inventory_asset',
             not_configured_message='Inventory Asset account not configured in Account Mapping.',
+            context='Inventory Asset',
         )
-        cogs_account = AccountMapping.require_account(
+        cogs_account = AccountMapping.require_posting_account(
             'inventory_cogs',
             not_configured_message='COGS account not configured in Account Mapping.',
+            context='Cost of Goods Sold',
         )
-        grn_clearing = AccountMapping.require_account(
+        grn_clearing = AccountMapping.require_posting_account(
             'inventory_grn_clearing',
             not_configured_message=AccountMapping.GRN_CLEARING_NOT_CONFIGURED,
+            context='GRN Clearing',
         )
         
         # Create journal entry
@@ -976,7 +979,7 @@ class StockMovement(BaseModel):
             )
         
         elif self.movement_type in ('adjustment_plus', 'adjustment_minus'):
-            contra_account = self._get_adjustment_contra_account(AccountMapping)
+            contra_account = self._get_adjustment_contra_account(AccountMapping, Account)
             if not contra_account:
                 raise ValidationError(
                     "Adjustment contra account not configured. "
@@ -1020,7 +1023,7 @@ class StockMovement(BaseModel):
         
         return journal
 
-    def _get_adjustment_contra_account(self, AccountMapping):
+    def _get_adjustment_contra_account(self, AccountMapping, Account):
         """
         Resolve the contra account for an inventory adjustment based on reason.
 
@@ -1044,7 +1047,14 @@ class StockMovement(BaseModel):
         mapping_key, default_code = reason_map.get(
             self.adjustment_reason, ('inventory_variance', '5200')
         )
-        return AccountMapping.get_account_or_default(mapping_key, default_code)
+        account = AccountMapping.get_account_or_default(mapping_key, default_code)
+        if not account:
+            return None
+        return Account.resolve_for_posting(
+            account,
+            transaction_type=mapping_key,
+            context=mapping_key.replace('_', ' '),
+        )
 
 
 class ConsumableRequest(BaseModel):

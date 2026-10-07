@@ -190,7 +190,10 @@ class PurchaseRequestItemForm(forms.ModelForm):
         model = PurchaseRequestItem
         fields = ['inventory_item', 'description', 'quantity', 'unit', 'estimated_price']
         widgets = {
-            'description': forms.HiddenInput(attrs={'class': 'item-description-input'}),
+            'description': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm item-description-input',
+                'placeholder': 'Optional custom description…',
+            }),
             'estimated_price': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
             'quantity': forms.NumberInput(attrs={'step': '1', 'min': '0'}),
         }

@@ -68,11 +68,12 @@
             <div class="card-header"><h6 class="mb-0">Line Items</h6></div>
             <div class="card-body p-0">
                 <table class="table mb-0">
-                    <thead class="table-light"><tr><th>Description</th><th class="text-center">Qty</th><th class="text-end">Price</th><th class="text-center">VAT</th><th class="text-end">Total</th></tr></thead>
+                    <thead class="table-light"><tr><th>Item</th><th>Description</th><th class="text-center">Qty</th><th class="text-end">Price</th><th class="text-center">VAT</th><th class="text-end">Total</th></tr></thead>
                     <tbody>
                         {% for line in credit_note.lines.all %}
                         <tr>
-                            <td>{{ line.description }}</td>
+                            <td>{% include 'sales/includes/credit_note_line_item.html' %}</td>
+                            <td>{% include 'sales/includes/credit_note_line_description.html' %}</td>
                             <td class="text-center">{{ line.quantity }}</td>
                             <td class="text-end">{{ line.unit_price|floatformat:2 }}</td>
                             <td class="text-center">{{ line.vat_rate }}%</td>
@@ -81,9 +82,9 @@
                         {% endfor %}
                     </tbody>
                     <tfoot>
-                        <tr><td colspan="4" class="text-end">Subtotal</td><td class="text-end">AED {{ credit_note.subtotal|floatformat:2 }}</td></tr>
-                        <tr><td colspan="4" class="text-end">VAT</td><td class="text-end">AED {{ credit_note.vat_amount|floatformat:2 }}</td></tr>
-                        <tr><td colspan="4" class="text-end fw-bold">Total</td><td class="text-end fw-bold">AED {{ credit_note.total|floatformat:2 }}</td></tr>
+                        <tr><td colspan="5" class="text-end">Subtotal</td><td class="text-end">AED {{ credit_note.subtotal|floatformat:2 }}</td></tr>
+                        <tr><td colspan="5" class="text-end">VAT</td><td class="text-end">AED {{ credit_note.vat_amount|floatformat:2 }}</td></tr>
+                        <tr><td colspan="5" class="text-end fw-bold">Total</td><td class="text-end fw-bold">AED {{ credit_note.total|floatformat:2 }}</td></tr>
                     </tfoot>
                 </table>
             </div>

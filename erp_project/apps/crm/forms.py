@@ -126,16 +126,34 @@ class CustomerForm(forms.ModelForm):
         include_salesperson_id = None
         if self.instance.pk and self.instance.assigned_salesperson_id:
             include_salesperson_id = self.instance.assigned_salesperson_id
+        if user and not self.instance.pk:
+            emp = get_sales_employee_for_user(user)
+            if emp and 'assigned_salesperson' not in self.initial:
+                self.initial['assigned_salesperson'] = emp.pk
+        if self.is_bound:
+            raw = (self.data.get('assigned_salesperson') or '').strip()
+            if raw.isdigit():
+                include_salesperson_id = int(raw)
+        elif self.initial.get('assigned_salesperson'):
+            try:
+                include_salesperson_id = int(self.initial['assigned_salesperson'])
+            except (TypeError, ValueError):
+                pass
         self.fields['assigned_salesperson'].queryset = get_sales_employee_queryset(
             include_employee_id=include_salesperson_id,
         )
         self.fields['assigned_salesperson'].required = True
         self.fields['assigned_salesperson'].empty_label = '— Select salesman —'
         self.fields['assigned_salesperson'].label_from_instance = salesperson_display_name
+        self.fields['assigned_salesperson'].widget.is_required = False
         self.fields['assigned_salesperson'].widget.attrs.update({
-            'class': 'form-select select2-crm-salesperson',
+            'class': 'form-select select2-crm-form-salesman',
             'data-placeholder': 'Search by name or employee code…',
         })
+        if self.initial.get('assigned_salesperson'):
+            self.fields['assigned_salesperson'].widget.attrs['data-default-salesperson'] = str(
+                self.initial['assigned_salesperson']
+            )
         self.fields['assigned_salesperson'].label = 'Assigned salesman'
         self.fields['name'].required = False
         self.fields['company'].required = True
@@ -144,12 +162,8 @@ class CustomerForm(forms.ModelForm):
         if not compact:
             self.fields['phone'].label = 'Contact'
 
-        if user and not self.instance.pk:
-            emp = get_sales_employee_for_user(user)
-            if emp and 'assigned_salesperson' not in self.initial:
-                self.initial['assigned_salesperson'] = emp.pk
-            if not compact and 'country' not in self.initial:
-                self.initial['country'] = 'United Arab Emirates'
+        if user and not self.instance.pk and not compact and 'country' not in self.initial:
+            self.initial['country'] = 'United Arab Emirates'
 
         if self.instance.pk and 'scope' in self.fields:
             self.initial['scope'] = list(self.instance.scope or [])

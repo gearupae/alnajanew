@@ -1,5 +1,16 @@
 {% extends 'base.html' %}
 
+{% block extra_css %}
+<style>
+.project-expense-select2-dropdown {
+    z-index: 1060;
+}
+.project-expense-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <nav aria-label="breadcrumb">
@@ -184,6 +195,48 @@
 
 {% block extra_js %}
 <script>
+function ensureExpenseSelectEmptyOption(el, label) {
+    if (!el || el.querySelector('option[value=""]')) return;
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = label || '';
+    el.insertBefore(opt, el.firstChild);
+}
+
+function initProjectExpenseVendorSelect2() {
+    const el = document.getElementById('id_vendor');
+    if (!el || typeof jQuery === 'undefined' || !jQuery.fn.select2 || el.disabled) return;
+    const $el = jQuery(el);
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+    ensureExpenseSelectEmptyOption(el, '— Select vendor —');
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        dropdownParent: jQuery(document.body),
+        allowClear: true,
+        minimumInputLength: 0,
+        dropdownCssClass: 'project-expense-select2-dropdown',
+        placeholder: 'Search by vendor number or name…',
+        ajax: {
+            url: '{% url "purchase:vendor_picker_search" %}',
+            dataType: 'json',
+            delay: 200,
+            data: function (params) {
+                return { q: params.term || '', selected: $el.val() || '' };
+            },
+            processResults: function (data) {
+                return { results: data.results || [] };
+            },
+        },
+        language: {
+            noResults: function () { return 'No matching vendors'; },
+            searching: function () { return 'Searching…'; },
+        },
+    });
+}
+
 $(function () {
     if ($.fn.select2) {
         if ($('.select2-project').length) {
@@ -194,8 +247,10 @@ $(function () {
                 allowClear: true,
                 minimumResultsForSearch: 0,
                 dropdownParent: $(document.body),
+                dropdownCssClass: 'project-expense-select2-dropdown',
             });
         }
+        initProjectExpenseVendorSelect2();
         if ($('.select2-expense-account').length) {
             $('.select2-expense-account').select2({
                 theme: 'bootstrap-5',
@@ -204,6 +259,7 @@ $(function () {
                 allowClear: true,
                 minimumResultsForSearch: 0,
                 dropdownParent: $(document.body),
+                dropdownCssClass: 'project-expense-select2-dropdown',
             });
         }
     }

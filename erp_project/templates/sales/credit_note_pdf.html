@@ -54,6 +54,7 @@
     <table>
         <thead>
             <tr>
+                <th>Item</th>
                 <th>Description</th>
                 <th class="text-center">Qty</th>
                 <th class="text-end">Unit Price (AED)</th>
@@ -65,7 +66,8 @@
         <tbody>
             {% for line in credit_note.lines.all %}
             <tr>
-                <td>{{ line.description }}</td>
+                <td>{% include 'sales/includes/credit_note_line_item.html' %}</td>
+                <td>{% if line.invoice_line and line.invoice_line.inventory_item and line.description and line.description != line.invoice_line.inventory_item.name %}{{ line.description }}{% else %}—{% endif %}</td>
                 <td class="text-center">{{ line.quantity }}</td>
                 <td class="text-end">{{ line.unit_price|floatformat:2 }}</td>
                 <td class="text-center">{{ line.vat_rate }}</td>

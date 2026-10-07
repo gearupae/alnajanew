@@ -69,7 +69,8 @@ class AccountListView(PermissionRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Chart of Accounts'
         context['account_types'] = AccountType.choices
-        context['form'] = AccountForm()
+        context['form'] = kwargs.get('form') or AccountForm()
+        context['show_account_form'] = kwargs.get('show_account_form', False)
         context['can_create'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'finance', 'create')
         context['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'finance', 'edit')
         context['can_delete'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'finance', 'delete')
@@ -96,11 +97,13 @@ class AccountListView(PermissionRequiredMixin, ListView):
             account.opening_balance = Decimal('0.00')
             account.save()
             messages.success(request, f'Account {account.code} created.')
-        else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
-        return redirect('finance:account_list')
+            return redirect('finance:account_list')
+        for errors in form.errors.values():
+            for error in errors:
+                messages.error(request, error)
+        self.object_list = self.get_queryset()
+        context = self.get_context_data(form=form, show_account_form=True)
+        return self.render_to_response(context)
 
 
 class AccountUpdateView(UpdatePermissionMixin, UpdateView):

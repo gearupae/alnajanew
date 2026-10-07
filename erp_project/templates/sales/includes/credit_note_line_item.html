@@ -1,0 +1,7 @@
+{% if line.invoice_line and line.invoice_line.inventory_item %}
+<span class="fw-medium">{{ line.invoice_line.inventory_item.name }}</span>
+{% elif line.invoice_line %}
+<span class="fw-medium">{{ line.invoice_line.description }}</span>
+{% else %}
+<span class="fw-medium">{{ line.description }}</span>
+{% endif %}

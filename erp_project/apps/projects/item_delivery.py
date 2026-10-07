@@ -725,6 +725,113 @@ def project_return_history_rows(project):
     return rows
 
 
+def project_delivery_history_rows(project):
+    """All items issued / delivered to the project site (for reports and delivery notes)."""
+    rows = []
+
+    for delivery in (
+        ProjectItemDelivery.objects.filter(project=project)
+        .select_related('item', 'delivered_by')
+        .order_by('-delivered_date', '-pk')
+    ):
+        if delivery.item.track_by_serial:
+            continue
+        rows.append(
+            {
+                'item_name': delivery.item.name,
+                'item_code': delivery.item.item_code,
+                'detail': f'Qty {delivery.quantity}',
+                'quantity': delivery.quantity,
+                'delivered_date': delivery.delivered_date,
+                'delivered_by': (
+                    delivery.delivered_by.get_full_name() or delivery.delivered_by.username
+                    if delivery.delivered_by
+                    else '—'
+                ),
+                'sort_date': delivery.delivered_date,
+            }
+        )
+
+    for sn in (
+        ItemSerialNumber.objects.filter(
+            assigned_project=project,
+            status=ItemSerialNumber.STATUS_DELIVERED,
+            is_active=True,
+        )
+        .select_related('item', 'delivered_by')
+        .order_by('-delivered_date', 'model_number')
+    ):
+        rows.append(
+            {
+                'item_name': sn.item.name,
+                'item_code': sn.item.item_code,
+                'detail': sn.model_number,
+                'quantity': Decimal('1'),
+                'delivered_date': sn.delivered_date,
+                'delivered_by': (
+                    sn.delivered_by.get_full_name() or sn.delivered_by.username
+                    if sn.delivered_by
+                    else '—'
+                ),
+                'sort_date': sn.delivered_date,
+            }
+        )
+
+    rows.sort(key=lambda r: (r['sort_date'] or date.min, r['item_name']), reverse=True)
+    return rows
+
+
+def project_has_delivery_history(project) -> bool:
+    return bool(project_delivery_history_rows(project))
+
+
+def delivery_note_lines_for_record(delivery: ProjectItemDelivery):
+    """Line items for a single delivery record PDF."""
+    item = delivery.item
+    by = (
+        delivery.delivered_by.get_full_name() or delivery.delivered_by.username
+        if delivery.delivered_by
+        else '—'
+    )
+    if item.track_by_serial:
+        serials = list(
+            ItemSerialNumber.objects.filter(
+                assigned_project=delivery.project,
+                item=item,
+                delivered_date=delivery.delivered_date,
+                status=ItemSerialNumber.STATUS_DELIVERED,
+                is_active=True,
+            ).order_by('model_number')
+        )
+        if serials:
+            return [
+                {
+                    'item_name': item.name,
+                    'item_code': item.item_code,
+                    'detail': sn.model_number,
+                    'quantity': Decimal('1'),
+                    'delivered_date': delivery.delivered_date,
+                    'delivered_by': by,
+                }
+                for sn in serials
+            ]
+    qty = delivery.quantity
+    if qty == qty.to_integral_value():
+        detail = f'Qty {int(qty)}'
+    else:
+        detail = f'Qty {qty}'
+    return [
+        {
+            'item_name': item.name,
+            'item_code': item.item_code,
+            'detail': detail,
+            'quantity': qty,
+            'delivered_date': delivery.delivered_date,
+            'delivered_by': by,
+        }
+    ]
+
+
 def project_delivery_display_rows(project):
     """Legacy flat rows — prefer project_delivery_summary_groups for UI."""
     from apps.inventory.models import ItemSerialNumber

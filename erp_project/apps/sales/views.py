@@ -3118,12 +3118,22 @@ def invoice_receive_payment(request, pk):
         )
         
         # Get accounts using Account Mapping — strict AR resolution, no Revenue fallback
-        ar_account = AccountMapping.require_account('customer_receipt_ar_clear')
-        if not ar_account:
+        try:
+            ar_account = AccountMapping.require_posting_account(
+                'customer_receipt_ar_clear',
+                context='customer receipt AR clearing',
+            )
+        except ValidationError:
             ar_account = Account.objects.filter(
                 account_type=AccountType.ASSET, is_active=True, name__icontains='receivable'
             ).first()
-        
+            if ar_account:
+                ar_account = Account.resolve_for_posting(
+                    ar_account,
+                    transaction_type='customer_receipt_ar_clear',
+                    context='customer receipt AR clearing',
+                )
+
         if not ar_account:
             messages.error(request, 'Accounts Receivable account not configured. '
                            'Set up "customer_receipt_ar_clear" in Account Mapping.')

@@ -42,8 +42,10 @@ function toggleInlineForm(formId) {
                     window.CrmCustomerFormToggle.attach(compact);
                 }
             }
-            if (formId === 'customerForm' && window.initCrmSalespersonSelect2) {
-                window.initCrmSalespersonSelect2(form);
+            if (formId === 'customerForm' && window.crmInitAssignedSalespersonSelect2) {
+                setTimeout(function () {
+                    window.crmInitAssignedSalespersonSelect2();
+                }, 60);
             }
         }
     }
@@ -56,6 +58,9 @@ function cancelInlineForm(formId) {
         form.classList.remove('show');
         const formElement = form.querySelector('form');
         if (formElement) {
+            if (formId === 'customerForm' && window.crmDestroyAssignedSalespersonSelect2) {
+                window.crmDestroyAssignedSalespersonSelect2();
+            }
             formElement.reset();
             if (formId === 'customerForm' && window.CrmCustomerFormToggle) {
                 const compact = form.querySelector('[data-crm-compact-form]');

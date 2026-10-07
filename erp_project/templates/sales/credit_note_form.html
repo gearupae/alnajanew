@@ -1,5 +1,16 @@
 {% extends 'base.html' %}
 
+{% block extra_css %}
+<style>
+.credit-note-invoice-select2-dropdown {
+    z-index: 1060;
+}
+.credit-note-invoice-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <nav aria-label="breadcrumb">
@@ -131,9 +142,16 @@
             </div>
 
             <div id="amountCreditPanel" class="row g-3 mb-3 d-none">
+                <div class="col-12">
+                    <div class="alert alert-info py-2 small mb-0" id="amountCreditHint">
+                        This invoice has no item lines to credit. Enter the <strong>credit amount (excl. VAT)</strong> below — Save stays disabled until the total is greater than zero.
+                        <button type="button" class="btn btn-link btn-sm p-0 align-baseline ms-1" id="useFullRemainingBtn">Use full remaining amount</button>
+                    </div>
+                </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="amountCreditSubtotal">Credit amount (excl. VAT)</label>
-                    <input type="number" class="form-control" name="amount_credit_subtotal" id="amountCreditSubtotal" step="0.01" min="0" value="0">
+                    <label class="form-label" for="amountCreditSubtotal">Credit amount (excl. VAT) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" name="amount_credit_subtotal" id="amountCreditSubtotal" step="0.01" min="0.01" value="" placeholder="e.g. 1000.00">
+                    <div class="form-text" id="amountCreditMaxHint"></div>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label" for="amountCreditVatRate">VAT rate</label>
@@ -153,6 +171,7 @@
                 <table class="table table-sm">
                     <thead class="table-light">
                         <tr>
+                            <th>Item</th>
                             <th>Description</th>
                             <th class="text-center" style="width:100px">Qty</th>
                             <th class="text-end" style="width:110px">Unit Price</th>
@@ -169,9 +188,12 @@
                         <input type="hidden" name="lines-MAX_NUM_FORMS" value="1000">
                         {% for row in invoice_line_rows %}
                         <tr class="line-row">
+                            <td class="line-item-name align-middle">
+                                <span class="fw-medium small">{% if row.item_name %}{{ row.item_name }}{% else %}<span class="text-muted">—</span>{% endif %}</span>
+                            </td>
                             <td>
                                 <input type="hidden" name="lines-{{ forloop.counter0 }}-invoice_line" value="{{ row.invoice_line_id }}">
-                                <input type="text" name="lines-{{ forloop.counter0 }}-description" class="form-control form-control-sm" value="{{ row.description }}">
+                                <input type="text" name="lines-{{ forloop.counter0 }}-description" class="form-control form-control-sm" value="{{ row.description }}" placeholder="Optional custom description…">
                             </td>
                             <td><input type="number" name="lines-{{ forloop.counter0 }}-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0" max="{{ row.max_quantity }}" value="{{ row.quantity }}" data-max="{{ row.max_quantity }}" data-price="{{ row.unit_price }}" data-vat="{{ row.vat_rate }}" data-inclusive="{% if row.is_vat_inclusive %}1{% else %}0{% endif %}"></td>
                             <td class="text-end line-price">{{ row.unit_price|floatformat:2 }}</td>
@@ -181,7 +203,7 @@
                             <td><button type="button" class="btn btn-sm btn-outline-danger remove-line" title="Remove line"><i class="fas fa-times"></i></button></td>
                         </tr>
                         {% empty %}
-                        <tr id="linesPlaceholder"><td colspan="7" class="text-muted text-center py-3">Select a posted invoice to load lines.</td></tr>
+                        <tr id="linesPlaceholder"><td colspan="8" class="text-muted text-center py-3">Select a posted invoice to load lines.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -218,8 +240,11 @@
         </form>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
+jQuery(function () {
 (function () {
     const form = document.getElementById('creditNoteForm');
     const invoiceSelect = document.getElementById('id_original_invoice');
@@ -261,7 +286,43 @@
         if (creditModeInput) creditModeInput.value = mode;
         itemsPanel?.classList.toggle('d-none', mode === 'amount');
         amountPanel?.classList.toggle('d-none', mode !== 'amount');
+        updateAmountMaxHint();
         recalcTotals();
+    }
+
+    function updateAmountMaxHint() {
+        const hint = document.getElementById('amountCreditMaxHint');
+        if (!hint || !isAmountMode() || remainingCap == null || Number.isNaN(remainingCap)) {
+            if (hint) hint.textContent = '';
+            return;
+        }
+        const rate = parseFloat(amountVatRateSelect?.value) || 0;
+        const maxExcl = remainingCap / (1 + rate / 100);
+        hint.textContent = 'Max (excl. VAT) for full credit: AED ' + maxExcl.toFixed(2);
+    }
+
+    function applyFullRemainingAmount() {
+        if (remainingCap == null || Number.isNaN(remainingCap) || !amountSubtotalInput) return;
+        const rate = parseFloat(amountVatRateSelect?.value) || 0;
+        amountSubtotalInput.value = (remainingCap / (1 + rate / 100)).toFixed(2);
+        recalcTotals();
+    }
+
+    function updateSaveButtonState(grand, after) {
+        if (!saveBtn) return;
+        let blocked = false;
+        let reason = '';
+        if (grand <= 0) {
+            blocked = true;
+            reason = isAmountMode()
+                ? 'Enter a credit amount (excl. VAT) greater than zero.'
+                : 'Enter quantity on at least one line.';
+        } else if (after < -0.001) {
+            blocked = true;
+            reason = 'Credit total exceeds the remaining invoice value.';
+        }
+        saveBtn.disabled = blocked;
+        saveBtn.title = reason;
     }
 
     function toggleReasonOther() {
@@ -330,7 +391,7 @@
         if (remainingCap == null || Number.isNaN(remainingCap)) {
             afterEl.textContent = '—';
             if (creditTypePreview) creditTypePreview.textContent = '—';
-            if (saveBtn) saveBtn.disabled = false;
+            updateSaveButtonState(grand, 0);
             return;
         }
         const after = remainingCap - grand;
@@ -339,7 +400,8 @@
         if (creditTypePreview) {
             creditTypePreview.textContent = (grand > 0 && Math.abs(grand - remainingCap) < 0.01) ? 'Full' : (grand > 0 ? 'Partial' : '—');
         }
-        if (saveBtn) saveBtn.disabled = after < -0.001 || grand <= 0;
+        updateSaveButtonState(grand, after);
+        updateAmountMaxHint();
     }
 
     function bindRow(row) {
@@ -404,14 +466,17 @@
             ' · Remaining: AED ' + remainingCap.toFixed(2);
     }
 
-    function clearLines(message) {
+    function clearLines(message, options) {
+        const preserveHeader = !!(options && options.preserveHeader);
         linesBody.innerHTML = managementFormHtml(0) +
-            '<tr id="linesPlaceholder"><td colspan="7" class="text-muted text-center py-3">' +
+            '<tr id="linesPlaceholder"><td colspan="8" class="text-muted text-center py-3">' +
             escapeHtml(message || 'Select a posted invoice to load lines.') +
             '</td></tr>';
-        document.getElementById('customerDisplay').value = '';
-        document.getElementById('customerTrnDisplay').value = '';
-        updateInvoiceSummary(null);
+        if (!preserveHeader) {
+            document.getElementById('customerDisplay').value = '';
+            document.getElementById('customerTrnDisplay').value = '';
+            updateInvoiceSummary(null);
+        }
         recalcTotals();
     }
 
@@ -419,10 +484,14 @@
         const inclusive = line.is_vat_inclusive ? '1' : '0';
         const tr = document.createElement('tr');
         tr.className = 'line-row';
+        const itemLabel = line.item_name
+            ? escapeHtml(line.item_name)
+            : '<span class="text-muted">—</span>';
         tr.innerHTML =
+            '<td class="line-item-name align-middle"><span class="fw-medium small">' + itemLabel + '</span></td>' +
             '<td>' +
                 '<input type="hidden" name="lines-' + index + '-invoice_line" value="' + line.invoice_line_id + '">' +
-                '<input type="text" name="lines-' + index + '-description" class="form-control form-control-sm" value="' + escapeHtml(line.description) + '">' +
+                '<input type="text" name="lines-' + index + '-description" class="form-control form-control-sm" value="' + escapeHtml(line.description) + '" placeholder="Optional custom description…">' +
             '</td>' +
             '<td><input type="number" name="lines-' + index + '-quantity" class="form-control form-control-sm text-end line-qty" step="0.01" min="0" max="' + line.max_quantity + '" value="' + line.quantity + '" data-max="' + line.max_quantity + '" data-price="' + line.unit_price + '" data-vat="' + line.vat_rate + '" data-inclusive="' + inclusive + '"></td>' +
             '<td class="text-end line-price">' + parseFloat(line.unit_price).toFixed(2) + '</td>' +
@@ -440,8 +509,17 @@
 
         linesBody.innerHTML = managementFormHtml(data.lines.length);
         if (!data.lines.length) {
+            const amountRadio = document.getElementById('creditModeAmount');
+            const message = data.suggested_credit_mode === 'amount'
+                ? 'This invoice has no item lines to credit. Use Credit by amount below.'
+                : 'No creditable lines remaining on this invoice.';
+            if (data.suggested_credit_mode === 'amount' && amountRadio) {
+                amountRadio.checked = true;
+                setCreditMode('amount');
+            }
             linesBody.insertAdjacentHTML('beforeend',
-                '<tr id="linesPlaceholder"><td colspan="7" class="text-muted text-center py-3">No creditable lines remaining on this invoice.</td></tr>'
+                '<tr id="linesPlaceholder"><td colspan="8" class="text-muted text-center py-3">' +
+                escapeHtml(message) + '</td></tr>'
             );
             recalcTotals();
             return;
@@ -464,7 +542,7 @@
         if (excludeCreditNotePk) {
             url += (url.includes('?') ? '&' : '?') + 'exclude_credit_note=' + encodeURIComponent(excludeCreditNotePk);
         }
-        clearLines('Loading invoice lines…');
+        clearLines('Loading invoice lines…', { preserveHeader: true });
         fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
             .then(response => response.json().then(data => ({ ok: response.ok, data })))
             .then(({ ok, data }) => {
@@ -484,12 +562,47 @@
     });
     amountSubtotalInput?.addEventListener('input', recalcTotals);
     amountVatRateSelect?.addEventListener('change', recalcTotals);
+    document.getElementById('useFullRemainingBtn')?.addEventListener('click', applyFullRemainingAmount);
+    form?.addEventListener('submit', function () {
+        const checkedMode = document.querySelector('input[name="credit_mode_ui"]:checked');
+        if (checkedMode && creditModeInput) {
+            creditModeInput.value = checkedMode.value;
+        }
+    });
 
-    if (invoiceSelect && !invoiceSelect.disabled) {
-        invoiceSelect.addEventListener('change', function () {
-            loadInvoiceData(this.value);
+    function initOriginalInvoiceSelect2() {
+        if (!invoiceSelect || invoiceSelect.disabled || typeof jQuery === 'undefined' || !jQuery.fn.select2) {
+            return;
+        }
+        const $el = jQuery(invoiceSelect);
+        if ($el.data('select2')) {
+            $el.select2('destroy');
+        }
+        ensureSelectEmptyOption(invoiceSelect, '— Select posted invoice —');
+        $el.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: jQuery(document.body),
+            allowClear: true,
+            minimumResultsForSearch: 0,
+            dropdownCssClass: 'credit-note-invoice-select2-dropdown',
+            placeholder: 'Search by invoice number or customer…',
+        });
+        $el.off('change.cnInvoice select2:select.cnInvoice select2:clear.cnInvoice');
+        $el.on('change.cnInvoice select2:select.cnInvoice select2:clear.cnInvoice', function () {
+            loadInvoiceData(jQuery(this).val() || '');
         });
     }
+
+    function ensureSelectEmptyOption(el, label) {
+        if (!el || el.querySelector('option[value=""]')) return;
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = label || '';
+        el.insertBefore(opt, el.firstChild);
+    }
+
+    initOriginalInvoiceSelect2();
 
     [issueInput, triggerInput].forEach(el => el && el.addEventListener('change', checkLate));
     if (reasonSelect) {
@@ -504,9 +617,13 @@
     checkLate();
     recalcTotals();
 
-    if (invoiceSelect && invoiceSelect.value && !document.querySelector('.line-row')) {
-        loadInvoiceData(invoiceSelect.value);
+    if (invoiceSelect) {
+        const selectedId = jQuery(invoiceSelect).val() || invoiceSelect.value;
+        if (selectedId && !document.querySelector('.line-row')) {
+            loadInvoiceData(selectedId);
+        }
     }
 })();
+});
 </script>
 {% endblock %}

@@ -176,10 +176,22 @@ class PurchaseRequestItem(models.Model):
     class Meta:
         ordering = ['id']
     
-    def save(self, *args, **kwargs):
+    @property
+    def inventory_display_name(self):
+        if not self.inventory_item_id:
+            return ''
+        inv = self.inventory_item
+        return f'{inv.item_code} — {inv.name}'
+
+    def effective_line_description(self):
+        """Custom description, or inventory label for service-only / legacy rows."""
+        custom = (self.description or '').strip()
         if self.inventory_item_id:
-            inv = self.inventory_item
-            self.description = f"{inv.item_code} - {inv.name}"[:500]
+            inv_label = f'{self.inventory_item.item_code} - {self.inventory_item.name}'
+            return custom or inv_label
+        return custom
+
+    def save(self, *args, **kwargs):
         self.total = (self.quantity * self.estimated_price).quantize(Decimal('0.01'))
         super().save(*args, **kwargs)
 

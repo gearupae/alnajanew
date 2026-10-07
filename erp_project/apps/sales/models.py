@@ -937,37 +937,55 @@ class Invoice(BaseModel):
         
         # Get accounts using Account Mapping (SAP/Oracle standard)
         # Fallback to hardcoded codes for backward compatibility
-        ar_account = AccountMapping.require_account('sales_invoice_receivable')
-        if not ar_account:
+        try:
+            ar_account = AccountMapping.require_posting_account(
+                'sales_invoice_receivable',
+                context='sales invoice receivable',
+            )
+        except ValidationError:
             ar_account = Account.objects.filter(
                 account_type=AccountType.ASSET, is_active=True, name__icontains='receivable'
             ).first()
-        if not ar_account:
-            ar_account = Account.objects.filter(
-                account_type=AccountType.ASSET, is_active=True
-            ).first()
-        if not ar_account:
-            raise ValidationError(
-                "Accounts Receivable account not configured. "
-                "Please set up Account Mapping in Finance → Account Mapping."
+            if not ar_account:
+                ar_account = Account.objects.filter(
+                    account_type=AccountType.ASSET, is_active=True
+                ).first()
+            if not ar_account:
+                raise ValidationError(
+                    "Accounts Receivable account not configured. "
+                    "Please set up Account Mapping in Finance → Account Mapping."
+                )
+            ar_account = Account.resolve_for_posting(
+                ar_account,
+                transaction_type='sales_invoice_receivable',
+                context='sales invoice receivable',
             )
-        
-        sales_account = AccountMapping.require_account('sales_invoice_revenue')
-        if not sales_account:
+
+        try:
+            sales_account = AccountMapping.require_posting_account(
+                'sales_invoice_revenue',
+                context='sales invoice revenue',
+            )
+        except ValidationError:
             sales_account = Account.objects.filter(
                 account_type=AccountType.INCOME, is_active=True, name__icontains='sales'
             ).first()
-        if not sales_account:
-            sales_account = Account.objects.filter(
-                account_type=AccountType.INCOME, is_active=True
-            ).first()
-        if not sales_account:
-            raise ValidationError(
-                "Sales Revenue account not configured. "
-                "Please set up Account Mapping in Finance → Account Mapping."
+            if not sales_account:
+                sales_account = Account.objects.filter(
+                    account_type=AccountType.INCOME, is_active=True
+                ).first()
+            if not sales_account:
+                raise ValidationError(
+                    "Sales Revenue account not configured. "
+                    "Please set up Account Mapping in Finance → Account Mapping."
+                )
+            sales_account = Account.resolve_for_posting(
+                sales_account,
+                transaction_type='sales_invoice_revenue',
+                context='sales invoice revenue',
             )
-        
-        vat_payable_account = AccountMapping.require_account('sales_invoice_vat')
+
+        vat_payable_account = AccountMapping.get_account('sales_invoice_vat', raise_error=False)
         if not vat_payable_account:
             vat_payable_account = Account.objects.filter(
                 account_type=AccountType.LIABILITY, is_active=True, name__icontains='vat'
@@ -976,6 +994,12 @@ class Invoice(BaseModel):
             vat_payable_account = Account.objects.filter(
                 account_type=AccountType.LIABILITY, is_active=True
             ).first()
+        if vat_payable_account:
+            vat_payable_account = Account.resolve_for_posting(
+                vat_payable_account,
+                transaction_type='sales_invoice_vat',
+                context='sales invoice VAT',
+            )
         
         # Create journal entry
         journal = JournalEntry.objects.create(
@@ -1203,7 +1227,7 @@ class SalesCreditNote(BaseModel):
         Dr VAT Output  
         Cr Accounts Receivable
         """
-        from apps.finance.models import JournalEntry, JournalEntryLine, AccountMapping, FiscalYear
+        from apps.finance.models import JournalEntry, JournalEntryLine, Account, AccountMapping, FiscalYear
 
         if self.status != 'draft':
             raise ValidationError("Only draft credit notes can be posted.")
@@ -1216,15 +1240,22 @@ class SalesCreditNote(BaseModel):
         self.validate_for_posting()
         
         # Get accounts
-        ar_account = AccountMapping.require_account('sales_invoice_receivable')
-        sales_account = AccountMapping.require_account('sales_invoice_revenue')
-        vat_account = AccountMapping.require_account('sales_invoice_vat')
-        
-        if not ar_account:
-            raise ValidationError("Accounts Receivable account not configured.")
-        if not sales_account:
-            raise ValidationError("Sales Revenue account not configured.")
-        
+        ar_account = AccountMapping.require_posting_account(
+            'sales_invoice_receivable',
+            context='sales invoice receivable',
+        )
+        sales_account = AccountMapping.require_posting_account(
+            'sales_invoice_revenue',
+            context='sales invoice revenue',
+        )
+        vat_account = AccountMapping.get_account('sales_invoice_vat', raise_error=False)
+        if vat_account:
+            vat_account = Account.resolve_for_posting(
+                vat_account,
+                transaction_type='sales_invoice_vat',
+                context='sales invoice VAT',
+            )
+
         # Create journal entry
         journal = JournalEntry.objects.create(
             date=self.date,
@@ -1497,7 +1528,7 @@ class CreditNote(BaseModel):
             raise ValidationError('Credit note exceeds the remaining invoice value.')
 
     def post_to_accounting(self, user=None):
-        from apps.finance.models import JournalEntry, JournalEntryLine, AccountMapping, FiscalYear
+        from apps.finance.models import JournalEntry, JournalEntryLine, Account, AccountMapping, FiscalYear
 
         if self.status != 'approved':
             raise ValidationError('Only approved credit notes can be posted.')
@@ -1507,14 +1538,30 @@ class CreditNote(BaseModel):
 
         sales_return = AccountMapping.get_account_or_default('sales_return', None)
         if not sales_return:
-            sales_return = AccountMapping.require_account('sales_invoice_revenue')
-        ar_account = AccountMapping.require_account('sales_invoice_receivable')
-        vat_account = AccountMapping.require_account('sales_invoice_vat')
+            sales_return = AccountMapping.require_posting_account(
+                'sales_invoice_revenue',
+                context='sales invoice revenue',
+            )
+        else:
+            sales_return = Account.resolve_for_posting(
+                sales_return,
+                transaction_type='sales_return',
+                context='sales return',
+            )
+        ar_account = AccountMapping.require_posting_account(
+            'sales_invoice_receivable',
+            context='sales invoice receivable',
+        )
+        vat_account = AccountMapping.get_account('sales_invoice_vat', raise_error=False)
+        if vat_account:
+            vat_account = Account.resolve_for_posting(
+                vat_account,
+                transaction_type='sales_invoice_vat',
+                context='sales invoice VAT',
+            )
 
         if not sales_return:
             raise ValidationError('Sales return / revenue account not configured.')
-        if not ar_account:
-            raise ValidationError('Accounts Receivable account not configured.')
         if self.vat_amount > 0 and not vat_account:
             raise ValidationError('VAT Payable account not configured.')
 
@@ -1585,6 +1632,8 @@ class CreditNoteLine(models.Model):
         InvoiceItem,
         on_delete=models.PROTECT,
         related_name='credit_note_lines',
+        null=True,
+        blank=True,
     )
     description = models.CharField(max_length=500)
     quantity = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1.00'))
@@ -1612,16 +1661,21 @@ class CreditNoteLine(models.Model):
         return invoice_line.quantity - credited
 
     def save(self, *args, **kwargs):
-        self.description = self.description or self.invoice_line.description
-        self.unit_price = self.invoice_line.unit_price
-        self.vat_rate = self.invoice_line.vat_rate
-        gross = self.quantity * self.unit_price
-        if self.invoice_line.is_vat_inclusive and self.vat_rate > 0:
-            divisor = 1 + (self.vat_rate / Decimal('100'))
-            self.line_total = (gross / divisor).quantize(Decimal('0.01'))
-            self.line_vat = (gross - self.line_total).quantize(Decimal('0.01'))
-        else:
-            self.line_total = gross
+        if self.invoice_line_id:
+            self.description = self.description or self.invoice_line.description
+            self.unit_price = self.invoice_line.unit_price
+            self.vat_rate = self.invoice_line.vat_rate
+            gross = self.quantity * self.unit_price
+            if self.invoice_line.is_vat_inclusive and self.vat_rate > 0:
+                divisor = 1 + (self.vat_rate / Decimal('100'))
+                self.line_total = (gross / divisor).quantize(Decimal('0.01'))
+                self.line_vat = (gross - self.line_total).quantize(Decimal('0.01'))
+            else:
+                self.line_total = gross
+                self.line_vat = (self.line_total * (self.vat_rate / Decimal('100'))).quantize(Decimal('0.01'))
+        elif self.line_total is None or self.line_vat is None:
+            gross = self.quantity * self.unit_price
+            self.line_total = gross.quantize(Decimal('0.01'))
             self.line_vat = (self.line_total * (self.vat_rate / Decimal('100'))).quantize(Decimal('0.01'))
         super().save(*args, **kwargs)
 

@@ -193,7 +193,7 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th>Description</th>
+                    <th>Item</th>
                     <th class="text-center">Qty</th>
                     <th>Unit</th>
                     <th class="text-right">Est. price (AED)</th>
@@ -203,7 +203,7 @@
             <tbody>
                 {% for item in pr.items.all %}
                 <tr>
-                    <td>{{ item.description }}</td>
+                    <td>{% include 'purchase/includes/pr_line_item_cell.html' %}</td>
                     <td class="text-center">{{ item.quantity }}</td>
                     <td>{{ item.get_unit_display }}</td>
                     <td class="text-right">{{ item.estimated_price|floatformat:2 }}</td>

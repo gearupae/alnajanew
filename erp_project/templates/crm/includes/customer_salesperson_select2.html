@@ -1,0 +1,103 @@
+<script>
+(function () {
+    'use strict';
+
+    function initAssignedSalespersonSelect2() {
+        var el = document.getElementById('id_assigned_salesperson');
+        if (!el || el.disabled || typeof jQuery === 'undefined' || !jQuery.fn.select2) {
+            return;
+        }
+        var $el = jQuery(el);
+        if ($el.data('select2')) {
+            return;
+        }
+        var selected = el.value || el.getAttribute('data-default-salesperson') || '';
+        $el.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: jQuery(document.body),
+            placeholder: 'Search by name or employee code…',
+            allowClear: false,
+            minimumResultsForSearch: 0,
+            dropdownCssClass: 'crm-salesperson-select2-dropdown',
+        });
+        if (selected) {
+            $el.val(String(selected)).trigger('change.select2');
+        }
+    }
+
+    function destroyAssignedSalespersonSelect2() {
+        var el = document.getElementById('id_assigned_salesperson');
+        if (!el || typeof jQuery === 'undefined' || !jQuery.fn.select2) {
+            return;
+        }
+        var $el = jQuery(el);
+        if ($el.data('select2')) {
+            $el.select2('destroy');
+        }
+    }
+
+    function initFilterSalespersonSelect2() {
+        if (typeof jQuery === 'undefined' || !jQuery.fn.select2) {
+            return;
+        }
+        jQuery('.select2-crm-filter-salesman').each(function () {
+            var $el = jQuery(this);
+            if ($el.data('select2')) {
+                return;
+            }
+            $el.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                dropdownParent: jQuery(document.body),
+                placeholder: this.getAttribute('data-placeholder') || 'All salesmen',
+                allowClear: true,
+                minimumResultsForSearch: 0,
+                dropdownCssClass: 'crm-salesperson-select2-dropdown',
+            });
+        });
+    }
+
+    window.crmInitAssignedSalespersonSelect2 = initAssignedSalespersonSelect2;
+    window.crmDestroyAssignedSalespersonSelect2 = destroyAssignedSalespersonSelect2;
+
+    document.addEventListener('mousedown', function (event) {
+        var el = event.target;
+        if (!el || el.id !== 'id_assigned_salesperson') {
+            return;
+        }
+        if (!jQuery(el).data('select2')) {
+            initAssignedSalespersonSelect2();
+        }
+    }, true);
+
+    var origToggle = window.toggleInlineForm;
+    if (typeof origToggle === 'function') {
+        window.toggleInlineForm = function (formId) {
+            origToggle(formId);
+            if (formId === 'customerForm') {
+                var form = document.getElementById('customerForm');
+                if (form && form.classList.contains('show')) {
+                    setTimeout(initAssignedSalespersonSelect2, 50);
+                }
+            }
+        };
+    }
+
+    var origCancel = window.cancelInlineForm;
+    if (typeof origCancel === 'function') {
+        window.cancelInlineForm = function (formId) {
+            if (formId === 'customerForm') {
+                destroyAssignedSalespersonSelect2();
+            }
+            origCancel(formId);
+        };
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initFilterSalespersonSelect2);
+    } else {
+        initFilterSalespersonSelect2();
+    }
+})();
+</script>

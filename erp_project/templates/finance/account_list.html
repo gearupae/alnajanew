@@ -16,7 +16,7 @@
 </div>
 
 <!-- Inline Form -->
-<div id="accountForm" class="inline-form-container">
+<div id="accountForm" class="inline-form-container{% if show_account_form %} show{% endif %}">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 class="mb-0 fw-semibold"><i class="fas fa-chart-bar me-2"></i>Add New Account</h6>
         <button type="button" class="btn-close" onclick="cancelInlineForm('accountForm')"></button>
@@ -26,28 +26,32 @@
         <div class="row g-3">
             <div class="col-md-2">
                 <label class="form-label">Code <span class="text-danger">*</span></label>
-                <input type="text" name="code" class="form-control" required>
+                <input type="text" name="code" class="form-control{% if form.code.errors %} is-invalid{% endif %}" value="{{ form.code.value|default:'' }}" required>
+                {% if form.code.errors %}<div class="invalid-feedback d-block">{{ form.code.errors|join:", " }}</div>{% endif %}
             </div>
             <div class="col-md-4">
                 <label class="form-label">Name <span class="text-danger">*</span></label>
-                <input type="text" name="name" class="form-control" required>
+                <input type="text" name="name" class="form-control{% if form.name.errors %} is-invalid{% endif %}" value="{{ form.name.value|default:'' }}" required>
+                {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors|join:", " }}</div>{% endif %}
             </div>
             <div class="col-md-3">
                 <label class="form-label">Type <span class="text-danger">*</span></label>
-                <select name="account_type" class="form-select" required>
+                <select name="account_type" class="form-select{% if form.account_type.errors %} is-invalid{% endif %}" required>
                     {% for value, label in account_types %}
-                    <option value="{{ value }}">{{ label }}</option>
+                    <option value="{{ value }}"{% if form.account_type.value == value %} selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
+                {% if form.account_type.errors %}<div class="invalid-feedback d-block">{{ form.account_type.errors|join:", " }}</div>{% endif %}
             </div>
             <div class="col-md-3">
                 <label class="form-label">Parent Account</label>
-                <select name="parent" class="form-select">
+                <select name="parent" class="form-select{% if form.parent.errors %} is-invalid{% endif %}">
                     <option value="">None</option>
                     {% for acc in accounts %}
-                    <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+                    <option value="{{ acc.id }}"{% if form.parent.value|stringformat:"s" == acc.id|stringformat:"s" %} selected{% endif %}>{{ acc.code }} - {{ acc.name }}</option>
                     {% endfor %}
                 </select>
+                {% if form.parent.errors %}<div class="invalid-feedback d-block">{{ form.parent.errors|join:", " }}</div>{% endif %}
             </div>
         </div>
         <div class="mt-3">

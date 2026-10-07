@@ -356,6 +356,47 @@ def customer_picker_search(request):
     return JsonResponse({'results': results})
 
 
+@login_required
+def sales_employee_picker_search(request):
+    """JSON search for CRM assigned salesman Select2 pickers."""
+    if not (
+        request.user.is_superuser
+        or PermissionChecker.has_permission(request.user, 'crm', 'view')
+        or PermissionChecker.has_permission(request.user, 'crm', 'create')
+        or PermissionChecker.has_permission(request.user, 'crm', 'edit')
+    ):
+        return JsonResponse({'results': []}, status=403)
+
+    q = (request.GET.get('q') or request.GET.get('term') or '').strip()
+    selected_raw = (request.GET.get('selected') or '').strip()
+    selected_ids = [int(x) for x in selected_raw.split(',') if x.isdigit()]
+
+    qs = get_sales_employee_queryset().order_by('first_name', 'last_name', 'employee_code')
+    if q:
+        qs = qs.filter(
+            Q(first_name__icontains=q)
+            | Q(last_name__icontains=q)
+            | Q(employee_code__icontains=q)
+        )
+
+    results = []
+    seen = set()
+    if selected_ids:
+        from apps.hr.models import Employee
+
+        for employee in Employee.objects.filter(pk__in=selected_ids):
+            results.append({'id': employee.pk, 'text': salesperson_display_name(employee)})
+            seen.add(employee.pk)
+
+    for employee in qs[:50]:
+        if employee.pk in seen:
+            continue
+        results.append({'id': employee.pk, 'text': salesperson_display_name(employee)})
+        seen.add(employee.pk)
+
+    return JsonResponse({'results': results})
+
+
 def customer_lookup(request):
     """JSON: find an existing customer/lead to prefill CRM forms."""
     if not (
@@ -953,6 +994,12 @@ class CustomerUpdateView(UpdatePermissionMixin, UpdateView):
             is_active=True,
             converts_to_customer=False,
         ).order_by('sort_order', 'id')
+        context['salesman_choice_options'] = [
+            {'id': e.pk, 'label': salesperson_display_name(e)}
+            for e in get_sales_employee_queryset(
+                include_employee_id=self.object.assigned_salesperson_id,
+            )
+        ]
         return context
     
     def form_valid(self, form):

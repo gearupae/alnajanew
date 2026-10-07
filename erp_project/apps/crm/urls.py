@@ -11,6 +11,7 @@ urlpatterns = [
     path('customers/project-options/', views.crm_project_options, name='project_options'),
     path('customers/lookup/', views.customer_lookup, name='customer_lookup'),
     path('api/customer-picker-search/', views.customer_picker_search, name='customer_picker_search'),
+    path('api/sales-employee-picker-search/', views.sales_employee_picker_search, name='sales_employee_picker_search'),
     path('customers/', views.CustomerListView.as_view(), name='customer_list'),
     path('customers/kanban/move/', views.crm_kanban_move, name='kanban_move'),
     path('customers/<int:pk>/', views.CustomerDetailView.as_view(), name='customer_detail'),

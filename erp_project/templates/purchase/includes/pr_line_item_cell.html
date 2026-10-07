@@ -1,0 +1,8 @@
+{% if item.inventory_item %}
+<div class="fw-medium">{{ item.inventory_item.item_code }} — {{ item.inventory_item.name }}</div>
+{% if item.description and item.description != item.inventory_item.name %}
+<div class="small text-muted mt-1">{{ item.description }}</div>
+{% endif %}
+{% else %}
+<div>{{ item.description|default:"—" }}</div>
+{% endif %}

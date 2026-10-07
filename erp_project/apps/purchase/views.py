@@ -137,6 +137,9 @@ def vendor_picker_search(request):
         or PermissionChecker.has_permission(request.user, 'purchase', 'create')
         or PermissionChecker.has_permission(request.user, 'finance', 'view')
         or PermissionChecker.has_permission(request.user, 'finance', 'create')
+        or PermissionChecker.has_permission(request.user, 'projects', 'view')
+        or PermissionChecker.has_permission(request.user, 'projects', 'create')
+        or PermissionChecker.has_permission(request.user, 'projects', 'edit')
     ):
         return JsonResponse({'results': []}, status=403)
 
@@ -144,7 +147,7 @@ def vendor_picker_search(request):
     selected_raw = (request.GET.get('selected') or '').strip()
     selected_ids = [int(x) for x in selected_raw.split(',') if x.isdigit()]
 
-    qs = Vendor.objects.filter(is_active=True, status='active').order_by('name')
+    qs = Vendor.objects.filter(is_active=True).order_by('name')
     if q:
         qs = qs.filter(
             Q(vendor_number__icontains=q)
@@ -894,7 +897,7 @@ def pr_items_json(request, pk):
             tax_code_id = item.inventory_item.tax_code_id
             vat_rate = item.inventory_item.tax_code.rate
         items.append({
-            'description': item.description,
+            'description': item.effective_line_description(),
             'quantity': str(item.quantity),
             'estimated_price': str(item.estimated_price),
             'unit_price': str(item.estimated_price),

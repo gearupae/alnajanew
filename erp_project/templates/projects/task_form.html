@@ -1,6 +1,17 @@
 {% extends 'base.html' %}
 {% load project_tags %}
 
+{% block extra_css %}
+<style>
+.task-header-select2-dropdown {
+    z-index: 1060;
+}
+.task-header-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <nav aria-label="breadcrumb">
@@ -91,4 +102,109 @@
         {% endif %}
     </div>
 </form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function ensureTaskSelectEmptyOption(el, label) {
+    if (!el || el.querySelector('option[value=""]')) return;
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = label || '';
+    el.insertBefore(opt, el.firstChild);
+}
+
+function initTaskProjectSelect2() {
+    const el = document.getElementById('id_project');
+    if (!el || typeof jQuery === 'undefined' || !jQuery.fn.select2 || el.disabled) return;
+    const $el = jQuery(el);
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+    ensureTaskSelectEmptyOption(el, '— None —');
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        dropdownParent: jQuery(document.body),
+        allowClear: true,
+        minimumInputLength: 0,
+        dropdownCssClass: 'task-header-select2-dropdown',
+        placeholder: 'Search by project code or name…',
+        ajax: {
+            url: '{% url "projects:project_picker_search" %}',
+            dataType: 'json',
+            delay: 200,
+            data: function (params) {
+                return { q: params.term || '', selected: $el.val() || '' };
+            },
+            processResults: function (data) {
+                return { results: data.results || [] };
+            },
+        },
+        language: {
+            noResults: function () { return 'No matching projects'; },
+            searching: function () { return 'Searching…'; },
+        },
+    });
+}
+
+function initTaskCustomerSelect2() {
+    const el = document.getElementById('id_customer');
+    if (!el || typeof jQuery === 'undefined' || !jQuery.fn.select2 || el.disabled) return;
+    const $el = jQuery(el);
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+    ensureTaskSelectEmptyOption(el, '— None —');
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        dropdownParent: jQuery(document.body),
+        allowClear: true,
+        minimumInputLength: 0,
+        dropdownCssClass: 'task-header-select2-dropdown',
+        placeholder: 'Search by number, name, or company…',
+        ajax: {
+            url: '{% url "crm:customer_picker_search" %}',
+            dataType: 'json',
+            delay: 200,
+            data: function (params) {
+                return { q: params.term || '', selected: $el.val() || '' };
+            },
+            processResults: function (data) {
+                return { results: data.results || [] };
+            },
+        },
+        language: {
+            noResults: function () { return 'No matching customers'; },
+            searching: function () { return 'Searching…'; },
+        },
+    });
+}
+
+function initTaskAssignedSelect2() {
+    const el = document.getElementById('id_assigned_to');
+    if (!el || typeof jQuery === 'undefined' || !jQuery.fn.select2 || el.disabled) return;
+    const $el = jQuery(el);
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+    ensureTaskSelectEmptyOption(el, '— Unassigned —');
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        dropdownParent: jQuery(document.body),
+        allowClear: true,
+        minimumResultsForSearch: 0,
+        dropdownCssClass: 'task-header-select2-dropdown',
+        placeholder: 'Search by name or employee code…',
+    });
+}
+
+jQuery(function () {
+    initTaskProjectSelect2();
+    initTaskCustomerSelect2();
+    initTaskAssignedSelect2();
+});
+</script>
 {% endblock %}

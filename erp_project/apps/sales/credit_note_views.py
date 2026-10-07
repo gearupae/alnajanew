@@ -84,6 +84,7 @@ def _credit_note_invoice_payload(invoice, exclude_credit_note_pk=None):
     for row in _invoice_line_rows(invoice, exclude_credit_note_pk):
         lines.append({
             'invoice_line_id': row['invoice_line_id'],
+            'item_name': row['item_name'],
             'description': row['description'],
             'quantity': str(row['quantity']),
             'max_quantity': str(row['max_quantity']),
@@ -95,7 +96,9 @@ def _credit_note_invoice_payload(invoice, exclude_credit_note_pk=None):
         })
     return {
         'invoice_number': invoice.invoice_number,
-        'customer_name': invoice.customer.name,
+        'customer_name': invoice.customer.display_name,
+        'has_item_lines': bool(lines),
+        'suggested_credit_mode': 'items' if lines else 'amount',
         'customer_trn': invoice.customer.trn or '',
         'invoice_total': str(invoice.total_amount),
         'prior_credited': str(prior),
@@ -124,9 +127,15 @@ def _credit_note_invoice_context(invoice, exclude_credit_note_pk=None):
     }
 
 
+def _invoice_line_item_name(invoice_item):
+    if invoice_item.inventory_item_id:
+        return invoice_item.inventory_item.name
+    return ''
+
+
 def _invoice_line_rows(invoice, exclude_credit_note_pk=None):
     rows = []
-    for item in invoice.items.all():
+    for item in invoice.items.select_related('inventory_item').all():
         remaining = CreditNoteLine.remaining_quantity(item, exclude_credit_note_pk)
         if remaining <= 0:
             continue
@@ -140,7 +149,8 @@ def _invoice_line_rows(invoice, exclude_credit_note_pk=None):
             line_vat = (line_total * (item.vat_rate / Decimal('100'))).quantize(Decimal('0.01'))
         rows.append({
             'invoice_line_id': item.pk,
-            'description': item.description,
+            'item_name': _invoice_line_item_name(item),
+            'description': item.description or '',
             'quantity': remaining,
             'max_quantity': remaining,
             'unit_price': item.unit_price,
@@ -161,8 +171,6 @@ def _is_late(issue_date, trigger_event_date):
 def _save_amount_credit_line(credit_note, post_data, exclude_credit_note_pk=None):
     invoice = credit_note.original_invoice
     anchor = invoice.items.first()
-    if not anchor:
-        raise ValidationError('Invoice has no line items to attach a partial credit.')
 
     amount_excl = Decimal(post_data.get('amount_credit_subtotal', '0') or '0')
     vat_rate = Decimal(post_data.get('amount_credit_vat_rate', '0') or '0')
@@ -182,20 +190,15 @@ def _save_amount_credit_line(credit_note, post_data, exclude_credit_note_pk=None
         )
 
     desc = f"Partial credit - {_reason_display_label(credit_note.reason, credit_note.reason_description)}"
-    line = CreditNoteLine.objects.create(
+    CreditNoteLine.objects.create(
         credit_note=credit_note,
-        invoice_line=anchor,
+        invoice_line=anchor if anchor else None,
         description=desc,
-        quantity=Decimal('0.01'),
+        quantity=Decimal('1'),
         unit_price=amount_excl,
         vat_rate=vat_rate,
-    )
-    CreditNoteLine.objects.filter(pk=line.pk).update(
         line_total=amount_excl,
         line_vat=vat_amt,
-        unit_price=amount_excl,
-        description=desc,
-        vat_rate=vat_rate,
     )
     return 1
 
@@ -240,7 +243,7 @@ def _save_credit_note_lines(credit_note, post_data, exclude_credit_note_pk=None)
 
 def _credit_note_edit_rows(credit_note):
     rows = []
-    for line in credit_note.lines.select_related('invoice_line'):
+    for line in credit_note.lines.select_related('invoice_line__inventory_item'):
         item = line.invoice_line
         posted_other = CreditNoteLine.posted_quantity_for_invoice_line(
             item, exclude_credit_note_pk=credit_note.pk
@@ -248,6 +251,7 @@ def _credit_note_edit_rows(credit_note):
         max_qty = item.quantity - posted_other
         rows.append({
             'invoice_line_id': item.pk,
+            'item_name': _invoice_line_item_name(item) if item else '',
             'description': line.description,
             'quantity': line.quantity,
             'max_quantity': max_qty,
@@ -394,7 +398,10 @@ class CreditNoteDetailView(PermissionRequiredMixin, DetailView):
     def get_queryset(self):
         return CreditNote.objects.filter(is_active=True).select_related(
             'customer', 'original_invoice', 'journal_entry', 'approved_by', 'created_by'
-        ).prefetch_related('lines__invoice_line', 'journal_entry__lines__account')
+        ).prefetch_related(
+            'lines__invoice_line__inventory_item',
+            'journal_entry__lines__account',
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -1,0 +1,9 @@
+{% if item.inventory_item %}
+{% if item.description and item.description != item.inventory_item.name %}
+{{ item.description }}
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}
+{% else %}
+{{ item.description|default:"—" }}
+{% endif %}

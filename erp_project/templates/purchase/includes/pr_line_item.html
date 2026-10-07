@@ -1,0 +1,5 @@
+{% if item.inventory_item %}
+<span class="fw-medium">{{ item.inventory_item.item_code }} — {{ item.inventory_item.name }}</span>
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}

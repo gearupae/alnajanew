@@ -453,7 +453,7 @@ class InvoiceForm(forms.ModelForm):
         self.fields['estimate'].queryset = Estimate.objects.filter(is_active=True).select_related('customer').order_by('-created_at')
         self.fields['estimate'].required = False
         self.fields['estimate'].empty_label = '— No linked estimate —'
-        self.fields['estimate'].widget.attrs['class'] = 'form-select'
+        self.fields['estimate'].widget.attrs['class'] = 'form-select invoice-estimate-select'
         self.fields['estimate'].label_from_instance = lambda est: f'{est.display_estimate_number} — {est.customer.display_name}'
         self.fields['status'].widget.attrs['class'] = 'form-select'
         self.fields['document_title'].label = 'Title bar (PDF header)'
@@ -648,7 +648,11 @@ class CreditNoteForm(forms.ModelForm):
             is_active=True,
             status__in=CreditNote.CREDITABLE_INVOICE_STATUSES,
         ).select_related('customer').order_by('-invoice_date')
-        self.fields['original_invoice'].widget.attrs['class'] = 'form-select'
+        self.fields['original_invoice'].empty_label = '— Select posted invoice —'
+        self.fields['original_invoice'].label_from_instance = (
+            lambda inv: f'{inv.invoice_number} — {inv.customer.display_name}'
+        )
+        self.fields['original_invoice'].widget.attrs['class'] = 'form-select credit-note-invoice-select'
         self.fields['reason'].widget.attrs['class'] = 'form-select'
         self.fields['reason_description'].widget.attrs['class'] = 'form-control'
         if self.instance.pk and self.instance.status != 'draft':

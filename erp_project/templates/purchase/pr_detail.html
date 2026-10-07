@@ -174,7 +174,7 @@
                     <table class="table mb-0">
                         <thead>
                             <tr>
-                                <th>Description</th>
+                                <th>Item</th>
                                 <th class="text-center pr-current-stock-header">Current stock</th>
                                 <th class="text-center">Qty</th>
                                 <th>Unit</th>
@@ -185,7 +185,7 @@
                         <tbody>
                             {% for item in pr_line_items %}
                             <tr>
-                                <td>{{ item.description }}</td>
+                                <td>{% include 'purchase/includes/pr_line_item_cell.html' %}</td>
                                 <td class="text-center pr-current-stock-cell">
                                     {% if item.current_stock is not None %}{{ item.current_stock|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}
                                 </td>

@@ -171,6 +171,9 @@
                 <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Reject update access request?');"><i class="fas fa-times me-1"></i>Reject access</button>
             </form>
             {% endif %}
+            {% if has_item_deliveries %}
+            <a href="{% url 'projects:project_delivery_note_pdf' project.pk %}" class="btn btn-light" target="_blank" rel="noopener"><i class="fas fa-truck me-2"></i>Delivery note</a>
+            {% endif %}
             <a href="{% url 'projects:project_report_pdf' project.pk %}" class="btn btn-light" target="_blank" rel="noopener"><i class="fas fa-file-pdf me-2"></i>Project report</a>
             {% if can_edit %}<a href="{% url 'projects:project_edit' project.pk %}" class="btn btn-primary"><i class="fas fa-edit me-2"></i>Edit</a>{% endif %}
         </div>
@@ -1269,7 +1272,14 @@
                     <span class="fw-semibold"><i class="fas fa-box-open me-2 text-dark"></i>Item Deliveries</span>
                     <i class="fas fa-chevron-down small text-muted ms-2"></i>
                 </button>
-                <a href="{% url 'projects:item_delivery_list' %}?project={{ project.pk }}" class="btn btn-sm btn-light ms-2">All deliveries</a>
+                <div class="d-flex gap-2 ms-2">
+                    {% if has_item_deliveries %}
+                    <a href="{% url 'projects:project_delivery_note_pdf' project.pk %}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" title="Download delivery note">
+                        <i class="fas fa-file-download me-1"></i>Delivery note
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'projects:item_delivery_list' %}?project={{ project.pk }}" class="btn btn-sm btn-light">All deliveries</a>
+                </div>
             </div>
             <div id="itemDeliveriesPanel" class="collapse show">
                 <div class="card-body pt-0">

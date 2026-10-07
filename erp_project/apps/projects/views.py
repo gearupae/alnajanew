@@ -1,6 +1,6 @@
 """Projects Views"""
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponseNotAllowed
+from django.http import HttpResponseNotAllowed, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
@@ -28,8 +28,11 @@ from .forms import ProjectForm, ProjectTaskCreateForm, TaskForm, ProjectExpenseF
 from .gatepass_alerts import pick_display_gatepass
 from .item_delivery import (
     deliver_items_to_project,
+    delivery_note_lines_for_record,
     project_delivery_display_rows,
+    project_delivery_history_rows,
     project_delivery_summary_groups,
+    project_has_delivery_history,
     project_inventory_spend_total,
     project_item_delivered_qty,
     project_item_remaining_qty,
@@ -315,6 +318,50 @@ class TaskDetailView(PermissionRequiredMixin, DetailView):
         )
         context['status_choices'] = Task.STATUS_CHOICES
         return context
+
+
+def _project_picker_label(project):
+    return f'{project.project_code} — {project.name}'
+
+
+@login_required
+def project_picker_search(request):
+    """JSON search for project Select2 pickers (tasks, etc.)."""
+    if not (
+        request.user.is_superuser
+        or PermissionChecker.has_permission(request.user, 'projects', 'view')
+        or PermissionChecker.has_permission(request.user, 'projects', 'create')
+        or PermissionChecker.has_permission(request.user, 'projects', 'edit')
+    ):
+        return JsonResponse({'results': []}, status=403)
+
+    q = (request.GET.get('q') or request.GET.get('term') or '').strip()
+    selected_raw = (request.GET.get('selected') or '').strip()
+    selected_ids = [int(x) for x in selected_raw.split(',') if x.isdigit()]
+
+    qs = Project.objects.filter(is_active=True).select_related('customer').order_by('-project_code')
+    if q:
+        qs = qs.filter(
+            Q(project_code__icontains=q)
+            | Q(name__icontains=q)
+            | Q(customer__name__icontains=q)
+            | Q(customer__company__icontains=q)
+        )
+
+    results = []
+    seen = set()
+    if selected_ids:
+        for project in Project.objects.filter(pk__in=selected_ids).select_related('customer'):
+            results.append({'id': project.pk, 'text': _project_picker_label(project)})
+            seen.add(project.pk)
+
+    for project in qs[:50]:
+        if project.pk in seen:
+            continue
+        results.append({'id': project.pk, 'text': _project_picker_label(project)})
+        seen.add(project.pk)
+
+    return JsonResponse({'results': results})
 
 
 class TaskCreateView(CreatePermissionMixin, CreateView):
@@ -1207,6 +1254,7 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         context['item_delivery_groups'] = project_delivery_summary_groups(self.object)
         context['item_return_rows'] = project_return_history_rows(self.object)
         context['item_activity_timeline'] = project_item_activity_timeline(self.object)
+        context['has_item_deliveries'] = project_has_delivery_history(self.object)
         can_deliver = self.request.user.is_superuser or PermissionChecker.has_permission(
             self.request.user, 'inventory', 'edit'
         )
@@ -2099,6 +2147,93 @@ def project_gatepass_delete(request, project_pk, pk):
     gp.save()
     messages.success(request, 'Gate pass removed.')
     return redirect('projects:project_detail', pk=project_pk)
+
+
+@login_required
+def project_delivery_note_pdf(request, pk):
+    """Printable delivery note listing items delivered to the project site."""
+    from apps.settings_app.models import CompanySettings
+
+    project = get_object_or_404(
+        Project.objects.select_related('customer', 'manager'),
+        pk=pk,
+        is_active=True,
+    )
+    if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'projects', 'view')):
+        messages.error(request, 'Permission denied.')
+        return redirect('projects:project_detail', pk=pk)
+
+    lines = project_delivery_history_rows(project)
+    if not lines:
+        messages.error(request, 'No items have been delivered to this project yet.')
+        return redirect('projects:project_detail', pk=pk)
+
+    company = CompanySettings.get_settings()
+    logo_absolute_url = ''
+    if company.logo:
+        logo_absolute_url = request.build_absolute_uri(company.logo.url)
+
+    note_date = max((row['delivered_date'] for row in lines if row.get('delivered_date')), default=date.today())
+
+    return render(
+        request,
+        'projects/project_delivery_note_pdf.html',
+        {
+            'project': project,
+            'company': company,
+            'logo_absolute_url': logo_absolute_url,
+            'lines': lines,
+            'note_number': f'DN-{project.project_code}',
+            'note_date': note_date,
+            'total_qty': sum((row['quantity'] for row in lines), Decimal('0')),
+            'page_title': f'Delivery note — {project.project_code}',
+            'back_url': reverse('projects:project_detail', kwargs={'pk': project.pk}),
+            'back_label': 'Back to project',
+        },
+    )
+
+
+@login_required
+def item_delivery_note_pdf(request, pk):
+    """Printable delivery note for a single item delivery record."""
+    from apps.settings_app.models import CompanySettings
+
+    delivery = get_object_or_404(
+        ProjectItemDelivery.objects.select_related(
+            'project',
+            'project__customer',
+            'item',
+            'delivered_by',
+        ),
+        pk=pk,
+    )
+    project = delivery.project
+    if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'projects', 'view')):
+        messages.error(request, 'Permission denied.')
+        return redirect('projects:item_delivery_detail', pk=pk)
+
+    lines = delivery_note_lines_for_record(delivery)
+    company = CompanySettings.get_settings()
+    logo_absolute_url = ''
+    if company.logo:
+        logo_absolute_url = request.build_absolute_uri(company.logo.url)
+
+    return render(
+        request,
+        'projects/project_delivery_note_pdf.html',
+        {
+            'project': project,
+            'company': company,
+            'logo_absolute_url': logo_absolute_url,
+            'lines': lines,
+            'note_number': f'DN-{project.project_code}-{delivery.pk}',
+            'note_date': delivery.delivered_date,
+            'total_qty': sum((row['quantity'] for row in lines), Decimal('0')),
+            'page_title': f'Delivery note — {delivery.item.name}',
+            'back_url': reverse('projects:item_delivery_detail', kwargs={'pk': delivery.pk}),
+            'back_label': 'Back to delivery',
+        },
+    )
 
 
 @login_required
