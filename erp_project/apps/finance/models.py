@@ -8,7 +8,7 @@ Compliance:
 - IFRS-based financial reporting
 - Accrual accounting
 """
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q, Sum
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -815,11 +815,20 @@ class JournalEntry(BaseModel):
         # tax_payables) only — never by hardcoded account codes, because code
         # numbers vary per chart of accounts (e.g. 1300 is an Inventory account
         # in some charts, not VAT).
+        # A reversal is a system-sanctioned mirror of an already-validated
+        # entry, so it is allowed to re-touch VAT control and Revenue accounts
+        # even though 'reversal' is not a normally-allowed posting source.
+        is_reversal = (
+            self.entry_type == 'reversal'
+            or self.source_module == 'reversal'
+            or self.reversal_of_id is not None
+        )
+
         _VAT_ALLOWED_SOURCES = frozenset({
             'sales', 'purchase', 'vat', 'vat_return', 'opening_balance', 'system',
             'sales_credit_note', 'purchase_debit_note',
         })
-        if self.source_module not in _VAT_ALLOWED_SOURCES:
+        if not is_reversal and self.source_module not in _VAT_ALLOWED_SOURCES:
             _vat_cats = frozenset({'tax_receivables', 'tax_payables'})
             lines_list = lines if 'lines' in dir() else list(self.lines.all())
             vat_touched = [
@@ -843,7 +852,7 @@ class JournalEntry(BaseModel):
             'sales', 'adjustment', 'credit_note', 'system', 'opening_balance',
             'property', 'bank_reconciliation', 'sales_credit_note', 'pdc',
         })
-        if self.source_module not in _REV_ALLOWED_SOURCES:
+        if not is_reversal and self.source_module not in _REV_ALLOWED_SOURCES:
             lines_list = lines if 'lines' in dir() else list(self.lines.all())
             rev_touched = [
                 l for l in lines_list
@@ -942,47 +951,69 @@ class JournalEntry(BaseModel):
                 raise ValidationError(f"Cannot reverse - accounting period {self.period.name} is locked.")
             if self.fiscal_year and self.fiscal_year.is_closed:
                 raise ValidationError(f"Cannot reverse - fiscal year {self.fiscal_year.name} is closed.")
-        
-        # Determine the current period for reversal
-        current_period = AccountingPeriod.objects.filter(
-            start_date__lte=date.today(),
-            end_date__gte=date.today(),
-            is_locked=False
-        ).first()
-        
-        # Create reversal entry
-        reversal = JournalEntry.objects.create(
-            date=date.today(),
-            reference=f"REV-{self.entry_number}",
-            description=f"Reversal of {self.entry_number}: {reason or self.description}",
-            entry_type='reversal',
-            source_module='reversal',
-            source_id=self.pk,
-            is_system_generated=True,
-            reversal_of=self,
-            reversal_reason=reason,
-            fiscal_year=current_period.fiscal_year if current_period else self.fiscal_year,
-            period=current_period or self.period,
-            created_by=user,
-        )
-        
-        # Create reversed lines (swap debit and credit)
-        for line in self.lines.all():
-            JournalEntryLine.objects.create(
-                journal_entry=reversal,
-                account=line.account,
-                description=f"Reversal: {line.description}",
-                debit=line.credit,
-                credit=line.debit,
+
+        # VAT-period lock: a reversal itself posts into the current period, but if
+        # the ORIGINAL entry's date falls inside a filed/locked VAT period, reversing
+        # it would retroactively understate a filed return. Block it and point the
+        # user at the Credit Note flow (reuses the existing VAT-return lock check).
+        if self.date and VATReturn.is_date_in_locked_period(self.date):
+            raise ValidationError(
+                f"Cannot reverse - the VAT period containing {self.date} is filed "
+                f"and locked. Use a Credit Note to correct a transaction in a filed "
+                f"VAT period."
             )
-        
-        reversal.calculate_totals()
-        reversal.post(user)
-        
-        # Mark original as reversed (but keep it locked for audit trail)
-        self.status = 'reversed'
-        self.save(update_fields=['status'])
-        
+
+        with transaction.atomic():
+            # Determine the current period for reversal
+            current_period = AccountingPeriod.objects.filter(
+                start_date__lte=date.today(),
+                end_date__gte=date.today(),
+                is_locked=False
+            ).first()
+
+            # Create reversal entry
+            reversal = JournalEntry.objects.create(
+                date=date.today(),
+                reference=f"REV-{self.entry_number}",
+                description=f"Reversal of {self.entry_number}: {reason or self.description}",
+                entry_type='reversal',
+                source_module='reversal',
+                source_id=self.pk,
+                is_system_generated=True,
+                reversal_of=self,
+                reversal_reason=reason,
+                fiscal_year=current_period.fiscal_year if current_period else self.fiscal_year,
+                period=current_period or self.period,
+                created_by=user,
+            )
+
+            # Create reversed lines (swap debit and credit)
+            for line in self.lines.all():
+                JournalEntryLine.objects.create(
+                    journal_entry=reversal,
+                    account=line.account,
+                    description=f"Reversal: {line.description}",
+                    debit=line.credit,
+                    credit=line.debit,
+                )
+
+            reversal.calculate_totals()
+            reversal.post(user)
+
+            # Mark original as reversed (but keep it locked for audit trail)
+            self.status = 'reversed'
+            self.save(update_fields=['status'])
+
+            # Invoice revert: reversing a sales-invoice journal must release the
+            # linked invoice back to an editable state so it can be corrected and
+            # re-posted cleanly. Non-sales reversals (inventory, etc.) are untouched.
+            if self.source_module == 'sales':
+                for inv in list(self.sales_invoices.all()):
+                    inv.status = 'draft'
+                    inv.paid_amount = Decimal('0.00')
+                    inv.journal_entry = None
+                    inv.save(update_fields=['status', 'paid_amount', 'journal_entry'])
+
         return reversal
 
 
