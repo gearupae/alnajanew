@@ -332,6 +332,12 @@ def project_picker_search(request):
         or PermissionChecker.has_permission(request.user, 'projects', 'view')
         or PermissionChecker.has_permission(request.user, 'projects', 'create')
         or PermissionChecker.has_permission(request.user, 'projects', 'edit')
+        or PermissionChecker.has_permission(request.user, 'purchase', 'view')
+        or PermissionChecker.has_permission(request.user, 'purchase', 'create')
+        or PermissionChecker.has_permission(request.user, 'purchase', 'edit')
+        or PermissionChecker.has_permission(request.user, 'inventory', 'view')
+        or PermissionChecker.has_permission(request.user, 'inventory', 'create')
+        or PermissionChecker.has_permission(request.user, 'inventory', 'edit')
     ):
         return JsonResponse({'results': []}, status=403)
 
@@ -339,7 +345,9 @@ def project_picker_search(request):
     selected_raw = (request.GET.get('selected') or '').strip()
     selected_ids = [int(x) for x in selected_raw.split(',') if x.isdigit()]
 
-    qs = Project.objects.filter(is_active=True).select_related('customer').order_by('-project_code')
+    qs = Project.objects.filter(is_active=True).exclude(
+        status__in=['draft', 'cancelled']
+    ).select_related('customer').order_by('-project_code')
     if q:
         qs = qs.filter(
             Q(project_code__icontains=q)

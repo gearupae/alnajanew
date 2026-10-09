@@ -413,7 +413,7 @@ class ConsumableRequestForm(forms.ModelForm):
         fields = ['is_active', 'department', 'project', 'priority', 'required_by_date', 'remarks']
         widgets = {
             'department': forms.Select(attrs={'class': 'form-select'}),
-            'project': forms.Select(attrs={'class': 'form-select'}),
+            'project': forms.Select(attrs={'class': 'form-select consumable-project-select'}),
             'priority': forms.Select(attrs={'class': 'form-select'}),
             'required_by_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'remarks': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Optional remarks'}),
@@ -431,9 +431,21 @@ class ConsumableRequestForm(forms.ModelForm):
         self.fields['remarks'].label = 'Remarks'
         self.fields['department'].queryset = Department.objects.filter(is_active=True)
         self.fields['department'].required = False
-        self.fields['project'].queryset = Project.objects.filter(is_active=True).order_by(
-            '-created_at', 'name'
+        project_qs = Project.objects.filter(is_active=True).exclude(
+            status__in=['draft', 'cancelled']
         )
+        if self.is_bound:
+            self.fields['project'].queryset = project_qs.order_by('-created_at', 'name')
+        elif self.instance.pk and self.instance.project_id:
+            self.fields['project'].queryset = project_qs.filter(pk=self.instance.project_id)
+        else:
+            initial_project = self.initial.get('project')
+            if initial_project is not None and hasattr(initial_project, 'pk'):
+                initial_project = initial_project.pk
+            if initial_project:
+                self.fields['project'].queryset = project_qs.filter(pk=initial_project)
+            else:
+                self.fields['project'].queryset = Project.objects.none()
         self.fields['project'].required = False
         self.fields['project'].empty_label = '— Select project (optional) —'
         self.fields['required_by_date'].required = False
@@ -453,8 +465,14 @@ class ConsumableRequestItemForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['item'].queryset = Item.usable().filter(item_type='product').order_by('name')
-        self.fields['item'].widget.attrs['class'] = 'form-select'
+        product_qs = Item.usable().filter(item_type='product').order_by('item_code', 'name')
+        if self.is_bound:
+            self.fields['item'].queryset = product_qs
+        elif self.instance.pk and self.instance.item_id:
+            self.fields['item'].queryset = product_qs.filter(pk=self.instance.item_id)
+        else:
+            self.fields['item'].queryset = product_qs.none()
+        self.fields['item'].widget.attrs['class'] = 'form-select consumable-item-select'
         self.fields['quantity'].widget.attrs.update({
             'class': 'form-control',
             'step': '1',

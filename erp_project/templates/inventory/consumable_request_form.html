@@ -1,5 +1,32 @@
 {% extends 'base.html' %}
 
+{% block extra_css %}
+<style>
+.consumable-item-select + .select2-container,
+.item-row .select2-container {
+    width: 100% !important;
+}
+.item-row .select2-selection--single {
+    min-height: 31px;
+    font-size: 0.875rem;
+}
+.consumable-item-select2-dropdown {
+    min-width: 18rem !important;
+    z-index: 1060;
+}
+.consumable-item-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+.consumable-project-select2-dropdown {
+    min-width: 18rem !important;
+    z-index: 1060;
+}
+.consumable-project-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <nav aria-label="breadcrumb">
@@ -154,31 +181,239 @@
     <a href="{% url 'inventory:consumable_request_list' %}" class="btn btn-light">Cancel</a>
     {% endif %}
 </form>
+{% endblock %}
 
 {% block extra_js %}
 <script>
+const CONSUMABLE_ITEM_SEARCH_URL = '{% url "inventory:item_picker_search" %}';
+const CONSUMABLE_PROJECT_SEARCH_URL = '{% url "projects:project_picker_search" %}';
 let formCount = {{ items_formset.total_form_count }};
+
+function seedConsumableProjectSelect(el, selectedId, selectedLabel) {
+    el.innerHTML = '';
+    el.appendChild(new Option('', '— Select project (optional) —', false, false));
+    if (selectedId) {
+        el.appendChild(new Option(selectedLabel || String(selectedId), String(selectedId), true, true));
+    }
+}
+
+function appendConsumableProjectOptions(el, results, selectedId) {
+    if (!Array.isArray(results) || !results.length) {
+        return;
+    }
+    const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
+    results.forEach(function(row) {
+        const id = String(row.id);
+        if (selected && id === selected) {
+            return;
+        }
+        el.appendChild(new Option(row.text || row.name || id, id, false, false));
+    });
+}
+
+function triggerConsumableProjectSelect2AjaxSearch() {
+    setTimeout(function() {
+        const search = document.querySelector('.consumable-project-select2-dropdown .select2-search__field')
+            || document.querySelector('.select2-container--open .select2-search__field');
+        if (!search) {
+            return;
+        }
+        const $search = $(search);
+        if (!$search.val()) {
+            $search.val(' ').trigger('input');
+            $search.val('').trigger('input');
+        } else {
+            $search.trigger('input');
+        }
+    }, 50);
+}
+
+function mountConsumableProjectSelect2(el) {
+    const $el = $(el);
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        dropdownParent: $(document.body),
+        allowClear: true,
+        minimumInputLength: 0,
+        dropdownCssClass: 'consumable-project-select2-dropdown',
+        placeholder: 'Search by project code or name…',
+        ajax: {
+            url: CONSUMABLE_PROJECT_SEARCH_URL,
+            dataType: 'json',
+            delay: 200,
+            cache: true,
+            data: function(params) {
+                return { q: params.term || '', selected: $el.val() || '' };
+            },
+            processResults: function(data) {
+                return { results: (data && data.results) ? data.results : [] };
+            },
+        },
+        language: {
+            inputTooShort: function() { return 'Type to search projects…'; },
+            noResults: function() { return 'No matching projects'; },
+            searching: function() { return 'Searching…'; },
+        },
+    });
+    $el.off('select2:open.consumableProjectAjax').on('select2:open.consumableProjectAjax', triggerConsumableProjectSelect2AjaxSearch);
+    const current = el.value || '';
+    if (current) {
+        $el.val(current).trigger('change.select2');
+    }
+}
+
+function initConsumableProjectSelect2() {
+    const el = document.getElementById('id_project');
+    if (!el || typeof $ === 'undefined' || !$.fn.select2 || el.disabled) {
+        return;
+    }
+    const $el = $(el);
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+    const current = el.value || '';
+    const label = el.selectedOptions && el.selectedOptions[0] && el.selectedOptions[0].value
+        ? el.selectedOptions[0].text
+        : '';
+    seedConsumableProjectSelect(el, current, label);
+    $.getJSON(CONSUMABLE_PROJECT_SEARCH_URL, { q: '', selected: current || '' })
+        .done(function(data) {
+            appendConsumableProjectOptions(el, data.results || [], current);
+            mountConsumableProjectSelect2(el);
+        })
+        .fail(function() {
+            mountConsumableProjectSelect2(el);
+        });
+}
+
+function destroyConsumableItemSelect2(selectEl) {
+    if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
+    const $el = $(selectEl);
+    $el.off('select2:open.consumableAjax');
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+}
+
+function seedConsumableItemSelect(selectEl, selectedId, selectedLabel) {
+    selectEl.innerHTML = '';
+    selectEl.appendChild(new Option('', '', false, false));
+    if (!selectedId) {
+        return;
+    }
+    selectEl.appendChild(new Option(selectedLabel || String(selectedId), String(selectedId), true, true));
+}
+
+function appendConsumableItemOptions(selectEl, results, selectedId) {
+    if (!Array.isArray(results) || !results.length) {
+        return;
+    }
+    const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
+    results.forEach(function(row) {
+        const id = String(row.id);
+        if (selected && id === selected) {
+            return;
+        }
+        selectEl.appendChild(new Option(row.text || row.name || id, id, false, false));
+    });
+}
+
+function triggerConsumableSelect2AjaxSearch() {
+    setTimeout(function() {
+        const search = document.querySelector('.consumable-item-select2-dropdown .select2-search__field')
+            || document.querySelector('.select2-container--open .select2-search__field');
+        if (!search) {
+            return;
+        }
+        const $search = $(search);
+        if (!$search.val()) {
+            $search.val(' ').trigger('input');
+            $search.val('').trigger('input');
+        } else {
+            $search.trigger('input');
+        }
+    }, 50);
+}
+
+function mountConsumableItemSelect2(selectEl) {
+    const $el = $(selectEl);
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search item by code or name…',
+        allowClear: true,
+        dropdownParent: $(document.body),
+        minimumInputLength: 0,
+        dropdownAutoWidth: true,
+        dropdownCssClass: 'consumable-item-select2-dropdown',
+        ajax: {
+            url: CONSUMABLE_ITEM_SEARCH_URL,
+            dataType: 'json',
+            delay: 200,
+            cache: true,
+            data: function(params) {
+                return {
+                    q: params.term || '',
+                    item_type: 'product',
+                    selected: selectEl.value || '',
+                };
+            },
+            processResults: function(data) {
+                return { results: (data && data.results) ? data.results : [] };
+            },
+        },
+        language: {
+            inputTooShort: function() { return 'Type to search items…'; },
+            noResults: function() { return 'No matching items — try item code or name'; },
+            searching: function() { return 'Searching…'; },
+        },
+    });
+    $el.off('select2:open.consumableAjax').on('select2:open.consumableAjax', triggerConsumableSelect2AjaxSearch);
+    const current = selectEl.value || '';
+    if (current) {
+        $el.val(current).trigger('change.select2');
+    }
+}
+
+function initConsumableItemSelect2(selectEl) {
+    if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
+    const current = selectEl.value || '';
+    const label = (selectEl.selectedOptions && selectEl.selectedOptions[0] && selectEl.selectedOptions[0].value)
+        ? selectEl.selectedOptions[0].text
+        : '';
+    destroyConsumableItemSelect2(selectEl);
+    seedConsumableItemSelect(selectEl, current, label);
+    $.getJSON(CONSUMABLE_ITEM_SEARCH_URL, { q: '', item_type: 'product', selected: current || '' })
+        .done(function(data) {
+            appendConsumableItemOptions(selectEl, data.results || [], current);
+            mountConsumableItemSelect2(selectEl);
+        })
+        .fail(function() {
+            mountConsumableItemSelect2(selectEl);
+        });
+}
+
+function initConsumableItemRow(row) {
+    const selectEl = row.querySelector('select.consumable-item-select, select[name*="-item"]');
+    if (selectEl) {
+        initConsumableItemSelect2(selectEl);
+    }
+}
 
 function addItemRow() {
     const tbody = document.getElementById('itemsBody');
-    const firstRow = tbody.querySelector('.item-row');
-    const itemSelect = firstRow.querySelector('select[name*="-item"]');
-    let optionsHtml = '<option value="">---------</option>';
-    if (itemSelect) {
-        itemSelect.querySelectorAll('option').forEach(opt => {
-            if (opt.value) optionsHtml += `<option value="${opt.value}">${opt.text}</option>`;
-        });
-    }
     const newRow = document.createElement('tr');
     newRow.className = 'item-row';
     newRow.innerHTML = `
-        <td><select name="items-${formCount}-item" class="form-select" id="id_items-${formCount}-item">${optionsHtml}</select></td>
+        <td><select name="items-${formCount}-item" class="form-select consumable-item-select" id="id_items-${formCount}-item"><option value=""></option></select></td>
         <td><input type="number" name="items-${formCount}-quantity" class="form-control" value="1" step="1" min="1"></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow(this)"><i class="fas fa-times"></i></button></td>
     `;
     tbody.appendChild(newRow);
     formCount++;
     document.getElementById('id_items-TOTAL_FORMS').value = formCount;
+    initConsumableItemRow(newRow);
 }
 
 function removeItemRow(btn) {
@@ -188,9 +423,18 @@ function removeItemRow(btn) {
         deleteCheck.checked = true;
         row.style.display = 'none';
     } else {
+        row.querySelectorAll('select.consumable-item-select, select[name*="-item"]').forEach(destroyConsumableItemSelect2);
         row.remove();
     }
 }
+
+$(function() {
+    initConsumableProjectSelect2();
+    document.querySelectorAll('#itemsBody .item-row').forEach(function(row) {
+        if (row.style.display !== 'none') {
+            initConsumableItemRow(row);
+        }
+    });
+});
 </script>
-{% endblock %}
 {% endblock %}

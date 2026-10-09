@@ -515,23 +515,42 @@ def item_picker_search(request):
     if not (
         request.user.is_superuser
         or PermissionChecker.has_permission(request.user, 'inventory', 'view')
+        or PermissionChecker.has_permission(request.user, 'inventory', 'create')
+        or PermissionChecker.has_permission(request.user, 'inventory', 'edit')
     ):
         return JsonResponse({'results': []}, status=403)
 
     q = (request.GET.get('q') or request.GET.get('term') or '').strip()
     exclude_raw = (request.GET.get('exclude') or '').strip()
     exclude_ids = [int(x) for x in exclude_raw.split(',') if x.isdigit()]
+    selected_raw = (request.GET.get('selected') or '').strip()
+    selected_ids = [int(x) for x in selected_raw.split(',') if x.isdigit()]
+    item_type = (request.GET.get('item_type') or '').strip()
 
     qs = Item.usable().order_by('item_code', 'name')
+    if item_type:
+        qs = qs.filter(item_type=item_type)
     if exclude_ids:
         qs = qs.exclude(pk__in=exclude_ids)
     if q:
         qs = qs.filter(Q(item_code__icontains=q) | Q(name__icontains=q))
 
-    results = [
-        {'id': item.pk, 'text': f'{item.item_code} — {item.name}'}
-        for item in qs[:50]
-    ]
+    results = []
+    seen = set()
+    if selected_ids:
+        selected_qs = Item.usable().filter(pk__in=selected_ids)
+        if item_type:
+            selected_qs = selected_qs.filter(item_type=item_type)
+        for item in selected_qs:
+            results.append({'id': item.pk, 'text': f'{item.item_code} — {item.name}'})
+            seen.add(item.pk)
+
+    for item in qs[:50]:
+        if item.pk in seen:
+            continue
+        results.append({'id': item.pk, 'text': f'{item.item_code} — {item.name}'})
+        seen.add(item.pk)
+
     return JsonResponse({'results': results})
 
 

@@ -76,6 +76,11 @@ class ServiceRequestCreateView(CreatePermissionMixin, CreateView):
     template_name = 'service_request/sr_form.html'
     success_url = reverse_lazy('service_request:sr_list')
     module_name = 'service_request'
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.setdefault('date', date.today())
+        return initial
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -127,6 +132,9 @@ class ServiceRequestUpdateView(UpdatePermissionMixin, UpdateView):
     form_class = ServiceRequestForm
     template_name = 'service_request/sr_form.html'
     module_name = 'service_request'
+
+    def get_queryset(self):
+        return super().get_queryset().prefetch_related('items__inventory_item')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -180,7 +188,13 @@ class ServiceRequestDetailView(PermissionRequiredMixin, DetailView):
     context_object_name = 'sr'
     module_name = 'service_request'
     permission_type = 'view'
-    
+
+    def get_queryset(self):
+        return super().get_queryset().prefetch_related(
+            'items__inventory_item',
+            'items__vendor',
+        )
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = f'SR: {self.object.sr_number}'
@@ -411,16 +425,48 @@ def sr_convert_pr(request, pk):
 
 
 @login_required
+def sr_item_search(request):
+    """Select2 AJAX search for inventory items on service request lines."""
+    if not (
+        request.user.is_superuser
+        or PermissionChecker.has_permission(request.user, 'service_request', 'view')
+        or PermissionChecker.has_permission(request.user, 'service_request', 'create')
+        or PermissionChecker.has_permission(request.user, 'service_request', 'edit')
+        or PermissionChecker.has_permission(request.user, 'inventory', 'view')
+    ):
+        return JsonResponse({'results': []}, status=403)
+
+    from apps.inventory.models import Item
+
+    q = (request.GET.get('q') or request.GET.get('term') or '').strip()
+    qs = Item.usable().order_by('item_code', 'name')
+    if q:
+        qs = qs.filter(Q(item_code__icontains=q) | Q(name__icontains=q))
+    results = [
+        {
+            'id': item.pk,
+            'text': f'{item.item_code} — {item.name}',
+            'name': item.name,
+            'purchase_price': str(item.purchase_price or Decimal('0.00')),
+        }
+        for item in qs[:50]
+    ]
+    return JsonResponse({'results': results})
+
+
+@login_required
 def sr_items_json(request, pk):
     """Return SR items as JSON for AJAX requests (used when creating PR/PO from SR)."""
     sr = get_object_or_404(ServiceRequest, pk=pk)
     items = []
     vendor_ids = set()
-    for item in sr.items.all():
+    for item in sr.items.select_related('inventory_item').all():
         if item.vendor_id:
             vendor_ids.add(item.vendor_id)
         items.append({
-            'description': item.service_description,
+            'inventory_item_id': item.inventory_item_id,
+            'service_description': item.service_description or '',
+            'description': item.effective_description(),
             'quantity': str(item.quantity),
             'estimated_price': str(item.estimated_unit_cost),
             'unit_price': str(item.estimated_unit_cost),

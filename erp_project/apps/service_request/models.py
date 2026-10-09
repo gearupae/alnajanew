@@ -86,7 +86,14 @@ class ServiceRequestItem(models.Model):
         on_delete=models.CASCADE,
         related_name='items'
     )
-    service_description = models.CharField(max_length=500)
+    inventory_item = models.ForeignKey(
+        'inventory.Item',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='service_request_items',
+    )
+    service_description = models.CharField(max_length=500, blank=True)
     vendor = models.ForeignKey(
         'purchase.Vendor',
         on_delete=models.SET_NULL,
@@ -106,6 +113,14 @@ class ServiceRequestItem(models.Model):
     def save(self, *args, **kwargs):
         self.total_cost = (self.quantity * self.estimated_unit_cost).quantize(Decimal('0.01'))
         super().save(*args, **kwargs)
+
+    def effective_description(self):
+        """Description for downstream documents: custom text, else the item name."""
+        if self.service_description:
+            return self.service_description
+        if self.inventory_item_id:
+            return self.inventory_item.name
+        return ''
 
 
 class ServiceRequestAttachment(models.Model):

@@ -115,8 +115,8 @@ class PayrollTemplateForm(forms.ModelForm):
 
 class PayrollManualDeductionForm(forms.Form):
     employee = forms.ModelChoiceField(
-        queryset=Employee.objects.filter(is_active=True).order_by('first_name', 'last_name'),
-        widget=forms.Select(attrs={'class': 'form-select'}),
+        queryset=Employee.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-select payroll-deduction-employee-select'}),
         label='Employee',
     )
     month = forms.DateField(
@@ -145,6 +145,11 @@ class PayrollManualDeductionForm(forms.Form):
         from apps.hr.payroll_deductions import MANUAL_DEDUCTION_CHOICES
 
         super().__init__(*args, **kwargs)
+        active_employees = Employee.objects.filter(is_active=True)
+        if self.is_bound:
+            self.fields['employee'].queryset = active_employees.order_by('first_name', 'last_name')
+        else:
+            self.fields['employee'].queryset = Employee.objects.none()
         self.fields['code'].choices = MANUAL_DEDUCTION_CHOICES
 
     def clean_month(self):
@@ -191,9 +196,14 @@ class EmployeeAdvanceForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         from apps.hr.models import Employee
 
-        self.fields['employee'].queryset = Employee.objects.filter(is_active=True).order_by(
-            'first_name', 'last_name'
-        )
+        active_employees = Employee.objects.filter(is_active=True)
+        if self.is_bound:
+            self.fields['employee'].queryset = active_employees.order_by('first_name', 'last_name')
+        elif self.instance.pk and self.instance.employee_id:
+            self.fields['employee'].queryset = active_employees.filter(pk=self.instance.employee_id)
+        else:
+            self.fields['employee'].queryset = Employee.objects.none()
+        self.fields['employee'].widget.attrs['class'] = 'form-select payroll-advance-employee-select'
         self.fields['approved_by'].queryset = User.objects.filter(is_active=True).order_by('username')
         self.fields['approved_by'].required = False
         self.fields['approved_by'].empty_label = '— None —'

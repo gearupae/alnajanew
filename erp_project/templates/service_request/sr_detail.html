@@ -106,7 +106,7 @@
                     <table class="table mb-0">
                         <thead>
                             <tr>
-                                <th>Service Description</th>
+                                <th>Item / Description</th>
                                 <th>Vendor</th>
                                 <th>Qty/Duration</th>
                                 <th>Unit</th>
@@ -117,7 +117,7 @@
                         <tbody>
                             {% for item in sr.items.all %}
                             <tr>
-                                <td>{{ item.service_description }}</td>
+                                <td>{% include 'service_request/includes/sr_line_item_cell.html' with item=item %}</td>
                                 <td>{{ item.vendor.name|default:"-" }}</td>
                                 <td>{{ item.quantity }}</td>
                                 <td>{{ item.get_unit_display }}</td>

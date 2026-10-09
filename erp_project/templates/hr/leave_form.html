@@ -1,5 +1,16 @@
 {% extends 'base.html' %}
 {% load static %}
+{% block extra_css %}
+<style>
+.leave-employee-select2-dropdown {
+    min-width: 18rem !important;
+    z-index: 1060;
+}
+.leave-employee-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+</style>
+{% endblock %}
 {% block content %}
 <div class="page-header">
     <nav aria-label="breadcrumb">
@@ -180,7 +191,109 @@
 {% block extra_js %}
 <script src="{% static 'js/hr_leave_application.js' %}"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+const LEAVE_EMPLOYEE_SEARCH_URL = '{% url "hr:employee_picker_search" %}';
+
+function seedLeaveEmployeeSelect(el, selectedId, selectedLabel, emptyLabel) {
+  el.innerHTML = '';
+  el.appendChild(new Option('', emptyLabel || '', false, false));
+  if (selectedId) {
+    el.appendChild(new Option(selectedLabel || String(selectedId), String(selectedId), true, true));
+  }
+}
+
+function appendLeaveEmployeeOptions(el, results, selectedId) {
+  if (!Array.isArray(results) || !results.length) return;
+  const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
+  results.forEach(function (row) {
+    const id = String(row.id);
+    if (selected && id === selected) return;
+    el.appendChild(new Option(row.text || row.name || id, id, false, false));
+  });
+}
+
+function triggerLeaveEmployeeSelect2AjaxSearch() {
+  setTimeout(function () {
+    const search = document.querySelector('.leave-employee-select2-dropdown .select2-search__field')
+      || document.querySelector('.select2-container--open .select2-search__field');
+    if (!search) return;
+    const $search = jQuery(search);
+    if (!$search.val()) {
+      $search.val(' ').trigger('input');
+      $search.val('').trigger('input');
+    } else {
+      $search.trigger('input');
+    }
+  }, 50);
+}
+
+function mountLeaveEmployeeSelect2(el, placeholder, allowClear) {
+  const $el = jQuery(el);
+  $el.select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    dropdownParent: jQuery(document.body),
+    allowClear: allowClear !== false,
+    minimumInputLength: 0,
+    dropdownCssClass: 'leave-employee-select2-dropdown',
+    placeholder: placeholder,
+    ajax: {
+      url: LEAVE_EMPLOYEE_SEARCH_URL,
+      dataType: 'json',
+      delay: 200,
+      cache: true,
+      data: function (params) {
+        return { q: params.term || '', selected: $el.val() || '' };
+      },
+      processResults: function (data) {
+        return { results: (data && data.results) ? data.results : [] };
+      },
+    },
+    language: {
+      inputTooShort: function () { return 'Type to search employees…'; },
+      noResults: function () { return 'No matching employees'; },
+      searching: function () { return 'Searching…'; },
+    },
+  });
+  $el.off('select2:open.leaveEmployeeAjax').on('select2:open.leaveEmployeeAjax', triggerLeaveEmployeeSelect2AjaxSearch);
+  const current = el.value || '';
+  if (current) {
+    $el.val(current).trigger('change.select2');
+  }
+}
+
+function initLeaveEmployeeSelect2(el, placeholder, emptyLabel, allowClear) {
+  if (!el || typeof jQuery === 'undefined' || !jQuery.fn.select2 || el.disabled || el.type === 'hidden') return;
+  const $el = jQuery(el);
+  if ($el.data('select2')) {
+    $el.select2('destroy');
+  }
+  const current = el.value || '';
+  const label = el.selectedOptions && el.selectedOptions[0] ? el.selectedOptions[0].text : '';
+  seedLeaveEmployeeSelect(el, current, label, emptyLabel);
+  jQuery.getJSON(LEAVE_EMPLOYEE_SEARCH_URL, { q: '', selected: current || '' })
+    .done(function (data) {
+      appendLeaveEmployeeOptions(el, data.results || [], current);
+      mountLeaveEmployeeSelect2(el, placeholder, allowClear);
+    })
+    .fail(function () {
+      mountLeaveEmployeeSelect2(el, placeholder, allowClear);
+    });
+}
+
+jQuery(function () {
+  initLeaveEmployeeSelect2(
+    document.getElementById('id_employee'),
+    'Search by employee code or name…',
+    '-- Select Employee --',
+    false
+  );
+  initLeaveEmployeeSelect2(
+    document.getElementById('id_covering_employee'),
+    'Search covering employee…',
+    '— None —',
+    true
+  );
+
   var root = document.getElementById('leave-app-root');
   var isAdmin = root && root.dataset.isAdmin === 'true';
   window.initHrLeaveApplication({

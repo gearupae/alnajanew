@@ -26,6 +26,13 @@
 .pr-inventory-select2-dropdown .select2-search__field {
     width: 100% !important;
 }
+.pr-department-select2-dropdown {
+    min-width: 14rem !important;
+    z-index: 1060;
+}
+.pr-department-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
 .pr-current-stock-header {
     background: #f0f9ff !important;
     color: #0369a1;
@@ -518,32 +525,48 @@ function addItemRow() {
     addInventoryItemRow();
 }
 
-function addInventoryItemRow() {
+function addInventoryItemRow(inventoryItemId = null, quantity = '0', unit = 'pcs', estimatedPrice = '0', description = '') {
     const tbody = document.getElementById('itemsBody');
     const newRow = document.createElement('tr');
     newRow.className = 'item-row';
     const idx = formCount;
+    const hasInv = inventoryItemId != null && inventoryItemId !== '';
+    const prUnit = SR_UNIT_TO_PR[(unit || '').toLowerCase()] || (unit || 'pcs').toLowerCase();
+    const safeUnit = PR_UNIT_KEYS.has(prUnit) ? prUnit : 'other';
     newRow.innerHTML = `
         <td class="pr-item-cell td-inv"></td>
         <td class="text-center text-nowrap align-middle item-current-stock pr-current-stock-cell text-muted small">—</td>
-        <td><input type="number" name="items-${idx}-quantity" class="form-control item-qty" value="0" step="1" min="0"></td>
+        <td><input type="number" name="items-${idx}-quantity" class="form-control item-qty" value="${escapeHtml(String(quantity || '0'))}" step="1" min="0"></td>
         <td><select name="items-${idx}-unit" class="form-select item-unit-select"><option value="pcs">Pcs</option><option value="box">Box</option><option value="kg">Kg</option><option value="ltr">Ltr</option><option value="set">Set</option><option value="other">Other</option></select></td>
-        <td><input type="number" name="items-${idx}-estimated_price" class="form-control item-cost" value="0" step="0.01" min="0"></td>
+        <td><input type="number" name="items-${idx}-estimated_price" class="form-control item-cost" value="${escapeHtml(String(estimatedPrice || '0'))}" step="0.01" min="0"></td>
         <td class="item-total align-middle">0.00</td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow(this)"><i class="fas fa-times"></i></button></td>
     `;
     tbody.appendChild(newRow);
     const tdInv = newRow.querySelector('.td-inv');
-    const invSel = buildInventorySelect(`items-${idx}-inventory_item`);
+    const invSel = buildInventorySelect(`items-${idx}-inventory_item`, hasInv ? inventoryItemId : null);
     tdInv.appendChild(invSel);
     const descInput = document.createElement('input');
     descInput.type = 'text';
     descInput.name = `items-${idx}-description`;
     descInput.className = 'form-control form-control-sm item-description-input';
     descInput.placeholder = 'Optional custom description…';
-    descInput.value = '';
+    descInput.value = description || '';
     tdInv.appendChild(descInput);
+    const unitSel = newRow.querySelector('.item-unit-select');
+    if (unitSel) {
+        unitSel.value = safeUnit;
+    }
     initPrInventorySelect2(invSel);
+    if (hasInv) {
+        applyInventoryDefaults(invSel, newRow);
+        if (description && descInput) {
+            descInput.value = description;
+        }
+        if (unitSel) {
+            unitSel.value = safeUnit;
+        }
+    }
     formCount++;
     document.getElementById('id_items-TOTAL_FORMS').value = formCount;
     newRow.querySelectorAll('.item-qty, .item-cost').forEach(el => el.addEventListener('input', () => updateRowTotal(newRow)));
@@ -597,12 +620,24 @@ function loadSRItems(srId) {
             try {
                 if (data.items && data.items.length > 0) {
                     data.items.forEach(item => {
-                        addServiceItemRow(
-                            item.description || '',
-                            item.quantity || '0',
-                            item.unit || 'other',
-                            item.estimated_price || item.unit_price || '0'
-                        );
+                        const invId = item.inventory_item_id != null && item.inventory_item_id !== ''
+                            ? item.inventory_item_id : null;
+                        if (invId) {
+                            addInventoryItemRow(
+                                invId,
+                                item.quantity || '0',
+                                item.unit || 'other',
+                                item.estimated_price || item.unit_price || '0',
+                                item.service_description || ''
+                            );
+                        } else {
+                            addServiceItemRow(
+                                item.description || item.service_description || '',
+                                item.quantity || '0',
+                                item.unit || 'other',
+                                item.estimated_price || item.unit_price || '0'
+                            );
+                        }
                     });
                 } else {
                     addInventoryItemRow();
@@ -704,6 +739,18 @@ $(function() {
 });
 
 $(function() {
+    const deptSel = document.getElementById('id_department');
+    if (deptSel && typeof $ !== 'undefined' && $.fn.select2) {
+        $(deptSel).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Search department…',
+            allowClear: true,
+            minimumResultsForSearch: 0,
+            dropdownParent: $(document.body),
+            dropdownCssClass: 'pr-department-select2-dropdown',
+        });
+    }
     const vendorSel = document.getElementById('id_vendor');
     if (vendorSel && typeof $ !== 'undefined' && $.fn.select2) {
         $(vendorSel).select2({

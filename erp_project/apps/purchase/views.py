@@ -140,6 +140,9 @@ def vendor_picker_search(request):
         or PermissionChecker.has_permission(request.user, 'projects', 'view')
         or PermissionChecker.has_permission(request.user, 'projects', 'create')
         or PermissionChecker.has_permission(request.user, 'projects', 'edit')
+        or PermissionChecker.has_permission(request.user, 'service_request', 'view')
+        or PermissionChecker.has_permission(request.user, 'service_request', 'create')
+        or PermissionChecker.has_permission(request.user, 'service_request', 'edit')
     ):
         return JsonResponse({'results': []}, status=403)
 

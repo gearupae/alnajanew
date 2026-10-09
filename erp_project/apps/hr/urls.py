@@ -32,6 +32,7 @@ urlpatterns = [
     path('leave/apply/done/', lvx.PublicLeaveApplyDoneView.as_view(), name='public_leave_done'),
     path('leave/api/lookup/', lvx.public_leave_lookup, name='public_leave_lookup'),
     path('leave/api/balance/', lvx.leave_balance_ajax, name='leave_balance_ajax'),
+    path('api/employee-picker-search/', views.employee_picker_search, name='employee_picker_search'),
     path('api/employee-leave-context/', lvx.employee_leave_context, name='employee_leave_context'),
     path('api/leave-context/', lvx.employee_leave_context, name='leave_context_api'),
     path('leave/', views.LeaveRequestListView.as_view(), name='leave_list'),

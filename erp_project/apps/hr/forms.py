@@ -456,15 +456,27 @@ class LeaveRequestForm(forms.ModelForm):
             '-- Select employee first --' if self.is_admin and not employee else '-- Select Leave Type --'
         )
 
-        self.fields['employee'].queryset = Employee.objects.filter(is_active=True).order_by('first_name', 'last_name')
+        active_employees = Employee.objects.filter(is_active=True)
+        if self.is_bound:
+            self.fields['employee'].queryset = active_employees.order_by('first_name', 'last_name')
+        elif self.instance.pk and self.instance.employee_id:
+            self.fields['employee'].queryset = active_employees.filter(pk=self.instance.employee_id)
+        else:
+            self.fields['employee'].queryset = Employee.objects.none()
         self.fields['employee'].empty_label = '-- Select Employee --'
+        self.fields['employee'].widget.attrs['class'] = 'form-select leave-employee-select'
 
-        self.fields['covering_employee'].queryset = Employee.objects.filter(is_active=True).order_by(
-            'first_name', 'last_name'
-        )
+        if self.is_bound:
+            self.fields['covering_employee'].queryset = active_employees.order_by('first_name', 'last_name')
+        elif self.instance.pk and self.instance.covering_employee_id:
+            self.fields['covering_employee'].queryset = active_employees.filter(
+                pk=self.instance.covering_employee_id
+            )
+        else:
+            self.fields['covering_employee'].queryset = Employee.objects.none()
         self.fields['covering_employee'].required = False
         self.fields['covering_employee'].empty_label = '— None —'
-        self.fields['covering_employee'].widget.attrs['class'] = 'form-select'
+        self.fields['covering_employee'].widget.attrs['class'] = 'form-select leave-covering-employee-select'
 
         self.fields['is_active'].label = 'Is active'
         self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})

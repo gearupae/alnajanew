@@ -1,5 +1,48 @@
 {% extends 'base.html' %}
 
+{% block extra_css %}
+<style>
+.sr-item-cell .item-inventory-select {
+    margin-bottom: 0.25rem;
+}
+.sr-item-cell .item-description-input {
+    margin-top: 0.25rem;
+}
+.sr-item-cell .select2-container {
+    width: 100% !important;
+}
+.sr-item-cell .select2-selection--single {
+    min-height: 31px;
+    font-size: 0.875rem;
+}
+.sr-item-cell .select2-selection__rendered {
+    padding-left: 0.35rem;
+    line-height: 1.5;
+}
+.sr-inventory-select2-dropdown {
+    min-width: 18rem !important;
+    z-index: 1060;
+}
+.sr-inventory-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+.sr-department-select2-dropdown {
+    min-width: 14rem !important;
+    z-index: 1060;
+}
+.sr-department-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+.sr-vendor-select2-dropdown {
+    min-width: 18rem !important;
+    z-index: 1060;
+}
+.sr-vendor-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <nav aria-label="breadcrumb">
@@ -84,7 +127,7 @@
                 <table class="table mb-0">
                     <thead>
                         <tr>
-                            <th style="width:30%">Service Description</th>
+                            <th style="width:30%">Item / Description</th>
                             <th style="width:15%">Vendor</th>
                             <th style="width:10%">Qty/Duration</th>
                             <th style="width:12%">Unit</th>
@@ -95,11 +138,20 @@
                     </thead>
                     <tbody id="itemsBody">
                         {% for item_form in items_formset %}
-                        <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %}>
-                            <td>
+                        <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %}{% if item_form.instance.inventory_item_id %} data-inventory-item-id="{{ item_form.instance.inventory_item_id }}" data-line-label="{{ item_form.instance.inventory_item }}" data-line-purchase-price="{{ item_form.instance.inventory_item.purchase_price }}"{% endif %}{% if item_form.instance.vendor_id %} data-vendor-id="{{ item_form.instance.vendor_id }}" data-vendor-label="{{ item_form.instance.vendor }}"{% endif %}>
+                            <td class="sr-item-cell">
                                 {{ item_form.id }}
-                                <input type="text" name="{{ item_form.prefix }}-service_description" class="form-control" 
-                                       value="{{ item_form.service_description.value|default:'' }}" placeholder="Service description">
+                                {{ item_form.inventory_item }}
+                                {{ item_form.service_description }}
+                                {% if item_form.inventory_item.errors %}
+                                <div class="text-danger small">{{ item_form.inventory_item.errors|join:", " }}</div>
+                                {% endif %}
+                                {% if item_form.service_description.errors %}
+                                <div class="text-danger small">{{ item_form.service_description.errors|join:", " }}</div>
+                                {% endif %}
+                                {% if item_form.non_field_errors %}
+                                <div class="text-danger small">{{ item_form.non_field_errors|join:", " }}</div>
+                                {% endif %}
                             </td>
                             <td>{{ item_form.vendor }}</td>
                             <td>
@@ -150,44 +202,287 @@
     <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save</button>
     <a href="{% url 'service_request:sr_list' %}" class="btn btn-light">Cancel</a>
 </form>
+{% endblock %}
 
 {% block extra_js %}
 <script>
+const SR_ITEM_SEARCH_URL = '{% url "service_request:sr_item_search" %}';
+const SR_VENDOR_SEARCH_URL = '{% url "purchase:vendor_picker_search" %}';
 let formCount = {{ items_formset.total_form_count }};
+
+function escapeHtml(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;');
+}
 
 function updateRowTotal(row) {
     const qty = parseFloat(row.querySelector('.item-qty')?.value || 0) || 0;
     const cost = parseFloat(row.querySelector('.item-cost')?.value || 0) || 0;
-    const total = (qty * cost).toFixed(2);
     const totalCell = row.querySelector('.item-total');
-    if (totalCell) totalCell.textContent = total;
+    if (totalCell) totalCell.textContent = (qty * cost).toFixed(2);
+}
+
+function destroySrInventorySelect2(selectEl) {
+    if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
+    const $el = $(selectEl);
+    $el.off('change.srItem select2:select.srItem select2:clear.srItem select2:open.srAjax');
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+}
+
+function seedSrInventorySelect(selectEl, selectedId, selectedLabel, purchasePrice) {
+    selectEl.innerHTML = '';
+    selectEl.appendChild(new Option('', '', false, false));
+    if (!selectedId) {
+        return;
+    }
+    const opt = new Option(selectedLabel || String(selectedId), String(selectedId), true, true);
+    if (purchasePrice != null && purchasePrice !== '') {
+        opt.dataset.purchasePrice = String(purchasePrice);
+    }
+    selectEl.appendChild(opt);
+}
+
+function appendSrInventoryOptions(selectEl, results, selectedId) {
+    if (!Array.isArray(results) || !results.length) {
+        return;
+    }
+    const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
+    results.forEach(function(row) {
+        const id = String(row.id);
+        if (selected && id === selected) {
+            return;
+        }
+        const opt = new Option(row.text || row.name || id, id, false, false);
+        if (row.purchase_price != null && row.purchase_price !== '') {
+            opt.dataset.purchasePrice = String(row.purchase_price);
+        }
+        selectEl.appendChild(opt);
+    });
+}
+
+function triggerSrSelect2AjaxSearch() {
+    setTimeout(function() {
+        const search = document.querySelector('.sr-inventory-select2-dropdown .select2-search__field')
+            || document.querySelector('.select2-container--open .select2-search__field');
+        if (!search) {
+            return;
+        }
+        const $search = $(search);
+        if (!$search.val()) {
+            $search.val(' ').trigger('input');
+            $search.val('').trigger('input');
+        } else {
+            $search.trigger('input');
+        }
+    }, 50);
+}
+
+function applySrInventoryDefaults(selectEl, row) {
+    const costInput = row.querySelector('.item-cost');
+    if (!costInput) {
+        return;
+    }
+    let price = '';
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        const data = $(selectEl).select2('data');
+        if (data && data.length && data[0].purchase_price != null) {
+            price = data[0].purchase_price;
+        }
+    }
+    if (!price && selectEl.selectedOptions && selectEl.selectedOptions[0]) {
+        price = selectEl.selectedOptions[0].dataset.purchasePrice || '';
+    }
+    if (price && (!costInput.value || parseFloat(costInput.value) === 0)) {
+        costInput.value = price;
+        updateRowTotal(row);
+    }
+}
+
+function mountSrInventorySelect2(selectEl, row) {
+    const $el = $(selectEl);
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search item by code or name…',
+        allowClear: true,
+        dropdownParent: $(document.body),
+        minimumInputLength: 0,
+        dropdownAutoWidth: true,
+        dropdownCssClass: 'sr-inventory-select2-dropdown',
+        ajax: {
+            url: SR_ITEM_SEARCH_URL,
+            dataType: 'json',
+            delay: 200,
+            cache: true,
+            data: function(params) {
+                return { q: params.term || '' };
+            },
+            processResults: function(data) {
+                return { results: (data && data.results) ? data.results : [] };
+            },
+        },
+        language: {
+            inputTooShort: function() { return 'Type to search items…'; },
+            noResults: function() { return 'No matching items — try item code or name'; },
+            searching: function() { return 'Searching…'; },
+        },
+    });
+    $el.off('select2:open.srAjax').on('select2:open.srAjax', triggerSrSelect2AjaxSearch);
+    $el.off('change.srItem select2:select.srItem select2:clear.srItem')
+        .on('change.srItem select2:select.srItem select2:clear.srItem', function() {
+            applySrInventoryDefaults(selectEl, row);
+        });
+    const current = selectEl.value || '';
+    if (current) {
+        $el.val(current).trigger('change.select2');
+    }
+}
+
+function initSrInventorySelect2(selectEl, row) {
+    if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
+    const current = selectEl.value || row.dataset.inventoryItemId || '';
+    const label = (row.dataset.lineLabel || '').trim()
+        || (selectEl.selectedOptions && selectEl.selectedOptions[0] ? selectEl.selectedOptions[0].text : '');
+    const price = (row.dataset.linePurchasePrice || '').trim();
+    destroySrInventorySelect2(selectEl);
+    seedSrInventorySelect(selectEl, current, label, price);
+    $.getJSON(SR_ITEM_SEARCH_URL, { q: '' })
+        .done(function(data) {
+            appendSrInventoryOptions(selectEl, data.results || [], current);
+            mountSrInventorySelect2(selectEl, row);
+        })
+        .fail(function() {
+            mountSrInventorySelect2(selectEl, row);
+        });
+}
+
+function destroySrVendorSelect2(selectEl) {
+    if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
+    const $el = $(selectEl);
+    $el.off('select2:open.srVendorAjax');
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+}
+
+function seedSrVendorSelect(selectEl, selectedId, selectedLabel) {
+    selectEl.innerHTML = '';
+    selectEl.appendChild(new Option('', '', false, false));
+    if (!selectedId) {
+        return;
+    }
+    selectEl.appendChild(new Option(selectedLabel || String(selectedId), String(selectedId), true, true));
+}
+
+function triggerSrVendorSelect2AjaxSearch() {
+    setTimeout(function() {
+        const search = document.querySelector('.sr-vendor-select2-dropdown .select2-search__field')
+            || document.querySelector('.select2-container--open .select2-search__field');
+        if (!search) {
+            return;
+        }
+        const $search = $(search);
+        if (!$search.val()) {
+            $search.val(' ').trigger('input');
+            $search.val('').trigger('input');
+        } else {
+            $search.trigger('input');
+        }
+    }, 50);
+}
+
+function mountSrVendorSelect2(selectEl) {
+    const $el = $(selectEl);
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search vendor…',
+        allowClear: true,
+        dropdownParent: $(document.body),
+        minimumInputLength: 0,
+        dropdownCssClass: 'sr-vendor-select2-dropdown',
+        ajax: {
+            url: SR_VENDOR_SEARCH_URL,
+            dataType: 'json',
+            delay: 200,
+            cache: true,
+            data: function(params) {
+                return { q: params.term || '', selected: $el.val() || '' };
+            },
+            processResults: function(data) {
+                return { results: (data && data.results) ? data.results : [] };
+            },
+        },
+        language: {
+            noResults: function() { return 'No matching vendors'; },
+            searching: function() { return 'Searching…'; },
+        },
+    });
+    $el.off('select2:open.srVendorAjax').on('select2:open.srVendorAjax', triggerSrVendorSelect2AjaxSearch);
+    const current = selectEl.value || '';
+    if (current) {
+        $el.val(current).trigger('change.select2');
+    }
+}
+
+function initSrVendorSelect2(selectEl, row) {
+    if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) return;
+    const current = selectEl.value || row.dataset.vendorId || '';
+    const label = (row.dataset.vendorLabel || '').trim()
+        || (selectEl.selectedOptions && selectEl.selectedOptions[0] ? selectEl.selectedOptions[0].text : '');
+    destroySrVendorSelect2(selectEl);
+    seedSrVendorSelect(selectEl, current, label);
+    mountSrVendorSelect2(selectEl);
+}
+
+function initRow(row) {
+    const itemSelect = row.querySelector('.item-inventory-select');
+    if (itemSelect) {
+        initSrInventorySelect2(itemSelect, row);
+    }
+    const vendorSelect = row.querySelector('.sr-vendor-select');
+    if (vendorSelect) {
+        initSrVendorSelect2(vendorSelect, row);
+    }
+    row.querySelectorAll('.item-qty, .item-cost').forEach(function(el) {
+        el.addEventListener('input', function() { updateRowTotal(row); });
+    });
+    updateRowTotal(row);
 }
 
 function addItemRow() {
     const tbody = document.getElementById('itemsBody');
-    const firstRow = tbody.querySelector('.item-row');
-    const vendorSelect = firstRow.querySelector('select[name*="-vendor"]');
-    let vendorOptions = '<option value="">---------</option>';
-    if (vendorSelect) {
-        vendorSelect.querySelectorAll('option').forEach(opt => {
-            vendorOptions += `<option value="${opt.value}">${opt.text}</option>`;
-        });
-    }
+    const idx = formCount;
     const newRow = document.createElement('tr');
     newRow.className = 'item-row';
     newRow.innerHTML = `
-        <td><input type="text" name="items-${formCount}-service_description" class="form-control" placeholder="Service description"></td>
-        <td><select name="items-${formCount}-vendor" class="form-select">${vendorOptions}</select></td>
-        <td><input type="number" name="items-${formCount}-quantity" class="form-control item-qty" value="1" step="0.01" min="0.01"></td>
-        <td><select name="items-${formCount}-unit" class="form-select"><option value="hours">Hours</option><option value="days">Days</option><option value="visit">Visit</option><option value="lumpsum">Lumpsum</option></select></td>
-        <td><input type="number" name="items-${formCount}-estimated_unit_cost" class="form-control item-cost" value="0" step="0.01" min="0"></td>
+        <td class="sr-item-cell td-inv"></td>
+        <td><select name="items-${idx}-vendor" class="form-select sr-vendor-select"></select></td>
+        <td><input type="number" name="items-${idx}-quantity" class="form-control item-qty" value="1" step="0.01" min="0.01"></td>
+        <td><select name="items-${idx}-unit" class="form-select"><option value="hours">Hours</option><option value="days">Days</option><option value="visit">Visit</option><option value="lumpsum">Lumpsum</option></select></td>
+        <td><input type="number" name="items-${idx}-estimated_unit_cost" class="form-control item-cost" value="0" step="0.01" min="0"></td>
         <td class="item-total align-middle">0.00</td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow(this)"><i class="fas fa-times"></i></button></td>
     `;
     tbody.appendChild(newRow);
+    const tdInv = newRow.querySelector('.td-inv');
+    const invSel = document.createElement('select');
+    invSel.name = `items-${idx}-inventory_item`;
+    invSel.className = 'form-select item-inventory-select';
+    tdInv.appendChild(invSel);
+    const descInput = document.createElement('input');
+    descInput.type = 'text';
+    descInput.name = `items-${idx}-service_description`;
+    descInput.className = 'form-control form-control-sm item-description-input';
+    descInput.placeholder = 'Optional description…';
+    tdInv.appendChild(descInput);
     formCount++;
     document.getElementById('id_items-TOTAL_FORMS').value = formCount;
-    newRow.querySelectorAll('.item-qty, .item-cost').forEach(el => el.addEventListener('input', () => updateRowTotal(newRow)));
+    initRow(newRow);
 }
 
 function removeItemRow(btn) {
@@ -197,16 +492,37 @@ function removeItemRow(btn) {
         deleteCheck.checked = true;
         row.style.display = 'none';
     } else {
+        row.querySelectorAll('.item-inventory-select').forEach(destroySrInventorySelect2);
+        row.querySelectorAll('.sr-vendor-select').forEach(destroySrVendorSelect2);
         row.remove();
     }
 }
 
-document.querySelectorAll('.item-row').forEach(row => {
-    row.querySelectorAll('.item-qty, .item-cost').forEach(el => {
-        el.addEventListener('input', () => updateRowTotal(row));
+function initSrDepartmentSelect2() {
+    const deptSel = document.getElementById('id_department');
+    if (!deptSel || typeof $ === 'undefined' || !$.fn.select2) return;
+    const $el = $(deptSel);
+    if ($el.data('select2')) {
+        $el.select2('destroy');
+    }
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search department…',
+        allowClear: true,
+        minimumResultsForSearch: 0,
+        dropdownParent: $(document.body),
+        dropdownCssClass: 'sr-department-select2-dropdown',
     });
-    updateRowTotal(row);
+}
+
+$(function() {
+    initSrDepartmentSelect2();
+    document.querySelectorAll('#itemsBody .item-row').forEach(function(row) {
+        if (row.style.display !== 'none') {
+            initRow(row);
+        }
+    });
 });
 </script>
-{% endblock %}
 {% endblock %}

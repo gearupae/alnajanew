@@ -1,4 +1,15 @@
 {% extends 'base.html' %}
+{% block extra_css %}
+<style>
+.payroll-advance-employee-select2-dropdown {
+    min-width: 18rem !important;
+    z-index: 1060;
+}
+.payroll-advance-employee-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+</style>
+{% endblock %}
 {% block content %}
 <div class="page-header mb-4">
     <nav aria-label="breadcrumb">
@@ -66,4 +77,102 @@
     <a href="{% url 'hr:payroll_advance_list' %}" class="btn btn-light">Cancel</a>
 </form>
 </div></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const PAYROLL_ADVANCE_EMPLOYEE_SEARCH_URL = '{% url "hr:employee_picker_search" %}';
+
+function seedPayrollAdvanceEmployeeSelect(el, selectedId, selectedLabel) {
+  el.innerHTML = '';
+  el.appendChild(new Option('', '— Select employee —', false, false));
+  if (selectedId) {
+    el.appendChild(new Option(selectedLabel || String(selectedId), String(selectedId), true, true));
+  }
+}
+
+function appendPayrollAdvanceEmployeeOptions(el, results, selectedId) {
+  if (!Array.isArray(results) || !results.length) return;
+  const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
+  results.forEach(function (row) {
+    const id = String(row.id);
+    if (selected && id === selected) return;
+    el.appendChild(new Option(row.text || row.name || id, id, false, false));
+  });
+}
+
+function triggerPayrollAdvanceEmployeeSelect2AjaxSearch() {
+  setTimeout(function () {
+    const search = document.querySelector('.payroll-advance-employee-select2-dropdown .select2-search__field')
+      || document.querySelector('.select2-container--open .select2-search__field');
+    if (!search) return;
+    const $search = jQuery(search);
+    if (!$search.val()) {
+      $search.val(' ').trigger('input');
+      $search.val('').trigger('input');
+    } else {
+      $search.trigger('input');
+    }
+  }, 50);
+}
+
+function mountPayrollAdvanceEmployeeSelect2(el) {
+  const $el = jQuery(el);
+  $el.select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    dropdownParent: jQuery(document.body),
+    allowClear: false,
+    minimumInputLength: 0,
+    dropdownCssClass: 'payroll-advance-employee-select2-dropdown',
+    placeholder: 'Search by employee code or name…',
+    ajax: {
+      url: PAYROLL_ADVANCE_EMPLOYEE_SEARCH_URL,
+      dataType: 'json',
+      delay: 200,
+      cache: true,
+      data: function (params) {
+        return { q: params.term || '', selected: $el.val() || '' };
+      },
+      processResults: function (data) {
+        return { results: (data && data.results) ? data.results : [] };
+      },
+    },
+    language: {
+      inputTooShort: function () { return 'Type to search employees…'; },
+      noResults: function () { return 'No matching employees'; },
+      searching: function () { return 'Searching…'; },
+    },
+  });
+  $el.off('select2:open.payrollAdvanceEmployeeAjax').on('select2:open.payrollAdvanceEmployeeAjax', triggerPayrollAdvanceEmployeeSelect2AjaxSearch);
+  const current = el.value || '';
+  if (current) {
+    $el.val(current).trigger('change.select2');
+  }
+}
+
+function initPayrollAdvanceEmployeeSelect2() {
+  const el = document.getElementById('id_employee');
+  if (!el || typeof jQuery === 'undefined' || !jQuery.fn.select2 || el.disabled) return;
+  const $el = jQuery(el);
+  if ($el.data('select2')) {
+    $el.select2('destroy');
+  }
+  const current = el.value || '';
+  const label = el.selectedOptions && el.selectedOptions[0] ? el.selectedOptions[0].text : '';
+  seedPayrollAdvanceEmployeeSelect(el, current, label);
+  jQuery.getJSON(PAYROLL_ADVANCE_EMPLOYEE_SEARCH_URL, { q: '', selected: current || '' })
+    .done(function (data) {
+      appendPayrollAdvanceEmployeeOptions(el, data.results || [], current);
+      mountPayrollAdvanceEmployeeSelect2(el);
+    })
+    .fail(function () {
+      mountPayrollAdvanceEmployeeSelect2(el);
+    });
+}
+
+jQuery(function () {
+  initPayrollAdvanceEmployeeSelect2();
+});
+</script>
 {% endblock %}

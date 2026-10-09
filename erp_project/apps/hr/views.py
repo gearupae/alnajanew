@@ -163,6 +163,49 @@ def _save_employee_compliance(employee, post_data):
     return True, None, None
 
 
+def _employee_picker_label(employee):
+    return str(employee)
+
+
+@login_required
+def employee_picker_search(request):
+    """JSON search for HR employee Select2 pickers (leave, etc.)."""
+    if not (
+        request.user.is_superuser
+        or PermissionChecker.has_permission(request.user, 'hr', 'view')
+        or PermissionChecker.has_permission(request.user, 'hr', 'create')
+        or PermissionChecker.has_permission(request.user, 'hr', 'edit')
+    ):
+        return JsonResponse({'results': []}, status=403)
+
+    q = (request.GET.get('q') or request.GET.get('term') or '').strip()
+    selected_raw = (request.GET.get('selected') or '').strip()
+    selected_ids = [int(x) for x in selected_raw.split(',') if x.isdigit()]
+
+    qs = Employee.objects.filter(is_active=True).order_by('first_name', 'last_name', 'employee_code')
+    if q:
+        qs = qs.filter(
+            Q(first_name__icontains=q)
+            | Q(last_name__icontains=q)
+            | Q(employee_code__icontains=q)
+        )
+
+    results = []
+    seen = set()
+    if selected_ids:
+        for employee in Employee.objects.filter(pk__in=selected_ids, is_active=True):
+            results.append({'id': employee.pk, 'text': _employee_picker_label(employee)})
+            seen.add(employee.pk)
+
+    for employee in qs[:50]:
+        if employee.pk in seen:
+            continue
+        results.append({'id': employee.pk, 'text': _employee_picker_label(employee)})
+        seen.add(employee.pk)
+
+    return JsonResponse({'results': results})
+
+
 class EmployeeListView(PermissionRequiredMixin, ListView):
     model = Employee
     template_name = 'hr/employee_list.html'

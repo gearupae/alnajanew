@@ -779,7 +779,7 @@ class ExpenseClaimForm(forms.ModelForm):
         widgets = {
             'claim_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'description': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
-            'project': forms.Select(attrs={'class': 'form-select'}),
+            'project': forms.Select(attrs={'class': 'form-select expense-claim-project-select'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -790,11 +790,15 @@ class ExpenseClaimForm(forms.ModelForm):
         self.fields['is_active'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['project'].required = False
         self.fields['project'].empty_label = '— No project —'
-        self.fields['project'].queryset = (
-            Project.objects.filter(is_active=True)
-            .exclude(status__in=['draft', 'cancelled'])
-            .order_by('-start_date', '-pk')
+        project_qs = Project.objects.filter(is_active=True).exclude(
+            status__in=['draft', 'cancelled']
         )
+        if self.is_bound:
+            self.fields['project'].queryset = project_qs.order_by('-start_date', '-pk')
+        elif self.instance.pk and self.instance.project_id:
+            self.fields['project'].queryset = project_qs.filter(pk=self.instance.project_id)
+        else:
+            self.fields['project'].queryset = Project.objects.none()
         if not self.is_bound and not self.instance.pk:
             self.fields['is_active'].initial = True
 
@@ -921,7 +925,16 @@ class RecurringExpenseForm(forms.ModelForm):
                 field.widget.attrs['class'] = 'form-control'
         
         # Set querysets
-        self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True)
+        if self.is_bound:
+            self.fields['vendor'].queryset = Vendor.objects.filter(is_active=True)
+        elif self.instance.pk and self.instance.vendor_id:
+            self.fields['vendor'].queryset = Vendor.objects.filter(
+                pk=self.instance.vendor_id,
+                is_active=True,
+            )
+        else:
+            self.fields['vendor'].queryset = Vendor.objects.none()
+        self.fields['vendor'].widget.attrs['class'] = 'form-select recurring-vendor-select'
         self.fields['expense_account'].queryset = Account.objects.filter(
             is_active=True, account_type='expense'
         )

@@ -9,6 +9,7 @@ app_name = 'service_request'
 urlpatterns = [
     path('', views.ServiceRequestListView.as_view(), name='sr_list'),
     path('create/', views.ServiceRequestCreateView.as_view(), name='sr_create'),
+    path('api/item-search/', views.sr_item_search, name='sr_item_search'),
     path('<int:pk>/', views.ServiceRequestDetailView.as_view(), name='sr_detail'),
     path('<int:pk>/edit/', views.ServiceRequestUpdateView.as_view(), name='sr_edit'),
     path('<int:pk>/delete/', views.sr_delete, name='sr_delete'),
