@@ -276,6 +276,23 @@
         <a href="{% url 'crm:public_upload' %}" class="btn btn-light btn-sm" target="_blank" rel="noopener" title="Public page to upload photos and files to a lead or customer">
             <i class="fas fa-link me-1"></i>Public upload
         </a>
+        <div class="dropdown">
+            <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-download me-1"></i>Export
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <a class="dropdown-item" href="?{% if customer_export_query %}{{ customer_export_query }}&{% endif %}export=pdf">
+                        <i class="fas fa-file-pdf me-2 text-danger"></i>Export PDF
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="?{% if customer_export_query %}{{ customer_export_query }}&{% endif %}export=xlsx">
+                        <i class="fas fa-file-excel me-2 text-success"></i>Export Excel
+                    </a>
+                </li>
+            </ul>
+        </div>
         <div class="btn-group" role="tablist" aria-label="View mode">
             <a href="#crmTabKanban" class="btn btn-sm btn-outline-primary" id="crm-tab-kanban" data-bs-toggle="tab" role="tab" aria-controls="crmTabKanban" aria-selected="false" tabindex="-1">
                 <i class="fas fa-columns me-1"></i>Board
@@ -450,6 +467,9 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body py-3">
         <form method="get" class="crm-customers-filter-toolbar">
+            {% if customer_show_all %}
+            <input type="hidden" name="show_all" value="1">
+            {% endif %}
             <div class="crm-filter-field crm-filter-search">
                 <label class="form-label small text-muted">Search</label>
                 <input type="text" name="search" class="form-control" placeholder="Name, company, email, VAT..." value="{{ request.GET.search }}">
@@ -499,6 +519,15 @@
                         <i class="fas fa-filter me-1"></i>Filter
                     </button>
                     <a href="{% url 'crm:customer_list' %}" class="btn btn-light">Clear</a>
+                    {% if customer_show_all %}
+                    <a href="{% url 'crm:customer_list' %}{% if customer_paged_query %}?{{ customer_paged_query }}{% endif %}" class="btn btn-outline-secondary" title="Return to paged list">
+                        Paged view
+                    </a>
+                    {% else %}
+                    <a href="{% url 'crm:customer_list' %}?{{ customer_show_all_query }}" class="btn btn-outline-secondary" title="Show all matching customers on one page">
+                        Show all
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </form>
@@ -531,8 +560,16 @@
     </div>
 </div>
 
-<!-- Load more -->
-{% if page_obj.paginator.count %}
+<!-- Load more / show-all status -->
+{% if customer_show_all %}
+<nav class="mt-4" id="crmCustomerListPager">
+    <div class="d-flex flex-column flex-sm-row align-items-center justify-content-center gap-2">
+        <span class="text-muted small" id="crmCustomerListStatus">
+            Showing all {{ customers|length }} customer{{ customers|length|pluralize }}
+        </span>
+    </div>
+</nav>
+{% elif page_obj.paginator.count %}
 <nav class="mt-4" id="crmCustomerListPager" {% if not page_obj.has_next %}class="d-none"{% endif %}>
     <div class="d-flex flex-column flex-sm-row align-items-center justify-content-center gap-2">
         <span class="text-muted small" id="crmCustomerListStatus">

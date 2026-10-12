@@ -6,7 +6,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 from django.urls import reverse_lazy
-from django.http import JsonResponse, HttpResponseNotAllowed
+from datetime import date
+
+from django.http import HttpResponse, JsonResponse, HttpResponseNotAllowed
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
@@ -139,7 +141,86 @@ class CustomerListView(PermissionRequiredMixin, ListView):
     permission_type = 'view'
     paginate_by = 25
 
+    def _filtered_customers_queryset(self):
+        return apply_customer_list_filters(
+            filter_customers_for_user(
+                Customer.objects.select_related('assigned_salesperson', 'lead_kanban_stage'),
+                self.request.user,
+            ),
+            self.request.GET,
+        ).order_by('-customer_number')
+
+    def get_paginate_by(self, queryset):
+        if self.request.GET.get('show_all') == '1':
+            return None
+        return self.paginate_by
+
+    def _customer_list_filter_summary(self):
+        parts = []
+        search = (self.request.GET.get('search') or '').strip()
+        if search:
+            parts.append(f'Search: {search}')
+        customer_type = (self.request.GET.get('type') or '').strip()
+        if customer_type:
+            parts.append(f'Type: {customer_type}')
+        status = (self.request.GET.get('status') or '').strip()
+        if status:
+            parts.append(f'Status: {status}')
+        salesman = (self.request.GET.get('salesman') or '').strip()
+        if salesman:
+            for employee in get_sales_employee_queryset():
+                if str(employee.pk) == salesman:
+                    parts.append(f'Salesman: {salesperson_display_name(employee)}')
+                    break
+        period = customer_date_range_display(self.request.GET)
+        if period:
+            parts.append(f'Period: {period}')
+        return '; '.join(parts)
+
+    def _customer_list_export_response(self, export_fmt):
+        from .customer_list_export import (
+            customer_export_row,
+            export_customer_list_pdf,
+            export_customer_list_xlsx,
+        )
+
+        customers = list(self._filtered_customers_queryset())
+        rows = [customer_export_row(c) for c in customers]
+        generated_by = self.request.user.get_full_name() or self.request.user.username
+        title = 'My Leads & Customers' if crm_show_my_leads_label(self.request.user) else 'Customers'
+        filters_text = self._customer_list_filter_summary()
+        stamp = date.today().strftime('%Y%m%d')
+
+        if export_fmt == 'pdf':
+            payload = export_customer_list_pdf(
+                rows,
+                title=title,
+                filters_text=filters_text,
+                generated_by=generated_by,
+            )
+            response = HttpResponse(payload, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="customers_{stamp}.pdf"'
+            return response
+
+        payload = export_customer_list_xlsx(
+            rows,
+            title=title,
+            filters_text=filters_text,
+            generated_by=generated_by,
+        )
+        response = HttpResponse(
+            payload,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = f'attachment; filename="customers_{stamp}.xlsx"'
+        return response
+
     def get(self, request, *args, **kwargs):
+        export_fmt = (request.GET.get('export') or '').strip().lower()
+        if export_fmt in ('pdf', 'xlsx', 'excel'):
+            if export_fmt == 'excel':
+                export_fmt = 'xlsx'
+            return self._customer_list_export_response(export_fmt)
         if request.GET.get('partial') == 'rows':
             self.object_list = self.get_queryset()
             context = self.get_context_data()
@@ -157,17 +238,26 @@ class CustomerListView(PermissionRequiredMixin, ListView):
         return super().get(request, *args, **kwargs)
     
     def get_queryset(self):
-        queryset = filter_customers_for_user(
-            Customer.objects.select_related('assigned_salesperson', 'lead_kanban_stage'),
-            self.request.user,
-        )
-        return apply_customer_list_filters(
-            queryset, self.request.GET
-        ).order_by('-customer_number')
+        return self._filtered_customers_queryset()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
+        list_params = self.request.GET.copy()
+        for key in ('partial', 'page', 'export'):
+            list_params.pop(key, None)
+        export_params = list_params.copy()
+        show_all_params = list_params.copy()
+        show_all_params.pop('show_all', None)
+        context['customer_show_all'] = self.request.GET.get('show_all') == '1'
+        context['customer_export_query'] = export_params.urlencode()
+        context['customer_paged_query'] = show_all_params.urlencode()
+        show_all_toggle = list_params.copy()
+        if context['customer_show_all']:
+            show_all_toggle.pop('show_all', None)
+        else:
+            show_all_toggle['show_all'] = '1'
+        context['customer_show_all_query'] = show_all_toggle.urlencode()
         sales_rep_only = crm_show_my_leads_label(user)
         context['crm_sales_rep_only'] = sales_rep_only
         context['title'] = 'My Leads & Customers' if sales_rep_only else 'Customers'
