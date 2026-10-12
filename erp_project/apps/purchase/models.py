@@ -875,6 +875,45 @@ class VendorBill(BaseModel):
             except Project.DoesNotExist:
                 pass
 
+    def reverse_posting(self, user=None, reason=''):
+        """
+        Reverse a posted vendor bill (SAP/Oracle compliant).
+
+        Creates a mirror reversal journal entry that backs out every line of
+        the original posting — expense / GRN clearing, Input VAT Recoverable
+        and Accounts Payable — so VAT and all GL effects are fully reverted.
+        Nothing is hard-deleted: the original and the reversal journals both
+        remain for the audit trail. The bill itself is released back to
+        'draft' (by JournalEntry.reverse) so it can be corrected and
+        re-posted, or deleted.
+
+        Guard rails:
+          * draft bills have nothing to reverse;
+          * bills with recorded payments must have the payment reversed first;
+          * bills with posted debit notes must have those reversed first.
+        """
+        if self.status == 'draft':
+            raise ValidationError("Draft bills are not posted; there is nothing to reverse.")
+        if not self.journal_entry_id:
+            raise ValidationError("This bill has no accounting entry to reverse.")
+        if self.journal_entry.status == 'reversed':
+            raise ValidationError("This bill's accounting entry has already been reversed.")
+        if self.paid_amount and self.paid_amount > 0:
+            raise ValidationError(
+                "This bill has recorded payment(s). Reverse or cancel the payment "
+                "before reversing the bill."
+            )
+        if DebitNote.posted_total_for_bill(self) > 0:
+            raise ValidationError(
+                "This bill has posted debit note(s) against it. Reverse the debit "
+                "note(s) before reversing the bill."
+            )
+
+        return self.journal_entry.reverse(
+            user=user,
+            reason=reason or f"Reversal of vendor bill {self.bill_number}",
+        )
+
 
 class VendorBillAttachment(models.Model):
     """Files linked to a vendor bill (e.g. scanned vendor invoice, GRN)."""

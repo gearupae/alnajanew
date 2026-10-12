@@ -58,6 +58,15 @@
                 <i class="fas fa-money-bill-wave me-2"></i>Make Payment
             </a>
             {% endif %}
+            {% if can_reverse %}
+            <form method="post" action="{% url 'purchase:bill_reverse' bill.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger"
+                        onclick="return confirm('Reverse this posted bill? A mirror reversal journal will back out the expense, Input VAT and Accounts Payable, and the bill will return to draft for correction or deletion.');">
+                    <i class="fas fa-rotate-left me-2"></i>Reverse Posting
+                </button>
+            </form>
+            {% endif %}
             {% if can_create_debit_note %}
             <a href="{% url 'purchase:debit_note_create' %}?bill={{ bill.pk }}" class="btn btn-outline-primary">
                 <i class="fas fa-file-invoice me-2"></i>Create Debit Note

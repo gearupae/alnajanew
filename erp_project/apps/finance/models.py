@@ -1014,6 +1014,27 @@ class JournalEntry(BaseModel):
                     inv.journal_entry = None
                     inv.save(update_fields=['status', 'paid_amount', 'journal_entry'])
 
+            # Vendor-bill revert: the reversal journal above already backs out
+            # expense/GRN clearing, Input VAT and AP. Here we release the linked
+            # bill back to an editable draft, clear payment tracking and drop the
+            # project-expense it created on posting so budgets/totals stay correct.
+            if self.source_module == 'purchase':
+                from apps.projects.models import Project, ProjectExpense
+
+                for bill in list(self.vendor_bills.all()):
+                    project_id = bill.project_id
+                    bill.status = 'draft'
+                    bill.paid_amount = Decimal('0.00')
+                    bill.journal_entry = None
+                    bill.save(update_fields=['status', 'paid_amount', 'journal_entry'])
+
+                    ProjectExpense.objects.filter(vendor_bill=bill).delete()
+                    if project_id:
+                        try:
+                            Project.objects.get(pk=project_id).update_totals()
+                        except Project.DoesNotExist:
+                            pass
+
         return reversal
 
 

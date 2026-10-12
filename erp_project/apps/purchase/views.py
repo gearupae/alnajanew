@@ -1761,6 +1761,16 @@ class VendorBillDetailView(PermissionRequiredMixin, DetailView):
             context['project_form'] = VendorBillProjectForm(instance=self.object)
         # Allow posting draft bills
         context['can_post'] = has_permission and self.object.status == 'draft' and self.object.total_amount > 0
+        # Allow reversing a posted bill (back out VAT + GL, return to draft).
+        # Blocked once there are payments or posted debit notes against it.
+        context['can_reverse'] = (
+            has_permission
+            and self.object.status != 'draft'
+            and self.object.journal_entry_id
+            and self.object.journal_entry.status != 'reversed'
+            and (self.object.paid_amount or 0) == 0
+            and DebitNote.posted_total_for_bill(self.object) == 0
+        )
         context['can_create_debit_note'] = (
             has_permission
             and self.object.status in DebitNote.DEBITABLE_BILL_STATUSES
@@ -1820,6 +1830,44 @@ def bill_post(request, pk):
     except Exception as e:
         messages.error(request, f'Error posting bill: {e}')
     
+    return redirect('purchase:bill_detail', pk=pk)
+
+
+@login_required
+@require_POST
+def bill_reverse(request, pk):
+    """
+    Reverse a posted vendor bill. Creates a mirror reversal journal entry that
+    backs out the expense/GRN clearing, Input VAT Recoverable and Accounts
+    Payable, then releases the bill to draft so it can be corrected and
+    re-posted or deleted. Audit-safe: original + reversal journals are retained.
+    """
+    from apps.core.audit import audit_journal_reverse
+
+    bill = get_object_or_404(VendorBill, pk=pk, is_active=True)
+
+    if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'purchase', 'edit')):
+        messages.error(request, 'Permission denied.')
+        return redirect('purchase:bill_detail', pk=pk)
+
+    reason = (request.POST.get('reason') or '').strip() or f'Reversal of vendor bill {bill.bill_number}'
+    original_journal = bill.journal_entry
+
+    try:
+        reversal = bill.reverse_posting(user=request.user, reason=reason)
+        if original_journal:
+            audit_journal_reverse(original_journal, reversal, request.user, reason=reason, request=request)
+        messages.success(
+            request,
+            f'Bill {bill.bill_number} reversed. Reversal journal: {reversal.entry_number}. '
+            f'The bill has returned to draft for correction or deletion.'
+        )
+    except ValidationError as e:
+        for error in getattr(e, 'messages', None) or [str(e)]:
+            messages.error(request, error)
+    except Exception as e:
+        messages.error(request, f'Error reversing bill: {e}')
+
     return redirect('purchase:bill_detail', pk=pk)
 
 
