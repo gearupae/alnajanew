@@ -45,34 +45,6 @@
             });
         });
 
-        $scope.find('.select2-account-code').each(function () {
-            var $el = $(this);
-            var hiddenInline = $el.closest('.inline-form-container:not(.show)').length > 0;
-            if (!force && hiddenInline) {
-                return;
-            }
-            destroyAccountSelect2($el);
-            if (!$el.find('option[value=""]').length) {
-                $el.prepend(new Option('', ''));
-            }
-            $el.select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                placeholder: $el.data('placeholder') || 'Search existing codes or type new…',
-                allowClear: true,
-                tags: true,
-                minimumResultsForSearch: 0,
-                dropdownParent: $(document.body),
-                dropdownCssClass: 'account-select2-dropdown',
-                createTag: function (params) {
-                    var term = (params.term || '').trim();
-                    if (!term) {
-                        return null;
-                    }
-                    return { id: term, text: term, newTag: true };
-                },
-            });
-        });
     }
 
     window.initFinanceAccountSelect2 = initAccountSelect2;

@@ -1,0 +1,5 @@
+<datalist id="finance-account-code-datalist">
+    {% for acc in account_code_options %}
+    <option value="{{ acc.code }}">{{ acc.code }} — {{ acc.name }}</option>
+    {% endfor %}
+</datalist>

@@ -24,8 +24,6 @@ class AccountForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
-        from apps.finance.coa_utils import account_code_select_choices
-
         super().__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
             if field_name in ['account_type', 'account_category']:
@@ -35,16 +33,12 @@ class AccountForm(forms.ModelForm):
             elif field_name not in ('code', 'parent'):
                 field.widget.attrs['class'] = 'form-control'
 
-        code_choices = [('', 'Search existing codes or type a new code…')]
-        code_choices.extend(account_code_select_choices())
-        current_code = (self.instance.code if self.instance.pk else None) or self.initial.get('code')
-        if current_code and current_code not in {c for c, _ in code_choices}:
-            code_choices.insert(1, (current_code, current_code))
-        self.fields['code'].widget = forms.Select(
-            choices=code_choices,
+        self.fields['code'].widget = forms.TextInput(
             attrs={
-                'class': 'form-select select2-account-code',
-                'data-placeholder': 'Search existing codes or type a new code…',
+                'class': 'form-control',
+                'list': 'finance-account-code-datalist',
+                'placeholder': 'Type new code or pick existing from list…',
+                'autocomplete': 'off',
             },
         )
 
