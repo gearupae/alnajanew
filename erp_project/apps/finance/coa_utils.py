@@ -77,6 +77,14 @@ def link_account_parents(queryset=None, dry_run: bool = False) -> int:
     return updated
 
 
+def account_code_select_choices() -> list[tuple[str, str]]:
+    """All active accounts for searchable code dropdown (code — name)."""
+    return [
+        (account.code, f'{account.code} — {account.name}')
+        for account in Account.objects.filter(is_active=True).order_by('code')
+    ]
+
+
 def suggest_next_account_codes(limit: int = 150) -> list[dict[str, str]]:
     """Suggest next available numeric account codes under each parent group."""
     accounts = list(Account.objects.filter(is_active=True).order_by('code'))

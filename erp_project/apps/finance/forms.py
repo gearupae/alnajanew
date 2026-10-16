@@ -24,7 +24,7 @@ class AccountForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
-        from apps.finance.coa_utils import suggest_next_account_codes
+        from apps.finance.coa_utils import account_code_select_choices
 
         super().__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
@@ -35,9 +35,8 @@ class AccountForm(forms.ModelForm):
             elif field_name not in ('code', 'parent'):
                 field.widget.attrs['class'] = 'form-control'
 
-        code_choices = [('', 'Search or type account code…')]
-        for item in suggest_next_account_codes():
-            code_choices.append((item['code'], item['label']))
+        code_choices = [('', 'Search existing codes or type a new code…')]
+        code_choices.extend(account_code_select_choices())
         current_code = (self.instance.code if self.instance.pk else None) or self.initial.get('code')
         if current_code and current_code not in {c for c, _ in code_choices}:
             code_choices.insert(1, (current_code, current_code))
@@ -45,7 +44,7 @@ class AccountForm(forms.ModelForm):
             choices=code_choices,
             attrs={
                 'class': 'form-select select2-account-code',
-                'data-placeholder': 'Search or type account code…',
+                'data-placeholder': 'Search existing codes or type a new code…',
             },
         )
 
@@ -53,9 +52,11 @@ class AccountForm(forms.ModelForm):
         if self.instance.pk:
             parent_qs = parent_qs.exclude(pk=self.instance.pk)
         self.fields['parent'].queryset = parent_qs
+        self.fields['parent'].required = False
+        self.fields['parent'].empty_label = '— None —'
         self.fields['parent'].widget.attrs.update({
             'class': 'form-select select2-account-parent',
-            'data-placeholder': 'Search parent account by code or name…',
+            'data-placeholder': 'Search existing account by code or name…',
         })
         self.fields['parent'].label_from_instance = lambda obj: f'{obj.code} — {obj.name}'
 

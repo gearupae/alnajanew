@@ -27,7 +27,7 @@
             <div class="col-md-3">
                 <label class="form-label" for="{{ form.code.id_for_label }}">Code <span class="text-danger">*</span></label>
                 {{ form.code }}
-                <div class="form-text">Pick a suggested code or type a new one.</div>
+                <div class="form-text">Lists all existing account codes; type a new code if needed.</div>
                 {% if form.code.errors %}<div class="invalid-feedback d-block">{{ form.code.errors|join:", " }}</div>{% endif %}
             </div>
             <div class="col-md-4">
