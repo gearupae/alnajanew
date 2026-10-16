@@ -5299,26 +5299,33 @@ def _post_document_linked_payment(request, payment):
         source_module='payment',
     )
 
-    ar_account = AccountMapping.require_account('customer_receipt_ar_clear')
-    ap_account = AccountMapping.require_account('vendor_payment_ap_clear')
+    # Honour the "Post to Account" the user chose on the finance payment form.
+    # Every finance-module payment selects one (the form requires it), so the
+    # journal must post against that account — e.g. 1210 Advances to Suppliers,
+    # Other Income, Rent — instead of a hardcoded AR/AP clearing account.
+    # Fall back to the AR/AP clearing mapping only for account-less payments,
+    # i.e. document-settlement payments created by other modules.
+    counter_account = payment.account
 
     if payment.payment_type == 'received':
-        if not ar_account:
-            journal.delete()
-            messages.error(
-                request,
-                'Cannot post: Accounts Receivable account not configured. '
-                'Set up "customer_receipt_ar_clear" in Account Mapping.',
-            )
-            return redirect('finance:payment_detail', pk=payment.pk)
-        if ar_account.account_type == AccountType.INCOME:
-            journal.delete()
-            messages.error(
-                request,
-                'Cannot post: AR clearing account is mapped to a Revenue account. '
-                'Payments must credit Accounts Receivable, not Revenue.',
-            )
-            return redirect('finance:payment_detail', pk=payment.pk)
+        if counter_account is None:
+            counter_account = AccountMapping.require_account('customer_receipt_ar_clear')
+            if not counter_account:
+                journal.delete()
+                messages.error(
+                    request,
+                    'Cannot post: Accounts Receivable account not configured. '
+                    'Set up "customer_receipt_ar_clear" in Account Mapping.',
+                )
+                return redirect('finance:payment_detail', pk=payment.pk)
+            if counter_account.account_type == AccountType.INCOME:
+                journal.delete()
+                messages.error(
+                    request,
+                    'Cannot post: AR clearing account is mapped to a Revenue account. '
+                    'Payments must credit Accounts Receivable, not Revenue.',
+                )
+                return redirect('finance:payment_detail', pk=payment.pk)
         JournalEntryLine.objects.create(
             journal_entry=journal,
             account=funds_account,
@@ -5327,20 +5334,27 @@ def _post_document_linked_payment(request, payment):
         )
         JournalEntryLine.objects.create(
             journal_entry=journal,
-            account=ar_account,
-            description=f"AR Clearing - {payment.party_name}",
+            account=counter_account,
+            description=f"{counter_account.code} - {payment.party_name}",
             credit=payment.amount,
         )
     else:
-        if ap_account:
-            JournalEntryLine.objects.create(
-                journal_entry=journal,
-                account=ap_account,
-                description=f"Payment to {payment.party_name}",
-                debit=payment.amount,
+        if counter_account is None:
+            counter_account = AccountMapping.require_account('vendor_payment_ap_clear')
+        if not counter_account:
+            journal.delete()
+            messages.error(
+                request,
+                'Cannot post: no Post to Account selected and Accounts Payable '
+                '("vendor_payment_ap_clear") is not configured in Account Mapping.',
             )
-        else:
-            messages.warning(request, 'Accounts Payable account not configured in Account Mapping.')
+            return redirect('finance:payment_detail', pk=payment.pk)
+        JournalEntryLine.objects.create(
+            journal_entry=journal,
+            account=counter_account,
+            description=f"Payment to {payment.party_name}",
+            debit=payment.amount,
+        )
         JournalEntryLine.objects.create(
             journal_entry=journal,
             account=funds_account,
