@@ -8,15 +8,49 @@
 .payment-select2-dropdown .select2-search__field {
     width: 100% !important;
 }
-/* Ensure Select2 clear (×) is clickable — arrow was blocking it */
-.select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear {
+#paymentForm .select2-container {
+    display: block;
+    width: 100% !important;
+}
+#paymentForm .select2-container--bootstrap-5 .select2-selection--single {
     position: relative;
+    min-height: calc(1.5em + 0.75rem + 2px);
+    padding: 0.375rem 2.25rem 0.375rem 0.75rem;
+    display: flex;
+    align-items: center;
+}
+#paymentForm .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+    display: block;
+    flex: 1 1 auto;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.5;
+    color: var(--bs-body-color);
+}
+#paymentForm .select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear {
+    position: absolute;
+    right: 1.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
     z-index: 2;
     cursor: pointer;
-    margin-right: 1.75rem;
+    float: none;
 }
-.select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+#paymentForm .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+    position: absolute;
+    right: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    height: auto;
     z-index: 1;
+}
+#party-customer-field,
+#party-vendor-field {
+    min-height: 5.5rem;
 }
 </style>
 {% endblock %}
@@ -144,11 +178,27 @@ $(function () {
         if (partyVendorField) partyVendorField.classList.toggle('d-none', isReceived);
     }
 
+    function destroyPaymentSelect2(selector) {
+        if (typeof $.fn.select2 === 'undefined') return;
+        $(selector).each(function () {
+            const $el = $(this);
+            if ($el.data('select2')) {
+                $el.off('select2:clear');
+                $el.select2('destroy');
+            }
+        });
+    }
+
     function initPaymentSelect2(selector, placeholder, allowClear) {
         if (typeof $.fn.select2 === 'undefined') return;
         $(selector).each(function () {
             const $el = $(this);
-            if ($el.data('select2')) return;
+            if ($el.closest('.d-none').length) {
+                return;
+            }
+            if ($el.data('select2')) {
+                return;
+            }
             if (!$el.find('option[value=""]').length) {
                 $el.prepend(new Option('', ''));
             }
@@ -167,16 +217,32 @@ $(function () {
         });
     }
 
+    function initVisiblePartySelect2() {
+        destroyPaymentSelect2('.payment-party-select');
+        const paymentType = typeField ? typeField.value : 'received';
+        if (paymentType === 'received') {
+            initPaymentSelect2('#id_party_customer', 'Search customer…', true);
+        } else {
+            initPaymentSelect2('#id_party_vendor', 'Search vendor…', true);
+        }
+    }
+
     ensureTodayDate();
     toggleFundsAccount();
     togglePartyField();
 
     if (methodField) methodField.addEventListener('change', toggleFundsAccount);
-    if (typeField) typeField.addEventListener('change', togglePartyField);
+    if (typeField) {
+        typeField.addEventListener('change', function () {
+            togglePartyField();
+            window.setTimeout(initVisiblePartySelect2, 50);
+        });
+    }
 
-    initPaymentSelect2('#id_party_customer', 'Search customer…', true);
-    initPaymentSelect2('#id_party_vendor', 'Search vendor…', true);
-    initPaymentSelect2('#id_account', 'Search account by code or name…', false);
+    window.setTimeout(function () {
+        initVisiblePartySelect2();
+        initPaymentSelect2('#id_account', 'Search account by code or name…', false);
+    }, 0);
 });
 </script>
 {% endblock %}
