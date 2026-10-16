@@ -24,15 +24,41 @@ class AccountForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        from apps.finance.coa_utils import suggest_next_account_codes
+
         super().__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
-            if field_name in ['account_type', 'parent', 'account_category']:
+            if field_name in ['account_type', 'account_category']:
                 field.widget.attrs['class'] = 'form-select'
             elif field_name in ['is_cash_account', 'overdraft_allowed', 'is_contra_account']:
                 field.widget.attrs['class'] = 'form-check-input'
-            else:
+            elif field_name not in ('code', 'parent'):
                 field.widget.attrs['class'] = 'form-control'
-        self.fields['parent'].queryset = Account.objects.filter(is_active=True)
+
+        code_choices = [('', 'Search or type account code…')]
+        for item in suggest_next_account_codes():
+            code_choices.append((item['code'], item['label']))
+        current_code = (self.instance.code if self.instance.pk else None) or self.initial.get('code')
+        if current_code and current_code not in {c for c, _ in code_choices}:
+            code_choices.insert(1, (current_code, current_code))
+        self.fields['code'].widget = forms.Select(
+            choices=code_choices,
+            attrs={
+                'class': 'form-select select2-account-code',
+                'data-placeholder': 'Search or type account code…',
+            },
+        )
+
+        parent_qs = Account.objects.filter(is_active=True).order_by('code')
+        if self.instance.pk:
+            parent_qs = parent_qs.exclude(pk=self.instance.pk)
+        self.fields['parent'].queryset = parent_qs
+        self.fields['parent'].widget.attrs.update({
+            'class': 'form-select select2-account-parent',
+            'data-placeholder': 'Search parent account by code or name…',
+        })
+        self.fields['parent'].label_from_instance = lambda obj: f'{obj.code} — {obj.name}'
+
         self.fields['account_category'].required = False
         
         # Add help text for boolean fields

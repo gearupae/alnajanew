@@ -75,3 +75,61 @@ def link_account_parents(queryset=None, dry_run: bool = False) -> int:
                 account.save(update_fields=['parent'])
 
     return updated
+
+
+def suggest_next_account_codes(limit: int = 150) -> list[dict[str, str]]:
+    """Suggest next available numeric account codes under each parent group."""
+    accounts = list(Account.objects.filter(is_active=True).order_by('code'))
+    if not accounts:
+        return [
+            {'code': '1000', 'label': '1000 — Assets (group)'},
+            {'code': '1010', 'label': '1010 — suggested under 1000'},
+            {'code': '2000', 'label': '2000 — Liabilities (group)'},
+            {'code': '4000', 'label': '4000 — Income (group)'},
+            {'code': '5000', 'label': '5000 — Expenses (group)'},
+        ]
+
+    existing = {account.code for account in accounts}
+    parent_map = resolve_parent_accounts(accounts)
+    children_by_parent: dict[str, list[Account]] = {}
+    for account in accounts:
+        parent = parent_map.get(account.id)
+        parent_key = parent.code if parent else ''
+        children_by_parent.setdefault(parent_key, []).append(account)
+
+    suggestions: list[dict[str, str]] = []
+    seen: set[str] = set()
+
+    def add(code: str, parent_code: str) -> None:
+        if len(suggestions) >= limit or not code or code in existing or code in seen:
+            return
+        if parent_code:
+            label = f'{code} — suggested under {parent_code}'
+        else:
+            label = code
+        suggestions.append({'code': code, 'label': label})
+        seen.add(code)
+
+    for parent_code, children in sorted(children_by_parent.items()):
+        if not parent_code or not parent_code.isdigit():
+            continue
+        width = len(parent_code)
+        child_codes = [
+            child.code for child in children
+            if child.code.isdigit() and len(child.code) == width and child.code != parent_code
+        ]
+        step = 10 if parent_code.endswith('00') else 1
+        if child_codes and all(int(c) % 10 == 0 for c in child_codes if c.isdigit()):
+            step = 10
+
+        if child_codes:
+            next_num = max(int(c) for c in child_codes) + step
+        else:
+            next_num = int(parent_code) + step
+
+        candidate = str(next_num)
+        if len(candidate) < width:
+            candidate = candidate.zfill(width)
+        add(candidate, parent_code)
+
+    return suggestions[:limit]

@@ -1,0 +1,75 @@
+<style>
+.account-select2-dropdown {
+    z-index: 1060;
+}
+.account-select2-dropdown .select2-search__field {
+    width: 100% !important;
+}
+</style>
+<script>
+(function () {
+    function initAccountSelect2(scope) {
+        if (typeof window.jQuery === 'undefined' || !window.jQuery.fn.select2) {
+            return;
+        }
+        var $ = window.jQuery;
+        var $scope = scope ? $(scope) : $(document);
+
+        $scope.find('.select2-account-parent').each(function () {
+            var $el = $(this);
+            if ($el.data('select2')) {
+                return;
+            }
+            if (!$el.find('option[value=""]').length) {
+                $el.prepend(new Option('', ''));
+            }
+            $el.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: $el.data('placeholder') || 'Search parent account…',
+                allowClear: true,
+                minimumResultsForSearch: 0,
+                dropdownParent: $(document.body),
+                dropdownCssClass: 'account-select2-dropdown',
+            });
+        });
+
+        $scope.find('.select2-account-code').each(function () {
+            var $el = $(this);
+            if ($el.data('select2')) {
+                return;
+            }
+            if (!$el.find('option[value=""]').length) {
+                $el.prepend(new Option('', ''));
+            }
+            $el.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: $el.data('placeholder') || 'Search or type account code…',
+                allowClear: true,
+                tags: true,
+                minimumResultsForSearch: 0,
+                dropdownParent: $(document.body),
+                dropdownCssClass: 'account-select2-dropdown',
+                createTag: function (params) {
+                    var term = (params.term || '').trim();
+                    if (!term) {
+                        return null;
+                    }
+                    return { id: term, text: term, newTag: true };
+                },
+            });
+        });
+    }
+
+    window.initFinanceAccountSelect2 = initAccountSelect2;
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+            initAccountSelect2(document);
+        });
+    } else {
+        initAccountSelect2(document);
+    }
+})();
+</script>
