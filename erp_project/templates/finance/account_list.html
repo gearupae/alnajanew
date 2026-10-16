@@ -21,7 +21,7 @@
         <h6 class="mb-0 fw-semibold"><i class="fas fa-chart-bar me-2"></i>Add New Account</h6>
         <button type="button" class="btn-close" onclick="cancelInlineForm('accountForm')"></button>
     </div>
-    <form method="post">
+    <form method="post" class="finance-account-form">
         {% csrf_token %}
         <div class="row g-3">
             <div class="col-md-3">
@@ -141,24 +141,6 @@
 
 {% block extra_js %}
 {% include 'finance/includes/account_form_select2.html' %}
-<script>
-(function () {
-    var originalToggle = window.toggleInlineForm;
-    window.toggleInlineForm = function (formId) {
-        if (typeof originalToggle === 'function') {
-            originalToggle(formId);
-        }
-        if (formId === 'accountForm' && typeof window.initFinanceAccountSelect2 === 'function') {
-            var panel = document.getElementById('accountForm');
-            window.initFinanceAccountSelect2(panel);
-        }
-    };
-    var panel = document.getElementById('accountForm');
-    if (panel && panel.classList.contains('show') && typeof window.initFinanceAccountSelect2 === 'function') {
-        window.initFinanceAccountSelect2(panel);
-    }
-})();
-</script>
 {% endblock %}
 
 

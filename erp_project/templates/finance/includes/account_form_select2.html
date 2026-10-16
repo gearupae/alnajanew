@@ -1,14 +1,23 @@
 <style>
 .account-select2-dropdown {
-    z-index: 1060;
+    z-index: 2000 !important;
 }
 .account-select2-dropdown .select2-search__field {
     width: 100% !important;
 }
+.select2-container--bootstrap-5 .select2-selection {
+    min-height: 38px;
+}
 </style>
 <script>
 (function () {
-    function initAccountSelect2(scope) {
+    function destroyAccountSelect2($el) {
+        if ($el.data('select2')) {
+            $el.select2('destroy');
+        }
+    }
+
+    function initAccountSelect2(scope, force) {
         if (typeof window.jQuery === 'undefined' || !window.jQuery.fn.select2) {
             return;
         }
@@ -17,9 +26,11 @@
 
         $scope.find('.select2-account-parent').each(function () {
             var $el = $(this);
-            if ($el.data('select2')) {
+            var hiddenInline = $el.closest('.inline-form-container:not(.show)').length > 0;
+            if (!force && hiddenInline) {
                 return;
             }
+            destroyAccountSelect2($el);
             if (!$el.find('option[value=""]').length) {
                 $el.prepend(new Option('', ''));
             }
@@ -36,9 +47,11 @@
 
         $scope.find('.select2-account-code').each(function () {
             var $el = $(this);
-            if ($el.data('select2')) {
+            var hiddenInline = $el.closest('.inline-form-container:not(.show)').length > 0;
+            if (!force && hiddenInline) {
                 return;
             }
+            destroyAccountSelect2($el);
             if (!$el.find('option[value=""]').length) {
                 $el.prepend(new Option('', ''));
             }
@@ -64,12 +77,34 @@
 
     window.initFinanceAccountSelect2 = initAccountSelect2;
 
+    window.openFinanceAccountInlineForm = function () {
+        var panel = document.getElementById('accountForm');
+        if (!panel) {
+            return;
+        }
+        panel.classList.add('show');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.setTimeout(function () {
+            initAccountSelect2(panel, true);
+        }, 80);
+    };
+
+    function initVisibleFinanceAccountSelect2() {
+        var panel = document.getElementById('accountForm');
+        if (panel && panel.classList.contains('show')) {
+            initAccountSelect2(panel, true);
+            return;
+        }
+        var editForm = document.querySelector('form.finance-account-form');
+        if (editForm) {
+            initAccountSelect2(editForm, true);
+        }
+    }
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () {
-            initAccountSelect2(document);
-        });
+        document.addEventListener('DOMContentLoaded', initVisibleFinanceAccountSelect2);
     } else {
-        initAccountSelect2(document);
+        initVisibleFinanceAccountSelect2();
     }
 })();
 </script>

@@ -47,6 +47,11 @@ function toggleInlineForm(formId) {
                     window.crmInitAssignedSalespersonSelect2();
                 }, 60);
             }
+            if (formId === 'accountForm' && window.initFinanceAccountSelect2) {
+                setTimeout(function () {
+                    window.initFinanceAccountSelect2(form, true);
+                }, 80);
+            }
         }
     }
 }
