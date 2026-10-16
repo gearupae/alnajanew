@@ -47,11 +47,6 @@ function toggleInlineForm(formId) {
                     window.crmInitAssignedSalespersonSelect2();
                 }, 60);
             }
-            if (formId === 'accountForm' && window.initFinanceAccountSelect2) {
-                setTimeout(function () {
-                    window.initFinanceAccountSelect2(form, true);
-                }, 80);
-            }
         }
     }
 }
@@ -65,6 +60,11 @@ function cancelInlineForm(formId) {
         if (formElement) {
             if (formId === 'customerForm' && window.crmDestroyAssignedSalespersonSelect2) {
                 window.crmDestroyAssignedSalespersonSelect2();
+            }
+            if (formId === 'accountForm') {
+                form.querySelectorAll('.account-parent-query').forEach(function (el) {
+                    el.value = '';
+                });
             }
             formElement.reset();
             if (formId === 'customerForm' && window.CrmCustomerFormToggle) {

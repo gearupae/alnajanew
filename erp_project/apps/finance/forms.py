@@ -47,12 +47,7 @@ class AccountForm(forms.ModelForm):
             parent_qs = parent_qs.exclude(pk=self.instance.pk)
         self.fields['parent'].queryset = parent_qs
         self.fields['parent'].required = False
-        self.fields['parent'].empty_label = '— None —'
-        self.fields['parent'].widget.attrs.update({
-            'class': 'form-select select2-account-parent',
-            'data-placeholder': 'Search existing account by code or name…',
-        })
-        self.fields['parent'].label_from_instance = lambda obj: f'{obj.code} — {obj.name}'
+        self.fields['parent'].widget = forms.HiddenInput()
 
         self.fields['account_category'].required = False
         

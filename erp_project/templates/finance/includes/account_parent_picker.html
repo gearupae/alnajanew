@@ -1,0 +1,10 @@
+<div class="account-parent-picker">
+    <input type="hidden" name="parent" id="id_parent" class="account-parent-value" value="{{ form.parent.value|default:'' }}">
+    <input type="text"
+           class="form-control account-parent-query"
+           placeholder="Search existing account by code or name…"
+           autocomplete="off"
+           aria-autocomplete="list"
+           aria-controls="account-parent-menu-{{ picker_suffix|default:'0' }}">
+    <div id="account-parent-menu-{{ picker_suffix|default:'0' }}" class="account-parent-menu list-group position-absolute w-100 d-none border rounded mt-1 bg-white" style="z-index: 1050; max-height: 14rem; overflow-y: auto;"></div>
+</div>

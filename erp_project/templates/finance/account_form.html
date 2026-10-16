@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="page-header">
@@ -28,9 +29,9 @@
                     <label class="form-label">Account Type <span class="text-danger">*</span></label>
                     {{ form.account_type }}
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-6 position-relative">
                     <label class="form-label">Parent Account</label>
-                    {{ form.parent }}
+                    {% include 'finance/includes/account_parent_picker.html' with picker_suffix='edit' %}
                 </div>
                 <div class="col-12">
                     <label class="form-label">Description</label>
@@ -43,12 +44,13 @@
             </div>
         </form>
         {% include 'finance/includes/account_code_datalist.html' %}
+        {% include 'finance/includes/account_parent_options.json.html' %}
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-{% include 'finance/includes/account_form_select2.html' %}
+<script src="{% static 'js/finance_account_parent_picker.js' %}"></script>
 {% endblock %}
 
 

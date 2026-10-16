@@ -40,9 +40,9 @@
                 {{ form.account_type }}
                 {% if form.account_type.errors %}<div class="invalid-feedback d-block">{{ form.account_type.errors|join:", " }}</div>{% endif %}
             </div>
-            <div class="col-md-3">
-                <label class="form-label" for="{{ form.parent.id_for_label }}">Parent account</label>
-                {{ form.parent }}
+            <div class="col-md-3 position-relative">
+                <label class="form-label" for="id_parent">Parent account</label>
+                {% include 'finance/includes/account_parent_picker.html' with picker_suffix='inline' %}
                 {% if form.parent.errors %}<div class="invalid-feedback d-block">{{ form.parent.errors|join:", " }}</div>{% endif %}
             </div>
         </div>
@@ -52,6 +52,7 @@
         </div>
     </form>
     {% include 'finance/includes/account_code_datalist.html' %}
+    {% include 'finance/includes/account_parent_options.json.html' %}
 </div>
 
 <!-- Filters -->
@@ -141,7 +142,8 @@
 {% endblock %}
 
 {% block extra_js %}
-{% include 'finance/includes/account_form_select2.html' %}
+{% load static %}
+<script src="{% static 'js/finance_account_parent_picker.js' %}"></script>
 {% endblock %}
 
 

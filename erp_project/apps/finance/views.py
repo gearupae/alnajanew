@@ -74,7 +74,12 @@ class AccountListView(PermissionRequiredMixin, ListView):
         context['can_create'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'finance', 'create')
         context['can_edit'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'finance', 'edit')
         context['can_delete'] = self.request.user.is_superuser or PermissionChecker.has_permission(self.request.user, 'finance', 'delete')
-        context['account_code_options'] = Account.objects.filter(is_active=True).order_by('code')
+        parent_qs = Account.objects.filter(is_active=True).order_by('code')
+        context['account_code_options'] = parent_qs
+        context['account_parent_options'] = [
+            {'id': acc.id, 'label': f'{acc.code} - {acc.name}'}
+            for acc in parent_qs
+        ]
         
         accounts = list(context['accounts'])
         parent_map = resolve_parent_accounts(accounts)
@@ -117,7 +122,12 @@ class AccountUpdateView(UpdatePermissionMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = f'Edit Account: {self.object.code}'
-        context['account_code_options'] = Account.objects.filter(is_active=True).order_by('code')
+        parent_qs = Account.objects.filter(is_active=True).order_by('code').exclude(pk=self.object.pk)
+        context['account_code_options'] = parent_qs
+        context['account_parent_options'] = [
+            {'id': acc.id, 'label': f'{acc.code} - {acc.name}'}
+            for acc in parent_qs
+        ]
         return context
     
     def form_valid(self, form):
