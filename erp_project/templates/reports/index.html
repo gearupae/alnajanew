@@ -1,167 +1,130 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="page-header">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb mb-2">
-            <li class="breadcrumb-item active">Reports</li>
-        </ol>
-    </nav>
-    <h4 class="mb-1 fw-bold">Reports</h4>
-    <p class="text-muted mb-0">Business intelligence and period summaries</p>
-</div>
+<div class="erp-reports-hub">
+    <header class="erp-reports-hub__hero mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-2 erp-reports-hub__breadcrumb">
+                <li class="breadcrumb-item active" aria-current="page">Reports</li>
+            </ol>
+        </nav>
+        <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3">
+            <div>
+                <h1 class="erp-reports-hub__title mb-2">Reports</h1>
+                <p class="erp-reports-hub__lead mb-0">Period summaries, pipeline insights, project performance, and inventory analytics.</p>
+            </div>
+            <div class="erp-reports-hub__hero-badge">
+                <i class="fas fa-chart-pie me-2" aria-hidden="true"></i>
+                <span>{{ report_count }} reports</span>
+            </div>
+        </div>
+    </header>
 
-<div class="row g-4">
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="badge bg-primary-subtle text-primary mb-2">CRM</span>
-                    <h5 class="fw-bold mb-2">Lead Report</h5>
-                    <p class="text-muted mb-0">
-                        Period-wise pipeline: leads by stage (lost, won, negotiation, etc.),
-                        lead value, and conversions.
-                    </p>
-                </div>
-                <div class="mt-auto">
-                    <a href="{% url 'reports:lead_report' %}" class="btn btn-primary">
-                        <i class="fas fa-chart-bar me-2"></i>Open Lead Report
-                    </a>
-                </div>
+    <section class="mb-4" aria-labelledby="reports-business-heading">
+        <h2 id="reports-business-heading" class="erp-reports-hub__section-title">
+            <span class="erp-reports-hub__section-dot erp-reports-hub__section-dot--business"></span>
+            Business
+        </h2>
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-4">
+                <a href="{% url 'reports:lead_report' %}" class="erp-report-hub-card erp-report-hub-card--crm">
+                    <div class="erp-report-hub-card__icon" aria-hidden="true"><i class="fas fa-funnel-dollar"></i></div>
+                    <div class="erp-report-hub-card__body">
+                        <span class="erp-report-hub-card__tag">CRM</span>
+                        <h3 class="erp-report-hub-card__title">Lead report</h3>
+                        <p class="erp-report-hub-card__desc">Pipeline by stage, lead value, and conversions for any period.</p>
+                        <span class="erp-report-hub-card__cta">Open report <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-xl-4">
+                <a href="{% url 'reports:sales_report' %}" class="erp-report-hub-card erp-report-hub-card--sales">
+                    <div class="erp-report-hub-card__icon" aria-hidden="true"><i class="fas fa-file-invoice-dollar"></i></div>
+                    <div class="erp-report-hub-card__body">
+                        <span class="erp-report-hub-card__tag">Sales</span>
+                        <h3 class="erp-report-hub-card__title">Sales report</h3>
+                        <p class="erp-report-hub-card__desc">Invoicing, collections, receivables, and quotation performance.</p>
+                        <span class="erp-report-hub-card__cta">Open report <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-xl-4">
+                <a href="{% url 'reports:project_report_internal' %}" class="erp-report-hub-card erp-report-hub-card--project">
+                    <div class="erp-report-hub-card__icon" aria-hidden="true"><i class="fas fa-hard-hat"></i></div>
+                    <div class="erp-report-hub-card__body">
+                        <span class="erp-report-hub-card__tag">Projects</span>
+                        <h3 class="erp-report-hub-card__title">Project profit &amp; loss</h3>
+                        <p class="erp-report-hub-card__desc">Scope vs site utilization, costs, manpower, and margin for one project.</p>
+                        <span class="erp-report-hub-card__cta">Open report <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-xl-4">
+                <a href="{% url 'reports:project_report_customer' %}" class="erp-report-hub-card erp-report-hub-card--customer">
+                    <div class="erp-report-hub-card__icon" aria-hidden="true"><i class="fas fa-handshake"></i></div>
+                    <div class="erp-report-hub-card__body">
+                        <span class="erp-report-hub-card__tag">Projects</span>
+                        <h3 class="erp-report-hub-card__title">Customer progress</h3>
+                        <p class="erp-report-hub-card__desc">Customer-facing progress, tasks, and billing — no internal costing.</p>
+                        <span class="erp-report-hub-card__cta">Open report <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-xl-4">
+                <a href="{% url 'reports:project_report_period' %}" class="erp-report-hub-card erp-report-hub-card--period">
+                    <div class="erp-report-hub-card__icon" aria-hidden="true"><i class="fas fa-calendar-week"></i></div>
+                    <div class="erp-report-hub-card__body">
+                        <span class="erp-report-hub-card__tag">Projects</span>
+                        <h3 class="erp-report-hub-card__title">Period-wise projects</h3>
+                        <p class="erp-report-hub-card__desc">All projects in a date range with contract value, costs, and margin.</p>
+                        <span class="erp-report-hub-card__cta">Open report <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                    </div>
+                </a>
             </div>
         </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="badge bg-success-subtle text-success mb-2">Sales</span>
-                    <h5 class="fw-bold mb-2">Sales Report</h5>
-                    <p class="text-muted mb-0">
-                        Standard ERP sales summary: invoicing, collections, receivables,
-                        and quotation performance for the selected period.
-                    </p>
-                </div>
-                <div class="mt-auto">
-                    <a href="{% url 'reports:sales_report' %}" class="btn btn-success">
-                        <i class="fas fa-file-invoice-dollar me-2"></i>Open Sales Report
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="badge bg-warning-subtle text-warning-emphasis mb-2">Projects</span>
-                    <h5 class="fw-bold mb-2">Project Profit and Loss Report</h5>
-                    <p class="text-muted mb-0">
-                        Estimate scope vs site utilization, returns, manpower, expenses,
-                        cost summary, and profit &amp; loss for a selected project.
-                    </p>
-                </div>
-                <div class="mt-auto">
-                    <a href="{% url 'reports:project_report_internal' %}" class="btn btn-warning text-dark">
-                        <i class="fas fa-hard-hat me-2"></i>Open Profit and Loss Report
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="badge bg-info-subtle text-info-emphasis mb-2">Projects</span>
-                    <h5 class="fw-bold mb-2">Customer Progress Report</h5>
-                    <p class="text-muted mb-0">
-                        Customer-facing progress report: team, tasks, and billing summary
-                        (invoiced, received, balance due) — no internal costing.
-                    </p>
-                </div>
-                <div class="mt-auto">
-                    <a href="{% url 'reports:project_report_customer' %}" class="btn btn-info text-white">
-                        <i class="fas fa-users me-2"></i>Open Customer Report
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="badge bg-secondary-subtle text-secondary-emphasis mb-2">Projects</span>
-                    <h5 class="fw-bold mb-2">Period Wise Report</h5>
-                    <p class="text-muted mb-0">
-                        Projects in a date range with operational and financial columns:
-                        contract value, invoicing, costs, and margin — grouped by role.
-                    </p>
-                </div>
-                <div class="mt-auto">
-                    <a href="{% url 'reports:project_report_period' %}" class="btn btn-secondary">
-                        <i class="fas fa-calendar-alt me-2"></i>Open Period Wise Report
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+    </section>
 
-<div class="page-header mt-4 mb-3">
-    <h5 class="fw-bold mb-1">Inventory Reports</h5>
-    <p class="text-muted mb-0 small">Read-only stock analytics (opens in Inventory module)</p>
-</div>
-
-<div class="row g-4">
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="badge bg-dark-subtle text-dark mb-2">Inventory</span>
-                    <h5 class="fw-bold mb-2">Stock &amp; Valuation</h5>
-                    <p class="text-muted mb-0 small">Stock summary, balances, valuation, movement, and analytics.</p>
-                </div>
-                <div class="mt-auto">
-                    <a href="{% url 'inventory:consumable_inventory_reports' %}" class="btn btn-outline-dark btn-sm">
-                        <i class="fas fa-boxes me-2"></i>Open Inventory Reports
-                    </a>
-                </div>
+    <section aria-labelledby="reports-inventory-heading">
+        <h2 id="reports-inventory-heading" class="erp-reports-hub__section-title">
+            <span class="erp-reports-hub__section-dot erp-reports-hub__section-dot--inventory"></span>
+            Inventory
+        </h2>
+        <p class="erp-reports-hub__section-hint mb-3">Stock analytics open in the Inventory module.</p>
+        <div class="row g-3">
+            <div class="col-md-6 col-lg-4">
+                <a href="{% url 'inventory:consumable_inventory_reports' %}" class="erp-report-hub-card erp-report-hub-card--stock">
+                    <div class="erp-report-hub-card__icon" aria-hidden="true"><i class="fas fa-boxes"></i></div>
+                    <div class="erp-report-hub-card__body">
+                        <span class="erp-report-hub-card__tag">Inventory</span>
+                        <h3 class="erp-report-hub-card__title">Stock &amp; valuation</h3>
+                        <p class="erp-report-hub-card__desc">Summary, balances, valuation, movement, warranty, and analytics.</p>
+                        <span class="erp-report-hub-card__cta">Open reports <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <a href="{% url 'inventory:consumable_monthly_consumption_report' %}" class="erp-report-hub-card erp-report-hub-card--usage">
+                    <div class="erp-report-hub-card__icon" aria-hidden="true"><i class="fas fa-chart-line"></i></div>
+                    <div class="erp-report-hub-card__body">
+                        <span class="erp-report-hub-card__tag">Inventory</span>
+                        <h3 class="erp-report-hub-card__title">Consumable usage</h3>
+                        <p class="erp-report-hub-card__desc">Monthly consumption, requests, and cost trends.</p>
+                        <span class="erp-report-hub-card__cta">Monthly consumption <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <a href="{% url 'inventory:inventory_aging_report' %}" class="erp-report-hub-card erp-report-hub-card--aging">
+                    <div class="erp-report-hub-card__icon" aria-hidden="true"><i class="fas fa-hourglass-half"></i></div>
+                    <div class="erp-report-hub-card__body">
+                        <span class="erp-report-hub-card__tag">Inventory</span>
+                        <h3 class="erp-report-hub-card__title">Inventory aging</h3>
+                        <p class="erp-report-hub-card__desc">Aging analysis with PDF and Excel export.</p>
+                        <span class="erp-report-hub-card__cta">Aging report <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                    </div>
+                </a>
             </div>
         </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="badge bg-dark-subtle text-dark mb-2">Inventory</span>
-                    <h5 class="fw-bold mb-2">Consumable Usage</h5>
-                    <p class="text-muted mb-0 small">Monthly consumption, requests, and cost reports.</p>
-                </div>
-                <div class="mt-auto">
-                    <a href="{% url 'inventory:consumable_monthly_consumption_report' %}" class="btn btn-outline-dark btn-sm">
-                        <i class="fas fa-chart-line me-2"></i>Monthly Consumption
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex flex-column">
-                <div class="mb-3">
-                    <span class="badge bg-dark-subtle text-dark mb-2">Inventory</span>
-                    <h5 class="fw-bold mb-2">Inventory Aging</h5>
-                    <p class="text-muted mb-0 small">Aging analysis with PDF and Excel export.</p>
-                </div>
-                <div class="mt-auto">
-                    <a href="{% url 'inventory:inventory_aging_report' %}" class="btn btn-outline-dark btn-sm">
-                        <i class="fas fa-hourglass-half me-2"></i>Aging Report
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
+    </section>
 </div>
 {% endblock %}

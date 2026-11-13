@@ -49,7 +49,7 @@ def reports_index(request):
     if not _reports_permission(request):
         messages.error(request, 'Permission denied.')
         return redirect('dashboard')
-    return render(request, 'reports/index.html')
+    return render(request, 'reports/index.html', {'report_count': 8})
 
 
 @login_required
