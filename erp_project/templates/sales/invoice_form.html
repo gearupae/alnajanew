@@ -74,6 +74,15 @@
                 paid <strong class="text-success">AED {{ invoice_from_project_summary.invoice_paid_amount|floatformat:2 }}</strong>,
                 remaining to pay <strong class="{% if invoice_from_project_summary.invoice_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">AED {{ invoice_from_project_summary.invoice_outstanding|floatformat:2 }}</strong>
             </div>
+            {% if invoice_project_billing_caps %}
+            <div class="small mt-1 mb-0">
+                Contract / quotation cap <strong>AED {{ invoice_project_billing_caps.contract_cap|floatformat:2 }}</strong>,
+                already invoiced <strong>AED {{ invoice_project_billing_caps.invoiced_total|floatformat:2 }}</strong>,
+                <strong>unbilled balance</strong>
+                <strong class="{% if invoice_project_billing_caps.remaining_to_bill > 0 %}text-danger{% else %}text-success{% endif %}">AED {{ invoice_project_billing_caps.remaining_to_bill|floatformat:2 }}</strong>
+                {% if invoice_prefill_estimate %} (lines pre-filled from {{ invoice_prefill_estimate.display_estimate_number }}){% endif %}
+            </div>
+            {% endif %}
         </div>
         <a href="{% url 'projects:project_detail' invoice_from_project.pk %}" class="btn btn-sm btn-outline-primary">Back to project</a>
     </div>
@@ -310,15 +319,20 @@
                             <td class="text-end fw-bold" id="grandTotal">0.00</td>
                             <td colspan="2"></td>
                         </tr>
-                        {% if object %}
                         <tr>
                             <td colspan="4" class="text-end fw-medium text-success">Paid amount:</td>
-                            <td class="text-end fw-medium text-success" id="paidAmountDisplay">{{ object.paid_amount|floatformat:2 }}</td>
+                            <td class="text-end fw-medium text-success" id="paidAmountDisplay">{% if object %}{{ object.paid_amount|floatformat:2 }}{% else %}0.00{% endif %}</td>
                             <td colspan="2"></td>
                         </tr>
                         <tr>
-                            <td colspan="4" class="text-end fw-bold">Balance:</td>
-                            <td class="text-end fw-bold {% if object.balance > 0 %}text-danger{% else %}text-success{% endif %}" id="balanceDisplay">{{ object.balance|floatformat:2 }}</td>
+                            <td colspan="4" class="text-end fw-bold">Balance due:</td>
+                            <td class="text-end fw-bold text-danger" id="balanceDisplay">{% if object %}{{ object.balance|floatformat:2 }}{% else %}0.00{% endif %}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        {% if invoice_project_billing_caps and not object %}
+                        <tr id="invoiceUnbilledCapRow">
+                            <td colspan="4" class="text-end small text-muted">Unbilled contract balance (cap):</td>
+                            <td class="text-end small fw-semibold text-muted" id="unbilledCapDisplay">{{ invoice_project_billing_caps.remaining_to_bill|floatformat:2 }}</td>
                             <td colspan="2"></td>
                         </tr>
                         {% endif %}
@@ -380,6 +394,7 @@ const invoicePaidAmount = {% if object %}{{ object.paid_amount|default:0 }}{% el
 const INVOICE_INVENTORY_ITEMS = {{ invoice_inventory_items_json|default:"[]"|safe }};
 const INVOICE_PROJECT_OPTIONS = {{ invoice_project_options_json|default:"[]"|safe }};
 const INVOICE_PRESELECT_PROJECT_ID = {{ invoice_preselect_project_id|default:"null" }};
+const INVOICE_MAX_REMAINING_BILL = {% if invoice_max_remaining_bill is not None %}{{ invoice_max_remaining_bill }}{% else %}null{% endif %};
 let formCount = {{ items_formset.total_form_count }};
 
 function escapeHtml(text) {
@@ -772,6 +787,14 @@ function calculateTotals() {
         balanceEl.textContent = balance.toFixed(2);
         balanceEl.classList.toggle('text-danger', balance > 0);
         balanceEl.classList.toggle('text-success', balance <= 0);
+    }
+    const unbilledCapEl = document.getElementById('unbilledCapRow');
+    const capDisplay = document.getElementById('unbilledCapDisplay');
+    if (unbilledCapEl && capDisplay && INVOICE_MAX_REMAINING_BILL != null) {
+        const over = grandTotal - INVOICE_MAX_REMAINING_BILL > 0.02;
+        capDisplay.classList.toggle('text-danger', over);
+        capDisplay.classList.toggle('text-muted', !over);
+        unbilledCapEl.classList.toggle('table-warning', over);
     }
 }
 

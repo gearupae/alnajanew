@@ -26,6 +26,7 @@ from .forms import (
     InvoiceForm,
     InvoiceItemCreateFormSet,
     InvoiceItemFormSet,
+    PrefilledInvoiceItemCreateFormSet,
 )
 from .estimate_csv import get_default_estimate_csv_tax_code
 from .vat_pricing import (
@@ -2618,7 +2619,12 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
         if estimate_pk:
             initial['estimate'] = estimate_pk
             est = Estimate.objects.filter(pk=estimate_pk).only(
-                'customer_id', 'project_id', 'prices_include_vat',
+                'customer_id',
+                'project_id',
+                'prices_include_vat',
+                'discount_type',
+                'discount_value',
+                'round_off',
             ).first()
             if est:
                 if est.customer_id:
@@ -2626,6 +2632,9 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
                 if est.project_id:
                     initial['project'] = est.project_id
                 initial['prices_include_vat'] = est.prices_include_vat
+                initial['discount_type'] = est.discount_type
+                initial['discount_value'] = est.discount_value
+                initial['round_off'] = est.round_off or Decimal('0.00')
         customer_pk = self.request.GET.get('customer')
         if customer_pk and str(customer_pk).isdigit() and 'customer' not in initial:
             initial['customer'] = int(customer_pk)
@@ -2648,36 +2657,97 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
         # Tax Codes for VAT selection (SAP/Oracle Standard)
         context['tax_codes'] = TaxCode.objects.filter(is_active=True).order_by('code')
         context['default_tax_code'] = get_default_estimate_csv_tax_code()
+        prefill_rows = []
+        billing_caps = None
+        project_pk = self._project_pk_from_request()
+        proj = None
+        source_estimate = None
+
         if 'items_formset' not in kwargs:
             if self.request.POST:
-                context['items_formset'] = InvoiceItemCreateFormSet(self.request.POST)
+                context['items_formset'] = PrefilledInvoiceItemCreateFormSet(self.request.POST)
             else:
-                context['items_formset'] = InvoiceItemCreateFormSet()
+                if project_pk:
+                    from apps.projects.member_roles import get_project_source_estimate
+                    from apps.projects.models import Project
+
+                    proj = (
+                        Project.objects.filter(pk=project_pk, is_active=True)
+                        .select_related('customer')
+                        .first()
+                    )
+                estimate_pk = self.request.GET.get('estimate')
+                if estimate_pk and str(estimate_pk).isdigit():
+                    source_estimate = (
+                        Estimate.objects.filter(pk=int(estimate_pk), is_active=True)
+                        .prefetch_related('items')
+                        .first()
+                    )
+                elif proj:
+                    source_estimate = get_project_source_estimate(proj)
+
+                if proj and source_estimate:
+                    from .project_invoice_billing import (
+                        build_invoice_prefill_from_estimate,
+                        project_billing_caps,
+                    )
+
+                    billing_caps = project_billing_caps(proj, source_estimate)
+                    prefill_rows = build_invoice_prefill_from_estimate(
+                        source_estimate, proj
+                    )
+                elif proj:
+                    from .project_invoice_billing import project_billing_caps
+                    from apps.finance.models import TaxCode
+
+                    billing_caps = project_billing_caps(proj, None)
+                    remaining = billing_caps['remaining_to_bill']
+                    if remaining > 0:
+                        default_tax = TaxCode.objects.filter(is_active=True, is_default=True).first()
+                        prefill_rows = [
+                            {
+                                'description': (
+                                    f'Project {proj.project_code} — remaining contract balance'
+                                ),
+                                'quantity': Decimal('1'),
+                                'unit_price': remaining,
+                                'tax_code': default_tax.pk if default_tax else None,
+                            }
+                        ]
+
+                context['items_formset'] = PrefilledInvoiceItemCreateFormSet(
+                    prefill_rows=prefill_rows or None,
+                )
         else:
             context['items_formset'] = kwargs['items_formset']
         context.update(_invoice_form_project_context())
         context['prices_include_vat_editable'] = True
-        project_pk = self._project_pk_from_request()
-        if project_pk:
+        if project_pk and proj is None:
             from apps.projects.models import Project
-            from apps.projects.project_receipt_metrics import project_linked_invoice_payment_summary
 
             proj = (
                 Project.objects.filter(pk=project_pk, is_active=True)
                 .select_related('customer')
                 .first()
             )
-            if proj:
-                context['invoice_from_project'] = proj
-                context['invoice_from_project_summary'] = project_linked_invoice_payment_summary(proj)
-                context['invoice_preselect_project_id'] = proj.pk
-                context['invoice_return_project_id'] = proj.pk
+        if proj:
+            from apps.projects.project_receipt_metrics import project_linked_invoice_payment_summary
+
+            context['invoice_from_project'] = proj
+            context['invoice_from_project_summary'] = project_linked_invoice_payment_summary(proj)
+            context['invoice_preselect_project_id'] = proj.pk
+            context['invoice_return_project_id'] = proj.pk
+        if billing_caps:
+            context['invoice_project_billing_caps'] = billing_caps
+            context['invoice_max_remaining_bill'] = float(billing_caps['remaining_to_bill'])
+        if source_estimate and not self.request.POST:
+            context['invoice_prefill_estimate'] = source_estimate
         return context
     
     def post(self, request, *args, **kwargs):
         self.object = None
         form = self.get_form()
-        items_formset = InvoiceItemCreateFormSet(request.POST)
+        items_formset = PrefilledInvoiceItemCreateFormSet(request.POST)
         
         if form.is_valid() and items_formset.is_valid():
             return self.form_valid(form, items_formset)

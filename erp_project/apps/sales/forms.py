@@ -631,6 +631,16 @@ InvoiceItemCreateFormSet = forms.inlineformset_factory(
 )
 
 
+class PrefilledInvoiceItemCreateFormSet(InvoiceItemCreateFormSet):
+    """Optional initial rows when opening create invoice from a project / quotation."""
+
+    def __init__(self, *args, prefill_rows=None, **kwargs):
+        if prefill_rows and not args:
+            kwargs.setdefault('initial', prefill_rows)
+            kwargs['extra'] = max(len(prefill_rows), 1)
+        super().__init__(*args, **kwargs)
+
+
 # ============ TAX CREDIT NOTES ============
 
 class CreditNoteForm(forms.ModelForm):
