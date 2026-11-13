@@ -118,11 +118,10 @@
         <h6 class="fw-semibold small text-uppercase text-muted customer-soa-section-title">Projects</h6>
         {% if soa_projects %}
         <div class="table-responsive mb-4">
-            <table class="table table-sm align-middle mb-0 customer-soa-table erp-no-list-table">
+            <table class="table table-sm align-middle mb-0 customer-soa-table customer-soa-table--projects erp-no-list-table">
                 <thead class="table-light">
                     <tr>
-                        <th>Code</th>
-                        <th>Name</th>
+                        <th>Project</th>
                         <th>Status</th>
                         <th class="soa-num">Contract (AED)</th>
                         <th class="soa-num">Invoiced (AED)</th>
@@ -133,10 +132,13 @@
                 <tbody>
                     {% for row in soa_projects %}
                     <tr data-href="{% url 'projects:project_detail' row.project.pk %}">
-                        <td class="text-nowrap">
-                            <a href="{% url 'projects:project_detail' row.project.pk %}" class="fw-medium text-decoration-none">{{ row.project.project_code }}</a>
+                        <td>
+                            <div class="d-flex align-items-center soa-project-line" title="{{ row.project.project_code }} — {{ row.project.name }}">
+                                <a href="{% url 'projects:project_detail' row.project.pk %}" class="fw-medium text-decoration-none flex-shrink-0">{{ row.project.project_code }}</a>
+                                <span class="text-muted flex-shrink-0 px-1">—</span>
+                                <span class="soa-project-name text-muted">{{ row.project.name }}</span>
+                            </div>
                         </td>
-                        <td>{{ row.project.name }}</td>
                         <td><span class="badge bg-secondary">{{ row.project.get_status_display }}</span></td>
                         <td class="soa-num">{% if row.contract_value %}{{ row.contract_value|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
                         <td class="soa-num">{{ row.invoiced_amount|floatformat:2|intcomma }}</td>

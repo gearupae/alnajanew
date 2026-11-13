@@ -107,6 +107,27 @@
 .customer-soa-card .table.customer-soa-table tfoot td {
     border-top-width: 2px;
 }
+.customer-soa-card .customer-soa-table--projects .soa-project-line {
+    min-width: 0;
+    max-width: 100%;
+}
+.customer-soa-card .customer-soa-table--projects td {
+    white-space: nowrap;
+}
+.customer-soa-card .customer-soa-table--projects .soa-project-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    max-width: min(28vw, 18rem);
+    vertical-align: bottom;
+}
+@media (max-width: 767.98px) {
+    .customer-soa-card .customer-soa-table--projects .soa-project-name {
+        max-width: min(40vw, 10rem);
+    }
+}
 
 .customer-related-metrics .customer-related-metric {
     border: 1px solid var(--gray-200, #e5e5e5);
