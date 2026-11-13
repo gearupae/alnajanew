@@ -1,0 +1,19 @@
+{% if public_portal_links %}
+<div class="dash-public-links mb-4" aria-label="Public self-service links">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <span class="small text-muted fw-semibold text-uppercase" style="letter-spacing:0.06em;">Public links</span>
+        <span class="badge bg-light text-muted border" style="font-size:0.65rem;">No login</span>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        {% for link in public_portal_links %}
+        <a href="{{ link.url }}"
+           class="btn btn-sm btn-outline-dark dash-public-btn"
+           target="_blank"
+           rel="noopener noreferrer"
+           title="{{ link.title }}">
+            <i class="fas {{ link.icon }} me-1"></i>{{ link.title }}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

@@ -10,50 +10,10 @@
     line-height: 1.2;
 }
 
-.dash-quick-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-    gap: 0.65rem;
-}
-
-.dash-quick-tile {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    gap: 0.45rem;
-    padding: 0.75rem 0.4rem;
-    background: #fff;
-    border: 1px solid #e8ecf1;
-    border-radius: 10px;
-    text-decoration: none;
-    color: #1e293b;
-    min-height: 88px;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.dash-quick-tile:hover {
-    border-color: #5eb8e8;
-    box-shadow: 0 6px 18px rgba(12, 35, 64, 0.08);
-    transform: translateY(-1px);
-    color: #0c2340;
-}
-
-.dash-quick-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.95rem;
-}
-
-.dash-quick-tile span {
-    font-size: 0.76rem;
-    font-weight: 600;
-    line-height: 1.25;
+.dash-public-btn {
+    font-size: 0.78rem;
+    padding: 0.3rem 0.55rem;
+    border-radius: 6px;
 }
 
 .dash-pending-list .list-group-item {

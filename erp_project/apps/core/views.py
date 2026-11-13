@@ -12,8 +12,8 @@ from apps.fleet.fleet_alerts import get_fleet_dashboard_alerts
 from apps.documents.document_alerts import get_documents_dashboard_alerts
 from apps.contracts.contract_alerts import get_contract_dashboard_alerts
 from apps.core.dashboard_pending import dashboard_important_notifications, dashboard_pending_work
-from apps.core.dashboard_shortcuts import dashboard_shortcuts
 from apps.core.dashboard_metrics import build_dashboard_metric_cards
+from apps.core.public_links import public_portal_links
 
 
 @login_required
@@ -188,7 +188,7 @@ def dashboard(request):
         is_read=False,
     ).count()
 
-    context['dashboard_shortcuts'] = dashboard_shortcuts(request.user, request)
+    context['public_portal_links'] = public_portal_links(request)
     context['dashboard_metric_cards'] = build_dashboard_metric_cards(request.user, context)
 
     from django.utils import timezone

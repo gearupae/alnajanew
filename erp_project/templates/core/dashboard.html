@@ -2,7 +2,7 @@
 {% load humanize static %}
 
 {% block extra_css %}
-<link href="{% static 'css/dashboard.css' %}?v=20260317g" rel="stylesheet">
+<link href="{% static 'css/dashboard.css' %}?v=20260317h" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -36,21 +36,7 @@
     {% endfor %}
 </div>
 
-{% if dashboard_shortcuts %}
-<section class="mb-4" aria-labelledby="dash-quick-title">
-    <h6 class="text-muted text-uppercase small fw-bold mb-3" id="dash-quick-title">Quick links</h6>
-    <div class="dash-quick-grid">
-        {% for item in dashboard_shortcuts %}
-        <a href="{{ item.path }}" class="dash-quick-tile">
-            <div class="dash-quick-icon bg-{{ item.tone }} bg-opacity-10 text-{{ item.tone }}">
-                <i class="fas {{ item.icon }}"></i>
-            </div>
-            <span>{{ item.title }}</span>
-        </a>
-        {% endfor %}
-    </div>
-</section>
-{% endif %}
+{% include 'partials/public_portal_links_compact.html' %}
 
 <div class="row g-4 mb-4">
     <div class="col-lg-6" id="dash-pending-work">
