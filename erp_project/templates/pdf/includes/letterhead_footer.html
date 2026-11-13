@@ -1,0 +1,52 @@
+<div class="pdf-letterhead-footer" role="contentinfo">
+    <div class="pdf-letterhead-contacts">
+        {% if pdf_company_phones %}
+        <div class="pdf-letterhead-contact">
+            <span class="pdf-letterhead-contact-icon" aria-hidden="true">☎</span>
+            <span>{{ pdf_company_phones|join:", " }}</span>
+        </div>
+        {% elif company.phone %}
+        <div class="pdf-letterhead-contact">
+            <span class="pdf-letterhead-contact-icon" aria-hidden="true">☎</span>
+            <span>{{ company.phone }}</span>
+        </div>
+        {% endif %}
+        {% if company.email %}
+        <div class="pdf-letterhead-contact">
+            <span class="pdf-letterhead-contact-icon" aria-hidden="true">✉</span>
+            <span>{{ company.email }}</span>
+        </div>
+        {% endif %}
+        {% if company.website %}
+        <div class="pdf-letterhead-contact">
+            <span class="pdf-letterhead-contact-icon" aria-hidden="true">🌐</span>
+            <span>{{ company.website }}</span>
+        </div>
+        {% endif %}
+        <div class="pdf-letterhead-badges">
+            {% if pdf_stamp_url %}
+            <img src="{{ pdf_stamp_url }}" alt="" class="pdf-letterhead-badge-img">
+            {% endif %}
+            {% if pdf_footer_badge_url %}
+            <img src="{{ pdf_footer_badge_url }}" alt="" class="pdf-letterhead-badge-img">
+            {% endif %}
+        </div>
+    </div>
+    {% if company.address %}
+    <div class="pdf-letterhead-address-bar">
+        <span class="pdf-letterhead-address-pin" aria-hidden="true">📍</span>
+        <div>{{ company.address|linebreaksbr }}</div>
+    </div>
+    {% endif %}
+    <div class="pdf-letterhead-sky-band" aria-hidden="true"></div>
+    <div class="pdf-letterhead-services">
+        <span class="pdf-letterhead-services-pill">{{ pdf_lpg_badge_label|default:"LPG Services" }}</span>
+        {% for item in pdf_footer_service_items %}
+        {% if not forloop.first %}<span class="pdf-letterhead-services-sep">|</span>{% endif %}
+        <span>{{ item }}</span>
+        {% endfor %}
+    </div>
+    {% if company.tax_id %}
+    <div style="font-size:8px;color:#737373;margin-top:6px;">VAT / TRN: {{ company.tax_id }}</div>
+    {% endif %}
+</div>

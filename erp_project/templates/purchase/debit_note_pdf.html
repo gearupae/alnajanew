@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>DEBIT NOTE — {{ debit_note.number }}</title>
+    {% include 'pdf/includes/letterhead_styles.html' %}
     <style>
         @page { size: A4; margin: 14mm; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; color: #1a1a1a; margin: 0; }
@@ -24,12 +25,13 @@
     </style>
 </head>
 <body>
-<div class="doc">
+<div class="doc pdf-with-letterhead">
     <div class="no-print" style="margin-bottom:12px;">
         <button onclick="window.print()">Print</button>
         <a href="?format=pdf">Download PDF</a>
     </div>
 
+    {% include 'pdf/includes/letterhead_header.html' %}
     <div class="title-strip">
         <h1>DEBIT NOTE</h1>
         <div style="font-size:17px;font-weight:700;">{{ debit_note.number }}</div>
@@ -38,8 +40,8 @@
     <div class="meta-grid">
         <div class="meta-block">
             <div class="label">Our Company</div>
-            <strong>{{ company.name }}</strong><br>
-            {% if company.trn %}TRN: {{ company.trn }}{% endif %}
+            <strong>{{ company.company_name }}</strong><br>
+            {% if company.tax_id %}TRN: {{ company.tax_id }}{% endif %}
         </div>
         <div class="meta-block">
             <div class="label">Vendor</div>
@@ -99,6 +101,7 @@
         <tr><td>VAT</td><td class="text-end">AED {{ debit_note.vat_amount|floatformat:2 }}</td></tr>
         <tr><td><strong>Total (AED)</strong></td><td class="text-end"><strong>AED {{ debit_note.total|floatformat:2 }}</strong></td></tr>
     </table>
+    {% include 'pdf/includes/letterhead_footer.html' %}
 </div>
 </body>
 </html>

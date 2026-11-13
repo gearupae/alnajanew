@@ -1,22 +1,19 @@
 """Purchase Request PDF context + WeasyPrint rendering."""
 from django.template.loader import get_template
 
-from apps.settings_app.models import CompanySettings
+from apps.core.pdf_branding import merge_pdf_branding
 
 
-def build_pr_pdf_context(request, pr):
+def build_pr_pdf_context(request, pr, *, for_weasyprint=False):
     """Context dict for purchase/pr_pdf.html (HTML or PDF)."""
-    company = CompanySettings.get_settings()
-    logo_absolute_url = ''
-    if company.logo:
-        logo_absolute_url = request.build_absolute_uri(company.logo.url)
-
-    return {
-        'pr': pr,
-        'company': company,
-        'logo_absolute_url': logo_absolute_url,
-        'is_pdf': True,
-    }
+    return merge_pdf_branding(
+        request,
+        {
+            'pr': pr,
+            'is_pdf': True,
+        },
+        for_weasyprint=for_weasyprint,
+    )
 
 
 def render_pr_pdf_bytes(request, pr):
@@ -29,7 +26,7 @@ def render_pr_pdf_bytes(request, pr):
     except ImportError:
         return None, 'WeasyPrint is not installed; cannot generate PDF.'
 
-    context = build_pr_pdf_context(request, pr)
+    context = build_pr_pdf_context(request, pr, for_weasyprint=True)
     template = get_template('purchase/pr_pdf.html')
     html_string = template.render(context)
     html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))

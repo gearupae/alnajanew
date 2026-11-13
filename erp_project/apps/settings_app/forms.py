@@ -185,6 +185,8 @@ class CompanySettingsForm(forms.ModelForm):
             'estimate_to_project_prompt_include_lines',
             'estimate_default_authorized_signature', 'estimate_default_customer_signature',
             'estimate_pdf_stamp_image', 'estimate_pdf_footer_image',
+            'pdf_letterhead_subtitle', 'pdf_letterhead_subtitle_ar',
+            'pdf_footer_services', 'pdf_services_badge_label',
         ]
     
     def __init__(self, *args, **kwargs):
@@ -206,6 +208,12 @@ class CompanySettingsForm(forms.ModelForm):
             ):
                 field.widget.attrs['class'] = 'form-control'
                 field.widget.attrs['accept'] = 'image/*'
+            elif field_name in ('pdf_footer_services',):
+                field.widget.attrs['class'] = 'form-control'
+                field.widget.attrs['rows'] = 2
+                field.widget.attrs['placeholder'] = 'Central Tank Systems | Manifold Systems | …'
+            elif field_name in ('pdf_letterhead_subtitle', 'pdf_letterhead_subtitle_ar', 'pdf_services_badge_label'):
+                field.widget.attrs['class'] = 'form-control'
             elif field_name == 'address':
                 field.widget.attrs['class'] = 'form-control'
                 field.widget.attrs['rows'] = 3

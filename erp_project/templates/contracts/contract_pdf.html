@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ page_title|default:"Contract" }}</title>
+    {% include 'pdf/includes/letterhead_styles.html' %}
     <style>
         @page { size: A4; margin: 14mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -212,7 +213,8 @@
         <a href="{% url 'contracts:contract_list' %}" class="print-btn print-btn-secondary">Back to contracts</a>
     </div>
 
-    <div class="estimate-container">
+    <div class="estimate-container pdf-with-letterhead">
+        {% include 'pdf/includes/letterhead_header.html' %}
         <div class="title-strip">
             <div class="estimate-title-text">CONTRACT</div>
             <div class="estimate-number">{{ contract.contract_number }}</div>
@@ -344,6 +346,7 @@
             </div>
         </div>
 
+        {% include 'pdf/includes/letterhead_footer.html' %}
         <footer class="doc-footer">
             <div class="doc-footer-line">
                 <div class="doc-footer-company">

@@ -14,7 +14,6 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from apps.core.mixins import CreatePermissionMixin, PermissionRequiredMixin, UpdatePermissionMixin
 from apps.core.utils import PermissionChecker
-from apps.settings_app.models import CompanySettings
 
 from .forms import CreditNoteForm
 from .models import CreditNote, CreditNoteLine, Invoice, InvoiceItem
@@ -505,19 +504,24 @@ def credit_note_pdf(request, pk):
         messages.error(request, 'Permission denied.')
         return redirect('sales:credit_note_list')
 
-    company = CompanySettings.get_settings()
+    from apps.core.pdf_branding import merge_pdf_branding
+
     prior = CreditNote.posted_total_for_invoice(
         cn.original_invoice,
         exclude_pk=cn.pk if cn.status == 'posted' else None,
     )
-    context = {
-        'credit_note': cn,
-        'company': company,
-        'prior_credited': prior,
-        'original_invoice_total': cn.original_invoice.total_amount,
-    }
+    is_pdf_download = request.GET.get('format') == 'pdf'
+    context = merge_pdf_branding(
+        request,
+        {
+            'credit_note': cn,
+            'prior_credited': prior,
+            'original_invoice_total': cn.original_invoice.total_amount,
+        },
+        for_weasyprint=is_pdf_download,
+    )
 
-    if request.GET.get('format') == 'pdf':
+    if is_pdf_download:
         try:
             from weasyprint import HTML
             html = render(request, 'sales/credit_note_pdf.html', context).content.decode('utf-8')

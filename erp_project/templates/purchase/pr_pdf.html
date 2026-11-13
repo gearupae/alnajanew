@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Purchase Request — {{ pr.pr_number }}</title>
+    {% include 'pdf/includes/letterhead_styles.html' %}
     <style>
         @page { size: A4; margin: 14mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -153,7 +154,8 @@
         <a href="{% url 'purchase:pr_detail' pr.pk %}" class="print-btn print-btn-secondary">Back to PR</a>
     </div>
 
-    <div class="doc-container">
+    <div class="doc-container pdf-with-letterhead">
+        {% include 'pdf/includes/letterhead_header.html' %}
         <div class="company-header">
             <div>
                 {% if logo_absolute_url %}
@@ -233,6 +235,8 @@
         <div class="section-title">Approver comment</div>
         <div class="notes-box">{{ pr.rejection_reason }}</div>
         {% endif %}
+
+        {% include 'pdf/includes/letterhead_footer.html' %}
     </div>
 </body>
 <script>

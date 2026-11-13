@@ -169,8 +169,29 @@
                 </div>
             </div>
 
-            <h6 class="fw-semibold mb-2">Estimate PDF images</h6>
-            <p class="text-muted small mb-3">Image 1 and Image 2 appear in one row under the company VAT / TRN on every estimate quotation PDF. Signatures above are per-estimate defaults.</p>
+            <h6 class="fw-semibold mb-2">PDF letterhead (all documents)</h6>
+            <p class="text-muted small mb-3">Logo, address, phone, email, and website above drive every PDF header/footer. Optional lines below customize the branded letterhead (QAQC / ISO badges use Image 1 and Image 2).</p>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Letterhead subtitle (English)</label>
+                    <input type="text" name="pdf_letterhead_subtitle" class="form-control" value="{{ object.pdf_letterhead_subtitle|default:'' }}" placeholder="Approved by the Directorate of Civil Defence">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Letterhead subtitle (Arabic)</label>
+                    <input type="text" name="pdf_letterhead_subtitle_ar" class="form-control" value="{{ object.pdf_letterhead_subtitle_ar|default:'' }}" dir="rtl">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Footer services badge</label>
+                    <input type="text" name="pdf_services_badge_label" class="form-control" value="{{ object.pdf_services_badge_label|default:'LPG Services' }}">
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Footer services (pipe-separated)</label>
+                    <textarea name="pdf_footer_services" class="form-control" rows="2" placeholder="Central Tank Systems | Manifold Systems | Gas Detection Systems | Annual Maintenance">{{ object.pdf_footer_services }}</textarea>
+                </div>
+            </div>
+
+            <h6 class="fw-semibold mb-2">PDF certification images</h6>
+            <p class="text-muted small mb-3">Image 1 and Image 2 appear on the letterhead contact row (e.g. QAQC and ISO). Estimate signatures above are per-estimate defaults.</p>
             <div class="row g-3 mb-4">
                 <div class="col-md-6">
                     <label class="form-label">Image 1</label>

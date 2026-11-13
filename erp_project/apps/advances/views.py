@@ -181,8 +181,6 @@ def customer_advance_receipt_pdf(request, pk):
     from django.http import HttpResponse
     from django.template.loader import get_template
 
-    from apps.settings_app.models import CompanySettings
-
     advance = get_object_or_404(
         CustomerAdvance.objects.select_related('customer', 'bank_account', 'journal_entry'),
         pk=pk,
@@ -193,7 +191,7 @@ def customer_advance_receipt_pdf(request, pk):
         messages.error(request, 'Permission denied.')
         return redirect('crm:customer_list')
 
-    company = CompanySettings.get_settings()
+    from apps.core.pdf_branding import merge_pdf_branding
 
     def number_to_words(n):
         ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
@@ -235,21 +233,18 @@ def customer_advance_receipt_pdf(request, pk):
     else:
         line_vat_rate = Decimal('0')
 
-    logo_absolute_url = ''
-    if company.logo:
-        logo_absolute_url = request.build_absolute_uri(company.logo.url)
-
-    context = {
-        'advance': advance,
-        'company': company,
-        'amount_words': amount_words,
-        'vat_summary': vat_summary,
-        'logo_absolute_url': logo_absolute_url,
-        'is_pdf': True,
-        'line_vat_rate': line_vat_rate,
-    }
-
     output_format = request.GET.get('format', 'html')
+    context = merge_pdf_branding(
+        request,
+        {
+            'advance': advance,
+            'amount_words': amount_words,
+            'vat_summary': vat_summary,
+            'is_pdf': True,
+            'line_vat_rate': line_vat_rate,
+        },
+        for_weasyprint=output_format == 'pdf',
+    )
 
     if output_format == 'pdf':
         try:

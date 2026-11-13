@@ -32,7 +32,16 @@
             {% endif %}
             {% if can_receive_payment %}
             <a href="{% url 'sales:invoice_receive_payment' invoice.pk %}" class="btn btn-success">
-                <i class="fas fa-money-bill-wave me-2"></i>Receipt voucher
+                <i class="fas fa-money-bill-wave me-2"></i>Receive payment
+            </a>
+            {% endif %}
+            {% if latest_invoice_payment %}
+            <a href="{% url 'sales:invoice_payment_receipt_pdf' invoice.pk latest_invoice_payment.pk %}?format=pdf"
+               class="btn btn-outline-danger"
+               target="_blank"
+               rel="noopener noreferrer"
+               title="Latest: {{ latest_invoice_payment.payment_number }}">
+                <i class="fas fa-file-pdf me-2"></i>Receipt voucher PDF
             </a>
             {% endif %}
             {% if can_create_credit_note %}
@@ -356,13 +365,13 @@
             </div>
         </div>
 
-        {% if invoice_payments or can_receive_payment %}
+        {% if show_receipt_vouchers %}
         <div class="card mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                <h6 class="mb-0 text-muted">Receipt vouchers</h6>
+                <h6 class="mb-0 text-muted"><i class="fas fa-receipt me-2"></i>Receipt vouchers</h6>
                 {% if can_receive_payment %}
                 <a href="{% url 'sales:invoice_receive_payment' invoice.pk %}" class="btn btn-sm btn-success">
-                    <i class="fas fa-plus me-1"></i>New receipt
+                    <i class="fas fa-plus me-1"></i>Receive payment
                 </a>
                 {% endif %}
             </div>
@@ -384,9 +393,20 @@
                                 <td class="fw-medium">{{ p.payment_number }}</td>
                                 <td>{{ p.payment_date|date:"d/m/Y" }}</td>
                                 <td class="text-end text-success">AED {{ p.amount|floatformat:2 }}</td>
-                                <td class="text-end">
-                                    <a href="{% url 'sales:invoice_payment_receipt_pdf' invoice.pk p.pk %}" class="btn btn-sm btn-outline-danger" target="_blank" title="Receipt voucher">
-                                        <i class="fas fa-file-pdf"></i>
+                                <td class="text-end text-nowrap">
+                                    <a href="{% url 'sales:invoice_payment_receipt_pdf' invoice.pk p.pk %}?format=pdf"
+                                       class="btn btn-sm btn-outline-danger"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       title="Download receipt PDF">
+                                        <i class="fas fa-file-pdf me-1"></i>PDF
+                                    </a>
+                                    <a href="{% url 'sales:invoice_payment_receipt_pdf' invoice.pk p.pk %}"
+                                       class="btn btn-sm btn-outline-secondary"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       title="Print / preview">
+                                        <i class="fas fa-print"></i>
                                     </a>
                                 </td>
                             </tr>

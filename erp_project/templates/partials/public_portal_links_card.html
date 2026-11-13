@@ -1,29 +1,36 @@
 {% if public_portal_links %}
-<div class="card border-0 shadow-sm {% if portal_stack == 'login' %}public-portal-card-login mt-4{% else %}mb-0 mt-4{% endif %}">
-    <div class="card-header bg-transparent py-3">
-        <h6 class="mb-0 fw-semibold text-center text-md-start">
-            <i class="fas fa-link me-2 {% if portal_stack == 'login' %}text-muted{% else %}text-dark{% endif %}"></i>Public self-service links
-        </h6>
-        <p class="small text-muted mb-0 mt-1 text-center text-md-start">No login required — open any link below.</p>
-    </div>
-    <div class="card-body pt-0">
-        <div class="row g-2">
-            {% for link in public_portal_links %}
-            <div class="col-12 col-sm-6">
-                <a href="{{ link.url }}"
-                   class="btn {% if portal_stack == 'login' %}btn-outline-dark{% else %}btn-outline-primary{% endif %} w-100 text-start d-flex align-items-start gap-2 py-2 px-3 public-portal-btn"
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   title="{{ link.description }}">
-                    <i class="fas {{ link.icon }} mt-1 flex-shrink-0"></i>
-                    <span class="min-w-0">
-                        <span class="d-block fw-semibold">{{ link.title }}</span>
-                        <span class="d-block small {% if portal_stack == 'login' %}text-muted{% else %}opacity-75{% endif %} fw-normal">{{ link.description }}</span>
-                    </span>
-                </a>
-            </div>
-            {% endfor %}
+<section class="public-portal-section {% if portal_stack == 'login' %}public-portal-section--login mt-4{% else %}public-portal-section--dashboard mt-4 mb-0{% endif %}"
+         aria-labelledby="public-portal-heading">
+    <div class="public-portal-sky-band" aria-hidden="true"></div>
+    <header class="public-portal-header">
+        <div class="public-portal-header-badge" aria-hidden="true">
+            <i class="fas fa-door-open"></i>
         </div>
+        <div>
+            <h2 id="public-portal-heading" class="public-portal-title">Public self-service</h2>
+            <p class="public-portal-subtitle">Quick links for staff and partners — no ERP login needed.</p>
+            <span class="public-portal-chip">
+                <i class="fas fa-unlock-alt" aria-hidden="true"></i> Open access
+            </span>
+        </div>
+    </header>
+    <div class="public-portal-grid">
+        {% for link in public_portal_links %}
+        <a href="{{ link.url }}"
+           class="public-portal-tile"
+           target="_blank"
+           rel="noopener noreferrer"
+           title="{{ link.description }}">
+            <span class="public-portal-tile-icon" aria-hidden="true">
+                <i class="fas {{ link.icon }}"></i>
+            </span>
+            <span class="public-portal-tile-body">
+                <span class="public-portal-tile-title">{{ link.title }}</span>
+                <span class="public-portal-tile-desc">{{ link.description }}</span>
+            </span>
+            <i class="fas fa-arrow-right public-portal-tile-arrow" aria-hidden="true"></i>
+        </a>
+        {% endfor %}
     </div>
-</div>
+</section>
 {% endif %}

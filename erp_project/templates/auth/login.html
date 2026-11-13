@@ -7,6 +7,7 @@
     <title>Login | {{ app_name }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="{% static 'css/public_portal.css' %}?v=20260317d" rel="stylesheet">
     <style>
         body {
             min-height: 100vh;
@@ -21,6 +22,16 @@
             width: 100%;
             max-width: 420px;
             padding: 2rem 1.25rem;
+        }
+
+        .login-container.has-public-portals {
+            max-width: 680px;
+        }
+
+        @media (max-width: 519px) {
+            .login-container.has-public-portals {
+                max-width: 420px;
+            }
         }
         
         .login-card {
@@ -123,25 +134,10 @@
             font-size: 0.75rem;
         }
 
-        .public-portal-card-login {
-            background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-        }
-
-        .public-portal-card-login .public-portal-btn {
-            white-space: normal;
-            height: auto;
-            line-height: 1.35;
-        }
-
-        .public-portal-card-login .public-portal-btn:hover {
-            background: #f5f5f5;
-        }
     </style>
 </head>
 <body>
-    <div class="login-container">
+    <div class="login-container{% if public_portal_links %} has-public-portals{% endif %}">
         <div class="login-card">
             <div class="login-header">
                 <img src="{% static 'img/logo.png' %}" alt="{{ app_name }}" height="60" style="margin-bottom: 10px;">

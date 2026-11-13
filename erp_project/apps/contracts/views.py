@@ -307,24 +307,18 @@ def contract_pdf(request, pk):
         messages.error(request, 'Permission denied.')
         return redirect('contracts:contract_list')
 
-    from apps.settings_app.models import CompanySettings
+    from apps.core.pdf_branding import merge_pdf_branding
 
-    company = CompanySettings.get_settings()
-    logo_absolute_url = ''
-    if company.logo:
-        logo_absolute_url = request.build_absolute_uri(company.logo.url)
-
-    return render(
+    context = merge_pdf_branding(
         request,
-        'contracts/contract_pdf.html',
         {
             'contract': contract,
-            'company': company,
-            'logo_absolute_url': logo_absolute_url,
             'page_title': f'Contract — {contract.contract_number}',
             'print_button_label': 'Print contract',
         },
     )
+
+    return render(request, 'contracts/contract_pdf.html', context)
 
 
 @login_required

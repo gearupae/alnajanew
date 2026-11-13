@@ -15,7 +15,6 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from apps.core.mixins import CreatePermissionMixin, PermissionRequiredMixin, UpdatePermissionMixin
 from apps.core.utils import PermissionChecker
-from apps.settings_app.models import CompanySettings
 
 from .forms import DebitNoteForm, DebitNoteLineFormSet
 from .models import DebitNote, DebitNoteLine, VendorBill, VendorBillItem
@@ -467,16 +466,21 @@ def debit_note_pdf(request, pk):
         messages.error(request, 'Permission denied.')
         return redirect('purchase:debit_note_list')
 
-    company = CompanySettings.get_settings()
-    prior = DebitNote.posted_total_for_bill(dn.original_bill, exclude_pk=dn.pk if dn.status == 'posted' else None)
-    context = {
-        'debit_note': dn,
-        'company': company,
-        'prior_debited': prior,
-        'original_bill_total': dn.original_bill.total_amount,
-    }
+    from apps.core.pdf_branding import merge_pdf_branding
 
-    if request.GET.get('format') == 'pdf':
+    prior = DebitNote.posted_total_for_bill(dn.original_bill, exclude_pk=dn.pk if dn.status == 'posted' else None)
+    is_pdf_download = request.GET.get('format') == 'pdf'
+    context = merge_pdf_branding(
+        request,
+        {
+            'debit_note': dn,
+            'prior_debited': prior,
+            'original_bill_total': dn.original_bill.total_amount,
+        },
+        for_weasyprint=is_pdf_download,
+    )
+
+    if is_pdf_download:
         try:
             from weasyprint import HTML
             html = render(request, 'purchase/debit_note_pdf.html', context).content.decode('utf-8')

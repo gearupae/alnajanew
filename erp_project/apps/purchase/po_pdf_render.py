@@ -3,7 +3,7 @@ Shared Purchase Order PDF context + WeasyPrint rendering (used by po_pdf view an
 """
 from django.template.loader import get_template
 
-from apps.settings_app.models import CompanySettings
+from apps.core.pdf_branding import merge_pdf_branding
 
 
 def _number_to_words(n):
@@ -29,10 +29,8 @@ def _number_to_words(n):
     return str(n)
 
 
-def build_po_pdf_context(request, po):
+def build_po_pdf_context(request, po, *, for_weasyprint=False):
     """Context dict for purchase/po_pdf.html (HTML or PDF)."""
-    company = CompanySettings.get_settings()
-
     try:
         amount_whole = int(po.total_amount)
         amount_decimal = int((po.total_amount - amount_whole) * 100)
@@ -51,18 +49,16 @@ def build_po_pdf_context(request, po):
         vat_summary[rate]['taxable'] += float(item.total)
         vat_summary[rate]['vat'] += float(item.vat_amount)
 
-    logo_absolute_url = ''
-    if company.logo:
-        logo_absolute_url = request.build_absolute_uri(company.logo.url)
-
-    return {
-        'po': po,
-        'company': company,
-        'amount_words': amount_words,
-        'vat_summary': vat_summary,
-        'logo_absolute_url': logo_absolute_url,
-        'is_pdf': True,
-    }
+    return merge_pdf_branding(
+        request,
+        {
+            'po': po,
+            'amount_words': amount_words,
+            'vat_summary': vat_summary,
+            'is_pdf': True,
+        },
+        for_weasyprint=for_weasyprint,
+    )
 
 
 def render_po_pdf_bytes(request, po):
@@ -75,7 +71,7 @@ def render_po_pdf_bytes(request, po):
     except ImportError:
         return None, 'WeasyPrint is not installed; cannot generate PDF for email.'
 
-    context = build_po_pdf_context(request, po)
+    context = build_po_pdf_context(request, po, for_weasyprint=True)
     template = get_template('purchase/po_pdf.html')
     html_string = template.render(context)
     html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))

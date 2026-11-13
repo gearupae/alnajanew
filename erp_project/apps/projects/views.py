@@ -2259,7 +2259,7 @@ def project_gatepass_delete(request, project_pk, pk):
 @login_required
 def project_delivery_note_pdf(request, pk):
     """Printable delivery note listing items delivered to the project site."""
-    from apps.settings_app.models import CompanySettings
+    from apps.core.pdf_branding import merge_pdf_branding
 
     project = get_object_or_404(
         Project.objects.select_related('customer', 'manager'),
@@ -2275,20 +2275,12 @@ def project_delivery_note_pdf(request, pk):
         messages.error(request, 'No items have been delivered to this project yet.')
         return redirect('projects:project_detail', pk=pk)
 
-    company = CompanySettings.get_settings()
-    logo_absolute_url = ''
-    if company.logo:
-        logo_absolute_url = request.build_absolute_uri(company.logo.url)
-
     note_date = max((row['delivered_date'] for row in lines if row.get('delivered_date')), default=date.today())
 
-    return render(
+    context = merge_pdf_branding(
         request,
-        'projects/project_delivery_note_pdf.html',
         {
             'project': project,
-            'company': company,
-            'logo_absolute_url': logo_absolute_url,
             'lines': lines,
             'note_number': f'DN-{project.project_code}',
             'note_date': note_date,
@@ -2299,11 +2291,13 @@ def project_delivery_note_pdf(request, pk):
         },
     )
 
+    return render(request, 'projects/project_delivery_note_pdf.html', context)
+
 
 @login_required
 def item_delivery_note_pdf(request, pk):
     """Printable delivery note for a single item delivery record."""
-    from apps.settings_app.models import CompanySettings
+    from apps.core.pdf_branding import merge_pdf_branding
 
     delivery = get_object_or_404(
         ProjectItemDelivery.objects.select_related(
@@ -2320,18 +2314,11 @@ def item_delivery_note_pdf(request, pk):
         return redirect('projects:item_delivery_detail', pk=pk)
 
     lines = delivery_note_lines_for_record(delivery)
-    company = CompanySettings.get_settings()
-    logo_absolute_url = ''
-    if company.logo:
-        logo_absolute_url = request.build_absolute_uri(company.logo.url)
 
-    return render(
+    context = merge_pdf_branding(
         request,
-        'projects/project_delivery_note_pdf.html',
         {
             'project': project,
-            'company': company,
-            'logo_absolute_url': logo_absolute_url,
             'lines': lines,
             'note_number': f'DN-{project.project_code}-{delivery.pk}',
             'note_date': delivery.delivered_date,
@@ -2341,6 +2328,8 @@ def item_delivery_note_pdf(request, pk):
             'back_label': 'Back to delivery',
         },
     )
+
+    return render(request, 'projects/project_delivery_note_pdf.html', context)
 
 
 @login_required
@@ -2366,23 +2355,18 @@ def project_report_pdf(request, pk):
         messages.error(request, 'Permission denied.')
         return redirect('projects:project_detail', pk=pk)
 
+    from apps.core.pdf_branding import merge_pdf_branding
+
     report = build_project_report_internal(project=project, user=request.user)
-    company = report['company']
-    logo_absolute_url = ''
-    if company.logo:
-        logo_absolute_url = request.build_absolute_uri(company.logo.url)
 
     tasks = project.tasks.filter(is_active=True).select_related('assigned_to').order_by(
         'due_date', 'start_date', 'priority', 'name'
     )
 
-    return render(
+    context = merge_pdf_branding(
         request,
-        'projects/project_report_pdf.html',
         {
             'project': project,
-            'company': company,
-            'logo_absolute_url': logo_absolute_url,
             'report': report,
             'team': build_project_team_display(project),
             'tasks': tasks,
@@ -2390,6 +2374,8 @@ def project_report_pdf(request, pk):
             'print_button_label': 'Print report',
         },
     )
+
+    return render(request, 'projects/project_report_pdf.html', context)
 
 
 @login_required

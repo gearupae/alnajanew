@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>TAX CREDIT NOTE — {{ credit_note.number }}</title>
+    {% include 'pdf/includes/letterhead_styles.html' %}
     <style>
         @page { size: A4; margin: 14mm; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; color: #1a1a1a; }
@@ -23,7 +24,8 @@
     </style>
 </head>
 <body>
-<div class="doc">
+<div class="doc pdf-with-letterhead">
+    {% include 'pdf/includes/letterhead_header.html' %}
     <div class="title-strip">
         <h1>TAX CREDIT NOTE</h1>
         <div style="font-size:17px;font-weight:700;">{{ credit_note.number }}</div>
@@ -32,9 +34,9 @@
     <div class="meta-grid">
         <div class="meta-block">
             <div class="label">Supplier</div>
-            <strong>{{ company.name }}</strong><br>
+            <strong>{{ company.company_name }}</strong><br>
             {% if company.address %}{{ company.address }}<br>{% endif %}
-            {% if company.trn %}TRN: {{ company.trn }}{% endif %}
+            {% if company.tax_id %}TRN: {{ company.tax_id }}{% endif %}
         </div>
         <div class="meta-block">
             <div class="label">Customer</div>
@@ -89,6 +91,7 @@
         <tr><td>VAT</td><td class="text-end">AED {{ credit_note.vat_amount|floatformat:2 }}</td></tr>
         <tr><td><strong>Total (AED)</strong></td><td class="text-end"><strong>AED {{ credit_note.total|floatformat:2 }}</strong></td></tr>
     </table>
+    {% include 'pdf/includes/letterhead_footer.html' %}
 </div>
 </body>
 </html>

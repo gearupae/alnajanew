@@ -1862,11 +1862,9 @@ def _build_estimate_pdf_context(request, estimate, *, proforma_invoice=None, for
     Shared context for proposal and proforma invoice HTML (print/PDF).
     Caller adds document_heading, document_number, print_button_label, page_title.
     """
-    from apps.settings_app.models import CompanySettings
+    from apps.core.pdf_branding import merge_pdf_branding
     from .estimate_pdf_groups import build_pdf_item_groups
     from .proforma_calculation import resolve_proforma_vat_rate_percent
-
-    company = CompanySettings.get_settings()
 
     def number_to_words(n):
         ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
@@ -1920,29 +1918,25 @@ def _build_estimate_pdf_context(request, estimate, *, proforma_invoice=None, for
     else:
         vat_summary = estimate.build_vat_summary()
 
+    from apps.settings_app.models import CompanySettings
+
+    company = CompanySettings.get_settings()
     media_kw = {'for_weasyprint': for_weasyprint}
-    logo_absolute_url = _pdf_media_absolute_url(request, company.logo, **media_kw)
 
     authorized_sig = estimate.authorized_signature or company.estimate_default_authorized_signature
     authorized_signature_url = _pdf_media_absolute_url(request, authorized_sig, **media_kw)
 
-    pdf_image_1_url = _pdf_media_absolute_url(request, company.estimate_pdf_stamp_image, **media_kw)
-    pdf_image_2_url = _pdf_media_absolute_url(request, company.estimate_pdf_footer_image, **media_kw)
-
-    return {
+    context = {
         'estimate': estimate,
         'proforma_invoice': proforma_invoice,
-        'company': company,
-        'logo_absolute_url': logo_absolute_url,
         'authorized_signature_url': authorized_signature_url,
         'customer_signature_url': '',
-        'pdf_image_1_url': pdf_image_1_url,
-        'pdf_image_2_url': pdf_image_2_url,
         'amount_words': amount_words,
         'vat_summary': vat_summary,
         'pdf_item_groups': build_pdf_item_groups(estimate),
         'is_pdf': True,
     }
+    return merge_pdf_branding(request, context, for_weasyprint=for_weasyprint)
 
 
 @login_required
@@ -2972,6 +2966,12 @@ class InvoiceDetailView(PermissionRequiredMixin, DetailView):
             and self.object.status != 'draft'
             and self.object.balance > 0
         )
+        latest_payment = context['invoice_payments'].first() if context['invoice_payments'] else None
+        context['latest_invoice_payment'] = latest_payment
+        context['show_receipt_vouchers'] = (
+            self.object.status != 'draft'
+            and (context['invoice_payments'] or context['can_receive_payment'])
+        )
 
         return context
 
@@ -3074,7 +3074,6 @@ def invoice_pdf(request, pk):
     - Total amount in AED
     """
     from django.http import HttpResponse
-    from apps.settings_app.models import CompanySettings
     
     invoice = get_object_or_404(
         Invoice.objects.select_related('customer', 'estimate').prefetch_related(
@@ -3089,9 +3088,6 @@ def invoice_pdf(request, pk):
     if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'sales', 'view')):
         messages.error(request, 'Permission denied.')
         return redirect('sales:invoice_list')
-    
-    # Get company settings
-    company = CompanySettings.get_settings()
     
     # Convert amount to words (simple implementation)
     def number_to_words(n):
@@ -3125,22 +3121,22 @@ def invoice_pdf(request, pk):
     
     vat_summary = invoice.build_vat_summary()
 
-    logo_absolute_url = ''
-    if company.logo:
-        logo_absolute_url = request.build_absolute_uri(company.logo.url)
+    from apps.core.pdf_branding import merge_pdf_branding
 
-    context = {
-        'invoice': invoice,
-        'company': company,
-        'amount_words': amount_words,
-        'vat_summary': vat_summary,
-        'logo_absolute_url': logo_absolute_url,
-        'is_pdf': True,
-    }
+    output_format = request.GET.get('format', 'html')
+    for_weasy = output_format == 'pdf'
+    context = merge_pdf_branding(
+        request,
+        {
+            'invoice': invoice,
+            'amount_words': amount_words,
+            'vat_summary': vat_summary,
+            'is_pdf': True,
+        },
+        for_weasyprint=for_weasy,
+    )
     
     # Check if we should return HTML (for browser print) or try PDF generation
-    output_format = request.GET.get('format', 'html')
-    
     if output_format == 'pdf':
         # Try to generate actual PDF using weasyprint
         try:
@@ -3361,7 +3357,7 @@ def invoice_receive_payment(request, pk):
 
         return redirect(
             reverse('sales:invoice_payment_receipt_pdf', kwargs={'invoice_pk': pk, 'payment_pk': payment.pk})
-            + '?print=1'
+            + '?format=pdf'
         )
     
     # GET - Show payment form
@@ -3382,8 +3378,6 @@ def invoice_payment_receipt_pdf(request, invoice_pk, payment_pk):
     from django.template.loader import get_template
 
     from apps.finance.models import Payment
-    from apps.settings_app.models import CompanySettings
-
     invoice = get_object_or_404(
         Invoice.objects.select_related('customer'),
         pk=invoice_pk,
@@ -3403,7 +3397,7 @@ def invoice_payment_receipt_pdf(request, invoice_pk, payment_pk):
         messages.error(request, 'Permission denied.')
         return redirect('sales:invoice_detail', pk=invoice_pk)
 
-    company = CompanySettings.get_settings()
+    from apps.core.pdf_branding import merge_pdf_branding
 
     def number_to_words(n):
         ones = [
@@ -3453,21 +3447,18 @@ def invoice_payment_receipt_pdf(request, invoice_pk, payment_pk):
         if p.pk == payment.pk:
             break
 
-    logo_absolute_url = ''
-    if company.logo:
-        logo_absolute_url = request.build_absolute_uri(company.logo.url)
-
-    context = {
-        'invoice': invoice,
-        'payment': payment,
-        'company': company,
-        'amount_words': amount_words,
-        'balance_after': balance_after,
-        'logo_absolute_url': logo_absolute_url,
-        'is_pdf': True,
-    }
-
     output_format = request.GET.get('format', 'html')
+    context = merge_pdf_branding(
+        request,
+        {
+            'invoice': invoice,
+            'payment': payment,
+            'amount_words': amount_words,
+            'balance_after': balance_after,
+            'is_pdf': True,
+        },
+        for_weasyprint=output_format == 'pdf',
+    )
 
     if output_format == 'pdf':
         try:
@@ -3483,6 +3474,7 @@ def invoice_payment_receipt_pdf(request, invoice_pk, payment_pk):
             return response
         except ImportError:
             messages.info(request, 'PDF generation requires WeasyPrint. Showing printable HTML version.')
-            return render(request, 'sales/invoice_payment_receipt_pdf.html', context)
+        except Exception as exc:
+            messages.warning(request, f'PDF generation failed ({exc}). Showing printable HTML version.')
 
     return render(request, 'sales/invoice_payment_receipt_pdf.html', context)

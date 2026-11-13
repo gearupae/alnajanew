@@ -302,6 +302,27 @@ class CompanySettings(models.Model):
         null=True,
         help_text='Image 2 — shown under company VAT / TRN on estimate quotation PDFs (right).',
     )
+    pdf_letterhead_subtitle = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text='English line under the PDF letterhead (e.g. regulatory approval text).',
+    )
+    pdf_letterhead_subtitle_ar = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text='Arabic line shown on the PDF letterhead.',
+    )
+    pdf_footer_services = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text='Services shown on the PDF footer bar, separated by | (pipe).',
+    )
+    pdf_services_badge_label = models.CharField(
+        max_length=80,
+        blank=True,
+        default='LPG Services',
+        help_text='Short badge label on the PDF footer services bar.',
+    )
 
     class Meta:
         verbose_name = 'Company Settings'

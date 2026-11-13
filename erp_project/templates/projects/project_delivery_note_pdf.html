@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ page_title|default:"Delivery note" }}</title>
+    {% include 'pdf/includes/letterhead_styles.html' %}
     <style>
         @page { size: A4; margin: 14mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -171,7 +172,8 @@
         <a href="{{ back_url }}" class="print-btn print-btn-secondary">{{ back_label|default:"Back" }}</a>
     </div>
 
-    <div class="doc-container">
+    <div class="doc-container pdf-with-letterhead">
+        {% include 'pdf/includes/letterhead_header.html' %}
         <div class="title-strip">
             <h1>DELIVERY NOTE</h1>
             <div class="doc-number">{{ note_number }}</div>
@@ -280,6 +282,7 @@
             </div>
         </div>
 
+        {% include 'pdf/includes/letterhead_footer.html' %}
         <div class="doc-footer">
             <div><strong>{{ company.company_name }}</strong> — Delivery note {{ note_number }}</div>
             <div style="margin-top:4px;">Generated {% now "d/m/Y H:i" %}</div>

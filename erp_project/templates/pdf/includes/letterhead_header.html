@@ -1,0 +1,18 @@
+<div class="pdf-letterhead-header" role="banner">
+    <div class="pdf-letterhead-header-inner">
+        <div class="pdf-letterhead-brand">
+            {% if logo_absolute_url %}
+            <img src="{{ logo_absolute_url }}" alt="{{ company.company_name }}" class="pdf-letterhead-logo">
+            {% endif %}
+            <div class="pdf-letterhead-names">
+                <div class="pdf-letterhead-company">{{ company.company_name }}</div>
+            </div>
+        </div>
+        {% if pdf_header_subtitle_ar %}
+        <div class="pdf-letterhead-ar" dir="rtl">{{ pdf_header_subtitle_ar }}</div>
+        {% endif %}
+    </div>
+    {% if pdf_header_subtitle %}
+    <div class="pdf-letterhead-subtitle-row">{{ pdf_header_subtitle }}</div>
+    {% endif %}
+</div>
