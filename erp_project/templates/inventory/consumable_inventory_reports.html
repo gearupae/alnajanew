@@ -47,6 +47,24 @@
         border-color: var(--black, #111);
     }
     .consumable-report-table { min-width: 64rem; }
+    #report-panel .consumable-report-table thead th,
+    #report-panel #report-low-stock-table thead th {
+        background-color: #1e3a5f !important;
+        color: #fff !important;
+        border-bottom-color: #0f172a !important;
+        text-transform: uppercase;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding: 6px 12px;
+        vertical-align: middle;
+    }
+    #report-panel .consumable-report-table tbody td .badge,
+    #report-panel #report-low-stock-table tbody td .badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
     .report-table-wrap .erp-ellipsis,
     .report-table-wrap tbody td.erp-ellipsis {
         max-width: 10rem;
@@ -245,7 +263,7 @@
                 <p id="report-low-stock-empty" class="text-muted small d-none mb-0">No items are below minimum level for this period.</p>
                 <div id="report-low-stock-table-wrap" class="report-table-wrap d-none">
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle mb-0 erp-no-list-table" id="report-low-stock-table" data-erp-dynamic-table="1">
+                        <table class="table table-sm table-hover align-middle mb-0 erp-no-list-table consumable-report-table" id="report-low-stock-table" data-erp-dynamic-table="1" data-erp-no-datatable="1">
                             <thead class="table-light"><tr id="report-low-thead"></tr></thead>
                             <tbody id="report-low-tbody"></tbody>
                         </table>
@@ -273,6 +291,8 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentTitle = 'Stock summary';
     let lastPayload = null;
     let generating = false;
+    let generateSeq = 0;
+    let activeFetchController = null;
     let chartMonthly, chartPie, chartBar;
 
     function apiBase(path) {
@@ -380,10 +400,47 @@ document.addEventListener('DOMContentLoaded', function () {
         chartMonthly = chartPie = chartBar = null;
     }
 
+    function inferStatusKey(label, explicitKey) {
+        if (explicitKey) return explicitKey;
+        var t = String(label || '').toLowerCase();
+        if (t === 'low' || t === 'expired') return 'danger';
+        if (t === 'excess' || t === 'expiring soon') return 'warning';
+        if (t === 'n/a' || t === '') return 'secondary';
+        return 'success';
+    }
+
+    function badgeClassFromKey(statusKey) {
+        if (statusKey === 'danger') return 'bg-danger';
+        if (statusKey === 'warning') return 'bg-warning text-dark';
+        if (statusKey === 'secondary') return 'bg-secondary';
+        if (statusKey === 'info') return 'bg-info text-dark';
+        if (statusKey === 'primary') return 'bg-primary';
+        return 'bg-success';
+    }
+
+    function inferMovementTypeKey(typeLabel) {
+        var t = String(typeLabel || '').toLowerCase();
+        if (t.indexOf('issued') >= 0 || t.indexOf('out') >= 0) return 'primary';
+        if (t.indexOf('transfer') >= 0) return 'info';
+        if (t.indexOf('adjust') >= 0 && t.indexOf('-') >= 0) return 'danger';
+        if (t.indexOf('adjust') >= 0) return 'success';
+        if (t.indexOf('received') >= 0 || t.indexOf('returned') >= 0) return 'success';
+        return 'secondary';
+    }
+
+    function appendLabelBadge(td, text, statusKey) {
+        var badge = document.createElement('span');
+        badge.className = 'badge ' + badgeClassFromKey(statusKey);
+        badge.textContent = (text === undefined || text === null) ? '' : String(text);
+        td.appendChild(badge);
+    }
+
     function fillReportTable(theadEl, tbodyEl, columns, rows) {
+        columns = columns || [];
+        rows = rows || [];
         theadEl.innerHTML = '';
         tbodyEl.innerHTML = '';
-        (columns || []).forEach(function (col) {
+        columns.forEach(function (col) {
             var th = document.createElement('th');
             th.className = 'text-nowrap';
             if (col.format === 'money' || col.format === 'number') {
@@ -395,19 +452,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             theadEl.appendChild(th);
         });
-        (rows || []).forEach(function (row) {
+        var frag = document.createDocumentFragment();
+        rows.forEach(function (row) {
             var tr = document.createElement('tr');
-            (columns || []).forEach(function (col) {
+            columns.forEach(function (col) {
                 var td = document.createElement('td');
                 var v = row[col.key];
-                if (col.key === 'status' && row.status_key) {
-                    var badge = document.createElement('span');
-                    badge.className = 'badge ' + (
-                        row.status_key === 'danger' ? 'bg-danger' :
-                        row.status_key === 'warning' ? 'bg-warning text-dark' :
-                        row.status_key === 'secondary' ? 'bg-secondary' : 'bg-success');
-                    badge.textContent = (v === undefined || v === null) ? '' : String(v);
-                    td.appendChild(badge);
+                if (col.key === 'status') {
+                    appendLabelBadge(td, v, inferStatusKey(v, row.status_key));
+                } else if (col.key === 'type' || col.badge) {
+                    var tKey = row.type_key || inferMovementTypeKey(v);
+                    appendLabelBadge(td, v, tKey);
                 } else {
                     var cellText = fmtCell(v, col);
                     if (col.format === 'money' || col.format === 'number') {
@@ -421,8 +476,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 tr.appendChild(td);
             });
-            tbodyEl.appendChild(tr);
+            frag.appendChild(tr);
         });
+        tbodyEl.appendChild(frag);
+    }
+
+    function finishGenerateUi() {
+        generating = false;
+        document.getElementById('generate-label').classList.remove('d-none');
+        document.getElementById('generate-spinner').classList.add('d-none');
+        document.getElementById('report-loading').classList.remove('show');
     }
 
     function renderTableFooter(payload) {
@@ -610,15 +673,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function generate() {
-        if (generating) return;
         if (!validateDates()) return;
-        generating = true;
         var df = document.getElementById('date-from').value;
         var dt = document.getElementById('date-to').value;
         if (!df || !dt) {
             if (window.toastr) toastr.warning('Please choose From and To dates.');
             return;
         }
+        if (activeFetchController) {
+            try { activeFetchController.abort(); } catch (abortErr) {}
+        }
+        var reportAtStart = currentReport;
+        var seq = ++generateSeq;
+        generating = true;
         document.getElementById('report-empty').classList.add('d-none');
         document.getElementById('report-table-wrap').classList.add('d-none');
         document.getElementById('report-tfoot').classList.add('d-none');
@@ -633,12 +700,15 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('generate-label').classList.add('d-none');
         document.getElementById('generate-spinner').classList.remove('d-none');
         setExportEnabled(false);
-        var qs = 'report=' + encodeURIComponent(currentReport) + '&date_from=' + encodeURIComponent(df) + '&date_to=' + encodeURIComponent(dt);
-        if (currentReport === 'warranty') qs += '&warranty_filter=' + encodeURIComponent(document.getElementById('warranty-filter').value);
-        if (currentReport === 'stock_movement') qs += '&movement_group=' + encodeURIComponent(document.getElementById('movement-group').value);
+        var qs = 'report=' + encodeURIComponent(reportAtStart) + '&date_from=' + encodeURIComponent(df) + '&date_to=' + encodeURIComponent(dt);
+        if (reportAtStart === 'warranty') qs += '&warranty_filter=' + encodeURIComponent(document.getElementById('warranty-filter').value);
+        if (reportAtStart === 'stock_movement') qs += '&movement_group=' + encodeURIComponent(document.getElementById('movement-group').value);
+        activeFetchController = typeof AbortController !== 'undefined' ? new AbortController() : null;
         try {
             var url = apiBase(API) + '?' + qs;
-            var res = await fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+            var fetchOpts = { credentials: 'same-origin', headers: { 'Accept': 'application/json' } };
+            if (activeFetchController) fetchOpts.signal = activeFetchController.signal;
+            var res = await fetch(url, fetchOpts);
             var raw = await res.text();
             var data;
             try {
@@ -646,14 +716,14 @@ document.addEventListener('DOMContentLoaded', function () {
             } catch (parseErr) {
                 throw new Error(res.status + ' ' + res.statusText + ' (response was not JSON)');
             }
+            if (seq !== generateSeq || reportAtStart !== currentReport) {
+                return;
+            }
             if (!res.ok) throw new Error((data && data.error) ? data.error : ('HTTP ' + res.status));
             if (!data.ok) throw new Error(data.error || 'Request failed');
             lastPayload = data;
-            document.getElementById('report-loading').classList.remove('show');
-            document.getElementById('generate-label').classList.remove('d-none');
-            document.getElementById('generate-spinner').classList.add('d-none');
             if (!data.rows || data.rows.length === 0) {
-                setEmptyMessage(currentReport);
+                setEmptyMessage(reportAtStart);
                 document.getElementById('report-intro').classList.add('d-none');
                 document.getElementById('report-empty').classList.remove('d-none');
                 document.getElementById('report-analytics-extras').classList.add('d-none');
@@ -661,7 +731,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 hideLowStockSection();
                 destroyCharts();
                 setExportEnabled(false);
-                generating = false;
+                finishGenerateUi();
                 return;
             }
             document.getElementById('report-intro').classList.add('d-none');
@@ -670,6 +740,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.title) heading = data.title;
             setResultHeading(heading + ' · ' + df + ' → ' + dt);
             setResultDescription(data.description || '');
+            if (lm) lm.textContent = 'Building table (' + data.rows.length + ' rows)…';
             renderTable(data);
             renderConsolidatedBar(data);
             renderLowStockSection(data);
@@ -680,15 +751,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (window.toastr) toastr.warning('Table loaded; charts could not be drawn.');
             }
             setExportEnabled(true);
+            finishGenerateUi();
         } catch (e) {
-            document.getElementById('report-loading').classList.remove('show');
+            if (e && e.name === 'AbortError') {
+                return;
+            }
+            if (seq !== generateSeq) {
+                return;
+            }
+            finishGenerateUi();
             document.getElementById('report-intro').classList.remove('d-none');
-            document.getElementById('generate-label').classList.remove('d-none');
-            document.getElementById('generate-spinner').classList.add('d-none');
             if (window.toastr) toastr.error(e.message || 'Error');
             else alert(e.message || 'Error');
         } finally {
-            generating = false;
+            if (seq === generateSeq) {
+                generating = false;
+                activeFetchController = null;
+            }
         }
     }
 

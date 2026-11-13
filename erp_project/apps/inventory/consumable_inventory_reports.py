@@ -490,7 +490,7 @@ def report_stock_movement(date_from: date, date_to: date, group_by: str) -> dict
             {'key': 'item_name', 'label': 'Item Name', 'hint': 'Product name'},
             {'key': 'location', 'label': 'Storage Location', 'hint': 'Item storage location'},
             {'key': 'barcode', 'label': 'Barcode', 'hint': 'Barcode or asset tag'},
-            {'key': 'type', 'label': 'Movement Type', 'hint': 'Received, Issued, Transfer, Adjustment, …'},
+            {'key': 'type', 'label': 'Movement Type', 'hint': 'Received, Issued, Transfer, Adjustment, …', 'badge': True},
             {'key': 'quantity', 'label': 'Qty', 'format': 'number', 'hint': 'Absolute quantity moved'},
             {'key': 'reference', 'label': 'Reference', 'hint': 'Linked document (GRN, issue, etc.)'},
             {'key': 'moved_by', 'label': 'Recorded By', 'hint': 'User who posted the movement'},
