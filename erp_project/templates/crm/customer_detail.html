@@ -72,6 +72,41 @@
 .crm-activity-item .crm-activity-user {
     word-break: break-word;
 }
+
+#customer-soa {
+    scroll-margin-top: calc(var(--navbar-height, 56px) + 1rem);
+}
+.customer-soa-card .customer-soa-metrics .metric-box {
+    border: 1px solid var(--gray-200, #e5e5e5);
+    border-radius: 0.375rem;
+    padding: 0.75rem 1rem;
+    height: 100%;
+    background: #fff;
+}
+.customer-soa-card .customer-soa-metrics .metric-box--highlight {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+.customer-soa-card .customer-soa-section-title {
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+}
+.customer-soa-card .table.customer-soa-table thead th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--gray-600, #525252);
+    font-weight: 600;
+    white-space: nowrap;
+}
+.customer-soa-card .table.customer-soa-table th.soa-num,
+.customer-soa-card .table.customer-soa-table td.soa-num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.customer-soa-card .table.customer-soa-table tfoot td {
+    border-top-width: 2px;
+}
 </style>
 {% endblock %}
 

@@ -280,7 +280,7 @@ function erpInitListTableRowClicks() {
     }
     root.dataset.erpRowClickBound = '1';
     root.addEventListener('click', function (e) {
-        const tr = e.target.closest('table.erp-list-table tbody tr.erp-clickable-row');
+        const tr = e.target.closest('main tbody tr.erp-clickable-row');
         if (!tr || !tr.dataset.href) {
             return;
         }
@@ -323,6 +323,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 5000);
     
     erpInitListTables();
+    document.querySelectorAll('main .customer-soa-table').forEach(function (table) {
+        erpPrepareClickableRows(table);
+    });
     erpInitListTableRowClicks();
 
     // Mobile sidebar toggle

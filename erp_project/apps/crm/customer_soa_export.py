@@ -40,12 +40,20 @@ def _write_table(ws, start_row: int, headers: list[str], rows: list[list], *, wi
         cell.font = header_font
         cell.border = border
         cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    amount_cols = {
+        col_idx
+        for col_idx, label in enumerate(headers, start=1)
+        if '(AED)' in str(label) or label.strip().upper().endswith('(AED)')
+    }
     for r_off, row in enumerate(rows, start=1):
         for col_idx, value in enumerate(row, start=1):
             cell = ws.cell(row=start_row + r_off, column=col_idx, value=value)
             cell.border = border
-            if isinstance(value, (int, float)) and col_idx > 1:
-                cell.alignment = Alignment(horizontal='right')
+            if isinstance(value, (int, float)) and col_idx in amount_cols:
+                cell.alignment = Alignment(horizontal='right', vertical='top')
+                cell.number_format = '#,##0.00'
+            elif isinstance(value, (int, float)):
+                cell.alignment = Alignment(horizontal='right', vertical='top')
             else:
                 cell.alignment = Alignment(vertical='top', wrap_text=True)
     last_row = start_row + len(rows)

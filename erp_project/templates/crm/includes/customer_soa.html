@@ -1,49 +1,52 @@
-<div class="card border-0 shadow-sm mt-4" id="customer-soa">
-    <div class="card-header bg-transparent py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <div class="mb-0">
-            <h6 class="mb-0 fw-semibold d-inline">
-                <i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Statement of account (SOA)
-            </h6>
-            <p class="small text-muted mb-0 mt-1">Outstanding invoices (unpaid / partially paid), projects, and estimates.</p>
-        </div>
-        <a href="{% url 'crm:customer_soa_export' customer.pk %}" class="btn btn-sm btn-outline-success">
+{% load humanize %}
+<div class="card border-0 shadow-sm mt-4 customer-soa-card" id="customer-soa" data-erp-no-list>
+    <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center gap-3">
+        <h6 class="mb-0 fw-semibold">
+            <i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Statement of account (SOA)
+        </h6>
+        <a href="{% url 'crm:customer_soa_export' customer.pk %}" class="btn btn-sm btn-outline-success flex-shrink-0">
             <i class="fas fa-file-excel me-1"></i>Export Excel
         </a>
     </div>
     <div class="card-body pt-0">
-        <div class="row g-2 mb-4">
-            <div class="col-6 col-md-3">
-                <div class="border rounded p-2 h-100 bg-light-subtle">
+        <p class="small text-muted mb-3 mb-md-4">Outstanding invoices (unpaid / partially paid), projects, and estimates.</p>
+
+        <div class="row g-2 g-md-3 mb-4 customer-soa-metrics">
+            <div class="col-6 col-lg-3">
+                <div class="metric-box metric-box--highlight">
                     <div class="text-muted small">Outstanding balance</div>
-                    <div class="fw-bold fs-5 text-danger">AED {{ soa_summary.outstanding|floatformat:2 }}</div>
+                    <div class="fw-bold fs-5 text-danger">AED {{ soa_summary.outstanding|floatformat:2|intcomma }}</div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="border rounded p-2 h-100">
+            <div class="col-6 col-lg-3">
+                <div class="metric-box">
                     <div class="text-muted small">Open invoices</div>
                     <div class="fw-bold fs-5">{{ soa_summary.open_invoice_count }}</div>
-                    <div class="small text-muted">AED {{ soa_summary.invoiced_open|floatformat:2 }} total · {{ soa_summary.paid_open|floatformat:2 }} paid</div>
+                    <div class="small text-muted">
+                        AED {{ soa_summary.invoiced_open|floatformat:2|intcomma }} total ·
+                        AED {{ soa_summary.paid_open|floatformat:2|intcomma }} paid
+                    </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="border rounded p-2 h-100">
+            <div class="col-6 col-lg-3">
+                <div class="metric-box">
                     <div class="text-muted small">Projects</div>
                     <div class="fw-bold fs-5">{{ soa_summary.project_count }}</div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="border rounded p-2 h-100">
+            <div class="col-6 col-lg-3">
+                <div class="metric-box">
                     <div class="text-muted small">Estimates</div>
                     <div class="fw-bold fs-5">{{ soa_summary.estimate_count }}</div>
-                    <div class="small text-muted">AED {{ soa_summary.estimate_total|floatformat:2 }} combined</div>
+                    <div class="small text-muted">AED {{ soa_summary.estimate_total|floatformat:2|intcomma }} combined</div>
                 </div>
             </div>
         </div>
 
-        <h6 class="fw-semibold small text-uppercase text-muted mb-2">Open invoices</h6>
+        <h6 class="fw-semibold small text-uppercase text-muted customer-soa-section-title">Open invoices</h6>
         {% if soa_open_invoices %}
         <div class="table-responsive mb-4">
-            <table class="table table-sm table-hover align-middle mb-0">
+            <table class="table table-sm align-middle mb-0 customer-soa-table erp-no-list-table">
                 <thead class="table-light">
                     <tr>
                         <th>Invoice #</th>
@@ -52,14 +55,14 @@
                         <th>Status</th>
                         <th>Project</th>
                         <th>Estimate</th>
-                        <th class="text-end">Total</th>
-                        <th class="text-end">Paid</th>
-                        <th class="text-end">Balance</th>
+                        <th class="soa-num">Total (AED)</th>
+                        <th class="soa-num">Paid (AED)</th>
+                        <th class="soa-num">Balance (AED)</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for invoice in soa_open_invoices %}
-                    <tr>
+                    <tr data-href="{% url 'sales:invoice_detail' invoice.pk %}">
                         <td class="text-nowrap">
                             <a href="{% url 'sales:invoice_detail' invoice.pk %}" class="fw-medium text-decoration-none">{{ invoice.invoice_number }}</a>
                         </td>
@@ -92,18 +95,18 @@
                             <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td class="text-end text-nowrap">{{ invoice.total_amount|floatformat:2 }}</td>
-                        <td class="text-end text-nowrap">{{ invoice.paid_amount|floatformat:2 }}</td>
-                        <td class="text-end fw-semibold text-nowrap">{{ invoice.balance|floatformat:2 }}</td>
+                        <td class="soa-num">{{ invoice.total_amount|floatformat:2|intcomma }}</td>
+                        <td class="soa-num">{{ invoice.paid_amount|floatformat:2|intcomma }}</td>
+                        <td class="soa-num fw-semibold{% if invoice.balance %} text-danger{% endif %}">{{ invoice.balance|floatformat:2|intcomma }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot class="table-group-divider">
+                <tfoot class="table-light">
                     <tr class="fw-semibold">
                         <td colspan="6" class="text-end">Total outstanding</td>
-                        <td class="text-end">{{ soa_summary.invoiced_open|floatformat:2 }}</td>
-                        <td class="text-end">{{ soa_summary.paid_open|floatformat:2 }}</td>
-                        <td class="text-end text-danger">{{ soa_summary.outstanding|floatformat:2 }}</td>
+                        <td class="soa-num">{{ soa_summary.invoiced_open|floatformat:2|intcomma }}</td>
+                        <td class="soa-num">{{ soa_summary.paid_open|floatformat:2|intcomma }}</td>
+                        <td class="soa-num text-danger">{{ soa_summary.outstanding|floatformat:2|intcomma }}</td>
                     </tr>
                 </tfoot>
             </table>
@@ -112,33 +115,33 @@
         <p class="text-muted small mb-4">No unpaid or partially paid invoices.</p>
         {% endif %}
 
-        <h6 class="fw-semibold small text-uppercase text-muted mb-2">Projects</h6>
+        <h6 class="fw-semibold small text-uppercase text-muted customer-soa-section-title">Projects</h6>
         {% if soa_projects %}
         <div class="table-responsive mb-4">
-            <table class="table table-sm table-hover align-middle mb-0">
+            <table class="table table-sm align-middle mb-0 customer-soa-table erp-no-list-table">
                 <thead class="table-light">
                     <tr>
                         <th>Code</th>
                         <th>Name</th>
                         <th>Status</th>
-                        <th class="text-end">Contract</th>
-                        <th class="text-end">Invoiced</th>
-                        <th class="text-end">Received</th>
-                        <th class="text-end">Balance</th>
+                        <th class="soa-num">Contract (AED)</th>
+                        <th class="soa-num">Invoiced (AED)</th>
+                        <th class="soa-num">Received (AED)</th>
+                        <th class="soa-num">Balance (AED)</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in soa_projects %}
-                    <tr>
+                    <tr data-href="{% url 'projects:project_detail' row.project.pk %}">
                         <td class="text-nowrap">
                             <a href="{% url 'projects:project_detail' row.project.pk %}" class="fw-medium text-decoration-none">{{ row.project.project_code }}</a>
                         </td>
                         <td>{{ row.project.name }}</td>
                         <td><span class="badge bg-secondary">{{ row.project.get_status_display }}</span></td>
-                        <td class="text-end text-nowrap">{% if row.contract_value %}AED {{ row.contract_value|floatformat:2 }}{% else %}—{% endif %}</td>
-                        <td class="text-end text-nowrap">AED {{ row.invoiced_amount|floatformat:2 }}</td>
-                        <td class="text-end text-nowrap">AED {{ row.received_amount|floatformat:2 }}</td>
-                        <td class="text-end fw-medium text-nowrap">AED {{ row.balance_amount|floatformat:2 }}</td>
+                        <td class="soa-num">{% if row.contract_value %}{{ row.contract_value|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                        <td class="soa-num">{{ row.invoiced_amount|floatformat:2|intcomma }}</td>
+                        <td class="soa-num">{{ row.received_amount|floatformat:2|intcomma }}</td>
+                        <td class="soa-num fw-medium">{{ row.balance_amount|floatformat:2|intcomma }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -148,22 +151,22 @@
         <p class="text-muted small mb-4">No projects linked to this customer.</p>
         {% endif %}
 
-        <h6 class="fw-semibold small text-uppercase text-muted mb-2">Estimates / quotations</h6>
+        <h6 class="fw-semibold small text-uppercase text-muted customer-soa-section-title">Estimates / quotations</h6>
         {% if soa_estimates %}
         <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle mb-0">
+            <table class="table table-sm align-middle mb-0 customer-soa-table erp-no-list-table">
                 <thead class="table-light">
                     <tr>
                         <th>Estimate #</th>
                         <th>Date</th>
                         <th>Status</th>
                         <th>Project</th>
-                        <th class="text-end">Total</th>
+                        <th class="soa-num">Total (AED)</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for estimate in soa_estimates %}
-                    <tr>
+                    <tr data-href="{% url 'sales:estimate_detail' estimate.pk %}">
                         <td class="text-nowrap">
                             <a href="{% url 'sales:estimate_detail' estimate.pk %}" class="fw-medium text-decoration-none">{{ estimate.display_estimate_number }}</a>
                         </td>
@@ -176,14 +179,14 @@
                             <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td class="text-end text-nowrap">{{ estimate.total_amount|floatformat:2 }}</td>
+                        <td class="soa-num">{{ estimate.total_amount|floatformat:2|intcomma }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot class="table-group-divider">
+                <tfoot class="table-light">
                     <tr class="fw-semibold">
                         <td colspan="4" class="text-end">Combined estimate value</td>
-                        <td class="text-end">AED {{ soa_summary.estimate_total|floatformat:2 }}</td>
+                        <td class="soa-num">{{ soa_summary.estimate_total|floatformat:2|intcomma }}</td>
                     </tr>
                 </tfoot>
             </table>
