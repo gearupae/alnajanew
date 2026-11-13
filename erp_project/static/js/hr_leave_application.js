@@ -106,6 +106,90 @@
     var exhaustedBox = document.getElementById('leave-exhausted-banner');
 
     var ctxData = null;
+    var suggestMenu = document.getElementById('leave-emp-suggest-menu');
+    var suggestTimer = null;
+    var employeeSearchUrl =
+      cfg.employeeSearchUrl || (root ? root.dataset.employeeSearchUrl : '') || '';
+    var MIN_EMP_LOOKUP_LEN = 2;
+
+    function normalizeEmployeeCodeInput() {
+      if (!inpCode) return '';
+      if (inpCode.dataset.resolvedCode) {
+        return String(inpCode.dataset.resolvedCode).trim();
+      }
+      var raw = (inpCode.value || '').trim();
+      var sep = raw.indexOf(' — ');
+      if (sep > 0) {
+        return raw.substring(0, sep).trim();
+      }
+      return raw;
+    }
+
+    function setResolvedEmployeeCode(code) {
+      if (!inpCode) return;
+      if (code) {
+        inpCode.dataset.resolvedCode = code;
+      } else {
+        delete inpCode.dataset.resolvedCode;
+      }
+    }
+
+    function hideEmployeeSuggestions() {
+      if (!suggestMenu) return;
+      suggestMenu.classList.add('d-none');
+      suggestMenu.innerHTML = '';
+      if (inpCode) inpCode.setAttribute('aria-expanded', 'false');
+    }
+
+    function showEmployeeSuggestions(items) {
+      if (!suggestMenu || !inpCode) return;
+      suggestMenu.innerHTML = '';
+      if (!items || !items.length) {
+        hideEmployeeSuggestions();
+        return;
+      }
+      items.forEach(function (row) {
+        var li = document.createElement('li');
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = row.text;
+        btn.addEventListener('click', function () {
+          inpCode.value = row.text;
+          setResolvedEmployeeCode(row.code);
+          hideEmployeeSuggestions();
+          fetchContext('code', row.code);
+        });
+        li.appendChild(btn);
+        suggestMenu.appendChild(li);
+      });
+      suggestMenu.classList.remove('d-none');
+      inpCode.setAttribute('aria-expanded', 'true');
+    }
+
+    function scheduleEmployeeSuggest() {
+      if (!isPublic || !inpCode || !employeeSearchUrl) return;
+      clearTimeout(suggestTimer);
+      var raw = (inpCode.value || '').trim();
+      if (raw.length < MIN_EMP_LOOKUP_LEN) {
+        hideEmployeeSuggestions();
+        return;
+      }
+      suggestTimer = setTimeout(function () {
+        fetch(
+          employeeSearchUrl + '?q=' + encodeURIComponent(raw),
+          { credentials: 'same-origin', headers: { Accept: 'application/json' } }
+        )
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            showEmployeeSuggestions(data.results || []);
+          })
+          .catch(function () {
+            hideEmployeeSuggestions();
+          });
+      }, 200);
+    }
 
     function showSpinner(on) {
       if (!spin) return;
@@ -382,10 +466,24 @@
       inpEnd.addEventListener('change', validateDatesAndBalance);
 
     if (isPublic && inpCode) {
+      inpCode.addEventListener('input', function () {
+        setResolvedEmployeeCode('');
+        scheduleEmployeeSuggest();
+      });
+      inpCode.addEventListener('focus', scheduleEmployeeSuggest);
+      inpCode.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape') hideEmployeeSuggestions();
+      });
       inpCode.addEventListener('blur', function () {
-        var c = (inpCode.value || '').trim();
-        if (c.length < 3) return;
+        window.setTimeout(hideEmployeeSuggestions, 180);
+        var c = normalizeEmployeeCodeInput();
+        if (c.length < MIN_EMP_LOOKUP_LEN) return;
         fetchContext('code', c);
+      });
+      document.addEventListener('click', function (ev) {
+        if (!suggestMenu || !inpCode) return;
+        if (ev.target === inpCode || suggestMenu.contains(ev.target)) return;
+        hideEmployeeSuggestions();
       });
     }
 
@@ -403,6 +501,13 @@
     function attachSubmitGuard(formEl) {
       if (!formEl) return;
       formEl.addEventListener('submit', function (ev) {
+        if (isPublic && inpCode) {
+          var code = normalizeEmployeeCodeInput();
+          if (code) {
+            inpCode.value = code;
+            setResolvedEmployeeCode(code);
+          }
+        }
         validateDatesAndBalance();
         if (overlapAlert && !overlapAlert.classList.contains('d-none')) {
           ev.preventDefault();

@@ -594,7 +594,14 @@ class PublicLeaveApplicationForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['employee_code'].widget.attrs.setdefault('class', 'form-control')
+        self.fields['employee_code'].widget.attrs.update({
+            'class': 'form-control',
+            'autocomplete': 'off',
+            'placeholder': 'Search by code or name…',
+            'aria-autocomplete': 'list',
+            'aria-controls': 'leave-emp-suggest-menu',
+            'aria-expanded': 'false',
+        })
         self.fields['medical_certificate'].widget.attrs.setdefault('class', 'form-control')
         self.fields['leave_type'].empty_label = '— Select leave type —'
         self.fields['leave_type'].queryset = LeaveType.objects.none()
@@ -610,12 +617,17 @@ class PublicLeaveApplicationForm(forms.Form):
         )
 
         cleaned_data = super().clean()
-        code = (cleaned_data.get('employee_code') or '').strip()
-        emp = Employee.objects.filter(employee_code__iexact=code, is_active=True).first()
-        if not code:
+        from apps.hr.public_attendance_resolve import resolve_employee_for_public_attendance
+
+        raw = (cleaned_data.get('employee_code') or '').strip()
+        if ' — ' in raw:
+            raw = raw.split(' — ', 1)[0].strip()
+        if not raw:
             raise forms.ValidationError({'employee_code': 'Employee code is required.'})
+        emp, err = resolve_employee_for_public_attendance(raw)
         if not emp:
-            raise forms.ValidationError({'employee_code': 'Employee not found.'})
+            raise forms.ValidationError({'employee_code': err or 'Employee not found.'})
+        cleaned_data['employee_code'] = emp.employee_code
 
         cleaned_data['employee'] = emp
         reliever = cleaned_data.get('reliever')

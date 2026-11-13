@@ -1,16 +1,50 @@
 {% extends 'hr/base_public.html' %}
 {% load static %}
 {% block title %}Apply for leave{% endblock %}
+{% block extra_head %}
+<style>
+.emp-lookup-wrap { position: relative; }
+.emp-suggest-menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 1080;
+    max-height: 14rem;
+    overflow-y: auto;
+    margin: 0.15rem 0 0;
+    padding: 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, .12);
+}
+.emp-suggest-menu li button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.95rem;
+}
+.emp-suggest-menu li button:hover,
+.emp-suggest-menu li button:focus {
+    background: rgba(13, 110, 253, 0.08);
+}
+</style>
+{% endblock %}
 {% block heading %}Apply for leave{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div id="leave-app-root"
              data-context-url="{% url 'hr:employee_leave_context' %}"
+             data-employee-search-url="{% url 'hr:attendance_public_employee_search' %}"
              data-is-admin="false"></div>
         <div class="card shadow-sm border-0">
             <div class="card-body p-4">
-                <p class="text-muted small mb-4">Enter your employee code and leave details. HR will be notified for approval.</p>
+                <p class="text-muted small mb-4">Search by <strong>employee code</strong> or <strong>name</strong>, then complete your leave details. HR will be notified for approval.</p>
                 <form method="post" enctype="multipart/form-data" id="public-leave-form">
                     {% csrf_token %}
                     {% if form.non_field_errors %}
@@ -21,9 +55,11 @@
                             <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label" for="{{ form.employee_code.id_for_label }}">Employee code</label>
+                    <div class="mb-3 emp-lookup-wrap">
+                        <label class="form-label" for="{{ form.employee_code.id_for_label }}">Employee code or name</label>
                         {{ form.employee_code }}
+                        <ul id="leave-emp-suggest-menu" class="emp-suggest-menu d-none" role="listbox" aria-label="Employee suggestions"></ul>
+                        <div class="form-text">Type at least 2 characters to search, then pick your name from the list.</div>
                         {% if form.employee_code.errors %}<div class="text-danger small mt-1">{{ form.employee_code.errors|join:", " }}</div>{% endif %}
                     </div>
                     <div class="mb-3">
@@ -77,13 +113,14 @@
 </div>
 {% endblock %}
 {% block extra_js %}
-<script src="{% static 'js/hr_leave_application.js' %}"></script>
+<script src="{% static 'js/hr_leave_application.js' %}?v=20260317d"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   var root = document.getElementById('leave-app-root');
   window.initHrLeaveApplication({
     rootEl: root,
     contextUrl: root ? root.dataset.contextUrl : '',
+    employeeSearchUrl: root ? root.dataset.employeeSearchUrl : '',
     isPublic: true,
     isAdmin: false,
   });
