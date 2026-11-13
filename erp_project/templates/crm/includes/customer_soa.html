@@ -6,8 +6,8 @@
             </h6>
             <p class="small text-muted mb-0 mt-1">Outstanding invoices (unpaid / partially paid), projects, and estimates.</p>
         </div>
-        <a href="{% url 'crm:customer_soa_print' customer.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-dark">
-            <i class="fas fa-print me-1"></i>Print / PDF
+        <a href="{% url 'crm:customer_soa_export' customer.pk %}" class="btn btn-sm btn-outline-success">
+            <i class="fas fa-file-excel me-1"></i>Export Excel
         </a>
     </div>
     <div class="card-body pt-0">

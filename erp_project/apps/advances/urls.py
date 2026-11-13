@@ -53,6 +53,11 @@ urlpatterns = [
         name='vendor_detail',
     ),
     path(
+        'vendors/<int:pk>/soa/',
+        views.vendor_soa_print,
+        name='vendor_soa_print',
+    ),
+    path(
         'vendor-advances/<int:pk>/',
         views.vendor_advance_detail,
         name='vendor_advance_detail',

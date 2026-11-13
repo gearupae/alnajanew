@@ -86,7 +86,7 @@
 <!-- Filters -->
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-2">
-        <form method="get" class="row g-2 align-items-center">
+        <form method="get" class="list-filters-toolbar row g-2 align-items-center">
             <div class="col-auto">
                 <input type="text" name="search" class="form-control form-control-sm" 
                        placeholder="Search..." value="{{ request.GET.search }}">
@@ -100,8 +100,8 @@
                 </select>
             </div>
             <div class="col-auto">
-                <button type="submit" class="btn btn-sm btn-dark">Filter</button>
-                <a href="{% url 'purchase:expenseclaim_list' %}" class="btn btn-sm btn-light">Clear</a>
+                <button type="submit" class="btn btn-primary btn-filter-icon btn-sm btn-dark" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
+                <a href="{% url 'purchase:expenseclaim_list' %}" class="btn btn-light btn-filter-icon" title="Clear filters" aria-label="Clear filters"><i class="fas fa-times" aria-hidden="true"></i></a>
             </div>
         </form>
     </div>

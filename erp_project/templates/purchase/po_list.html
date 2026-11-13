@@ -86,7 +86,7 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-3 align-items-end">
             <div class="col-md-4">
                 <input type="text" name="search" class="form-control" placeholder="Search PO#, Vendor..." value="{{ request.GET.search }}">
             </div>
@@ -99,8 +99,8 @@
                 </select>
             </div>
             <div class="col-md-5">
-                <button type="submit" class="btn btn-primary me-2"><i class="fas fa-filter me-1"></i>Filter</button>
-                <a href="{% url 'purchase:po_list' %}" class="btn btn-light">Clear</a>
+                <button type="submit" class="btn btn-primary btn-filter-icon me-2" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
+                <a href="{% url 'purchase:po_list' %}" class="btn btn-light btn-filter-icon" title="Clear filters" aria-label="Clear filters"><i class="fas fa-times" aria-hidden="true"></i></a>
             </div>
         </form>
     </div>

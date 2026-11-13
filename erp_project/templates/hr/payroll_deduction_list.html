@@ -36,9 +36,8 @@
 
 <div class="card mb-3">
     <div class="card-body py-3">
-        <form method="get" class="row g-2 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-2 align-items-end">
             <div class="col-md-4">
-                <label class="form-label small mb-0">Employee</label>
                 <select name="employee" class="form-select form-select-sm">
                     <option value="">All</option>
                     {% for e in employees %}
@@ -47,11 +46,9 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-0">Payroll month</label>
                 <input type="month" name="month" class="form-control form-control-sm" value="{{ filter_month }}"/>
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-0">Payroll status</label>
                 <select name="status" class="form-select form-select-sm">
                     <option value="">All</option>
                     <option value="draft" {% if filter_status == 'draft' %}selected{% endif %}>Draft</option>
@@ -60,7 +57,7 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <button type="submit" class="btn btn-sm btn-outline-primary w-100">Filter</button>
+                <button type="submit" class="btn btn-primary btn-filter-icon btn-sm btn-outline-primary w-100" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
             </div>
         </form>
     </div>

@@ -26,9 +26,8 @@
     <!-- Filters -->
     <div class="card mb-4">
         <div class="card-body">
-            <form method="get" class="row g-3">
+            <form method="get" class="list-filters-toolbar row g-3">
                 <div class="col-md-4">
-                    <label class="form-label">Bank Account</label>
                     <select name="bank" class="form-select">
                         <option value="">All Banks</option>
                         {% for bank in bank_accounts %}
@@ -39,7 +38,6 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Status</label>
                     <select name="status" class="form-select">
                         <option value="">All Status</option>
                         {% for value, label in status_choices %}
@@ -49,12 +47,12 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-outline-dark me-2">
-                        <i class="fas fa-filter me-1"></i>Filter
+                <div class="col-md-3 filter-actions d-flex gap-1">
+                    <button type="submit" class="btn btn-primary btn-filter-icon" title="Apply filters" aria-label="Apply filters">
+                        <i class="fas fa-filter" aria-hidden="true"></i>
                     </button>
-                    <a href="{% url 'finance:bankreconciliation_list' %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-times me-1"></i>Clear
+                    <a href="{% url 'finance:bankreconciliation_list' %}" class="btn btn-light btn-filter-icon" title="Clear filters" aria-label="Clear filters">
+                        <i class="fas fa-times" aria-hidden="true"></i>
                     </a>
                 </div>
             </form>

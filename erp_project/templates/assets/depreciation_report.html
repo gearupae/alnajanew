@@ -20,17 +20,14 @@
 <!-- Date Filter -->
 <div class="card mb-4">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-3 align-items-end">
             <div class="col-md-3">
-                <label class="form-label small">From Date</label>
                 <input type="date" name="from_date" class="form-control form-control-sm" value="{{ from_date|date:'Y-m-d' }}">
             </div>
             <div class="col-md-3">
-                <label class="form-label small">To Date</label>
                 <input type="date" name="to_date" class="form-control form-control-sm" value="{{ to_date|date:'Y-m-d' }}">
             </div>
             <div class="col-md-3">
-                <label class="form-label small">Category</label>
                 <select name="category" class="form-select form-select-sm">
                     <option value="">All Categories</option>
                     {% for cat in categories %}
@@ -39,7 +36,7 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                <button type="submit" class="btn btn-primary btn-filter-icon btn-sm btn-primary" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
             </div>
         </form>
     </div>

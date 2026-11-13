@@ -1058,7 +1058,11 @@ class CustomerDetailView(PermissionRequiredMixin, DetailView):
 
 
 @login_required
-def customer_soa_print(request, pk):
+def customer_soa_export(request, pk):
+    from django.http import HttpResponse
+
+    from .customer_soa_export import export_customer_soa_xlsx
+
     if not (
         request.user.is_superuser
         or PermissionChecker.has_permission(request.user, 'crm', 'view')
@@ -1069,14 +1073,16 @@ def customer_soa_print(request, pk):
         filter_customers_for_user(Customer.objects.all(), request.user),
         pk=pk,
     )
-    from django.utils import timezone
-
-    context = {
-        'customer': customer,
-        'generated_at': timezone.localtime(),
-        **build_customer_soa(customer, request.user),
-    }
-    return render(request, 'crm/customer_soa_print.html', context)
+    soa_data = build_customer_soa(customer, request.user)
+    generated_by = request.user.get_full_name() or request.user.username
+    payload = export_customer_soa_xlsx(customer, soa_data, generated_by=generated_by)
+    safe_ref = (customer.customer_number or f'customer_{pk}').replace('/', '-')
+    response = HttpResponse(
+        payload,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="SOA_{safe_ref}.xlsx"'
+    return response
 
 
 class CustomerUpdateView(UpdatePermissionMixin, UpdateView):

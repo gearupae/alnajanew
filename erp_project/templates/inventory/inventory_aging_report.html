@@ -213,17 +213,15 @@
 <!-- ================================================================== -->
 <div class="card border-0 shadow-sm mb-3 no-print">
     <div class="card-body py-3">
-        <form method="get" class="row g-2 align-items-end filter-bar" id="filterForm">
+        <form method="get" class="list-filters-toolbar row g-2 align-items-end filter-bar" id="filterForm">
             <!-- Search -->
             <div class="col-12 col-md-3">
-                <label class="form-label small mb-1">Search</label>
                 <input type="text" name="q" class="form-control form-control-sm"
-                       placeholder="Item name or code…" value="{{ filter_search }}">
+                       placeholder="Item name or code…" value="{{ filter_search }}" title="Search">
             </div>
             <!-- Category -->
             <div class="col-6 col-md-2">
-                <label class="form-label small mb-1">Category</label>
-                <select name="category" class="form-select form-select-sm">
+                <select name="category" class="form-select form-select-sm" title="Category">
                     <option value="">All Categories</option>
                     {% for cat in categories %}
                     <option value="{{ cat.pk }}" {% if filter_category == cat.pk %}selected{% endif %}>
@@ -234,8 +232,7 @@
             </div>
             <!-- Warehouse -->
             <div class="col-6 col-md-2">
-                <label class="form-label small mb-1">Warehouse</label>
-                <select name="warehouse" class="form-select form-select-sm">
+                <select name="warehouse" class="form-select form-select-sm" title="Warehouse">
                     <option value="">All Warehouses</option>
                     {% for wh in warehouses %}
                     <option value="{{ wh.pk }}" {% if filter_warehouse == wh.pk %}selected{% endif %}>
@@ -246,8 +243,7 @@
             </div>
             <!-- Aging Bucket -->
             <div class="col-6 col-md-2">
-                <label class="form-label small mb-1">Aging Bucket</label>
-                <select name="bucket" class="form-select form-select-sm">
+                <select name="bucket" class="form-select form-select-sm" title="Aging bucket">
                     <option value="">All Buckets</option>
                     <option value="0-30"   {% if filter_bucket == '0-30'   %}selected{% endif %}>0–30 Days (Fresh)</option>
                     <option value="31-60"  {% if filter_bucket == '31-60'  %}selected{% endif %}>31–60 Days (Monitor)</option>
@@ -258,14 +254,12 @@
             </div>
             <!-- Date As Of -->
             <div class="col-6 col-md-2">
-                <label class="form-label small mb-1">As of Date</label>
                 <input type="date" name="date_as_of" class="form-control form-control-sm"
-                       value="{{ filter_date_as_of }}">
+                       value="{{ filter_date_as_of }}" title="As of date">
             </div>
             <!-- Sort -->
             <div class="col-6 col-md-2">
-                <label class="form-label small mb-1">Sort by</label>
-                <select name="sort" class="form-select form-select-sm">
+                <select name="sort" class="form-select form-select-sm" title="Sort by">
                     <option value="age_desc"   {% if filter_sort == 'age_desc'   %}selected{% endif %}>Age ↓ (oldest first)</option>
                     <option value="age_asc"    {% if filter_sort == 'age_asc'    %}selected{% endif %}>Age ↑ (newest first)</option>
                     <option value="name"       {% if filter_sort == 'name'       %}selected{% endif %}>Name A–Z</option>
@@ -283,12 +277,12 @@
                 </div>
             </div>
             <!-- Buttons -->
-            <div class="col-12 col-md-auto d-flex gap-2">
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="fas fa-filter me-1"></i>Apply
+            <div class="col-12 col-md-auto filter-actions d-flex gap-1">
+                <button type="submit" class="btn btn-primary btn-filter-icon" title="Apply filters" aria-label="Apply filters">
+                    <i class="fas fa-filter" aria-hidden="true"></i>
                 </button>
-                <a href="{% url 'inventory:inventory_aging_report' %}" class="btn btn-sm btn-outline-secondary">
-                    Clear
+                <a href="{% url 'inventory:inventory_aging_report' %}" class="btn btn-light btn-filter-icon" title="Clear filters" aria-label="Clear filters">
+                    <i class="fas fa-times" aria-hidden="true"></i>
                 </a>
             </div>
         </form>

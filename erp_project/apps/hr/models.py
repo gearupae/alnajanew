@@ -517,6 +517,7 @@ from apps.hr.models_extended import (  # noqa: E402
     EmployeeAdvance,
     Holiday,
     EmployeeBankDetail,
+    EmployeeHolding,
     EmployeeHRProfile,
     GOSIRecord,
     GratuityRecord,

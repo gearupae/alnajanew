@@ -136,16 +136,14 @@
 
 <div class="card mb-4">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-3 align-items-end">
             {% if view_mode == 'kanban' %}
             <input type="hidden" name="view" value="kanban">
             {% endif %}
             <div class="col-md-3">
-                <label class="form-label small text-muted mb-0">Search</label>
                 <input type="text" name="search" class="form-control form-control-sm" placeholder="Task, project, or customer…" value="{{ request.GET.search }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label small text-muted mb-0">Status</label>
                 <select name="status" class="form-select form-select-sm">
                     <option value="">All</option>
                     {% for value, label in status_choices %}
@@ -154,7 +152,6 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small text-muted mb-0">Project</label>
                 <select name="project" class="form-select form-select-sm">
                     <option value="">All</option>
                     {% for p in project_filter_list %}
@@ -163,7 +160,6 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label small text-muted mb-0">Assigned to</label>
                 <select name="assigned_to" class="form-select form-select-sm">
                     <option value="">Anyone</option>
                     {% for u in assignable_users %}
@@ -172,8 +168,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <button type="submit" class="btn btn-primary btn-sm">Filter</button>
-                <a href="{% url 'projects:task_list' %}{% if view_mode == 'kanban' %}?view=kanban{% endif %}" class="btn btn-light btn-sm">Clear</a>
+                <button type="submit" class="btn btn-primary btn-filter-icon btn-primary btn-sm" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
+                <a href="{% url 'projects:task_list' %}{% if view_mode == 'kanban' %}?view=kanban{% endif %}" class="btn btn-light btn-filter-icon btn-sm" title="Clear filters" aria-label="Clear filters"><i class="fas fa-times" aria-hidden="true"></i></a>
             </div>
         </form>
     </div>

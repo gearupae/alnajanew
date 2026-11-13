@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Vendor SOA — {{ vendor.vendor_number }}</title>
+    <style>
+        body { font-family: system-ui, sans-serif; font-size: 12px; color: #111; margin: 1.5rem; }
+        h1 { font-size: 1.25rem; margin: 0 0 0.25rem; }
+        .meta { color: #555; margin-bottom: 1rem; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1.25rem; }
+        th, td { border: 1px solid #ddd; padding: 0.35rem 0.5rem; text-align: left; vertical-align: top; }
+        th { background: #f5f5f5; font-weight: 600; }
+        .text-end { text-align: right; }
+        .summary { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+        .summary div { border: 1px solid #ddd; padding: 0.5rem 0.75rem; min-width: 140px; }
+        .summary .label { color: #666; font-size: 10px; text-transform: uppercase; }
+        .summary .value { font-size: 1.1rem; font-weight: 700; }
+        h2 { font-size: 0.85rem; text-transform: uppercase; color: #444; margin: 1rem 0 0.5rem; }
+        @media print {
+            body { margin: 0.75rem; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="margin-bottom:1rem;">
+        <a href="?format=pdf" style="padding:0.4rem 0.8rem;text-decoration:none;background:#0d6efd;color:#fff;border-radius:4px;">Download PDF</a>
+        <button type="button" onclick="window.print()" style="padding:0.4rem 0.8rem;cursor:pointer;margin-left:0.5rem;">Print</button>
+        <a href="{% url 'advances:vendor_detail' vendor.pk %}" style="margin-left:0.5rem;">Back to vendor</a>
+    </div>
+
+    {% if company %}
+    <div class="meta" style="margin-bottom:0.75rem;">
+        <strong>{{ company.company_name }}</strong>
+        {% if company.tax_id %} · TRN {{ company.tax_id }}{% endif %}
+    </div>
+    {% endif %}
+
+    <h1>Vendor statement of account</h1>
+    <div class="meta">
+        <strong>{{ vendor.name }}</strong>
+        <br>{{ vendor.vendor_number }}{% if vendor.trn %} · TRN {{ vendor.trn }}{% endif %}
+        {% if vendor.contact_person %}<br>Contact: {{ vendor.contact_person }}{% endif %}
+        {% if vendor.phone %} · Tel {{ vendor.phone }}{% endif %}
+        <br>Generated {{ generated_at|date:"d/m/Y H:i" }}
+    </div>
+
+    <div class="summary">
+        <div>
+            <div class="label">Pending payment</div>
+            <div class="value">AED {{ soa_summary.outstanding|floatformat:2 }}</div>
+        </div>
+        <div>
+            <div class="label">Open bills</div>
+            <div class="value">{{ soa_summary.open_bill_count }}</div>
+        </div>
+        <div>
+            <div class="label">Advance on account</div>
+            <div class="value">AED {{ soa_summary.advance_balance|floatformat:2 }}</div>
+        </div>
+        <div>
+            <div class="label">Net payable</div>
+            <div class="value">AED {{ soa_summary.net_payable|floatformat:2 }}</div>
+        </div>
+    </div>
+
+    <h2>Pending vendor bills</h2>
+    {% if soa_open_bills %}
+    <table>
+        <thead>
+            <tr>
+                <th>Bill #</th>
+                <th>Vendor inv.</th>
+                <th>Date</th>
+                <th>Due</th>
+                <th>Status</th>
+                <th>Project</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">Paid</th>
+                <th class="text-end">Balance due</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bill in soa_open_bills %}
+            <tr>
+                <td>{{ bill.bill_number }}</td>
+                <td>{{ bill.vendor_invoice_number|default:"—" }}</td>
+                <td>{{ bill.bill_date|date:"d/m/Y" }}</td>
+                <td>{{ bill.due_date|date:"d/m/Y" }}</td>
+                <td>{{ bill.get_status_display }}</td>
+                <td>{% if bill.project %}{{ bill.project.project_code }}{% else %}—{% endif %}</td>
+                <td class="text-end">{{ bill.total_amount|floatformat:2 }}</td>
+                <td class="text-end">{{ bill.paid_amount|floatformat:2 }}</td>
+                <td class="text-end">{{ bill.balance|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="6" class="text-end">Total</th>
+                <th class="text-end">{{ soa_summary.billed_open|floatformat:2 }}</th>
+                <th class="text-end">{{ soa_summary.paid_open|floatformat:2 }}</th>
+                <th class="text-end">{{ soa_summary.outstanding|floatformat:2 }}</th>
+            </tr>
+        </tfoot>
+    </table>
+    {% else %}
+    <p>No pending bill payments for this vendor.</p>
+    {% endif %}
+
+    {% if soa_advance_rows %}
+    <h2>Vendor advances (unapplied)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Advance #</th>
+                <th>Date</th>
+                <th>Reference</th>
+                <th class="text-end">Amount</th>
+                <th class="text-end">Unapplied</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for adv in soa_advance_rows %}
+            <tr>
+                <td>{{ adv.advance_number }}</td>
+                <td>{{ adv.date|date:"d/m/Y" }}</td>
+                <td>{{ adv.reference|default:"—" }}</td>
+                <td class="text-end">{{ adv.amount|floatformat:2 }}</td>
+                <td class="text-end">{{ adv.balance|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="4" class="text-end">Total unapplied advance</th>
+                <th class="text-end">{{ soa_summary.advance_balance|floatformat:2 }}</th>
+            </tr>
+        </tfoot>
+    </table>
+    {% endif %}
+
+    <p style="margin-top:1.5rem;font-size:10px;color:#666;">
+        Pending payment shows posted vendor bills with an outstanding balance. Net payable deducts unapplied vendor advances from the total balance due.
+    </p>
+</body>
+</html>

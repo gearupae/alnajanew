@@ -74,6 +74,11 @@ urlpatterns = [
     path('invoices/<int:pk>/status/<str:status>/', views.invoice_update_status, name='invoice_status'),
     path('invoices/<int:pk>/pdf/', views.invoice_pdf, name='invoice_pdf'),
     path('invoices/<int:pk>/receive-payment/', views.invoice_receive_payment, name='invoice_receive_payment'),
+    path(
+        'invoices/<int:invoice_pk>/payments/<int:payment_pk>/receipt/',
+        views.invoice_payment_receipt_pdf,
+        name='invoice_payment_receipt_pdf',
+    ),
 
     # Tax Credit Notes
     path('credit-notes/', credit_note_views.CreditNoteListView.as_view(), name='credit_note_list'),

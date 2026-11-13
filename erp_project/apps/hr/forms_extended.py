@@ -12,6 +12,7 @@ from apps.hr.models_extended import (
     AttendanceRecord,
     AttendanceSettings,
     EmployeeAdvance,
+    EmployeeHolding,
     Holiday,
     EmployeeHRProfile,
     KSACompliance,
@@ -164,6 +165,55 @@ class PayrollManualDeductionForm(forms.Form):
         if hasattr(month_value, 'day') and month_value.day != 1:
             return datetime(month_value.year, month_value.month, 1).date()
         return month_value
+
+
+class EmployeeHoldingForm(forms.ModelForm):
+    class Meta:
+        model = EmployeeHolding
+        fields = [
+            'category',
+            'inventory_item',
+            'item_name',
+            'asset_tag',
+            'serial_number',
+            'quantity',
+            'allocated_date',
+            'notes',
+        ]
+        widgets = {
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'inventory_item': forms.Select(attrs={'class': 'form-select holding-inventory-item'}),
+            'item_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Cordless drill, laptop bag'}),
+            'asset_tag': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Company asset tag'}),
+            'serial_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01'}),
+            'allocated_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.inventory.models import Item
+
+        self.fields['inventory_item'].queryset = (
+            Item.usable().order_by('item_code', 'name')
+        )
+        self.fields['inventory_item'].required = False
+        self.fields['inventory_item'].empty_label = '— Custom / non-stock item —'
+        self.fields['inventory_item'].label_from_instance = lambda obj: f'{obj.item_code} — {obj.name}'
+        self.fields['item_name'].required = False
+        _df = ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']
+        self.fields['allocated_date'].input_formats = _df
+
+    def clean(self):
+        cleaned = super().clean()
+        inv = cleaned.get('inventory_item')
+        name = (cleaned.get('item_name') or '').strip()
+        if not inv and not name:
+            raise ValidationError('Enter an item name or choose an inventory item.')
+        if inv and not name:
+            cleaned['item_name'] = inv.name
+        return cleaned
 
 
 class EmployeeAdvanceForm(forms.ModelForm):

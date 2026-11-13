@@ -89,9 +89,8 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-3 align-items-end">
             <div class="col-md-3">
-                <label class="form-label small">Status</label>
                 <select name="status" class="form-select form-select-sm">
                     <option value="">All Status</option>
                     <option value="draft" {% if request.GET.status == 'draft' %}selected{% endif %}>Draft</option>
@@ -101,7 +100,6 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label small">Category</label>
                 <select name="category" class="form-select form-select-sm">
                     <option value="">All Categories</option>
                     {% for cat in categories %}
@@ -110,8 +108,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-                <a href="{% url 'assets:asset_list' %}" class="btn btn-sm btn-outline-secondary">Clear</a>
+                <button type="submit" class="btn btn-primary btn-filter-icon btn-sm btn-primary" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
+                <a href="{% url 'assets:asset_list' %}" class="btn btn-light btn-filter-icon" title="Clear filters" aria-label="Clear filters"><i class="fas fa-times" aria-hidden="true"></i></a>
             </div>
         </form>
     </div>

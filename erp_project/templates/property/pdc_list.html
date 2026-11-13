@@ -106,7 +106,6 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Customer <span class="text-danger">*</span></label>
                 <select name="customer" class="form-select" required>
                     <option value="">Select Customer...</option>
                     {% for customer in customers %}
@@ -115,7 +114,6 @@
                 </select>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Project</label>
                 <select name="project" class="form-select">
                     <option value="">— None —</option>
                     {% for project in projects %}
@@ -124,27 +122,21 @@
                 </select>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Cheque Number <span class="text-danger">*</span></label>
                 <input type="text" name="cheque_number" class="form-control" required>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Bank Name <span class="text-danger">*</span></label>
                 <input type="text" name="bank_name" class="form-control" required>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Cheque Date <span class="text-danger">*</span></label>
                 <input type="date" name="cheque_date" class="form-control" required>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Amount <span class="text-danger">*</span></label>
                 <input type="number" name="amount" class="form-control" step="0.01" required>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Drawer Name</label>
                 <input type="text" name="drawer_name" class="form-control">
             </div>
             <div class="col-md-3">
-                <label class="form-label">Purpose</label>
                 <select name="purpose" class="form-select">
                     <option value="invoice_payment">Invoice Payment</option>
                     <option value="advance">Customer Advance</option>
@@ -164,7 +156,7 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-3 align-items-end">
             <div class="col-md-3">
                 <input type="text" name="search" class="form-control" placeholder="Search PDC, cheque, customer..." value="{{ request.GET.search }}">
             </div>

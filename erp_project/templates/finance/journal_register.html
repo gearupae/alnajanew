@@ -133,19 +133,16 @@
         </button>
     </div>
     <div class="card-body py-3">
-        <form method="get" id="filterForm">
+        <form method="get" class="list-filters-toolbar" id="filterForm">
             <!-- Basic Filters Row -->
-            <div class="row g-3 align-items-end">
+            <div class="list-filters-toolbar row g-3 align-items-end">
                 <div class="col-md-2">
-                    <label class="form-label small text-muted">Start Date</label>
                     <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label small text-muted">End Date</label>
                     <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label small text-muted">Status</label>
                     <select name="status" class="form-select form-select-sm">
                         <option value="">All Status</option>
                         {% for value, label in status_choices %}
@@ -154,7 +151,6 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label small text-muted">Source Module</label>
                     <select name="source_module" class="form-select form-select-sm">
                         <option value="">All Sources</option>
                         {% for value, label in source_module_choices %}
@@ -163,23 +159,19 @@
                     </select>
             </div>
                 <div class="col-md-2">
-                    <label class="form-label small text-muted">Search</label>
                     <input type="text" name="search" class="form-control form-control-sm" placeholder="Entry #, Reference..." value="{{ request.GET.search }}">
             </div>
                 <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary btn-sm me-1">
-                    <i class="fas fa-filter me-1"></i>Filter
-                </button>
-                    <a href="{% url 'finance:journal_register' %}" class="btn btn-light btn-sm">Clear</a>
+                    <button type="submit" class="btn btn-primary btn-filter-icon btn-sm me-1" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
+                    <a href="{% url 'finance:journal_register' %}" class="btn btn-light btn-filter-icon btn-sm" title="Clear filters" aria-label="Clear filters"><i class="fas fa-times" aria-hidden="true"></i></a>
                 </div>
             </div>
             
             <!-- Advanced Filters (Collapsible) -->
             <div class="collapse mt-3" id="advancedFilters">
                 <hr>
-                <div class="row g-3 align-items-end">
+                <div class="list-filters-toolbar row g-3 align-items-end">
                     <div class="col-md-2">
-                        <label class="form-label small text-muted">Fiscal Year</label>
                         <select name="fiscal_year" class="form-select form-select-sm">
                             <option value="">All Years</option>
                             {% for fy in fiscal_years %}
@@ -188,7 +180,6 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small text-muted">Period</label>
                         <select name="period" class="form-select form-select-sm">
                             <option value="">All Periods</option>
                             {% for period in periods %}
@@ -197,7 +188,6 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small text-muted">Account</label>
                         <select name="account" class="form-select form-select-sm">
                             <option value="">All Accounts</option>
                             {% for acc in accounts %}
@@ -206,7 +196,6 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small text-muted">Created By</label>
                         <select name="created_by" class="form-select form-select-sm">
                             <option value="">All Users</option>
                             {% for user in users %}
@@ -215,17 +204,14 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small text-muted">Min Amount</label>
                         <input type="number" name="min_amount" class="form-control form-control-sm" placeholder="0.00" step="0.01" value="{{ request.GET.min_amount }}">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small text-muted">Max Amount</label>
                         <input type="number" name="max_amount" class="form-control form-control-sm" placeholder="0.00" step="0.01" value="{{ request.GET.max_amount }}">
                     </div>
                 </div>
-                <div class="row g-3 mt-2">
+                <div class="list-filters-toolbar row g-3 mt-2">
                     <div class="col-md-2">
-                        <label class="form-label small text-muted">Entry Type</label>
                         <select name="entry_type" class="form-select form-select-sm">
                             <option value="">All Types</option>
                             {% for value, label in entry_type_choices %}
@@ -234,7 +220,6 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small text-muted">Sort By</label>
                         <select name="sort" class="form-select form-select-sm">
                             <option value="-date" {% if request.GET.sort == "-date" or not request.GET.sort %}selected{% endif %}>Date (Newest)</option>
                             <option value="date" {% if request.GET.sort == "date" %}selected{% endif %}>Date (Oldest)</option>
@@ -397,7 +382,7 @@
             <div class="col-auto"><span class="badge bg-dark rounded-pill">Adjustment</span></div>
             <div class="col-auto"><span class="badge bg-light text-dark rounded-pill">Manual Journal</span></div>
         </div>
-        <div class="row g-2 mt-2">
+        <div class="list-filters-toolbar row g-2 mt-2">
             <div class="col-auto"><i class="fas fa-lock text-muted me-1"></i><span class="small text-muted">Period Locked</span></div>
             <div class="col-auto"><i class="fas fa-undo text-warning me-1"></i><span class="small text-muted">Reversal Entry</span></div>
             <div class="col-auto"><span class="badge bg-danger small">!</span><span class="small text-muted ms-1">Unbalanced Entry</span></div>

@@ -6,10 +6,9 @@
 </div>
 
 <form method="get" class="card mb-4 border-0 shadow-sm">
-    <div class="card-body row g-3 align-items-end">
+    <div class="card-body list-filters-toolbar row g-3 align-items-end">
         <div class="col-md-3">
-            <label class="form-label small mb-1">Location</label>
-            <select name="location" class="form-select form-select-sm">
+            <select name="location" class="form-select form-select-sm" title="Location">
                 <option value="">All</option>
                 <option value="uae" {% if filter_location == 'uae' %}selected{% endif %}>UAE</option>
                 <option value="ksa" {% if filter_location == 'ksa' %}selected{% endif %}>KSA</option>
@@ -17,8 +16,7 @@
             </select>
         </div>
         <div class="col-md-3">
-            <label class="form-label small mb-1">Company</label>
-            <select name="company" class="form-select form-select-sm">
+            <select name="company" class="form-select form-select-sm" title="Company">
                 <option value="">All</option>
                 {% for c in companies %}
                 <option value="{{ c.pk }}" {% if filter_company == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
@@ -26,16 +24,15 @@
             </select>
         </div>
         <div class="col-md-3">
-            <label class="form-label small mb-1">Expiry status</label>
-            <select name="expiry" class="form-select form-select-sm">
+            <select name="expiry" class="form-select form-select-sm" title="Expiry status">
                 <option value="all" {% if filter_expiry == 'all' %}selected{% endif %}>All</option>
                 <option value="amber" {% if filter_expiry == 'amber' %}selected{% endif %}>Amber only</option>
                 <option value="red" {% if filter_expiry == 'red' %}selected{% endif %}>Red only</option>
             </select>
         </div>
-        <div class="col-md-3">
-            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-            <a href="{% url 'hr:compliance_dashboard' %}" class="btn btn-light btn-sm">Clear</a>
+        <div class="col-md-3 filter-actions d-flex gap-1">
+            <button type="submit" class="btn btn-primary btn-filter-icon" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
+            <a href="{% url 'hr:compliance_dashboard' %}" class="btn btn-light btn-filter-icon" title="Clear filters" aria-label="Clear filters"><i class="fas fa-times" aria-hidden="true"></i></a>
         </div>
     </div>
 </form>

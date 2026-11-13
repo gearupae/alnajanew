@@ -114,12 +114,37 @@ body {
 .card-header {
     background: var(--white);
     border-bottom: 1px solid var(--gray-200);
-    padding: 1rem 1.25rem;
+    padding: 0.625rem 1rem;
     font-weight: 600;
 }
 
 .card-body {
-    padding: 1.25rem;
+    padding: 1rem 1.125rem;
+}
+
+/* Summary / KPI metric tiles (cards in stat rows) */
+.main-content .row.g-2 > [class*="col-"] > .card > .card-body,
+.main-content .row.g-3 > [class*="col-"] > .card > .card-body,
+.main-content .row.g-4 > [class*="col-"] > .card > .card-body {
+    padding: 0.625rem 0.875rem;
+}
+
+.main-content .row.g-2 > [class*="col-"] > .card > .card-body > .d-flex > .rounded.p-3,
+.main-content .row.g-3 > [class*="col-"] > .card > .card-body > .d-flex > .rounded.p-3,
+.main-content .row.g-4 > [class*="col-"] > .card > .card-body > .d-flex > .rounded.p-3,
+.main-content .row.g-2 > [class*="col-"] > .card > .card-body > .d-flex > .rounded.p-2,
+.main-content .row.g-3 > [class*="col-"] > .card > .card-body > .d-flex > .rounded.p-2,
+.main-content .row.g-4 > [class*="col-"] > .card > .card-body > .d-flex > .rounded.p-2 {
+    padding: 0.5rem !important;
+}
+
+.main-content .row.g-2 > [class*="col-"] > .card > .card-body .h5,
+.main-content .row.g-3 > [class*="col-"] > .card > .card-body .h5,
+.main-content .row.g-4 > [class*="col-"] > .card > .card-body .h5,
+.main-content .row.g-2 > [class*="col-"] > .card > .card-body h5,
+.main-content .row.g-3 > [class*="col-"] > .card > .card-body h5,
+.main-content .row.g-4 > [class*="col-"] > .card > .card-body h5 {
+    font-size: 1.05rem;
 }
 
 /* Tables */
@@ -146,7 +171,7 @@ body {
 }
 
 .table tbody td {
-    padding: 12px 15px;
+    padding: 10px 16px;
     vertical-align: middle;
     border-bottom: 1px solid var(--gray-100);
 }
@@ -372,10 +397,19 @@ body {
 .page-header {
     background: var(--white);
     border-radius: 8px;
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     border: 1px solid var(--gray-200);
+}
+
+.page-header h4,
+.page-header .h4 {
+    margin-bottom: 0.25rem !important;
+}
+
+.page-header .text-muted {
+    font-size: 0.875rem;
 }
 
 /* Dashboard Stats - Colored */
@@ -765,4 +799,57 @@ hr {
 .erp-detail-field .tabular-nums,
 .erp-detail-field p.tabular-nums {
     font-variant-numeric: tabular-nums;
+}
+
+/* List pages — compact filter bar (single row, icon actions) */
+.list-filters-toolbar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 0.5rem;
+    margin: 0 !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.list-filters-toolbar > [class*="col-"] {
+    flex: 0 0 auto;
+    width: auto !important;
+    max-width: none !important;
+    padding: 0 !important;
+}
+.list-filters-toolbar .filter-grow,
+.list-filters-toolbar > .col-md-4:first-child,
+.list-filters-toolbar > .col-lg-3:first-child {
+    flex: 1 1 10rem;
+    min-width: 8rem;
+}
+.list-filters-toolbar .form-label {
+    display: none !important;
+}
+.list-filters-toolbar .form-control,
+.list-filters-toolbar .form-select {
+    min-height: 38px;
+}
+.list-filters-toolbar .filter-actions,
+.list-filters-toolbar > .d-flex.gap-2,
+.list-filters-toolbar > [class*="col-"]:last-child .d-flex {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.25rem;
+    align-items: center;
+}
+.list-filters-toolbar .btn-filter-icon {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.crm-customers-filter-toolbar {
+    align-items: center !important;
+}
+.crm-customers-filter-toolbar .form-label {
+    display: none !important;
 }

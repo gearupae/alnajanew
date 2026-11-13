@@ -21,13 +21,13 @@
 
 <div class="card mb-4">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
-            <div class="col-md-auto"><label class="form-label small mb-0">Employee</label><select name="employee" class="form-select form-select-sm"><option value="">All</option>{% for e in employees %}<option value="{{ e.pk }}" {% if request.GET.employee == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.employee_code }} — {{ e.full_name }}</option>{% endfor %}</select></div>
-            <div class="col-md-auto"><label class="form-label small mb-0">Department</label><select name="department" class="form-select form-select-sm"><option value="">All</option>{% for d in departments %}<option value="{{ d.pk }}" {% if request.GET.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-auto"><label class="form-label small mb-0">Company</label><select name="company" class="form-select form-select-sm"><option value="">All</option>{% for c in companies %}<option value="{{ c.pk }}" {% if request.GET.company == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-auto"><label class="form-label small mb-0">From</label><input type="date" class="form-control form-control-sm" name="date_from" value="{{ request.GET.date_from }}"/></div>
-            <div class="col-md-auto"><label class="form-label small mb-0">To</label><input type="date" class="form-control form-control-sm" name="date_to" value="{{ request.GET.date_to }}"/></div>
-            <div class="col-md-auto"><button class="btn btn-primary btn-sm" type="submit"><i class="fas fa-search me-1"></i>Filter</button></div>
+        <form method="get" class="list-filters-toolbar row g-3 align-items-end">
+            <div class="col-md-auto"><select name="employee" class="form-select form-select-sm"><option value="">All</option>{% for e in employees %}<option value="{{ e.pk }}" {% if request.GET.employee == e.pk|stringformat:"s" %}selected{% endif %}>{{ e.employee_code }} — {{ e.full_name }}</option>{% endfor %}</select></div>
+            <div class="col-md-auto"><select name="department" class="form-select form-select-sm"><option value="">All</option>{% for d in departments %}<option value="{{ d.pk }}" {% if request.GET.department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-auto"><select name="company" class="form-select form-select-sm"><option value="">All</option>{% for c in companies %}<option value="{{ c.pk }}" {% if request.GET.company == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-auto"><input type="date" class="form-control form-control-sm" name="date_from" value="{{ request.GET.date_from }}"/></div>
+            <div class="col-md-auto"><input type="date" class="form-control form-control-sm" name="date_to" value="{{ request.GET.date_to }}"/></div>
+            <div class="col-md-auto filter-actions"><button class="btn btn-primary btn-filter-icon" type="submit" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button></div>
             <div class="col-md-auto"><a class="btn btn-outline-secondary btn-sm" href="?{{ export_querystring }}">Export CSV</a></div>
         </form>
     </div>

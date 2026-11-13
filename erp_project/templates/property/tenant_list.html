@@ -131,7 +131,7 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-3 align-items-end">
             <div class="col-md-4">
                 <input type="text" name="search" class="form-control" placeholder="Search tenants..." value="{{ request.GET.search }}">
             </div>
@@ -144,7 +144,7 @@
             </div>
             <div class="col-md-5">
                 <button type="submit" class="btn btn-primary me-2"><i class="fas fa-search me-1"></i>Search</button>
-                <a href="{% url 'property:tenant_list' %}" class="btn btn-light">Clear</a>
+                <a href="{% url 'property:tenant_list' %}" class="btn btn-light btn-filter-icon" title="Clear filters" aria-label="Clear filters"><i class="fas fa-times" aria-hidden="true"></i></a>
             </div>
         </form>
     </div>

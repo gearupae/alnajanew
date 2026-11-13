@@ -48,17 +48,14 @@
 
 <div class="card mb-3 border-0 shadow-sm no-print">
     <div class="card-body py-2 px-3">
-        <form method="get" class="row g-2 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-2 align-items-end">
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small mb-1">Start date</label>
                 <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date|date:'Y-m-d' }}">
             </div>
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small mb-1">End date</label>
                 <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date|date:'Y-m-d' }}">
             </div>
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small mb-1">Group by</label>
                 <select name="group_by" class="form-select form-select-sm">
                     {% for value, label in group_by_choices %}
                     <option value="{{ value }}" {% if group_by == value %}selected{% endif %}>{{ label }}</option>
@@ -66,7 +63,6 @@
                 </select>
             </div>
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small mb-1">Status</label>
                 <select name="status" class="form-select form-select-sm">
                     <option value="">All statuses</option>
                     {% for v, l in status_choices %}
@@ -75,7 +71,6 @@
                 </select>
             </div>
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small mb-1">Salesman</label>
                 <select name="salesman" class="form-select form-select-sm">
                     <option value="">All</option>
                     <option value="none" {% if salesman_filter == 'none' %}selected{% endif %}>Unassigned</option>
@@ -85,7 +80,6 @@
                 </select>
             </div>
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small mb-1">Site engineer</label>
                 <select name="site_engineer" class="form-select form-select-sm">
                     <option value="">All</option>
                     <option value="none" {% if site_engineer_filter == 'none' %}selected{% endif %}>Unassigned</option>
@@ -95,7 +89,6 @@
                 </select>
             </div>
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small mb-1">Operation manager</label>
                 <select name="operation_manager" class="form-select form-select-sm">
                     <option value="">All</option>
                     <option value="none" {% if operation_manager_filter == 'none' %}selected{% endif %}>Unassigned</option>
@@ -105,7 +98,7 @@
                 </select>
             </div>
             <div class="col-sm-6 col-md-2">
-                <button type="submit" class="btn btn-primary btn-sm w-100"><i class="fas fa-filter me-1"></i>Apply</button>
+                <button type="submit" class="btn btn-primary btn-filter-icon btn-sm w-100" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
             </div>
         </form>
     </div>

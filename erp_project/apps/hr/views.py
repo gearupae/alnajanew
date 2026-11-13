@@ -537,7 +537,78 @@ class EmployeeDetailView(PermissionRequiredMixin, DetailView):
                 entity_name=self.object.full_name,
             )
         )
+
+        from apps.hr.forms_extended import EmployeeHoldingForm
+        from apps.hr.models_extended import EmployeeHolding
+
+        holdings_qs = (
+            EmployeeHolding.objects.filter(employee=self.object, is_active=True)
+            .select_related('inventory_item', 'allocated_by', 'returned_by')
+            .order_by('-allocated_date', '-pk')
+        )
+        context['employee_holdings'] = holdings_qs
+        context['employee_holdings_held'] = holdings_qs.filter(status=EmployeeHolding.STATUS_HELD)
+        context['employee_holdings_held_count'] = context['employee_holdings_held'].count()
+        context['holding_form'] = EmployeeHoldingForm(
+            initial={'allocated_date': date_cls.today()},
+        )
+        context['can_allocate_holdings'] = context['can_edit']
+
         return context
+
+
+@login_required
+@require_POST
+def employee_holding_allocate(request, pk):
+    from apps.hr.forms_extended import EmployeeHoldingForm
+    from apps.hr.models_extended import EmployeeHolding
+
+    employee = get_object_or_404(Employee, pk=pk, is_active=True)
+    if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'hr', 'edit')):
+        messages.error(request, 'Permission denied.')
+        return redirect('hr:employee_detail', pk=pk)
+
+    form = EmployeeHoldingForm(request.POST)
+    if form.is_valid():
+        holding = form.save(commit=False)
+        holding.employee = employee
+        holding.allocated_by = request.user
+        holding.status = EmployeeHolding.STATUS_HELD
+        holding.save()
+        messages.success(request, f'Allocated {holding.item_name} to {employee.full_name}.')
+    else:
+        for field, errs in form.errors.items():
+            for err in errs:
+                messages.error(request, f'{field}: {err}')
+    return redirect(reverse('hr:employee_detail', kwargs={'pk': pk}) + '#employee-holdings')
+
+
+@login_required
+@require_POST
+def employee_holding_return(request, pk, holding_pk):
+    from apps.hr.models_extended import EmployeeHolding
+
+    employee = get_object_or_404(Employee, pk=pk, is_active=True)
+    if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'hr', 'edit')):
+        messages.error(request, 'Permission denied.')
+        return redirect('hr:employee_detail', pk=pk)
+
+    holding = get_object_or_404(
+        EmployeeHolding,
+        pk=holding_pk,
+        employee=employee,
+        is_active=True,
+        status=EmployeeHolding.STATUS_HELD,
+    )
+    holding.status = EmployeeHolding.STATUS_RETURNED
+    holding.returned_date = date.today()
+    holding.returned_by = request.user
+    holding.return_notes = (request.POST.get('return_notes') or '').strip()[:500]
+    holding.save(
+        update_fields=['status', 'returned_date', 'returned_by', 'return_notes', 'updated_at'],
+    )
+    messages.success(request, f'Marked {holding.item_name} as returned.')
+    return redirect(reverse('hr:employee_detail', kwargs={'pk': pk}) + '#employee-holdings')
 
 
 @login_required

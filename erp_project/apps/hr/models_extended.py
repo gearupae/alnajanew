@@ -687,6 +687,93 @@ class GOSIRecord(BaseModel):
         unique_together = [['payroll']]
 
 
+class EmployeeHolding(BaseModel):
+    """Tools, PPE, devices, and other items currently held by an employee."""
+
+    CATEGORY_TOOL = 'tool'
+    CATEGORY_PPE = 'ppe'
+    CATEGORY_UNIFORM = 'uniform'
+    CATEGORY_DEVICE = 'device'
+    CATEGORY_VEHICLE = 'vehicle'
+    CATEGORY_OTHER = 'other'
+    CATEGORY_CHOICES = [
+        (CATEGORY_TOOL, 'Tool'),
+        (CATEGORY_PPE, 'PPE / safety gear'),
+        (CATEGORY_UNIFORM, 'Uniform'),
+        (CATEGORY_DEVICE, 'Phone / device'),
+        (CATEGORY_VEHICLE, 'Vehicle / keys'),
+        (CATEGORY_OTHER, 'Other'),
+    ]
+
+    STATUS_HELD = 'held'
+    STATUS_RETURNED = 'returned'
+    STATUS_CHOICES = [
+        (STATUS_HELD, 'Held'),
+        (STATUS_RETURNED, 'Returned'),
+    ]
+
+    employee = models.ForeignKey(
+        'hr.Employee',
+        on_delete=models.CASCADE,
+        related_name='holdings',
+    )
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=CATEGORY_TOOL)
+    inventory_item = models.ForeignKey(
+        'inventory.Item',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='employee_holdings',
+    )
+    item_name = models.CharField(max_length=255, help_text='Display name on the register.')
+    asset_tag = models.CharField(max_length=80, blank=True)
+    serial_number = models.CharField(max_length=120, blank=True)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1'))
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_HELD)
+    allocated_date = models.DateField()
+    returned_date = models.DateField(null=True, blank=True)
+    allocated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='employee_holdings_allocated',
+    )
+    returned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='employee_holdings_returned',
+    )
+    notes = models.TextField(blank=True)
+    return_notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-allocated_date', '-pk']
+        verbose_name = 'Employee holding'
+        verbose_name_plural = 'Employee holdings'
+
+    def __str__(self):
+        return f'{self.employee.employee_code}: {self.item_name}'
+
+    def clean(self):
+        name = (self.item_name or '').strip()
+        if not self.inventory_item_id and not name:
+            raise ValidationError({'item_name': 'Enter an item name or link an inventory item.'})
+
+    def save(self, *args, **kwargs):
+        if self.inventory_item_id and not (self.item_name or '').strip():
+            self.item_name = self.inventory_item.name
+        super().save(*args, **kwargs)
+
+    @property
+    def display_code(self) -> str:
+        if self.inventory_item_id:
+            return self.inventory_item.item_code
+        return self.asset_tag or '—'
+
+
 class EmployeeBankDetail(BaseModel):
     """Employee bank routing for WPS (UAE)."""
 

@@ -437,6 +437,55 @@ def vendor_detail(request, pk):
 
 
 @login_required
+def vendor_soa_print(request, pk):
+    """Vendor statement — open bills / pending payables (HTML print or PDF)."""
+    from django.http import HttpResponse
+    from django.template.loader import get_template
+    from django.utils import timezone
+
+    from apps.purchase.models import Vendor
+    from apps.settings_app.models import CompanySettings
+
+    from .vendor_soa import build_vendor_soa
+
+    vendor = get_object_or_404(Vendor, pk=pk, is_active=True)
+
+    if not _can(request.user, 'purchase', 'view'):
+        messages.error(request, 'Permission denied.')
+        return redirect('purchase:vendor_list')
+
+    context = {
+        'vendor': vendor,
+        'company': CompanySettings.get_settings(),
+        'generated_at': timezone.localtime(),
+        **build_vendor_soa(vendor),
+    }
+
+    output_format = request.GET.get('format', 'html')
+    template_name = 'advances/vendor_soa_print.html'
+
+    if output_format == 'pdf':
+        try:
+            from weasyprint import HTML
+
+            template = get_template(template_name)
+            html_string = template.render(context, request=request)
+            html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
+            pdf = html.write_pdf()
+            response = HttpResponse(pdf, content_type='application/pdf')
+            safe_ref = vendor.vendor_number.replace('/', '-')
+            response['Content-Disposition'] = f'inline; filename="Vendor_SOA_{safe_ref}.pdf"'
+            return response
+        except ImportError:
+            messages.info(request, 'PDF generation requires WeasyPrint. Showing printable HTML version.')
+        except Exception as exc:
+            messages.error(request, f'Could not generate PDF: {exc}')
+            return redirect('advances:vendor_detail', pk=pk)
+
+    return render(request, template_name, context)
+
+
+@login_required
 def vendor_advance_detail(request, pk):
     advance = get_object_or_404(VendorAdvance, pk=pk, is_active=True)
 

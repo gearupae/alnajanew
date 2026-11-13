@@ -25,9 +25,8 @@
     <!-- Filters -->
     <div class="card mb-4">
         <div class="card-body">
-            <form method="get" class="row g-3">
+            <form method="get" class="list-filters-toolbar row g-3">
                 <div class="col-md-3">
-                    <label class="form-label">Bank Account</label>
                     <select name="bank" class="form-select">
                         <option value="">All Banks</option>
                         {% for bank in bank_accounts %}
@@ -38,11 +37,9 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Start Date</label>
                     <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">End Date</label>
                     <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
                 </div>
                 <div class="col-md-3 d-flex align-items-end">

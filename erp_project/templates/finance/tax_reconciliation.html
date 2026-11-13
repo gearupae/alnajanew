@@ -20,9 +20,8 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-3 align-items-end">
             <div class="col-md-4">
-                <label class="form-label small fw-medium">Fiscal Year (Corporate Tax)</label>
                 <select name="fiscal_year" class="form-select" onchange="this.form.submit()">
                     {% for fy in fiscal_years %}
                     <option value="{{ fy.pk }}" {% if selected_fy.pk == fy.pk %}selected{% endif %}>
@@ -32,7 +31,6 @@
                 </select>
             </div>
             <div class="col-md-4">
-                <label class="form-label small fw-medium">VAT Return Period</label>
                 <select name="vat_return" class="form-select" onchange="this.form.submit()">
                     <option value="">— None —</option>
                     {% for vr in vat_returns %}

@@ -29,8 +29,17 @@ def get_public_item_request_user():
     return user
 
 
+def project_allocated_item_ids(project: Project) -> set[int]:
+    return set(
+        ProjectItemLine.objects.filter(
+            project=project,
+            inventory_item__isnull=False,
+        ).values_list('inventory_item_id', flat=True).distinct()
+    )
+
+
 def build_public_item_catalog(project: Project) -> list[dict]:
-    """Active products with stock on hand and optional qty already on the project."""
+    """Products allocated on the project (project item lines) with stock and delivery qty."""
     on_project: dict[int, Decimal] = {}
     for row in (
         ProjectItemLine.objects.filter(project=project, inventory_item__isnull=False)
@@ -39,22 +48,28 @@ def build_public_item_catalog(project: Project) -> list[dict]:
     ):
         on_project[row['inventory_item_id']] = row['t'] or Decimal('0')
 
+    allocated_ids = set(on_project.keys())
+    if not allocated_ids:
+        return []
+
     catalog = []
-    for item in Item.usable().filter(item_type='product').order_by('item_code', 'name'):
+    for item in (
+        Item.usable()
+        .filter(item_type='product', pk__in=allocated_ids)
+        .order_by('item_code', 'name')
+    ):
         catalog.append(
             {
                 'item': item,
                 'stock_qty': item_available_qty(item),
                 'project_qty': on_project.get(item.pk),
-                'delivered_qty': project_item_delivered_qty(project, item)
-                if item.pk in on_project
-                else None,
+                'delivered_qty': project_item_delivered_qty(project, item),
             }
         )
     return catalog
 
 
-def parse_public_item_request_post(post) -> list[tuple[Item, Decimal]]:
+def parse_public_item_request_post(post, *, project: Project) -> list[tuple[Item, Decimal]]:
     """Validate POST selected_<id> and qty_<id> fields (disabled qty inputs are not submitted)."""
     selected_ids: list[int] = []
     for key, val in post.items():
@@ -67,12 +82,18 @@ def parse_public_item_request_post(post) -> list[tuple[Item, Decimal]]:
     if not selected_ids:
         raise ValidationError('Select at least one item and enter a quantity.')
 
+    allocated_ids = project_allocated_item_ids(project)
+    if not allocated_ids:
+        raise ValidationError('This project has no inventory items allocated to request.')
+
     items_by_id = {
         i.pk: i for i in Item.usable().filter(item_type='product', pk__in=selected_ids)
     }
 
     lines: list[tuple[Item, Decimal]] = []
     for item_id in selected_ids:
+        if item_id not in allocated_ids:
+            raise ValidationError('One or more items are not allocated to this project.')
         item = items_by_id.get(item_id)
         if not item:
             continue

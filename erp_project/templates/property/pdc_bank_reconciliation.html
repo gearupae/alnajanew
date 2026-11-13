@@ -19,9 +19,8 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-3 align-items-end">
             <div class="col-md-4">
-                <label class="form-label small text-muted">Bank Account</label>
                 <select name="bank" class="form-select" onchange="this.form.submit()">
                     <option value="">Select Bank Account...</option>
                     {% for bank in banks %}
@@ -33,7 +32,6 @@
             </div>
             {% if statements %}
             <div class="col-md-4">
-                <label class="form-label small text-muted">Bank Statement</label>
                 <select name="statement" class="form-select" onchange="this.form.submit()">
                     <option value="">Select Statement...</option>
                     {% for stmt in statements %}

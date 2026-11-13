@@ -249,7 +249,7 @@ def public_project_item_request(request):
                 status=400,
             )
         try:
-            lines = parse_public_item_request_post(request.POST)
+            lines = parse_public_item_request_post(request.POST, project=selected_project)
             cr = create_public_project_item_request(
                 selected_project,
                 lines,

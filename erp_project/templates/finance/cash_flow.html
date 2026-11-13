@@ -45,17 +45,14 @@
 <!-- Filters -->
 <div class="card mb-4 border-0 shadow-sm">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-3 align-items-end">
             <div class="col-md-3">
-                <label class="form-label fw-medium">Start Date</label>
                 <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
             </div>
             <div class="col-md-3">
-                <label class="form-label fw-medium">End Date</label>
                 <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
             </div>
             <div class="col-md-3">
-                <label class="form-label fw-medium">Bank/Cash Account</label>
                 <select name="bank" class="form-select">
                     <option value="">All Cash & Bank Accounts</option>
                     {% for acc in cash_bank_accounts %}

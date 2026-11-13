@@ -148,13 +148,13 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-3 align-items-end">
             <div class="col-md-6">
                 <input type="text" name="search" class="form-control" placeholder="Search vendors..." value="{{ request.GET.search }}">
             </div>
             <div class="col-md-6">
                 <button type="submit" class="btn btn-primary me-2"><i class="fas fa-search me-1"></i>Search</button>
-                <a href="{% url 'purchase:vendor_list' %}" class="btn btn-light">Clear</a>
+                <a href="{% url 'purchase:vendor_list' %}" class="btn btn-light btn-filter-icon" title="Clear filters" aria-label="Clear filters"><i class="fas fa-times" aria-hidden="true"></i></a>
             </div>
         </form>
     </div>

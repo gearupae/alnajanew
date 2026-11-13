@@ -4,9 +4,8 @@
     <div class="flex-grow-1">
         <h4 class="mb-1 fw-bold">{{ title }}</h4>
         <p class="text-muted small mb-2">Manage payroll records</p>
-        <form method="get" class="d-flex flex-wrap align-items-center gap-2" id="payroll-company-filter">
-            <label class="text-muted small mb-0" for="payroll-filter-company">Company</label>
-            <select name="company" id="payroll-filter-company" class="form-select form-select-sm" style="max-width: 16rem;" onchange="this.form.submit()" aria-label="Filter by company">
+        <form method="get" class="list-filters-toolbar d-flex flex-wrap align-items-center gap-2" id="payroll-company-filter">
+            <select name="company" id="payroll-filter-company" class="form-select form-select-sm" style="max-width: 16rem;" onchange="this.form.submit()" aria-label="Filter by company" title="Company">
                 <option value="">All companies</option>
                 {% for c in filter_companies %}<option value="{{ c.pk }}" {% if filter_company == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
             </select>

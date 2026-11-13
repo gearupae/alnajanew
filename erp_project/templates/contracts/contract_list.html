@@ -285,58 +285,47 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Customer</label>
                 {{ form.customer }}
                 {% if form.customer.errors %}<div class="text-danger small">{{ form.customer.errors }}</div>{% endif %}
             </div>
             <div class="col-md-4">
-                <label class="form-label">Project <span class="text-muted fw-normal small">(optional)</span></label>
                 {{ form.project }}
                 {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors }}</div>{% endif %}
             </div>
             <div class="col-md-4">
-                <label class="form-label">Contract name <span class="text-danger">*</span></label>
                 {{ form.name }}
                 {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
             </div>
             <div class="col-md-4">
-                <label class="form-label">Contract value (AED) <span class="text-danger">*</span></label>
                 {{ form.contract_value }}
                 {% if form.contract_value.errors %}<div class="text-danger small">{{ form.contract_value.errors }}</div>{% endif %}
             </div>
             <div class="col-md-3">
-                <label class="form-label">Start date <span class="text-danger">*</span></label>
                 {{ form.start_date }}
                 {% if form.start_date.errors %}<div class="text-danger small">{{ form.start_date.errors }}</div>{% endif %}
             </div>
             <div class="col-md-3">
-                <label class="form-label">End date <span class="text-danger">*</span></label>
                 {{ form.end_date }}
                 {% if form.end_date.errors %}<div class="text-danger small">{{ form.end_date.errors }}</div>{% endif %}
             </div>
             <div class="col-md-3">
-                <label class="form-label">Status</label>
                 {{ form.status }}
                 {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}
             </div>
             <div class="col-md-3">
-                <label class="form-label">Remind before (days)</label>
                 {{ form.remind_before_days }}
                 <div class="form-text">e.g. 10 = reminder 10 days before end</div>
                 {% if form.remind_before_days.errors %}<div class="text-danger small">{{ form.remind_before_days.errors }}</div>{% endif %}
             </div>
             <div class="col-md-6">
-                <label class="form-label">Attachments</label>
                 <input type="file" name="attachments" class="form-control" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg">
             </div>
             <div class="col-md-6">
-                <label class="form-label">Contract types <span class="text-danger">*</span></label>
                 {{ form.contract_types }}
                 {% if form.contract_types.errors %}<div class="text-danger small">{{ form.contract_types.errors }}</div>{% endif %}
                 <div class="form-text">Select one or more existing types.</div>
             </div>
             <div class="col-md-6">
-                <label class="form-label">New contract types</label>
                 <div id="new-type-rows">
                     <input type="text" name="new_type_name" class="form-control mb-2" placeholder="Type a new label and use + for another row">
                 </div>
@@ -346,12 +335,10 @@
             </div>
             {% include 'contracts/partials/scope_of_work_field.html' %}
             <div class="col-12">
-                <label class="form-label">Description</label>
                 {{ form.description }}
                 {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}
             </div>
             <div class="col-12">
-                <label class="form-label">Terms &amp; conditions</label>
                 {{ form.terms_and_conditions }}
                 <div class="form-text">Pre-filled from Company Settings; edit here for this contract. Shown on the contract PDF.</div>
                 {% if form.terms_and_conditions.errors %}<div class="text-danger small">{{ form.terms_and_conditions.errors }}</div>{% endif %}
@@ -370,13 +357,11 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-3 align-items-end">
             <div class="col-md-6">
-                <label class="form-label small text-muted">Search</label>
                 <input type="text" name="search" class="form-control" placeholder="Number, name, customer…" value="{{ request.GET.search }}">
             </div>
             <div class="col-md-4">
-                <label class="form-label small text-muted">Status</label>
                 <select name="status" class="form-select">
                     <option value="">All statuses</option>
                     {% for value, label in contract_status_choices %}
@@ -385,15 +370,14 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small text-muted">&nbsp;</label>
                 <div class="form-check mt-2">
                     <input class="form-check-input" type="checkbox" name="reminder_due" value="1" id="filterReminderDue" {% if request.GET.reminder_due == '1' %}checked{% endif %}>
                     <label class="form-check-label small" for="filterReminderDue">Reminders due</label>
                 </div>
             </div>
             <div class="col-md-12">
-                <button type="submit" class="btn btn-primary me-2">Filter</button>
-                <a href="{% url 'contracts:contract_list' %}" class="btn btn-light">Clear</a>
+                <button type="submit" class="btn btn-primary btn-filter-icon" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
+                <a href="{% url 'contracts:contract_list' %}" class="btn btn-light btn-filter-icon" title="Clear filters" aria-label="Clear filters"><i class="fas fa-times" aria-hidden="true"></i></a>
             </div>
         </form>
     </div>

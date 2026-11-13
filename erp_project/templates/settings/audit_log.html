@@ -11,9 +11,8 @@
 <!-- Filters -->
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
-        <form method="get" class="row g-3">
+        <form method="get" class="list-filters-toolbar row g-3">
             <div class="col-md-2">
-                <label class="form-label">Module</label>
                 <select name="module" class="form-select">
                     <option value="">All Modules</option>
                     {% for value, label in module_choices %}
@@ -22,7 +21,6 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Action</label>
                 <select name="action" class="form-select">
                     <option value="">All Actions</option>
                     {% for value, label in action_choices %}
@@ -31,26 +29,20 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Model/Entity</label>
                 <input type="text" name="model" class="form-control" value="{{ request.GET.model }}" placeholder="e.g., Journal">
             </div>
             <div class="col-md-2">
-                <label class="form-label">User</label>
                 <input type="text" name="user" class="form-control" value="{{ request.GET.user }}" placeholder="Username">
             </div>
             <div class="col-md-2">
-                <label class="form-label">From Date</label>
                 <input type="date" name="date_from" class="form-control" value="{{ request.GET.date_from }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label">To Date</label>
                 <input type="date" name="date_to" class="form-control" value="{{ request.GET.date_to }}">
             </div>
             <div class="col-12 d-flex justify-content-end">
-                <button type="submit" class="btn btn-primary me-2">
-                    <i class="fas fa-filter me-1"></i>Filter
-                </button>
-                <a href="{% url 'settings:audit_log' %}" class="btn btn-light">Clear</a>
+                <button type="submit" class="btn btn-primary btn-filter-icon me-2" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
+                <a href="{% url 'settings:audit_log' %}" class="btn btn-light btn-filter-icon" title="Clear filters" aria-label="Clear filters"><i class="fas fa-times" aria-hidden="true"></i></a>
             </div>
         </form>
     </div>

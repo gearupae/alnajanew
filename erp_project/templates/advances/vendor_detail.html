@@ -14,7 +14,10 @@
             <h4 class="mb-1 fw-bold">{{ vendor.name }}</h4>
             <span class="text-muted">{{ vendor.vendor_number }}</span>
         </div>
-        <div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'advances:vendor_soa_print' vendor.pk %}?format=pdf" class="btn btn-outline-dark" target="_blank" rel="noopener" title="Statement of account — pending payments">
+                <i class="fas fa-file-pdf me-2"></i>SOA
+            </a>
             {% if can_edit %}
             <a href="{% url 'purchase:vendor_edit' vendor.pk %}" class="btn btn-primary">
                 <i class="fas fa-edit me-2"></i>Edit
@@ -304,7 +307,7 @@
                                 </td>
                                 <td>{{ bill.bill_date|date:"d/m/Y" }}</td>
                                 <td class="text-end">AED {{ bill.total_amount|floatformat:2|intcomma }}</td>
-                                <td class="text-end pe-3 fw-semibold">AED {{ bill.total_amount|add:"-1"|floatformat:2 }}</td>
+                                <td class="text-end pe-3 fw-semibold">AED {{ bill.balance|floatformat:2|intcomma }}</td>
                                 <td><span class="badge bg-secondary-subtle text-secondary">{{ bill.get_status_display }}</span></td>
                             </tr>
                             {% endfor %}

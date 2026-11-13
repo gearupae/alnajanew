@@ -142,17 +142,14 @@
 
 <div class="card mb-3 border-0 shadow-sm">
     <div class="card-body py-2 px-3">
-        <form method="get" class="row g-2 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-2 align-items-end">
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small mb-1">Start Date</label>
                 <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date|date:'Y-m-d' }}">
             </div>
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small mb-1">End Date</label>
                 <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date|date:'Y-m-d' }}">
             </div>
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small mb-1">Pipeline stage</label>
                 <select name="stage" class="form-select form-select-sm">
                     <option value="">All stages</option>
                     <option value="unassigned" {% if filter_stage == 'unassigned' %}selected{% endif %}>Unassigned</option>
@@ -162,7 +159,6 @@
                 </select>
             </div>
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small mb-1">Lead status</label>
                 <select name="status" class="form-select form-select-sm">
                     <option value="">All statuses</option>
                     {% for value, label in filter_status_choices %}
@@ -171,7 +167,6 @@
                 </select>
             </div>
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small mb-1">Salesperson</label>
                 <select name="salesperson" class="form-select form-select-sm">
                     <option value="">All salespeople</option>
                     <option value="none" {% if filter_salesperson == 'none' %}selected{% endif %}>Unassigned</option>
@@ -181,7 +176,7 @@
                 </select>
             </div>
             <div class="col-sm-6 col-md-2">
-                <button type="submit" class="btn btn-primary btn-sm w-100"><i class="fas fa-filter me-1"></i>Apply</button>
+                <button type="submit" class="btn btn-primary btn-filter-icon btn-sm w-100" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
             </div>
         </form>
     </div>

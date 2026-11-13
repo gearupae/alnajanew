@@ -343,10 +343,9 @@
         </div>
     </div>
     <div class="card-body py-3 bg-light bg-opacity-50">
-        <form method="get" action="{{ hr_dash }}" class="row g-3 align-items-end">
+        <form method="get" action="{{ hr_dash }}" class="list-filters-toolbar row g-3 align-items-end">
             <input type="hidden" name="tab" value="{{ expiry_tab }}"/>
             <div class="col-lg-3 col-md-6">
-                <label class="form-label small text-muted mb-1" for="expiry-filter-location">Location</label>
                 <select name="location" id="expiry-filter-location" class="form-select">
                     <option value="" {% if not filter_location %}selected{% endif %}>All</option>
                     <option value="uae" {% if filter_location == 'uae' %}selected{% endif %}>UAE</option>
@@ -354,7 +353,6 @@
                 </select>
             </div>
             <div class="col-lg-3 col-md-6">
-                <label class="form-label small text-muted mb-1" for="expiry-filter-company">Company</label>
                 <select name="company" id="expiry-filter-company" class="form-select">
                     <option value="">All</option>
                     {% for c in expiry_companies %}
@@ -363,7 +361,6 @@
                 </select>
             </div>
             <div class="col-lg-3 col-md-6">
-                <label class="form-label small text-muted mb-1" for="expiry-filter-dept">Department</label>
                 <select name="department" id="expiry-filter-dept" class="form-select">
                     <option value="">All</option>
                     {% for d in expiry_departments %}
@@ -372,8 +369,8 @@
                 </select>
             </div>
             <div class="col-lg-3 col-md-12 d-flex gap-2 flex-wrap align-items-end">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-filter me-1"></i>Apply</button>
-                <a href="{{ hr_dash }}" class="btn btn-outline-secondary">Clear</a>
+                <button type="submit" class="btn btn-primary btn-filter-icon" title="Apply filters" aria-label="Apply filters"><i class="fas fa-filter" aria-hidden="true"></i></button>
+                <a href="{{ hr_dash }}" class="btn btn-light btn-filter-icon" title="Clear filters" aria-label="Clear filters"><i class="fas fa-times" aria-hidden="true"></i></a>
             </div>
         </form>
     </div>
