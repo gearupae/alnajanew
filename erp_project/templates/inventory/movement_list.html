@@ -142,7 +142,7 @@
                 </thead>
                 <tbody>
                     {% for movement in movements %}
-                    <tr>
+                    <tr class="erp-clickable-row" data-href="{% url 'inventory:movement_detail' movement.pk %}">
                         <td>
                             <a href="{% url 'inventory:movement_detail' movement.pk %}" class="text-decoration-none fw-medium">
                                 {{ movement.movement_number }}
@@ -183,8 +183,8 @@
                             </a>
                             {% endif %}
                             {% if movement.journal_entry %}
-                            <a href="{% url 'finance:journal_detail' movement.journal_entry.pk %}" class="btn btn-sm btn-info" title="View Journal Entry">
-                                <i class="fas fa-file-invoice"></i>
+                            <a href="{% url 'finance:journal_detail' movement.journal_entry.pk %}" class="btn btn-sm btn-outline-secondary" title="Journal entry">
+                                <i class="fas fa-book"></i>
                             </a>
                             {% endif %}
                         </td>

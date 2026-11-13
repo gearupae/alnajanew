@@ -489,7 +489,7 @@
                 </thead>
                 <tbody>
                     {% for estimate in estimates %}
-                    <tr>
+                    <tr class="erp-clickable-row" data-href="{% url 'sales:estimate_detail' estimate.pk %}">
                         <td>
                             <a href="{% url 'sales:estimate_detail' estimate.pk %}" class="fw-medium text-decoration-none">
                                 {{ estimate.display_estimate_number }}
@@ -569,7 +569,7 @@
                                     </button>
                                 </form>
                                 {% elif estimate.primary_invoice %}
-                                <a href="{% url 'sales:invoice_detail' estimate.primary_invoice.pk %}" class="btn btn-action btn-outline-success" title="View invoice {{ estimate.primary_invoice.invoice_number }}">
+                                <a href="{% url 'sales:invoice_detail' estimate.primary_invoice.pk %}" class="btn btn-action btn-outline-success" title="Invoice {{ estimate.primary_invoice.invoice_number }}">
                                     <i class="fas fa-file-invoice"></i>
                                 </a>
                                 {% endif %}
@@ -601,7 +601,7 @@
                                 {% if estimate.status == 'quotation_won' and not estimate.has_invoice %}
                                 {% with latest=estimate.proforma_invoices.all|first %}
                                 {% if latest %}
-                                <a href="{% url 'sales:estimate_proforma_invoice_pdf' estimate.pk latest.pk %}" class="btn btn-action btn-outline-warning" title="View proforma PDF">
+                                <a href="{% url 'sales:estimate_proforma_invoice_pdf' estimate.pk latest.pk %}" class="btn btn-action btn-outline-warning" title="Proforma PDF" target="_blank" rel="noopener">
                                     <i class="fas fa-file-invoice-dollar"></i>
                                 </a>
                                 {% else %}

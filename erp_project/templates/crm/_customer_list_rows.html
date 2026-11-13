@@ -1,5 +1,5 @@
 {% for customer in customers %}
-<tr data-href="{% url 'crm:customer_detail' customer.pk %}">
+<tr class="erp-clickable-row" data-href="{% url 'crm:customer_detail' customer.pk %}">
     <td class="col-id">
         <a href="{% url 'crm:customer_detail' customer.pk %}" class="text-decoration-none fw-medium" title="{{ customer.customer_number }}">
             {{ customer.customer_number }}

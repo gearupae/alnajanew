@@ -212,15 +212,38 @@ function erpPrepareClickableRows(table) {
     }
     body.querySelectorAll('tr').forEach(function (tr) {
         if (tr.querySelector('td[colspan]')) {
+            tr.classList.remove('erp-clickable-row');
             return;
         }
         const href = erpResolveRowHref(tr);
         if (!href) {
+            tr.classList.remove('erp-clickable-row');
+            delete tr.dataset.href;
             return;
         }
         tr.classList.add('erp-clickable-row');
         tr.dataset.href = href;
     });
+}
+
+function erpRowClickIsInteractive(target) {
+    if (!target || target.nodeType !== 1) {
+        return false;
+    }
+    if (target.closest('.col-actions, .table-actions-inner, .estimate-list-actions, .consumable-request-actions')) {
+        return true;
+    }
+    if (target.closest('.crm-inline-field-form, .estimate-status-inline')) {
+        return true;
+    }
+    const tag = target.tagName;
+    if (tag === 'A' || tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'LABEL') {
+        return true;
+    }
+    if (target.closest('a, button, .btn, .form-check, .dropdown-menu')) {
+        return true;
+    }
+    return false;
 }
 
 function erpTableIsExcluded(table) {
@@ -319,17 +342,20 @@ function erpRefreshListTableRows(root) {
 window.erpRefreshListTableRows = erpRefreshListTableRows;
 
 function erpInitListTableRowClicks() {
-    const root = document.querySelector('main.main-content');
-    if (!root || root.dataset.erpRowClickBound === '1') {
+    if (document.documentElement.dataset.erpRowClickBound === '1') {
         return;
     }
-    root.dataset.erpRowClickBound = '1';
-    root.addEventListener('click', function (e) {
-        const tr = e.target.closest('main tbody tr.erp-clickable-row');
-        if (!tr || !tr.dataset.href) {
+    document.documentElement.dataset.erpRowClickBound = '1';
+    document.addEventListener('click', function (e) {
+        const main = e.target.closest('main.main-content, main');
+        if (!main) {
             return;
         }
-        if (e.target.closest('a, button, input, select, textarea, label, form, .btn, .form-check, .dropdown-menu, .crm-inline-field-form, .estimate-status-inline')) {
+        const tr = e.target.closest('tbody tr.erp-clickable-row, tbody tr[data-href]');
+        if (!tr || !main.contains(tr) || !tr.dataset.href) {
+            return;
+        }
+        if (erpRowClickIsInteractive(e.target)) {
             return;
         }
         if (window.getSelection && String(window.getSelection()).trim().length) {
@@ -375,6 +401,12 @@ document.addEventListener('DOMContentLoaded', function() {
         erpPrepareClickableRows(table);
     });
     erpInitListTableRowClicks();
+    document.addEventListener('shown.bs.tab', function () {
+        erpRefreshListTableRows();
+    });
+    window.addEventListener('pageshow', function () {
+        erpRefreshListTableRows();
+    });
 
     // Mobile sidebar toggle
     document.getElementById('sidebarToggle')?.addEventListener('click', function() {

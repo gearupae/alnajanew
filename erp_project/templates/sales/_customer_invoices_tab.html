@@ -26,7 +26,7 @@
         </thead>
         <tbody>
             {% for invoice in customer_invoices %}
-            <tr>
+            <tr class="erp-clickable-row" data-href="{% url 'sales:invoice_detail' invoice.pk %}">
                 <td class="text-nowrap">
                     <a href="{% url 'sales:invoice_detail' invoice.pk %}" class="fw-medium text-decoration-none">
                         {{ invoice.invoice_number }}

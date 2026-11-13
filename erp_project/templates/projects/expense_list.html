@@ -143,7 +143,7 @@
                 </thead>
                 <tbody>
                     {% for expense in expenses %}
-                    <tr>
+                    <tr class="erp-clickable-row" data-href="{% url 'projects:expense_detail' expense.pk %}">
                         <td>
                             <a href="{% url 'projects:expense_detail' expense.pk %}" class="text-decoration-none fw-medium">
                                 {{ expense.expense_number }}
@@ -182,8 +182,8 @@
                             </a>
                             {% endif %}
                             {% if expense.journal_entry %}
-                            <a href="{% url 'finance:journal_detail' expense.journal_entry.pk %}" class="btn btn-sm btn-info" title="View Journal">
-                                <i class="fas fa-file-invoice"></i>
+                            <a href="{% url 'finance:journal_detail' expense.journal_entry.pk %}" class="btn btn-sm btn-outline-secondary" title="Journal entry">
+                                <i class="fas fa-book"></i>
                             </a>
                             {% endif %}
                         </td>

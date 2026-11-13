@@ -147,7 +147,7 @@
                 </thead>
                 <tbody>
                     {% for property in properties %}
-                    <tr>
+                    <tr class="erp-clickable-row" data-href="{% url 'property:property_detail' property.pk %}">
                         <td class="fw-medium">{{ property.property_number }}</td>
                         <td>
                             <a href="{% url 'property:property_detail' property.pk %}" class="text-decoration-none">

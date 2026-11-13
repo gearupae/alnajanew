@@ -186,7 +186,7 @@
                 </thead>
                 <tbody>
                     {% for lease in leases %}
-                    <tr>
+                    <tr class="erp-clickable-row" data-href="{% url 'property:lease_detail' lease.pk %}">
                         <td class="fw-medium">
                             <a href="{% url 'property:lease_detail' lease.pk %}" class="text-decoration-none">
                                 {{ lease.lease_number }}

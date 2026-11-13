@@ -23,7 +23,7 @@
         </thead>
         <tbody>
             {% for estimate in customer_estimates %}
-            <tr>
+            <tr class="erp-clickable-row" data-href="{% url 'sales:estimate_detail' estimate.pk %}">
                 <td class="text-nowrap">
                     <a href="{% url 'sales:estimate_detail' estimate.pk %}" class="fw-medium text-decoration-none">
                         {{ estimate.display_estimate_number }}

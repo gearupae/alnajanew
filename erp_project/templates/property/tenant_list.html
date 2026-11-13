@@ -168,7 +168,7 @@
                 </thead>
                 <tbody>
                     {% for tenant in tenants %}
-                    <tr>
+                    <tr class="erp-clickable-row" data-href="{% url 'property:tenant_detail' tenant.pk %}">
                         <td class="fw-medium">{{ tenant.tenant_number }}</td>
                         <td>
                             <div class="d-flex align-items-center">
