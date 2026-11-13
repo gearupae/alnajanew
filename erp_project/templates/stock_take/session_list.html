@@ -45,11 +45,7 @@
                         </td>
                         <td>{% if s.completed_at %}{{ s.completed_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
                         <td class="small text-muted">{{ s.notes|default:"—"|truncatewords:10 }}</td>
-                        <td class="text-end text-nowrap">
-                            <a href="{% url 'stock_take:session_detail' s.pk %}" class="btn btn-sm btn-outline-secondary me-1" title="Details">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            {% if s.status == 'in_progress' %}
+                        <td class="text-end text-nowrap">{% if s.status == 'in_progress' %}
                             <a href="{% url 'stock_take:session_scan' s.pk %}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-barcode me-1"></i>Open
                             </a>

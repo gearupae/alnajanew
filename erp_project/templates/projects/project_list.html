@@ -361,21 +361,4 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
-<script>
-(function () {
-    document.querySelectorAll('.table-project-list tr.project-list-row[data-project-url]').forEach(function (row) {
-        row.addEventListener('click', function (e) {
-            if (e.target.closest('a, button, input, select, textarea, label, form')) {
-                return;
-            }
-            var url = row.getAttribute('data-project-url');
-            if (url) {
-                window.location.href = url;
-            }
-        });
-    });
-})();
-</script>
-{% endblock %}
 

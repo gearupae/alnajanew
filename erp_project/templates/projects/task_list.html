@@ -336,9 +336,7 @@
                         <td>{{ task.start_date|date:"d/m/Y"|default:"—" }}</td>
                         <td>{{ task.due_date|date:"d/m/Y"|default:"—" }}</td>
                         <td>{{ task.estimated_hours|floatformat:2 }}</td>
-                        <td class="text-end text-nowrap">
-                            <a href="{% url 'projects:task_detail' task.pk %}" class="btn btn-action btn-outline-secondary btn-sm" title="View task"><i class="fas fa-eye"></i></a>
-                            {% if can_edit and task.status != 'completed' %}
+                        <td class="text-end text-nowrap">{% if can_edit and task.status != 'completed' %}
                             <form method="post" action="{% url 'projects:task_set_status' task.pk %}" class="d-inline">
                                 {% csrf_token %}
                                 <input type="hidden" name="status" value="completed">

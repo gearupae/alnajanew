@@ -91,9 +91,7 @@
                             {% elif line.payroll.status == 'processed' %}<span class="badge" style="background:#dbeafe;color:#1e40af;">Processed</span>
                             {% else %}<span class="badge bg-secondary">Draft</span>{% endif %}
                         </td>
-                        <td class="text-center">
-                            <a href="{% url 'hr:payroll_detail' line.payroll.pk %}" class="btn btn-action btn-outline-secondary" title="View payroll"><i class="fas fa-eye"></i></a>
-                            {% if line.payroll.status == 'draft' and can_add %}
+                        <td class="text-center">{% if line.payroll.status == 'draft' and can_add %}
                             <a href="{% url 'hr:payroll_edit' line.payroll.pk %}#deductions" class="btn btn-action btn-outline-primary" title="Edit deductions"><i class="fas fa-edit"></i></a>
                             {% endif %}
                         </td>

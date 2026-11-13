@@ -67,9 +67,7 @@
                         {% elif cn.status == 'approved' %}<span class="badge bg-info text-dark">Approved</span>
                         {% elif cn.status == 'posted' %}<span class="badge badge-active">Posted</span>{% endif %}
                     </td>
-                    <td class="text-center">
-                        <a href="{% url 'sales:credit_note_detail' cn.pk %}" class="btn btn-action btn-outline-secondary"><i class="fas fa-eye"></i></a>
-                    </td>
+                    <td class="text-center"></td>
                 </tr>
                 {% empty %}
                 <tr><td colspan="8" class="text-center py-5 text-muted">No credit notes found</td></tr>

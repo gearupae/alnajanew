@@ -105,12 +105,7 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{% url 'finance:bankreconciliation_detail' recon.pk %}" 
-                                       class="btn btn-outline-dark" title="View">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    {% if can_edit and recon.status == 'completed' and can_approve %}
+                                <div class="btn-group btn-group-sm">{% if can_edit and recon.status == 'completed' and can_approve %}
                                     <a href="{% url 'finance:bankreconciliation_approve' recon.pk %}" 
                                        class="btn btn-outline-success" title="Approve"
                                        onclick="return confirm('Approve this reconciliation?')">

@@ -52,11 +52,7 @@
                             <span class="badge bg-dark">Locked</span>
                             {% endif %}
                         </td>
-                        <td class="text-end">
-                            <a href="{% url 'finance:budget_detail' budget.pk %}" class="btn btn-sm btn-outline-dark">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <a href="{% url 'finance:budget_vs_actual' %}?budget={{ budget.pk }}" class="btn btn-sm btn-outline-primary">
+                        <td class="text-end"><a href="{% url 'finance:budget_vs_actual' %}?budget={{ budget.pk }}" class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-chart-bar"></i> vs Actual
                             </a>
                         </td>

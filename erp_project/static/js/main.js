@@ -142,6 +142,131 @@ function validateForm(formId) {
     return isValid;
 }
 
+function erpResolveRowHref(tr) {
+    if (tr.dataset.href) {
+        return tr.dataset.href;
+    }
+    if (tr.dataset.projectUrl) {
+        return tr.dataset.projectUrl;
+    }
+    if (tr.dataset.rowHref) {
+        return tr.dataset.rowHref;
+    }
+    let detailHref = null;
+    let recordHref = null;
+    const links = tr.querySelectorAll('a[href]');
+    for (let i = 0; i < links.length; i++) {
+        const a = links[i];
+        const href = a.getAttribute('href');
+        if (!href || href === '#' || href.indexOf('javascript:') === 0) {
+            continue;
+        }
+        if (a.querySelector('.fa-edit, .fa-trash, .fa-pdf, .fa-file-pdf, .fa-download')) {
+            continue;
+        }
+        if (a.target === '_blank' || a.hasAttribute('download')) {
+            continue;
+        }
+        if (href.indexOf('_detail') !== -1 || href.indexOf('/detail/') !== -1) {
+            detailHref = href;
+            break;
+        }
+        if (/\/\d+\/?(\?|#|$)/.test(href) && (href.indexOf('_edit') === -1 && href.indexOf('/edit') === -1)) {
+            if (!recordHref) {
+                recordHref = href;
+            }
+        }
+    }
+    return detailHref || recordHref || null;
+}
+
+function erpPrepareClickableRows(table) {
+    const body = table.tBodies[0];
+    if (!body) {
+        return;
+    }
+    body.querySelectorAll('tr').forEach(function (tr) {
+        if (tr.querySelector('td[colspan]')) {
+            return;
+        }
+        const href = erpResolveRowHref(tr);
+        if (!href) {
+            return;
+        }
+        tr.classList.add('erp-clickable-row');
+        tr.dataset.href = href;
+    });
+}
+
+function erpInitListTables() {
+    if (typeof jQuery === 'undefined') {
+        return;
+    }
+    const $ = jQuery;
+    $('main .card .table-responsive table.table-hover, main .table-responsive table.table-hover').each(function () {
+        const table = this;
+        const $table = $(table);
+        if ($table.closest('td, .inline-form-container, .modal, .erp-no-list-table, [data-erp-no-list]').length) {
+            return;
+        }
+        if (!table.querySelector('thead')) {
+            return;
+        }
+        $table.addClass('erp-list-table');
+
+        erpPrepareClickableRows(table);
+
+        if (!$.fn.DataTable || $.fn.DataTable.isDataTable(table)) {
+            return;
+        }
+
+        const nonSortable = [];
+        table.querySelectorAll('thead th').forEach(function (th, i) {
+            const label = (th.textContent || '').trim().toLowerCase();
+            if (th.classList.contains('col-actions') || label === 'actions' || label === 'action') {
+                nonSortable.push(i);
+            }
+        });
+
+        const rowCount = $table.find('tbody tr').filter(function () {
+            return !this.querySelector('td[colspan]');
+        }).length;
+        const $card = $table.closest('.card');
+        const djangoPaginated = $card.find('.pagination').length > 0;
+
+        $table.DataTable({
+            paging: !djangoPaginated && rowCount > 50,
+            pageLength: 25,
+            order: [],
+            ordering: true,
+            searching: false,
+            lengthChange: false,
+            info: rowCount > 25,
+            autoWidth: false,
+            columnDefs: nonSortable.length ? [{ orderable: false, targets: nonSortable }] : [],
+        });
+    });
+}
+
+function erpInitListTableRowClicks() {
+    document.querySelectorAll('table.erp-list-table tbody').forEach(function (tbody) {
+        if (tbody.dataset.erpRowClickBound === '1') {
+            return;
+        }
+        tbody.dataset.erpRowClickBound = '1';
+        tbody.addEventListener('click', function (e) {
+            const tr = e.target.closest('tr.erp-clickable-row');
+            if (!tr || !tr.dataset.href) {
+                return;
+            }
+            if (e.target.closest('a, button, input, select, textarea, label, form, .btn, .form-check, .dropdown-menu')) {
+                return;
+            }
+            window.location.href = tr.dataset.href;
+        });
+    });
+}
+
 // Clear Form Validation
 function clearValidation(formId) {
     const form = document.getElementById(formId);
@@ -173,6 +298,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }, 5000);
     
+    erpInitListTables();
+    erpInitListTableRowClicks();
+
     // Mobile sidebar toggle
     document.getElementById('sidebarToggle')?.addEventListener('click', function() {
         document.querySelector('.sidebar').classList.toggle('show');

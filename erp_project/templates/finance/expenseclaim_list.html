@@ -74,11 +74,7 @@
                             <span class="badge bg-primary">Paid</span>
                             {% endif %}
                         </td>
-                        <td class="text-end">
-                            <a href="{% url 'finance:expenseclaim_detail' claim.pk %}" class="btn btn-sm btn-outline-dark">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            {% if claim.status == 'draft' %}
+                        <td class="text-end">{% if claim.status == 'draft' %}
                             <a href="{% url 'finance:expenseclaim_submit' claim.pk %}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-paper-plane"></i> Submit
                             </a>

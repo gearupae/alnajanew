@@ -190,11 +190,7 @@
                             <span class="badge badge-inactive">Inactive</span>
                             {% endif %}
                         </td>
-                        <td class="text-center">
-                            <a href="{% url 'property:tenant_detail' tenant.pk %}" class="btn btn-action btn-outline-info" title="View">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <a href="{% url 'property:tenant_update' tenant.pk %}" class="btn btn-action btn-outline-primary" title="Edit">
+                        <td class="text-center"><a href="{% url 'property:tenant_update' tenant.pk %}" class="btn btn-action btn-outline-primary" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
                             <a href="{% url 'property:tenant_ledger_report' tenant.pk %}" class="btn btn-action btn-outline-success" title="Ledger">

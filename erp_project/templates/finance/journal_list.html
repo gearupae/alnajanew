@@ -84,11 +84,7 @@
                             <span class="badge bg-warning text-dark">Reversed</span>
                             {% endif %}
                         </td>
-                        <td class="text-center">
-                            <a href="{% url 'finance:journal_detail' entry.pk %}" class="btn btn-action btn-outline-info" title="View">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            {% if can_edit and entry.status == 'draft' %}
+                        <td class="text-center">{% if can_edit and entry.status == 'draft' %}
                             <a href="{% url 'finance:journal_edit' entry.pk %}" class="btn btn-action btn-outline-primary" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>

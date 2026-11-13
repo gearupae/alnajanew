@@ -311,11 +311,7 @@
                             <span class="badge bg-warning text-dark">Reversed</span>
                             {% endif %}
                         </td>
-                        <td class="text-center">
-                            <a href="{% url 'finance:openingbalance_detail' entry.pk %}" class="btn btn-sm btn-outline-dark">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            {% if entry.status == 'draft' %}
+                        <td class="text-center">{% if entry.status == 'draft' %}
                             <a href="{% url 'finance:openingbalance_edit' entry.pk %}" class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-edit"></i>
                             </a>

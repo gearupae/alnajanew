@@ -70,9 +70,7 @@
                         <td>{{ doc.expiry_date|date:"d/m/Y" }}</td>
                         <td class="{% if doc.is_expired %}text-danger{% elif doc.is_expiring_soon %}text-warning{% endif %} fw-medium">{{ doc.days_until_expiry }} days</td>
                         <td>{% if doc.is_expired %}<span class="badge badge-inactive">Expired</span>{% elif doc.is_expiring_soon %}<span class="badge" style="background:#fef3c7;color:#92400e;">Expiring</span>{% else %}<span class="badge badge-active">Active</span>{% endif %}</td>
-                        <td class="text-center text-nowrap">
-                            <a href="{% url 'documents:document_detail' doc.pk %}" class="btn btn-action btn-outline-secondary btn-sm" title="View"><i class="fas fa-eye"></i></a>
-                            {% if can_edit %}<a href="{% url 'documents:document_edit' doc.pk %}" class="btn btn-action btn-outline-primary btn-sm" title="Edit"><i class="fas fa-edit"></i></a>{% endif %}
+                        <td class="text-center text-nowrap">{% if can_edit %}<a href="{% url 'documents:document_edit' doc.pk %}" class="btn btn-action btn-outline-primary btn-sm" title="Edit"><i class="fas fa-edit"></i></a>{% endif %}
                             {% if can_delete %}
                             <form method="post" action="{% url 'documents:document_delete' doc.pk %}" class="d-inline" onsubmit="return confirm('Delete this document?');">
                                 {% csrf_token %}

@@ -71,9 +71,7 @@
                         <td>{{ r.overtime_hours }}</td>
                         <td><span class="small text-muted">{{ r.get_overtime_type_display }}</span></td>
                         <td>{% if r.source == 'manual' %}<span class="badge bg-secondary">manual</span>{% elif r.source == 'import' %}<span class="badge bg-info text-dark">import</span>{% elif r.source == 'biometric' %}<span class="badge bg-success">biometric</span>{% elif r.source == 'public_link' %}<span class="badge bg-warning text-dark">public link</span>{% elif r.source == 'self_service' %}<span class="badge bg-primary">self-service</span>{% else %}<span class="badge bg-light text-dark">{{ r.source }}</span>{% endif %}</td>
-                        <td class="text-nowrap">
-                            <a href="{% url 'hr:attendance_detail' r.pk %}" class="btn btn-action btn-outline-secondary btn-sm" title="View"><i class="fas fa-eye"></i></a>
-                            {% if can_edit or can_create %}
+                        <td class="text-nowrap">{% if can_edit or can_create %}
                             <a href="{% url 'hr:attendance_edit' r.pk %}" class="btn btn-action btn-outline-primary btn-sm" title="Edit"><i class="fas fa-edit"></i></a>
                             {% endif %}
                             {% if can_create %}

@@ -52,12 +52,11 @@
                     <th class="text-end">Remaining</th>
                     <th>Status</th>
                     <th>Issued</th>
-                    <th></th>
                 </tr>
             </thead>
             <tbody>
                 {% for a in advances %}
-                <tr>
+                <tr data-href="{% url 'hr:payroll_advance_detail' a.pk %}">
                     <td><a href="{% url 'hr:employee_detail' a.employee_id %}">{{ a.employee.full_name }}</a></td>
                     <td>{{ a.get_advance_type_display }}</td>
                     <td class="text-end">AED {{ a.amount|floatformat:2|intcomma }}</td>
@@ -65,10 +64,9 @@
                     <td class="text-end">AED {{ a.amount_remaining|floatformat:2|intcomma }}</td>
                     <td><span class="badge bg-{% if a.status == 'active' %}warning text-dark{% elif a.status == 'fully_repaid' %}success{% else %}secondary{% endif %}">{{ a.get_status_display }}</span></td>
                     <td>{{ a.date_issued|date:"d M Y" }}</td>
-                    <td><a href="{% url 'hr:payroll_advance_detail' a.pk %}" class="btn btn-sm btn-outline-secondary">View</a></td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="8" class="text-muted text-center py-4">No advances match your filters.</td></tr>
+                <tr><td colspan="7" class="text-muted text-center py-4">No advances match your filters.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

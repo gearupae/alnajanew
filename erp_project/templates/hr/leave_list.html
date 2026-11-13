@@ -83,7 +83,7 @@
                 </thead>
                 <tbody>
                     {% for leave in leave_requests %}
-                    <tr>
+                    <tr data-href="{% url 'hr:leave_detail' leave.pk %}">
                         <td><code class="small">{{ leave.employee.employee_code }}</code></td>
                         <td>{{ leave.employee.full_name }}</td>
                         <td class="text-nowrap">{% if leave.employee.date_of_joining %}{{ leave.employee.date_of_joining|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
@@ -115,9 +115,6 @@
                         </td>
                         <td class="text-end">
                             <div class="d-flex flex-wrap justify-content-end gap-1">
-                                <a href="{% url 'hr:leave_detail' leave.pk %}" class="btn btn-sm btn-outline-secondary" title="View details and attachment">
-                                    <i class="fas fa-eye me-1"></i>View
-                                </a>
                                 {% if leave.show_approve_actions %}
                                 <form method="post" action="{% url 'hr:leave_approve' leave.pk %}" class="d-inline">
                                     {% csrf_token %}

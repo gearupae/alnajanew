@@ -196,11 +196,7 @@
                             {% endif %}
                         </td>
                         <td class="text-center col-actions">
-                            <div class="table-actions-inner">
-                                <a href="{% url 'advances:vendor_detail' vendor.pk %}" class="btn btn-action btn-outline-secondary" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                {% if can_edit %}
+                            <div class="table-actions-inner">{% if can_edit %}
                                 <a href="{% url 'purchase:vendor_edit' vendor.pk %}" class="btn btn-action btn-outline-primary" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>

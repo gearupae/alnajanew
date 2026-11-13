@@ -540,11 +540,7 @@
                         <td class="text-end fw-medium text-nowrap">AED {{ estimate.total_amount|floatformat:2 }}</td>
                         <td class="text-center estimate-list-actions">
                             <div class="d-flex flex-wrap gap-1 justify-content-center align-items-center">
-                                {% if approver_tab_readonly %}
-                                <a href="{% url 'sales:estimate_detail' estimate.pk %}" class="btn btn-action btn-outline-primary" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{% url 'sales:estimate_pdf' estimate.pk %}" class="btn btn-action btn-outline-secondary" title="Quotation PDF" target="_blank" rel="noopener">
+                                {% if approver_tab_readonly %}<a href="{% url 'sales:estimate_pdf' estimate.pk %}" class="btn btn-action btn-outline-secondary" title="Quotation PDF" target="_blank" rel="noopener">
                                     <i class="fas fa-file-pdf"></i>
                                 </a>
                                 {% if estimate.public_link_url %}
@@ -564,11 +560,7 @@
                                 </a>
                                 {% endif %}
                                 {% endif %}
-                                {% if is_approver_portal and approver_tab == 'pending' %}
-                                <a href="{% url 'sales:estimate_detail' estimate.pk %}" class="btn btn-action btn-outline-primary" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                {% endif %}
+                                {% if is_approver_portal and approver_tab == 'pending' %}{% endif %}
                                 {% if estimate.can_convert_follow_on and estimate.can_create_invoice_from_estimate %}
                                 <form method="post" action="{% url 'sales:estimate_convert' estimate.pk %}" class="d-inline" onsubmit="return confirm('Create invoice from this estimate? Each estimate can only be converted once.');">
                                     {% csrf_token %}

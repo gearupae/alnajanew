@@ -242,11 +242,7 @@
                             <span class="badge bg-secondary">{{ pdc.get_status_display }}</span>
                             {% endif %}
                         </td>
-                        <td class="text-center">
-                            <a href="{% url 'property:pdc_detail' pdc.pk %}" class="btn btn-action btn-outline-info" title="View">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                        </td>
+                        <td class="text-center"></td>
                     </tr>
                     {% empty %}
                     <tr>

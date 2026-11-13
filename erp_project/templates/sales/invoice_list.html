@@ -196,11 +196,7 @@
                         <td class="text-end text-nowrap">{{ invoice.paid_amount|floatformat:2 }}</td>
                         <td class="text-end fw-medium text-nowrap">{{ invoice.balance|floatformat:2 }}</td>
                         <td class="text-center col-actions">
-                            <div class="d-flex flex-wrap gap-1 justify-content-center align-items-center">
-                            <a href="{% url 'sales:invoice_detail' invoice.pk %}" class="btn btn-action btn-outline-info" title="View">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            {% if can_edit %}
+                            <div class="d-flex flex-wrap gap-1 justify-content-center align-items-center">{% if can_edit %}
                             <a href="{% url 'sales:invoice_edit' invoice.pk %}" class="btn btn-action btn-outline-primary" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
