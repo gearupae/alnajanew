@@ -1566,10 +1566,11 @@ hr {
     }
 }
 
-/* Dashboard — public portal link tiles */
-a.public-portal-tile:hover {
-    background: var(--gray-50, #f8fafc);
-    border-color: var(--gray-300, #d4d4d4) !important;
+/* Dashboard — public portal link buttons */
+a.public-portal-btn {
+    white-space: normal;
+    height: auto;
+    line-height: 1.35;
 }
 
 /* Entity detail overview — reference: project detail (overview-label / overview-value) */
