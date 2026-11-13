@@ -1,32 +1,46 @@
 {% extends 'base.html' %}
 {% block extra_css %}
 <style>
+.table-project-list {
+    font-size: 0.8125rem;
+}
 .table-project-list thead th,
 .table-project-list tbody td {
-    padding-top: 0.4rem;
-    padding-bottom: 0.4rem;
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
     vertical-align: middle;
 }
-.table-project-list tbody tr {
+.table-project-list tbody tr.project-list-row {
     white-space: nowrap;
+    cursor: pointer;
 }
 .table-project-list .project-list-code,
 .table-project-list .project-list-code a {
     white-space: nowrap;
     overflow: visible;
     text-overflow: clip;
+    font-size: inherit;
 }
+.table-project-list .project-list-customer,
 .table-project-list .project-list-name {
     display: block;
-    max-width: 12rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    max-width: 6.5rem;
 }
-@media (min-width: 1200px) {
+.table-project-list th.project-list-col-customer,
+.table-project-list th.project-list-col-name {
+    max-width: 6.5rem;
+}
+@media (min-width: 992px) {
+    .table-project-list .project-list-customer,
     .table-project-list .project-list-name {
-        max-width: 18rem;
+        max-width: 7.5rem;
     }
+}
+.table-project-list .btn-action {
+    font-size: 0.75rem;
 }
 </style>
 {% endblock %}
@@ -179,16 +193,18 @@
                 </thead>
                 <tbody>
                     {% for project in pending_conversion_projects %}
-                    <tr>
+                    <tr class="project-list-row" data-project-url="{% url 'projects:project_detail' project.pk %}">
                         <td class="project-list-code"><a href="{% url 'projects:project_detail' project.pk %}" class="fw-medium text-decoration-none">{{ project.project_code }}</a></td>
                         <td>
                             {% if project.customer %}
-                                {{ project.customer.company|default:project.customer.name|default:"-" }}
+                            {% with cust_label=project.customer.company|default:project.customer.name|default:"-" %}
+                            <span class="project-list-customer d-inline-block" title="{{ cust_label }}">{{ cust_label }}</span>
+                            {% endwith %}
                             {% else %}
-                                -
+                            <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td class="project-list-name" title="{{ project.name }}">{{ project.name }}</td>
+                        <td><span class="project-list-name" title="{{ project.name }}">{{ project.name }}</span></td>
                         <td class="text-nowrap">{% if project.budget %}AED {{ project.budget }}{% else %}—{% endif %}</td>
                         <td>{% if project.conversion_approval_submitted_by %}{{ project.conversion_approval_submitted_by.get_full_name|default:project.conversion_approval_submitted_by.username }}{% else %}—{% endif %}</td>
                         <td class="text-nowrap">{% if project.conversion_approval_submitted_at %}{{ project.conversion_approval_submitted_at|date:"M d, Y H:i" }}{% else %}—{% endif %}</td>
@@ -226,16 +242,18 @@
                 </thead>
                 <tbody>
                     {% for project in pending_completion_projects %}
-                    <tr>
+                    <tr class="project-list-row" data-project-url="{% url 'projects:project_detail' project.pk %}">
                         <td class="project-list-code"><a href="{% url 'projects:project_detail' project.pk %}" class="fw-medium text-decoration-none">{{ project.project_code }}</a></td>
                         <td>
                             {% if project.customer %}
-                                {{ project.customer.company|default:project.customer.name|default:"-" }}
+                            {% with cust_label=project.customer.company|default:project.customer.name|default:"-" %}
+                            <span class="project-list-customer d-inline-block" title="{{ cust_label }}">{{ cust_label }}</span>
+                            {% endwith %}
                             {% else %}
-                                -
+                            <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td class="project-list-name" title="{{ project.name }}">{{ project.name }}</td>
+                        <td><span class="project-list-name" title="{{ project.name }}">{{ project.name }}</span></td>
                         <td><span class="badge bg-secondary">{{ project.get_status_display }}</span></td>
                         <td>{% if project.edit_approval_submitted_by %}{{ project.edit_approval_submitted_by.get_full_name|default:project.edit_approval_submitted_by.username }}{% else %}—{% endif %}</td>
                         <td class="text-nowrap">{% if project.edit_approval_submitted_at %}{{ project.edit_approval_submitted_at|date:"M d, Y H:i" }}{% else %}—{% endif %}</td>
@@ -262,8 +280,8 @@
                 <thead>
                     <tr>
                         <th>Code</th>
-                        <th>Customer</th>
-                        <th>Name</th>
+                        <th class="project-list-col-customer">Customer</th>
+                        <th class="project-list-col-name">Name</th>
                         <th>Manager</th>
                         <th>Status</th>
                         <th class="text-end">Contract value</th>
@@ -278,16 +296,18 @@
                 </thead>
                 <tbody>
                     {% for project in projects %}
-                    <tr>
+                    <tr class="project-list-row" data-project-url="{% url 'projects:project_detail' project.pk %}">
                         <td class="project-list-code"><a href="{% url 'projects:project_detail' project.pk %}" class="fw-medium text-decoration-none">{{ project.project_code }}</a></td>
                         <td>
                             {% if project.customer %}
-                                {{ project.customer.company|default:project.customer.name|default:"-" }}
+                            {% with cust_label=project.customer.company|default:project.customer.name|default:"-" %}
+                            <span class="project-list-customer d-inline-block" title="{{ cust_label }}">{{ cust_label }}</span>
+                            {% endwith %}
                             {% else %}
-                                -
+                            <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td class="project-list-name" title="{{ project.name }}">{{ project.name }}</td>
+                        <td><span class="project-list-name" title="{{ project.name }}">{{ project.name }}</span></td>
                         <td>{% if project.manager %}{{ project.manager.get_full_name|default:project.manager.username }}{% else %}-{% endif %}</td>
                         <td>
                             {% if project.status == 'completed' %}<span class="badge badge-active">Completed</span>
@@ -342,5 +362,23 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    document.querySelectorAll('.table-project-list tr.project-list-row[data-project-url]').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            if (e.target.closest('a, button, input, select, textarea, label, form')) {
+                return;
+            }
+            var url = row.getAttribute('data-project-url');
+            if (url) {
+                window.location.href = url;
+            }
+        });
+    });
+})();
+</script>
 {% endblock %}
 
