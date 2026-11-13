@@ -1,0 +1,17 @@
+<div class="pdf-letterhead-footer pdf-letterhead-footer--compact" role="contentinfo">
+    <div class="pdf-footer-compact-line">
+        {% if pdf_company_phones %}
+        <span>{{ pdf_company_phones|join:" · " }}</span>
+        {% elif company.phone %}
+        <span>{{ company.phone }}</span>
+        {% endif %}
+        {% if company.email %}<span>{{ company.email }}</span>{% endif %}
+        {% if company.website %}<span>{{ company.website }}</span>{% endif %}
+        {% if pdf_stamp_url or pdf_footer_badge_url %}
+        <span class="pdf-footer-compact-badges">
+            {% if pdf_stamp_url %}<img src="{{ pdf_stamp_url }}" alt="">{% endif %}
+            {% if pdf_footer_badge_url %}<img src="{{ pdf_footer_badge_url }}" alt="">{% endif %}
+        </span>
+        {% endif %}
+    </div>
+</div>

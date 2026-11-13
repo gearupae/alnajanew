@@ -46,7 +46,7 @@
         .estimate-container {
             max-width: 210mm;
             margin: 0 auto;
-            padding: 16px 16px 28px;
+            padding: 12px 12px 16px;
             background: var(--white);
         }
 
@@ -812,25 +812,7 @@
         </div>
         {% endif %}
 
-        {% include 'pdf/includes/letterhead_footer.html' %}
-        <footer class="doc-footer">
-            <div class="doc-footer-line">
-                <div class="doc-footer-company">
-                    <strong>{{ company.company_name }}</strong>
-                    {% if company.address %}<br>{{ company.address|linebreaksbr }}{% endif %}
-                    {% if company.phone %}<br>Tel: {{ company.phone }}{% endif %}
-                    {% if company.email %}<br>{{ company.email }}{% endif %}
-                    {% if company.website %}<br>{{ company.website }}{% endif %}
-                    {% if company.tax_id %}<br>VAT / TRN: {{ company.tax_id }}{% endif %}
-                </div>
-                <div class="doc-footer-page">
-                    Ref: {{ document_number|default:estimate.display_estimate_number }}
-                    <br>
-                    <span style="color:#a3a3a3;">Page</span> 1
-                </div>
-            </div>
-            <p style="margin-top:8px;text-align:center;color:#a3a3a3;">Thank you for your business.</p>
-        </footer>
+        {% include 'pdf/includes/letterhead_footer_compact.html' %}
     </div>
 
     <script>

@@ -1,71 +1,21 @@
-{# Quotation / proforma: logo band, doc title, To & From, and meta rows in one header block #}
-<div class="pdf-quotation-header">
-    {% include 'pdf/includes/letterhead_header.html' %}
-
-    <div class="pdf-doc-title-band">
-        <div class="pdf-doc-title-band-main">
-            <span class="pdf-doc-type">{{ document_heading|default:estimate.document_title|default:"QUOTATION" }}</span>
-            <span class="pdf-doc-ref">{{ document_number|default:estimate.display_estimate_number }}</span>
-        </div>
-        {% if show_pdf_status|default:True and pdf_variant != 'quotation' and pdf_variant != 'proforma' %}
-        <span class="pdf-doc-status status-{{ estimate.status }}">{{ estimate.get_status_display }}</span>
-        {% endif %}
-    </div>
-
-    <div class="addr-grid pdf-quotation-parties">
-        <div class="addr-block addr-to">
-            <div class="addr-label">To</div>
-            {% if estimate.customer.company %}
-            <div class="addr-name">{{ estimate.customer.company }}</div>
-            {% if estimate.customer.name %}
-            <div class="addr-lines" style="font-weight:600;margin-bottom:4px;">Attn: {{ estimate.customer.name }}</div>
+{# Compact quotation header: company + doc no., then To (left) vs key details (right) #}
+<div class="pdf-quotation-header pdf-quotation-header--compact">
+    <div class="pdf-q-top">
+        <div class="pdf-q-company">
+            {% if logo_absolute_url %}
+            <img src="{{ logo_absolute_url }}" alt="" class="pdf-q-logo">
             {% endif %}
-            {% else %}
-            <div class="addr-name">{{ estimate.customer.name }}</div>
-            {% endif %}
-            <div class="addr-lines">
-                {% if estimate.customer.address %}
-                <div>{{ estimate.customer.address }}</div>
-                {% endif %}
-                {% if estimate.customer.city or estimate.customer.country %}
-                <div>{% if estimate.customer.city %}{{ estimate.customer.city }}{% endif %}{% if estimate.customer.city and estimate.customer.country %}, {% endif %}{% if estimate.customer.country %}{{ estimate.customer.country }}{% endif %}</div>
-                {% endif %}
-                {% if estimate.customer.phone %}
-                <div>Tel: {{ estimate.customer.phone }}</div>
-                {% endif %}
-                {% if estimate.customer.email %}
-                <div>{{ estimate.customer.email }}</div>
-                {% endif %}
-                {% if estimate.customer.website %}
-                <div>{{ estimate.customer.website }}</div>
-                {% endif %}
-                {% if estimate.customer.trn %}
-                <div class="trn">VAT / TRN: {{ estimate.customer.trn }}</div>
-                {% endif %}
-            </div>
-        </div>
-        <div class="addr-block addr-from">
-            <div class="addr-label">From</div>
-            <div class="addr-name">{{ company.company_name }}</div>
-            <div class="addr-lines">
-                {% if company.address %}
-                <div>{{ company.address|linebreaksbr }}</div>
-                {% endif %}
-                {% if company.phone %}
-                <div>Tel: {{ company.phone }}</div>
-                {% endif %}
-                {% if company.email %}
-                <div>{{ company.email }}</div>
-                {% endif %}
-                {% if company.website %}
-                <div>{{ company.website }}</div>
-                {% endif %}
-                {% if company.tax_id %}
-                <div class="trn">VAT / TRN: {{ company.tax_id }}</div>
-                {% endif %}
+            <div class="pdf-q-company-text">
+                <div class="pdf-q-company-name">{{ company.company_name }}</div>
+                {% if company.address %}<div class="pdf-q-addr">{{ company.address|linebreaksbr }}</div>{% endif %}
+                <div class="pdf-q-contact-inline">
+                    {% if company.phone %}{{ company.phone }}{% endif %}
+                    {% if company.email %}{% if company.phone %} · {% endif %}{{ company.email }}{% endif %}
+                    {% if company.tax_id %}{% if company.phone or company.email %} · {% endif %}TRN {{ company.tax_id }}{% endif %}
+                </div>
             </div>
             {% if pdf_stamp_url or pdf_footer_badge_url or pdf_image_1_url or pdf_image_2_url %}
-            <div class="addr-from-cert-images">
+            <div class="pdf-q-badges">
                 {% if pdf_stamp_url or pdf_image_1_url %}
                 <img src="{{ pdf_stamp_url|default:pdf_image_1_url }}" alt="">
                 {% endif %}
@@ -75,60 +25,62 @@
             </div>
             {% endif %}
         </div>
+        <div class="pdf-q-doc-id">
+            <span class="pdf-doc-type">{{ document_heading|default:estimate.document_title|default:"QUOTATION" }}</span>
+            <span class="pdf-doc-ref">{{ document_number|default:estimate.display_estimate_number }}</span>
+        </div>
     </div>
 
-    <div class="pdf-quotation-meta">
-        <div class="addr-label">{{ pdf_details_heading|default:"Quotation details" }}</div>
-        <div class="pdf-quotation-meta-grid">
-            <div class="pdf-meta-item">
-                <span class="pdf-meta-label">{{ pdf_date_label|default:"Quotation date" }}</span>
-                <span class="pdf-meta-value">{{ estimate.date|date:"d/m/Y" }}</span>
-            </div>
-            <div class="pdf-meta-item">
-                <span class="pdf-meta-label">Valid until</span>
-                <span class="pdf-meta-value">{{ estimate.valid_until|date:"d/m/Y"|default:"On request" }}</span>
-            </div>
-            {% if estimate.prepared_by %}
-            <div class="pdf-meta-item">
-                <span class="pdf-meta-label">Prepared by</span>
-                <span class="pdf-meta-value">{{ estimate.prepared_by }}</span>
-            </div>
+    <div class="pdf-q-split">
+        <div class="pdf-q-col pdf-q-col-to">
+            <div class="addr-label">To</div>
+            {% if estimate.customer.company %}
+            <div class="addr-name">{{ estimate.customer.company }}</div>
+            {% if estimate.customer.name %}
+            <div class="addr-lines"><strong>Attn:</strong> {{ estimate.customer.name }}</div>
             {% endif %}
-            {% if estimate.assigned_to %}
-            <div class="pdf-meta-item">
-                <span class="pdf-meta-label">Assigned to</span>
-                <span class="pdf-meta-value">{{ estimate.assigned_to.get_full_name|default:estimate.assigned_to.username }}</span>
-            </div>
+            {% else %}
+            <div class="addr-name">{{ estimate.customer.name }}</div>
             {% endif %}
-            {% if estimate.project %}
-            <div class="pdf-meta-item">
-                <span class="pdf-meta-label">Project</span>
-                <span class="pdf-meta-value">{{ estimate.project.name }}</span>
+            <div class="addr-lines">
+                {% if estimate.customer.address %}<div>{{ estimate.customer.address }}</div>{% endif %}
+                {% if estimate.customer.city or estimate.customer.country %}
+                <div>{% if estimate.customer.city %}{{ estimate.customer.city }}{% endif %}{% if estimate.customer.city and estimate.customer.country %}, {% endif %}{% if estimate.customer.country %}{{ estimate.customer.country }}{% endif %}</div>
+                {% endif %}
+                {% if estimate.customer.phone %}<div>{{ estimate.customer.phone }}</div>{% endif %}
+                {% if estimate.customer.email %}<div>{{ estimate.customer.email }}</div>{% endif %}
+                {% if estimate.customer.trn %}<div class="trn">TRN {{ estimate.customer.trn }}</div>{% endif %}
             </div>
-            {% endif %}
-            {% if estimate.type_of_occupancy %}
-            <div class="pdf-meta-item">
-                <span class="pdf-meta-label">Type of occupancy</span>
-                <span class="pdf-meta-value">{{ estimate.get_type_of_occupancy_display }}</span>
+        </div>
+        <div class="pdf-q-col pdf-q-col-meta">
+            <div class="addr-label">{{ pdf_details_heading|default:"Details" }}</div>
+            <div class="pdf-q-meta-list">
+                <div class="pdf-q-meta-row">
+                    <span>{{ pdf_date_label|default:"Date" }}</span>
+                    <span>{{ estimate.date|date:"d/m/Y" }}</span>
+                </div>
+                <div class="pdf-q-meta-row">
+                    <span>Valid until</span>
+                    <span>{{ estimate.valid_until|date:"d/m/Y"|default:"On request" }}</span>
+                </div>
+                {% if estimate.type_of_work %}
+                <div class="pdf-q-meta-row">
+                    <span>Work</span>
+                    <span>{{ estimate.get_type_of_work_display }}</span>
+                </div>
+                {% endif %}
+                {% if estimate.scope_of_work %}
+                <div class="pdf-q-meta-row pdf-q-meta-row--stack">
+                    <span>Scope</span>
+                    <span>{{ estimate.scope_of_work_label }}</span>
+                </div>
+                {% elif estimate.scope %}
+                <div class="pdf-q-meta-row pdf-q-meta-row--stack">
+                    <span>Scope</span>
+                    <span>{{ estimate.scope_display_labels|join:", " }}</span>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
-            {% if estimate.type_of_work %}
-            <div class="pdf-meta-item">
-                <span class="pdf-meta-label">Type of work</span>
-                <span class="pdf-meta-value">{{ estimate.get_type_of_work_display }}</span>
-            </div>
-            {% endif %}
-            {% if estimate.scope_of_work %}
-            <div class="pdf-meta-item pdf-meta-item--wide">
-                <span class="pdf-meta-label">Scope of work</span>
-                <span class="pdf-meta-value">{{ estimate.scope_of_work_label }}</span>
-            </div>
-            {% elif estimate.scope %}
-            <div class="pdf-meta-item pdf-meta-item--wide">
-                <span class="pdf-meta-label">Scope</span>
-                <span class="pdf-meta-value">{{ estimate.scope_display_labels|join:", " }}</span>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
