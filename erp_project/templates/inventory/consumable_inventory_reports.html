@@ -64,7 +64,7 @@
     <div class="d-flex flex-column flex-md-row flex-wrap align-items-start justify-content-between gap-3 mb-3">
         <div class="min-w-0">
             <h4 class="mb-1 fw-bold">{{ title }}</h4>
-            <p class="text-muted mb-0 small">Stock summary, valuation, analytics, warranty, movement, and balance — PDF and Excel after generate.</p>
+            <p class="text-muted mb-0 small">Stock summary (with values), low stock, valuation, analytics, warranty, movement, and balance — PDF and Excel after generate.</p>
         </div>
         <div class="d-flex flex-shrink-0 ms-md-auto">
             <a href="{% url 'inventory:consumable_dashboard' %}" class="btn btn-outline-dark btn-sm">
@@ -78,6 +78,7 @@
             <div class="small text-muted text-uppercase fw-semibold mb-2" style="letter-spacing: 0.04em;">Report type</div>
             <ul class="nav nav-pills flex-column flex-sm-row flex-sm-wrap" id="report-tabs" role="tablist">
                 <li class="nav-item"><button type="button" class="nav-link active" data-report="stock_summary" data-title="Stock summary">Stock summary</button></li>
+                <li class="nav-item"><button type="button" class="nav-link" data-report="low_stock" data-title="Low stock">Low stock</button></li>
                 <li class="nav-item"><button type="button" class="nav-link" data-report="inventory_analytics" data-title="Analytics">Analytics</button></li>
                 <li class="nav-item"><button type="button" class="nav-link" data-report="inventory_valuation" data-title="Valuation">Valuation</button></li>
                 <li class="nav-item"><button type="button" class="nav-link" data-report="warranty" data-title="Warranty">Warranty</button></li>
@@ -210,12 +211,38 @@
                 </div>
             </div>
 
+            <div id="report-consolidated-bar" class="alert alert-light border d-none mb-3 py-2 px-3 small">
+                <span class="text-muted">Consolidated stock value (all items in report):</span>
+                <strong class="ms-1" id="report-grand-total">—</strong>
+                <span id="report-valuation-method" class="text-muted ms-2 d-none"></span>
+            </div>
+
             <div id="report-table-wrap" class="report-table-wrap d-none">
                 <div class="table-responsive">
                     <table class="table table-sm table-hover align-middle mb-0" id="report-table">
                         <thead class="table-light"><tr id="report-thead"></tr></thead>
                         <tbody id="report-tbody"></tbody>
                     </table>
+                </div>
+            </div>
+
+            <div id="report-low-stock-wrap" class="d-none mt-4 pt-3 border-top">
+                <h6 class="fw-semibold mb-2 text-danger">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    <span id="report-low-stock-title">Low stock items</span>
+                    <span class="badge bg-danger ms-2" id="report-low-stock-count"></span>
+                </h6>
+                <p id="report-low-stock-empty" class="text-muted small d-none mb-0">No items are below minimum level for this period.</p>
+                <div id="report-low-stock-table-wrap" class="report-table-wrap d-none">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0" id="report-low-stock-table">
+                            <thead class="table-light"><tr id="report-low-thead"></tr></thead>
+                            <tbody id="report-low-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="report-low-consolidated" class="small text-muted mt-2 d-none">
+                        Consolidated value (low stock only): <strong id="report-low-grand-total" class="text-dark"></strong>
+                    </div>
                 </div>
             </div>
         </div>
@@ -319,20 +346,18 @@ document.addEventListener('DOMContentLoaded', function () {
         chartMonthly = chartPie = chartBar = null;
     }
 
-    function renderTable(payload) {
-        var thead = document.getElementById('report-thead');
-        var tbody = document.getElementById('report-tbody');
-        thead.innerHTML = '';
-        tbody.innerHTML = '';
-        (payload.columns || []).forEach(function (col) {
+    function fillReportTable(theadEl, tbodyEl, columns, rows) {
+        theadEl.innerHTML = '';
+        tbodyEl.innerHTML = '';
+        (columns || []).forEach(function (col) {
             var th = document.createElement('th');
             th.className = 'text-nowrap';
             th.textContent = col.label;
-            thead.appendChild(th);
+            theadEl.appendChild(th);
         });
-        (payload.rows || []).forEach(function (row) {
+        (rows || []).forEach(function (row) {
             var tr = document.createElement('tr');
-            (payload.columns || []).forEach(function (col) {
+            (columns || []).forEach(function (col) {
                 var td = document.createElement('td');
                 var v = row[col.key];
                 if (col.key === 'status' && row.status_key) {
@@ -344,12 +369,89 @@ document.addEventListener('DOMContentLoaded', function () {
                     badge.textContent = (v === undefined || v === null) ? '' : String(v);
                     td.appendChild(badge);
                 } else {
+                    if (col.format === 'money' || col.format === 'number') {
+                        td.className = 'text-end';
+                    }
                     td.textContent = fmtCell(v, col);
                 }
                 tr.appendChild(td);
             });
-            tbody.appendChild(tr);
+            tbodyEl.appendChild(tr);
         });
+    }
+
+    function renderTable(payload) {
+        fillReportTable(
+            document.getElementById('report-thead'),
+            document.getElementById('report-tbody'),
+            payload.columns,
+            payload.rows
+        );
+    }
+
+    function renderConsolidatedBar(payload) {
+        var bar = document.getElementById('report-consolidated-bar');
+        var foot = payload.footer || {};
+        if (foot.grand_total_value === undefined || foot.grand_total_value === null) {
+            bar.classList.add('d-none');
+            return;
+        }
+        document.getElementById('report-grand-total').textContent =
+            'AED ' + fmtKpiNum(foot.grand_total_value, true);
+        var vm = document.getElementById('report-valuation-method');
+        if (foot.valuation_method) {
+            vm.textContent = '(' + foot.valuation_method + ')';
+            vm.classList.remove('d-none');
+        } else {
+            vm.classList.add('d-none');
+            vm.textContent = '';
+        }
+        bar.classList.remove('d-none');
+    }
+
+    function hideLowStockSection() {
+        document.getElementById('report-low-stock-wrap').classList.add('d-none');
+    }
+
+    function renderLowStockSection(payload) {
+        if (payload.report === 'low_stock') {
+            hideLowStockSection();
+            return;
+        }
+        var tbl = payload.low_stock_table;
+        var wrap = document.getElementById('report-low-stock-wrap');
+        if (!tbl) {
+            hideLowStockSection();
+            return;
+        }
+        wrap.classList.remove('d-none');
+        var rows = tbl.rows || [];
+        document.getElementById('report-low-stock-count').textContent =
+            String((tbl.footer && tbl.footer.item_count) !== undefined ? tbl.footer.item_count : rows.length);
+        if (tbl.title) {
+            document.getElementById('report-low-stock-title').textContent = tbl.title;
+        }
+        if (!rows.length) {
+            document.getElementById('report-low-stock-empty').classList.remove('d-none');
+            document.getElementById('report-low-stock-table-wrap').classList.add('d-none');
+            return;
+        }
+        document.getElementById('report-low-stock-empty').classList.add('d-none');
+        document.getElementById('report-low-stock-table-wrap').classList.remove('d-none');
+        fillReportTable(
+            document.getElementById('report-low-thead'),
+            document.getElementById('report-low-tbody'),
+            tbl.columns,
+            rows
+        );
+        var lowCons = document.getElementById('report-low-consolidated');
+        if (tbl.footer && tbl.footer.grand_total_value !== undefined && tbl.footer.grand_total_value !== null) {
+            document.getElementById('report-low-grand-total').textContent =
+                'AED ' + fmtKpiNum(tbl.footer.grand_total_value, true);
+            lowCons.classList.remove('d-none');
+        } else {
+            lowCons.classList.add('d-none');
+        }
     }
 
     function fmtKpiNum(v, money) {
@@ -420,6 +522,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         document.getElementById('report-empty').classList.add('d-none');
         document.getElementById('report-table-wrap').classList.add('d-none');
+        document.getElementById('report-consolidated-bar').classList.add('d-none');
+        hideLowStockSection();
         document.getElementById('report-intro').classList.add('d-none');
         setResultHeading('');
         document.getElementById('report-loading').classList.add('show');
@@ -451,6 +555,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('report-intro').classList.add('d-none');
                 document.getElementById('report-empty').classList.remove('d-none');
                 document.getElementById('report-analytics-extras').classList.add('d-none');
+                document.getElementById('report-consolidated-bar').classList.add('d-none');
+                hideLowStockSection();
                 destroyCharts();
                 setExportEnabled(false);
                 return;
@@ -461,6 +567,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.title) heading = data.title;
             setResultHeading(heading + ' · ' + df + ' → ' + dt);
             renderTable(data);
+            renderConsolidatedBar(data);
+            renderLowStockSection(data);
             try {
                 renderAnalytics(data);
             } catch (chartErr) {
@@ -496,6 +604,8 @@ document.addEventListener('DOMContentLoaded', function () {
             setTabFilters();
             lastPayload = null;
             document.getElementById('report-table-wrap').classList.add('d-none');
+            document.getElementById('report-consolidated-bar').classList.add('d-none');
+            hideLowStockSection();
             document.getElementById('report-analytics-extras').classList.add('d-none');
             document.getElementById('report-empty').classList.add('d-none');
             document.getElementById('report-loading').classList.remove('show');

@@ -109,6 +109,75 @@ def _item_base_qs():
     ).select_related('category', 'storage_location_master')
 
 
+def _attach_valuation_to_rows(rows: list[dict]) -> Decimal:
+    """Add unit_cost and total_value (closing × unit cost) per row; return grand total."""
+    item_ids = [r['item_id'] for r in rows if r.get('item_id')]
+    items_by_id = {i.id: i for i in _item_base_qs().filter(pk__in=item_ids)}
+    grand = Decimal('0')
+    for r in rows:
+        item = items_by_id.get(r.get('item_id'))
+        uc = _unit_cost(item) if item else Decimal('0')
+        closing = Decimal(str(r.get('closing', 0)))
+        total_val = (closing * uc).quantize(Decimal('0.01'))
+        r['unit_cost'] = float(uc)
+        r['total_value'] = float(total_val)
+        minimum = Decimal(str(r.get('minimum', 0) or 0))
+        shortfall = (minimum - closing).quantize(Decimal('0.01'))
+        r['shortfall'] = float(shortfall if shortfall > 0 else Decimal('0'))
+        grand += total_val
+    return grand.quantize(Decimal('0.01'))
+
+
+LOW_STOCK_TABLE_COLUMNS = [
+    {'key': 'item_name', 'label': 'Item Name'},
+    {'key': 'category', 'label': 'Category'},
+    {'key': 'location', 'label': 'Location / Shelf'},
+    {'key': 'barcode', 'label': 'Barcode / Asset Code'},
+    {'key': 'unit', 'label': 'Unit'},
+    {'key': 'closing', 'label': 'Qty on Hand', 'format': 'number'},
+    {'key': 'minimum', 'label': 'Min Level', 'format': 'number'},
+    {'key': 'shortfall', 'label': 'Shortfall', 'format': 'number'},
+    {'key': 'unit_cost', 'label': 'Unit Cost', 'format': 'money'},
+    {'key': 'total_value', 'label': 'Stock Value', 'format': 'money'},
+]
+
+
+def _low_stock_rows_from_summary(rows: list[dict]) -> list[dict]:
+    low = [r for r in rows if r.get('status') == 'Low']
+    out = []
+    for r in low:
+        out.append(
+            {
+                'item_id': r.get('item_id'),
+                'item_name': r['item_name'],
+                'category': r.get('category', ''),
+                'location': r.get('location', ''),
+                'barcode': r.get('barcode', ''),
+                'unit': r.get('unit', ''),
+                'closing': r['closing'],
+                'minimum': r['minimum'],
+                'shortfall': r.get('shortfall', 0),
+                'unit_cost': r.get('unit_cost', 0),
+                'total_value': r.get('total_value', 0),
+            }
+        )
+    return out
+
+
+def _low_stock_table_payload(rows: list[dict], title: str = 'Low stock items') -> dict[str, Any]:
+    low_rows = _low_stock_rows_from_summary(rows)
+    low_grand = sum(Decimal(str(r.get('total_value', 0))) for r in low_rows).quantize(Decimal('0.01'))
+    return {
+        'title': title,
+        'columns': LOW_STOCK_TABLE_COLUMNS,
+        'rows': low_rows,
+        'footer': {
+            'grand_total_value': float(low_grand),
+            'item_count': len(low_rows),
+        },
+    }
+
+
 def report_stock_summary(date_from: date, date_to: date) -> dict[str, Any]:
     opening_m = _opening_map(date_from)
     recv_m = _period_received_map(date_from, date_to)
@@ -138,6 +207,7 @@ def report_stock_summary(date_from: date, date_to: date) -> dict[str, Any]:
                 'status_key': status_key,
             }
         )
+    grand_total = _attach_valuation_to_rows(rows)
     return {
         'report': 'stock_summary',
         'title': 'Stock Summary Report',
@@ -152,9 +222,25 @@ def report_stock_summary(date_from: date, date_to: date) -> dict[str, Any]:
             {'key': 'issued', 'label': 'Issued', 'format': 'number'},
             {'key': 'closing', 'label': 'Closing Stock', 'format': 'number'},
             {'key': 'minimum', 'label': 'Min Level', 'format': 'number'},
+            {'key': 'unit_cost', 'label': 'Unit Cost', 'format': 'money'},
+            {'key': 'total_value', 'label': 'Total Value', 'format': 'money'},
             {'key': 'status', 'label': 'Status'},
         ],
         'rows': rows,
+        'footer': {'grand_total_value': float(grand_total)},
+        'low_stock_table': _low_stock_table_payload(rows),
+    }
+
+
+def report_low_stock(date_from: date, date_to: date) -> dict[str, Any]:
+    summary = report_stock_summary(date_from, date_to)
+    low_table = summary.get('low_stock_table') or _low_stock_table_payload(summary['rows'])
+    return {
+        'report': 'low_stock',
+        'title': 'Low Stock Report',
+        'columns': low_table['columns'],
+        'rows': low_table['rows'],
+        'footer': low_table.get('footer', {}),
     }
 
 
@@ -486,6 +572,7 @@ def report_inventory_analytics(date_from: date, date_to: date) -> dict[str, Any]
 
 REPORT_BUILDERS = {
     'stock_summary': report_stock_summary,
+    'low_stock': report_low_stock,
     'inventory_analytics': report_inventory_analytics,
     'inventory_valuation': report_inventory_valuation,
     'warranty': report_warranty,

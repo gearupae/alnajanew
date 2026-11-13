@@ -2511,6 +2511,10 @@ def consumable_inventory_report_api(request):
     # Strip internal id from row payloads for cleaner API
     for row in payload.get('rows', []):
         row.pop('item_id', None)
+    low_tbl = payload.get('low_stock_table')
+    if low_tbl:
+        for row in low_tbl.get('rows', []):
+            row.pop('item_id', None)
     payload['ok'] = True
     payload['date_from'] = date_from.isoformat()
     payload['date_to'] = date_to.isoformat()
