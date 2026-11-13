@@ -171,13 +171,26 @@ function erpResolveRowHref(tr) {
             detailHref = href;
             break;
         }
-        if (/\/\d+\/?(\?|#|$)/.test(href) && (href.indexOf('_edit') === -1 && href.indexOf('/edit') === -1)) {
+        if (a.closest('.col-actions, .estimate-list-actions, .consumable-request-actions')) {
+            continue;
+        }
+        if (/\/\d+\/?(\?|#|$)/.test(href) && href.indexOf('_edit') === -1 && href.indexOf('/edit/') === -1) {
             if (!recordHref) {
                 recordHref = href;
             }
         }
     }
-    return detailHref || recordHref || null;
+    if (detailHref || recordHref) {
+        return detailHref || recordHref;
+    }
+    const actionsCell = tr.querySelector('.col-actions, .estimate-list-actions, td:last-child');
+    if (actionsCell) {
+        const editLink = actionsCell.querySelector('a[href*="_edit"], a[href*="/edit/"]');
+        if (editLink && !editLink.querySelector('.fa-trash, .fa-ban')) {
+            return editLink.getAttribute('href');
+        }
+    }
+    return null;
 }
 
 function erpPrepareClickableRows(table) {
@@ -253,26 +266,28 @@ function erpInitListTables() {
             info: rowCount > 25,
             autoWidth: false,
             columnDefs: nonSortable.length ? [{ orderable: false, targets: nonSortable }] : [],
+            drawCallback: function () {
+                erpPrepareClickableRows(table);
+            },
         });
     });
 }
 
 function erpInitListTableRowClicks() {
-    document.querySelectorAll('table.erp-list-table tbody').forEach(function (tbody) {
-        if (tbody.dataset.erpRowClickBound === '1') {
+    const root = document.querySelector('main.main-content');
+    if (!root || root.dataset.erpRowClickBound === '1') {
+        return;
+    }
+    root.dataset.erpRowClickBound = '1';
+    root.addEventListener('click', function (e) {
+        const tr = e.target.closest('table.erp-list-table tbody tr.erp-clickable-row');
+        if (!tr || !tr.dataset.href) {
             return;
         }
-        tbody.dataset.erpRowClickBound = '1';
-        tbody.addEventListener('click', function (e) {
-            const tr = e.target.closest('tr.erp-clickable-row');
-            if (!tr || !tr.dataset.href) {
-                return;
-            }
-            if (e.target.closest('a, button, input, select, textarea, label, form, .btn, .form-check, .dropdown-menu')) {
-                return;
-            }
-            window.location.href = tr.dataset.href;
-        });
+        if (e.target.closest('a, button, input, select, textarea, label, form, .btn, .form-check, .dropdown-menu')) {
+            return;
+        }
+        window.location.href = tr.dataset.href;
     });
 }
 

@@ -92,8 +92,10 @@
                 </thead>
                 <tbody>
                     {% for payment in payments %}
-                    <tr>
-                        <td class="fw-medium">{{ payment.payment_number }}</td>
+                    <tr data-href="{% url 'finance:payment_detail' payment.pk %}">
+                        <td class="fw-medium">
+                            <a href="{% url 'finance:payment_detail' payment.pk %}" class="text-decoration-none">{{ payment.payment_number }}</a>
+                        </td>
                         <td>{{ payment.payment_date|date:"d/m/Y" }}</td>
                         <td>
                             {% if payment.payment_type == 'received' %}

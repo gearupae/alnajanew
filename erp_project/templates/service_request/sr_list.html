@@ -57,8 +57,10 @@
                 </thead>
                 <tbody>
                     {% for sr in service_requests %}
-                    <tr>
-                        <td class="fw-medium">{{ sr.sr_number }}</td>
+                    <tr data-href="{% url 'service_request:sr_detail' sr.pk %}">
+                        <td class="fw-medium">
+                            <a href="{% url 'service_request:sr_detail' sr.pk %}" class="text-decoration-none">{{ sr.sr_number }}</a>
+                        </td>
                         <td>{{ sr.date|date:"d/m/Y" }}</td>
                         <td>{{ sr.department.name|default:"-" }}</td>
                         <td>{{ sr.requested_by.get_full_name|default:sr.requested_by.username }}</td>

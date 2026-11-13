@@ -80,7 +80,7 @@
                 </thead>
                 <tbody>
                     {% for line in deduction_lines %}
-                    <tr>
+                    <tr data-href="{% url 'hr:payroll_detail' line.payroll.pk %}">
                         <td>{{ line.payroll.employee.full_name }}</td>
                         <td>{{ line.payroll.month|date:"F Y" }}</td>
                         <td><span class="badge bg-light text-dark">{{ line.code }}</span></td>

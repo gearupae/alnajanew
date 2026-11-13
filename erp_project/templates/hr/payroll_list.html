@@ -59,7 +59,7 @@
                 <thead class="table-light"><tr><th>Employee</th><th>Company</th><th>Month</th><th class="text-end">Basic</th><th class="text-end">Allowances</th><th class="text-end">Deductions</th><th class="text-end">Net</th><th>Status</th><th class="text-center" width="120">Actions</th></tr></thead>
                 <tbody>
                     {% for payroll in payrolls %}
-                    <tr>
+                    <tr data-href="{% url 'hr:payroll_detail' payroll.pk %}">
                         <td>{{ payroll.employee.full_name }}</td>
                         <td>{{ payroll.company|default:payroll.employee.company|default:"—" }}</td>
                         <td>{{ payroll.month|date:"F Y" }}</td>
