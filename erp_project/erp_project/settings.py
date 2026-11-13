@@ -196,6 +196,7 @@ NUMBER_SERIES = {
     'CUSTOMER': {'prefix': 'CUST', 'padding': 4},
     'VENDOR': {'prefix': 'VEND', 'padding': 4},
     'ESTIMATE': {'prefix': 'QUO', 'padding': 4},
+    # Sales tax invoices use SI/{month}/{year}/{n} in apps.sales.invoice_numbering (not generate_number).
     'INVOICE': {'prefix': 'INV', 'padding': 4},
     'PURCHASE_REQUEST': {'prefix': 'PR', 'padding': 4},
     'SERVICE_REQUEST': {'prefix': 'SR', 'padding': 4},

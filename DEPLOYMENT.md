@@ -1,5 +1,7 @@
 # Al Najah ERP — Git & production server
 
+> **Canonical only:** Use the Git repo and Hetzner server below for Al Najah. Do not push to other remotes or deploy to other hosts unless explicitly requested.
+
 | Item | Value |
 |------|--------|
 | **Production site** | https://alnajah.telldb.com/ |

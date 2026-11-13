@@ -679,7 +679,7 @@
                                 <th class="items-col-drag" title="Drag rows to change line order"></th>
                                 <th class="items-col-group" title="Choose a group on the left to load items; edit the PDF section title on the right (screen layout only—does not change inventory).">Group</th>
                                 <th class="items-col-group-mult" title="Multiplied with qty for all lines in this group">Group ×</th>
-                                <th class="items-col-inventory">Inventory</th>
+                                <th class="items-col-inventory" title="Item code, name, and brand">Inventory</th>
                                 <th class="items-col-desc">Description</th>
                                 <th class="items-col-qty">Qty</th>
                                 <th class="items-col-base" title="Base price per unit">Base</th>
@@ -865,6 +865,16 @@ function escapeHtml(text) {
         .replace(/"/g, '&quot;');
 }
 
+function formatInventoryItemLabel(it) {
+    if (!it) return '';
+    let label = `${it.item_code || ''} — ${it.name || ''}`.trim();
+    const brand = (it.brand || '').trim();
+    if (brand) {
+        label += ` · ${brand}`;
+    }
+    return label;
+}
+
 function getInventoryOptions(selectedId) {
     const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
     let o = '<option value=""></option>';
@@ -873,7 +883,7 @@ function getInventoryOptions(selectedId) {
     }
     inventoryItems.forEach(it => {
         const sel = selected && selected === String(it.id) ? ' selected' : '';
-        const label = `${it.item_code || ''} — ${it.name || ''}`;
+        const label = formatInventoryItemLabel(it);
         o += `<option value="${it.id}"${sel}>${escapeHtml(label)}</option>`;
     });
     return o;
@@ -1241,7 +1251,7 @@ function syncInventorySelectTitle(selectEl) {
     const row = selectEl.closest('tr');
     const rendered = row?.querySelector('.items-col-inventory .select2-selection__rendered');
     const meta = getInventoryMeta(selectEl.value);
-    const label = meta ? `${meta.item_code || ''} — ${meta.name || ''}`.trim() : '';
+    const label = meta ? formatInventoryItemLabel(meta) : '';
     if (rendered) rendered.title = label;
     const container = row?.querySelector('.items-col-inventory .select2-container');
     if (container) container.title = label;

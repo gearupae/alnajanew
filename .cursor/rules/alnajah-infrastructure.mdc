@@ -1,0 +1,27 @@
+---
+description: Al Najah canonical Git remote, Hetzner server, and deploy restrictions
+alwaysApply: true
+---
+
+# Al Najah — Git & server (canonical only)
+
+Use **only** these targets for this project (`alnajah` / Al Najah ERP):
+
+| Role | Value |
+|------|--------|
+| **Git remote (origin)** | https://github.com/gearupae/alnajanew.git |
+| **Default branch** | `main` |
+| **Production SSH** | `ssh root@37.27.16.210` |
+| **App directory on server** | `/var/www/alnajahfireerp` |
+| **Production URL** | https://alnajah.telldb.com/ |
+
+## Restrictions
+
+- Do **not** add remotes, push, or deploy to any other Git host or server for Al Najah unless the user explicitly asks in that message.
+- Do **not** run `git push` unless the user explicitly requests it.
+- Deploy via `./scripts/deploy_production.sh` with `DEPLOY_HOST=root@37.27.16.210` and `DEPLOY_PATH=/var/www/alnajahfireerp` (see `DEPLOYMENT.md`, `docs/DEPLOY_HETZNER.md`).
+- Never overwrite production `.env` on the server during deploy.
+
+## Local workspace
+
+This repo should track `origin` → `gearupae/alnajanew` only. Before any push, verify with `git remote -v`.

@@ -2907,7 +2907,7 @@ def journal_register_detail(request, pk):
         source_info = {'module': 'Opening Balance', 'class': 'bg-info'}
     elif entry.entry_type == 'reversal' or entry.reversal_of:
         source_info = {'module': 'Reversal', 'class': 'bg-warning'}
-    elif ref.startswith('INV') or 'INVOICE' in ref:
+    elif ref.startswith('INV') or ref.startswith('SI/') or 'INVOICE' in ref:
         source_info = {'module': 'Sales Invoice', 'class': 'bg-success'}
     elif ref.startswith('BILL') or 'BILL' in ref:
         source_info = {'module': 'Purchase Bill', 'class': 'bg-primary'}

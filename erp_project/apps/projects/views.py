@@ -1210,14 +1210,22 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
         context['project_estimate_total'] = estimate_total
         context['header_profit_vs_expenses'] = estimate_total - recorded
         context['header_profit_label'] = 'Quotation price − total expense'
-        from .project_receipt_metrics import project_receipt_totals, linked_invoices_for_project_display
+        from .project_receipt_metrics import (
+            linked_invoices_for_project_display,
+            project_linked_invoice_payment_summary,
+            project_receipt_totals,
+        )
 
         receipt = project_receipt_totals(self.object)
+        invoice_pay = project_linked_invoice_payment_summary(self.object)
         context['project_invoiced_amount'] = receipt['invoiced_amount']
         context['project_received_amount'] = receipt['received_amount']
         context['project_balance_amount'] = receipt['balance_amount']
         context['project_advance_received'] = receipt['advance_received']
         context['project_invoice_paid'] = receipt['invoice_paid']
+        context['project_invoice_total'] = invoice_pay['invoice_total_amount']
+        context['project_invoice_paid_display'] = invoice_pay['invoice_paid_amount']
+        context['project_invoice_outstanding'] = invoice_pay['invoice_outstanding']
         context['linked_sales_invoices'] = linked_invoices_for_project_display(self.object)
         context['can_create_sales_invoice'] = (
             self.request.user.is_superuser

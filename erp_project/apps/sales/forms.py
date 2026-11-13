@@ -487,6 +487,7 @@ class InvoiceForm(forms.ModelForm):
             self.fields['discount_value'].initial = Decimal('0.00')
             self.fields['round_off'].initial = Decimal('0.00')
         self.fields['invoice_date'].input_formats = ['%Y-%m-%d']
+        self.fields['due_date'].required = False
         self.fields['due_date'].input_formats = ['%Y-%m-%d']
 
         self.fields['project'].queryset = (
@@ -495,6 +496,11 @@ class InvoiceForm(forms.ModelForm):
             .select_related('customer')
             .order_by('-created_at')
         )
+        from .picker_labels import invoice_project_choice_label
+
+        self.fields['project'].label_from_instance = invoice_project_choice_label
+        if not self.is_bound and self.initial.get('project'):
+            self.fields['project'].initial = self.initial.get('project')
         if self.instance and self.instance.pk:
             linked = get_invoice_project(self.instance)
             if linked:

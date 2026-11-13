@@ -158,6 +158,7 @@ def _inventory_item_estimate_json(item):
         'id': item.id,
         'item_code': item.item_code,
         'name': item.name,
+        'brand': (item.brand or '').strip(),
         'selling_price': item.selling_price,
         'minimum_selling_price_value': item.minimum_selling_price,
         'minimum_selling_price_type': item.minimum_selling_price_type,
@@ -2470,6 +2471,9 @@ def inventory_item_json(request, pk):
 
 # ============ INVOICE VIEWS ============
 
+from .picker_labels import invoice_project_option_label
+
+
 def _invoice_form_project_context():
     """JSON data for invoice form project filtering by customer."""
     from apps.projects.models import Project
@@ -2479,7 +2483,14 @@ def _invoice_form_project_context():
         .exclude(status='cancelled')
         .select_related('customer')
         .order_by('-created_at')
-        .values('id', 'customer_id', 'project_code', 'name')
+        .values(
+            'id',
+            'customer_id',
+            'project_code',
+            'name',
+            'customer__company',
+            'customer__name',
+        )
     )
     inventory_items = _invoice_inventory_items_data()
     return {
@@ -2488,7 +2499,7 @@ def _invoice_form_project_context():
                 {
                     'id': p['id'],
                     'customer_id': p['customer_id'],
-                    'label': f"{p['project_code']} — {p['name']}",
+                    'label': invoice_project_option_label(p),
                 }
                 for p in projects
             ],
@@ -2621,6 +2632,12 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
         if 'prices_include_vat' not in initial:
             initial['prices_include_vat'] = default_prices_include_vat()
         return initial
+
+    def _project_pk_from_request(self):
+        raw = self.request.GET.get('project') or self.request.POST.get('return_project_id')
+        if raw and str(raw).isdigit():
+            return int(raw)
+        return None
     
     def get_context_data(self, **kwargs):
         from apps.finance.models import TaxCode
@@ -2640,6 +2657,21 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
             context['items_formset'] = kwargs['items_formset']
         context.update(_invoice_form_project_context())
         context['prices_include_vat_editable'] = True
+        project_pk = self._project_pk_from_request()
+        if project_pk:
+            from apps.projects.models import Project
+            from apps.projects.project_receipt_metrics import project_linked_invoice_payment_summary
+
+            proj = (
+                Project.objects.filter(pk=project_pk, is_active=True)
+                .select_related('customer')
+                .first()
+            )
+            if proj:
+                context['invoice_from_project'] = proj
+                context['invoice_from_project_summary'] = project_linked_invoice_payment_summary(proj)
+                context['invoice_preselect_project_id'] = proj.pk
+                context['invoice_return_project_id'] = proj.pk
         return context
     
     def post(self, request, *args, **kwargs):
@@ -2670,6 +2702,9 @@ class InvoiceCreateView(CreatePermissionMixin, CreateView):
                 f'From estimate {est.estimate_number} — {inv.customer.name}' if inv.customer else inv.invoice_number,
                 link,
             )
+        return_project_pk = self._project_pk_from_request()
+        if return_project_pk:
+            return redirect('projects:project_detail', pk=return_project_pk)
         return redirect(self.success_url)
     
     def form_invalid(self, form, items_formset):

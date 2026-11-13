@@ -538,68 +538,6 @@
             </div>
         </div>
         {% endif %}
-        {% if can_create_proforma and not estimate.has_invoice %}
-        <div class="card mb-4" id="proforma-create">
-            <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h6 class="mb-0 fw-semibold"><i class="fas fa-file-invoice-dollar me-2 text-dark"></i>Proforma invoice</h6>
-                {% if not proforma_invoices %}
-                <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#proformaInvoiceModal"
-                    data-estimate-pk="{{ estimate.pk }}"
-                    data-estimate-number="{{ estimate.display_estimate_number }}"
-                    data-subtotal="{{ estimate.subtotal }}"
-                    data-vat="{{ estimate.vat_amount }}"
-                    data-estimate-total="{{ estimate.total_amount }}"
-                    data-billed-total="{{ estimate.proforma_billed_total }}"
-                    data-remaining-total="{{ estimate.proforma_remaining_total }}"
-                    data-remaining-subtotal="{{ estimate.proforma_remaining_subtotal }}"
-                    data-max-percent="{{ estimate.proforma_max_percent }}"
-                    data-vat-rate="{{ estimate.proforma_vat_rate_percent }}">
-                    <i class="fas fa-plus me-1"></i>Create proforma
-                </button>
-                {% endif %}
-            </div>
-            {% if proforma_invoices %}
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Number</th>
-                                <th>Name</th>
-                                <th class="text-end">Total</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for pf in proforma_invoices %}
-                            <tr>
-                                <td class="fw-medium">{{ pf.proforma_number }}</td>
-                                <td>{{ pf.name }}</td>
-                                <td class="text-end">AED {{ pf.total_amount|floatformat:2 }}</td>
-                                <td class="text-end text-nowrap">
-                                    <a href="{% url 'sales:estimate_proforma_invoice_pdf' estimate.pk pf.pk %}" class="btn btn-sm btn-outline-warning" title="View PDF">
-                                        <i class="fas fa-file-pdf"></i>
-                                    </a>
-                                    {% if can_edit %}
-                                    <a href="{% url 'sales:estimate_proforma_edit' estimate.pk pf.pk %}" class="btn btn-sm btn-outline-primary" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {% else %}
-            <div class="card-body text-muted small">
-                No proforma invoices yet. Use <strong>Create proforma</strong> to generate one — you will go straight to the PDF.
-            </div>
-            {% endif %}
-        </div>
-        {% endif %}
-        
         <!-- Audit Info -->
         <div class="card mb-4">
             <div class="card-header bg-transparent py-3">
@@ -766,10 +704,6 @@
 })();
 </script>
 {% endif %}
-{% if can_create_proforma %}
-{% include 'sales/includes/proforma_invoice_modal.html' %}
-{% endif %}
-
 {% if estimate.status == 'sent' %}
 <div class="modal fade" id="rejectEstimateModal" tabindex="-1" aria-labelledby="rejectEstimateModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -878,9 +812,6 @@
     });
 })();
 </script>
-{% endif %}
-{% if can_create_proforma %}
-<script src="{% static 'js/proforma_modal.js' %}?v=5"></script>
 {% endif %}
 {% if convert_to_project_block_reason %}
 <script>

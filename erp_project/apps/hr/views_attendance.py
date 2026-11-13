@@ -871,12 +871,19 @@ def _attendance_session_status(employee: Employee, when=None):
     d = when.date()
     open_sess = resolve_open_attendance_session(employee, d)
     return {
+        'employee_code': employee.employee_code,
         'open_session': open_sess is not None,
         'date': open_sess.date.isoformat() if open_sess else d.isoformat(),
         'check_in': open_sess.check_in.isoformat() if open_sess and open_sess.check_in else None,
         'check_out': open_sess.check_out.isoformat() if open_sess and open_sess.check_out else None,
         'project_id': open_sess.project_id if open_sess else None,
     }
+
+
+def _employee_from_public_query(raw: str):
+    from .public_attendance_resolve import resolve_employee_for_public_attendance
+
+    return resolve_employee_for_public_attendance(raw)
 
 
 def _punch_record_json(rec: AttendanceRecord, action: str):
@@ -946,19 +953,31 @@ def _perform_attendance_punch(*, employee: Employee, action: str, when, lat, lng
     open_sess.check_out_latitude = la
     open_sess.check_out_longitude = lo
     open_sess.save()
-    recalculate_summary_for_employee_month(employee, d.year, d.month)
+    recalculate_summary_for_employee_month(
+        employee, open_sess.date.year, open_sess.date.month
+    )
+    if open_sess.date != d:
+        recalculate_summary_for_employee_month(employee, d.year, d.month)
     return True, open_sess
+
+
+@require_GET
+def attendance_public_employee_search(request):
+    """JSON: typeahead for public attendance (code or name)."""
+    from .public_attendance_resolve import public_employee_search_rows
+
+    q = (request.GET.get('q') or request.GET.get('term') or '').strip()
+    return JsonResponse({'results': public_employee_search_rows(q)})
 
 
 @require_GET
 def attendance_session_status(request):
     """JSON: open clock-in session for employee code (public punch page)."""
     code = (request.GET.get('code') or '').strip()
-    if not code:
-        return JsonResponse({'ok': False, 'error': 'Employee code is required.'}, status=400)
-    emp = Employee.objects.filter(employee_code__iexact=code, is_active=True).first()
-    if not emp:
-        return JsonResponse({'ok': False, 'error': 'Employee not found.'}, status=404)
+    emp, err = _employee_from_public_query(code)
+    if err:
+        status = 404 if err == 'Employee not found.' else 400
+        return JsonResponse({'ok': False, 'error': err}, status=status)
     when = _parse_client_datetime(request.GET.get('client_time'))
     return JsonResponse({'ok': True, **_attendance_session_status(emp, when)})
 
@@ -969,11 +988,10 @@ def attendance_technician_projects(request):
     from apps.projects.labour_utils import active_technician_projects
 
     code = (request.GET.get('code') or '').strip()
-    if not code:
-        return JsonResponse({'ok': False, 'error': 'Employee code is required.'}, status=400)
-    emp = Employee.objects.filter(employee_code__iexact=code, is_active=True).first()
-    if not emp:
-        return JsonResponse({'ok': False, 'error': 'Employee not found.'}, status=404)
+    emp, err = _employee_from_public_query(code)
+    if err:
+        status = 404 if err == 'Employee not found.' else 400
+        return JsonResponse({'ok': False, 'error': err}, status=status)
     when = _parse_client_datetime(request.GET.get('client_time'))
     session = _attendance_session_status(emp, when)
     if not emp.user_id:
@@ -1012,12 +1030,10 @@ def attendance_public_punch(request):
 
     code = (data.get('employee_code') or '').strip()
     action = (data.get('action') or '').strip()
-    if not code:
-        return JsonResponse({'ok': False, 'error': 'Employee code is required.'}, status=400)
-
-    emp = Employee.objects.filter(employee_code__iexact=code, is_active=True).first()
-    if not emp:
-        return JsonResponse({'ok': False, 'error': 'Employee not found for this code.'}, status=404)
+    emp, err = _employee_from_public_query(code)
+    if err:
+        status = 404 if err == 'Employee not found.' else 400
+        return JsonResponse({'ok': False, 'error': err}, status=status)
 
     project, err = _resolve_technician_project_for_punch(emp, data.get('project_id'))
     if err:
@@ -1038,6 +1054,7 @@ def attendance_public_punch(request):
         if result == 'Already clocked in. Clock out first.':
             payload.update(_attendance_session_status(emp, when))
         elif result == 'Clock in first.':
+            payload.update(_attendance_session_status(emp, when))
             payload['open_session'] = False
         return JsonResponse(payload, status=400)
     return JsonResponse(_punch_record_json(result, action))
@@ -1072,6 +1089,7 @@ def attendance_self_punch(request):
         if result == 'Already clocked in. Clock out first.':
             payload.update(_attendance_session_status(emp, when))
         elif result == 'Clock in first.':
+            payload.update(_attendance_session_status(emp, when))
             payload['open_session'] = False
         return JsonResponse(payload, status=400)
     return JsonResponse(_punch_record_json(result, action))

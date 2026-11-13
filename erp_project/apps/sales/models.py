@@ -723,7 +723,7 @@ class Invoice(BaseModel):
         related_name='invoices'
     )
     invoice_date = models.DateField()
-    due_date = models.DateField()
+    due_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     document_title = models.CharField(
         max_length=100,
@@ -822,7 +822,12 @@ class Invoice(BaseModel):
     
     def save(self, *args, **kwargs):
         if not self.invoice_number:
-            self.invoice_number = generate_number('INVOICE', Invoice, 'invoice_number')
+            from .invoice_numbering import generate_sales_invoice_number
+
+            self.invoice_number = generate_sales_invoice_number(
+                self.invoice_date,
+                exclude_pk=self.pk,
+            )
         super().save(*args, **kwargs)
     
     @property

@@ -26,11 +26,9 @@
 .invoice-header-select2-dropdown .select2-search__field {
     width: 100% !important;
 }
-.invoice-item-cell .invoice-inventory-select {
-    margin-bottom: 0.25rem;
-}
-.invoice-item-cell .invoice-description-input {
-    margin-top: 0.25rem;
+.invoice-item-cell .invoice-inventory-select.d-none,
+.invoice-item-cell .invoice-description-input.d-none {
+    display: none !important;
 }
 </style>
 {% endblock %}
@@ -63,6 +61,24 @@
 
 <form method="post" id="invoiceForm">
     {% csrf_token %}
+    {% if invoice_return_project_id %}
+    <input type="hidden" name="return_project_id" value="{{ invoice_return_project_id }}">
+    {% endif %}
+    {% if invoice_from_project and invoice_from_project_summary %}
+    <div class="alert alert-info mb-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <strong>Project {{ invoice_from_project.project_code }}</strong>
+            <span class="text-muted">— {{ invoice_from_project.name }}</span>
+            <div class="small mt-1 mb-0">
+                Linked invoices: total <strong>AED {{ invoice_from_project_summary.invoice_total_amount|floatformat:2 }}</strong>,
+                paid <strong class="text-success">AED {{ invoice_from_project_summary.invoice_paid_amount|floatformat:2 }}</strong>,
+                remaining to pay <strong class="{% if invoice_from_project_summary.invoice_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">AED {{ invoice_from_project_summary.invoice_outstanding|floatformat:2 }}</strong>
+            </div>
+        </div>
+        <a href="{% url 'projects:project_detail' invoice_from_project.pk %}" class="btn btn-sm btn-outline-primary">Back to project</a>
+    </div>
+    {% endif %}
+
     <datalist id="invoice-title-suggestions">
         <option value="TAX INVOICE"></option>
         <option value="PROFORMA INVOICE"></option>
@@ -97,7 +113,7 @@
                     {% if form.invoice_date.errors %}<div class="text-danger small">{{ form.invoice_date.errors|join:", " }}</div>{% endif %}
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Due date <span class="text-danger">*</span></label>
+                    <label class="form-label">Due date</label>
                     {{ form.due_date }}
                     {% if form.due_date.errors %}<div class="text-danger small">{{ form.due_date.errors|join:", " }}</div>{% endif %}
                 </div>
@@ -190,11 +206,18 @@
     
     <!-- Line Items -->
     <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h6 class="mb-0 fw-semibold"><i class="fas fa-list me-2"></i>Line Items</h6>
-            <button type="button" class="btn btn-sm btn-primary" onclick="addItemRow()">
-                <i class="fas fa-plus me-1"></i>Add Item
-            </button>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="invoiceLineModeToggle"
+                        title="Switch line entry between service description and inventory item">
+                    <i class="fas fa-boxes me-1" id="invoiceLineModeToggleIcon" aria-hidden="true"></i>
+                    <span id="invoiceLineModeToggleLabel">Inventory item</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="addItemRow()">
+                    <i class="fas fa-plus me-1"></i>Add Item
+                </button>
+            </div>
         </div>
         <div class="card-body p-0">
             {{ items_formset.management_form }}
@@ -217,11 +240,11 @@
                             <td class="invoice-item-cell">
                                 {{ item_form.id }}
                                 {{ item_form.inventory_item }}
-                                <select class="form-select form-select-sm invoice-inventory-select" aria-label="Search inventory item"></select>
+                                <select class="form-select form-select-sm invoice-inventory-select d-none" aria-label="Search inventory item"></select>
                                 <input type="text" name="{{ item_form.prefix }}-description"
                                        class="form-control form-control-sm invoice-description-input"
                                        value="{{ item_form.description.value|default:'' }}"
-                                       placeholder="Optional custom description…">
+                                       placeholder="Service description…">
                             </td>
                             <td>
                                 <input type="number" name="{{ item_form.prefix }}-quantity" class="form-control form-control-sm item-qty" 
@@ -356,6 +379,7 @@ const defaultTaxCodeId = {% if default_tax_code %}{{ default_tax_code.id }}{% el
 const invoicePaidAmount = {% if object %}{{ object.paid_amount|default:0 }}{% else %}0{% endif %};
 const INVOICE_INVENTORY_ITEMS = {{ invoice_inventory_items_json|default:"[]"|safe }};
 const INVOICE_PROJECT_OPTIONS = {{ invoice_project_options_json|default:"[]"|safe }};
+const INVOICE_PRESELECT_PROJECT_ID = {{ invoice_preselect_project_id|default:"null" }};
 let formCount = {{ items_formset.total_form_count }};
 
 function escapeHtml(text) {
@@ -519,6 +543,107 @@ function initAllInvoiceInventorySelect2() {
     });
 }
 
+let invoiceLineEntryMode = 'service';
+
+function getInvoiceLineEntryMode() {
+    return invoiceLineEntryMode === 'inventory' ? 'inventory' : 'service';
+}
+
+function detectInitialInvoiceLineEntryMode() {
+    const rows = document.querySelectorAll('#itemsBody .item-row');
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (row.style.display === 'none') continue;
+        if (getInvoiceRowInventoryId(row)) {
+            return 'inventory';
+        }
+    }
+    return 'service';
+}
+
+function updateInvoiceLineModeToggleUi() {
+    const label = document.getElementById('invoiceLineModeToggleLabel');
+    const icon = document.getElementById('invoiceLineModeToggleIcon');
+    const btn = document.getElementById('invoiceLineModeToggle');
+    if (!label || !btn) return;
+    const mode = getInvoiceLineEntryMode();
+    if (mode === 'inventory') {
+        label.textContent = 'Service line';
+        if (icon) {
+            icon.className = 'fas fa-pen me-1';
+        }
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-secondary');
+        btn.setAttribute('aria-pressed', 'true');
+    } else {
+        label.textContent = 'Inventory item';
+        if (icon) {
+            icon.className = 'fas fa-boxes me-1';
+        }
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-outline-secondary');
+        btn.setAttribute('aria-pressed', 'false');
+    }
+}
+
+function applyInvoiceRowLineMode(row) {
+    if (!row) return;
+    const mode = getInvoiceLineEntryMode();
+    const cell = row.querySelector('.invoice-item-cell');
+    const selectEl = row.querySelector('.invoice-inventory-select');
+    const descInput = row.querySelector('.invoice-description-input');
+    if (cell) {
+        cell.classList.toggle('invoice-mode-service', mode === 'service');
+        cell.classList.toggle('invoice-mode-inventory', mode === 'inventory');
+    }
+    if (mode === 'service') {
+        if (selectEl) {
+            destroyInvoiceInventorySelect2(selectEl);
+            selectEl.classList.add('d-none');
+        }
+        if (descInput) {
+            descInput.classList.remove('d-none');
+            descInput.placeholder = 'Service description…';
+        }
+    } else {
+        if (selectEl) {
+            selectEl.classList.remove('d-none');
+            initInvoiceRowInventorySelect(row);
+        }
+        if (descInput) {
+            descInput.classList.add('d-none');
+        }
+    }
+}
+
+function applyInvoiceLineEntryModeToAllRows() {
+    document.querySelectorAll('#itemsBody .item-row').forEach(function (row) {
+        if (row.style.display === 'none') return;
+        applyInvoiceRowLineMode(row);
+    });
+}
+
+function setInvoiceLineEntryMode(mode) {
+    invoiceLineEntryMode = mode === 'inventory' ? 'inventory' : 'service';
+    updateInvoiceLineModeToggleUi();
+    applyInvoiceLineEntryModeToAllRows();
+}
+
+function toggleInvoiceLineEntryMode() {
+    const next = getInvoiceLineEntryMode() === 'service' ? 'inventory' : 'service';
+    if (next === 'service') {
+        document.querySelectorAll('#itemsBody .item-row').forEach(function (row) {
+            if (row.style.display === 'none') return;
+            setInvoiceRowInventoryId(row, '');
+            const sel = row.querySelector('.invoice-inventory-select');
+            if (sel) {
+                sel.value = '';
+            }
+        });
+    }
+    setInvoiceLineEntryMode(next);
+}
+
 function pricesIncludeVatEnabled() {
     const el = document.getElementById('id_prices_include_vat');
     if (!el) return false;
@@ -657,7 +782,7 @@ function addItemRow() {
     const row = document.createElement('tr');
     row.className = 'item-row';
     row.innerHTML = `
-        <td class="invoice-item-cell"><input type="hidden" name="items-${idx}-inventory_item" class="invoice-inventory-id-input" value=""><select class="form-select form-select-sm invoice-inventory-select" aria-label="Search inventory item"></select><input type="text" name="items-${idx}-description" class="form-control form-control-sm invoice-description-input" value="" placeholder="Optional custom description…"></td>
+        <td class="invoice-item-cell"><input type="hidden" name="items-${idx}-inventory_item" class="invoice-inventory-id-input" value=""><select class="form-select form-select-sm invoice-inventory-select d-none" aria-label="Search inventory item"></select><input type="text" name="items-${idx}-description" class="form-control form-control-sm invoice-description-input" value="" placeholder="Service description…"></td>
         <td><input type="number" name="items-${idx}-quantity" class="form-control form-control-sm item-qty" value="1" step="0.01" min="0.01" onchange="calculateRowTotal(this)"></td>
         <td><input type="number" name="items-${idx}-unit_price" class="form-control form-control-sm item-price" value="0" step="0.01" min="0" onchange="calculateRowTotal(this)"></td>
         <td>
@@ -678,7 +803,7 @@ function addItemRow() {
         sel.value = String(defaultTaxCodeId);
     }
     totalForms.value = idx + 1;
-    initInvoiceRowInventorySelect(row);
+    applyInvoiceRowLineMode(row);
     calculateRowTotal(row.querySelector('.item-qty'));
 }
 
@@ -880,12 +1005,35 @@ function initInvoiceCustomerSelect2() {
     finalizeInvoiceCustomerSelection($el, searchUrl);
 }
 
+function applyInvoicePreselectedProject() {
+    if (!INVOICE_PRESELECT_PROJECT_ID) return;
+    const el = document.getElementById('id_project');
+    if (!el) return;
+    const cid = getSelectedInvoiceCustomerId();
+    if (!cid) return;
+    const pid = parseInt(INVOICE_PRESELECT_PROJECT_ID, 10);
+    const allowed = INVOICE_PROJECT_OPTIONS.some(function (p) {
+        return p.id === pid && parseInt(p.customer_id, 10) === cid;
+    });
+    if (!allowed) return;
+    if (typeof $ !== 'undefined' && $(el).data('select2')) {
+        $(el).val(String(pid)).trigger('change.select2');
+    } else {
+        el.value = String(pid);
+    }
+}
+
 $(function () {
     initInvoiceCustomerSelect2();
     initInvoiceEstimateSelect2();
     refreshInvoiceProjectSelect({ preserveSelection: true });
     initInvoiceCustomerProjectSync();
-    initAllInvoiceInventorySelect2();
+    setTimeout(applyInvoicePreselectedProject, 350);
+    setInvoiceLineEntryMode(detectInitialInvoiceLineEntryMode());
+    const lineModeToggle = document.getElementById('invoiceLineModeToggle');
+    if (lineModeToggle) {
+        lineModeToggle.addEventListener('click', toggleInvoiceLineEntryMode);
+    }
     updateVatPricingLabels();
     syncLineVatInclusiveFlags();
     document.querySelectorAll('#itemsBody tr.item-row').forEach(row => {
@@ -930,15 +1078,22 @@ $(function () {
         invoiceForm.addEventListener('submit', function () {
             document.querySelectorAll('#itemsBody .item-row').forEach(function (row) {
                 if (row.style.display === 'none') return;
-                const sel = row.querySelector('.invoice-inventory-select');
-                if (sel) {
-                    setInvoiceRowInventoryId(row, sel.value || '');
+                const mode = getInvoiceLineEntryMode();
+                if (mode === 'service') {
+                    setInvoiceRowInventoryId(row, '');
+                } else {
+                    const sel = row.querySelector('.invoice-inventory-select');
+                    if (sel) {
+                        setInvoiceRowInventoryId(row, sel.value || '');
+                    }
                 }
                 const descInput = row.querySelector('.invoice-description-input');
                 if (!descInput || (descInput.value || '').trim()) return;
-                const resolved = resolveInvoiceLineDescriptionForSubmit(row);
-                if (resolved) {
-                    descInput.value = resolved;
+                if (mode === 'inventory') {
+                    const resolved = resolveInvoiceLineDescriptionForSubmit(row);
+                    if (resolved) {
+                        descInput.value = resolved;
+                    }
                 }
             });
         });

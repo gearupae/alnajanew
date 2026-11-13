@@ -66,6 +66,11 @@ urlpatterns = [
     path('payroll/<int:pk>/pay/', views.payroll_pay, name='payroll_pay'),
     path('attendance/api/technician-projects/', av.attendance_technician_projects, name='attendance_technician_projects'),
     path('attendance/api/session-status/', av.attendance_session_status, name='attendance_session_status'),
+    path(
+        'attendance/api/public-employee-search/',
+        av.attendance_public_employee_search,
+        name='attendance_public_employee_search',
+    ),
     path('attendance/', av.AttendanceRecordListView.as_view(), name='attendance_list'),
     path('attendance/public/', av.PublicAttendancePunchView.as_view(), name='public_attendance'),
     path('attendance/api/public-punch/', av.attendance_public_punch, name='attendance_public_punch'),

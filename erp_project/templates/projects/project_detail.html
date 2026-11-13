@@ -388,6 +388,24 @@
                 #projectItemsTable .project-inline-qty { width: 4.5rem; }
                 #projectItemsTable .line-action-cell form { margin: 0; }
                 #projectItemsTable .project-line-actions { min-width: 8.5rem; }
+                #projectItemsTable thead th,
+                #projectItemsTable tbody td {
+                    padding-top: 0.3rem;
+                    padding-bottom: 0.3rem;
+                    vertical-align: middle;
+                }
+                #projectItemsTable .project-item-cell {
+                    line-height: 1.25;
+                    white-space: nowrap;
+                    max-width: 22rem;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                #projectItemsTable .project-item-cell .item-code {
+                    font-family: var(--bs-font-monospace);
+                    font-size: 0.8125rem;
+                    color: var(--bs-secondary-color);
+                }
                 #projectItemsTable tfoot .project-items-total-spacer td {
                     border: 0;
                     padding-top: 1.25rem;
@@ -542,15 +560,16 @@
                                     {% endif %}
                                 </td>
                                 {% endif %}
-                                <td>
+                                <td class="project-item-cell" title="{% if line.inventory_item %}{{ line.inventory_item.item_code }} — {{ line.inventory_item.name }}{% if line.description and line.description != line.inventory_item.name %} — {{ line.description }}{% endif %}{% else %}{{ line.description }}{% endif %}">
                                     {% if line.inventory_item %}
-                                        <span class="fw-medium">{{ line.inventory_item.name }}</span>
-                                        {% if line.description and line.description != line.inventory_item.name %}
-                                        <br><small class="text-muted">{{ line.description }}</small>
-                                        {% endif %}
-                                        <br><small class="text-muted">{{ line.inventory_item.item_code }}</small>
+                                    <span class="item-code">{{ line.inventory_item.item_code }}</span>
+                                    <span class="text-muted mx-1" aria-hidden="true">—</span>
+                                    <span class="fw-medium">{{ line.inventory_item.name }}</span>
+                                    {% if line.description and line.description != line.inventory_item.name %}
+                                    <span class="text-muted small"> · {{ line.description }}</span>
+                                    {% endif %}
                                     {% else %}
-                                        {{ line.description }}
+                                    {{ line.description }}
                                     {% endif %}
                                 </td>
                                 <td class="text-center">{% if line.requires_whole_quantity %}{{ line.quantity|floatformat:0 }}{% else %}{{ line.quantity|floatformat:2 }}{% endif %}</td>
@@ -991,12 +1010,32 @@
             <div class="card-header bg-transparent py-3 border-bottom d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-file-invoice-dollar me-2 text-dark"></i>Sales invoices</h6>
                 {% if can_create_sales_invoice %}
-                <a href="{% url 'sales:invoice_create' %}?project={{ project.pk }}{% if project.customer_id %}&amp;customer={{ project.customer_id }}{% endif %}" class="btn btn-sm btn-outline-primary">
+                {% if project.customer_id %}
+                <a href="{% url 'sales:invoice_create' %}?project={{ project.pk }}&amp;customer={{ project.customer_id }}{% if source_estimate %}&amp;estimate={{ source_estimate.pk }}{% endif %}" class="btn btn-sm btn-primary">
                     <i class="fas fa-plus me-1"></i>Create invoice
                 </a>
+                {% else %}
+                <span class="btn btn-sm btn-outline-secondary disabled" title="Set a customer on this project first">Create invoice</span>
+                {% endif %}
                 {% endif %}
             </div>
             <div class="card-body pt-2 pb-2">
+                {% if linked_sales_invoices or project_invoice_total > 0 %}
+                <div class="small mb-3 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Invoice total</span>
+                        <span class="fw-medium">AED {{ project_invoice_total|floatformat:2 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Paid</span>
+                        <span class="text-success">AED {{ project_invoice_paid_display|floatformat:2 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <span class="text-muted fw-semibold">Remaining to pay</span>
+                        <span class="fw-bold {% if project_invoice_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">AED {{ project_invoice_outstanding|floatformat:2 }}</span>
+                    </div>
+                </div>
+                {% endif %}
                 {% if linked_sales_invoices %}
                 <ul class="list-group list-group-flush">
                     {% for inv in linked_sales_invoices %}

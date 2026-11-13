@@ -7,6 +7,35 @@
 .project-lookup-wrap { min-height: 5.5rem; }
 .project-lookup-field { transition: opacity 0.15s ease; }
 .project-lookup-field.is-fetching { opacity: 0.72; }
+.emp-lookup-wrap { position: relative; }
+.emp-suggest-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1080;
+  max-height: 14rem;
+  overflow-y: auto;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.375rem;
+  box-shadow: 0 0.35rem 1rem rgba(0,0,0,.12);
+}
+.emp-suggest-menu li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+}
+.emp-suggest-menu li button:hover,
+.emp-suggest-menu li button:focus {
+  background: rgba(13, 110, 253, 0.08);
+}
 </style>
 {% endblock %}
 {% block heading %}Mark attendance{% endblock %}
@@ -16,13 +45,15 @@
         <div class="card shadow-sm border-0">
             <div class="card-body p-4">
                 <p class="text-muted small mb-3">
-                    Enter your employee code (for example <code>EMP-2026-0002</code>), allow location when prompted.
+                    Enter your <strong>employee code</strong> or <strong>name</strong> (for example <code>EMP-2026-0002</code> or your full name), allow location when prompted.
                     If you work on a project as a <strong>technician</strong>, choose that project before <strong>Clock in</strong> so your hours count on that job.
                 </p>
-                <div class="mb-3">
-                    <label class="form-label" for="emp-code">Employee code</label>
+                <div class="mb-3 emp-lookup-wrap">
+                    <label class="form-label" for="emp-code">Employee code or name</label>
                     <input type="text" class="form-control form-control-lg" id="emp-code"
-                           placeholder="EMP-2026-0002" autocomplete="username"/>
+                           placeholder="Search by code or name…" autocomplete="off"
+                           aria-autocomplete="list" aria-controls="emp-suggest-menu" aria-expanded="false"/>
+                    <ul id="emp-suggest-menu" class="emp-suggest-menu d-none" role="listbox"></ul>
                 </div>
                 <div class="mb-3 project-lookup-wrap" id="project-wrap">
                     <label class="form-label mb-1" for="project-select">
@@ -61,7 +92,9 @@
   const punchUrl = "{% url 'hr:attendance_public_punch' %}";
   const projectsUrl = "{% url 'hr:attendance_technician_projects' %}";
   const sessionUrl = "{% url 'hr:attendance_session_status' %}";
+  const employeeSearchUrl = "{% url 'hr:attendance_public_employee_search' %}";
   const codeInput = document.getElementById('emp-code');
+  const suggestMenu = document.getElementById('emp-suggest-menu');
   const projectWrap = document.getElementById('project-wrap');
   const projectSelect = document.getElementById('project-select');
   const clockInBlock = document.getElementById('clock-in-block');
@@ -79,6 +112,8 @@
   let lastLoadedCode = '';
   let projectUiState = 'idle';
   let hasOpenSession = false;
+  let suggestTimer = null;
+  const MIN_LOOKUP_LEN = 2;
 
   const projectHelp = document.getElementById('project-help');
   const projectLabelHint = document.getElementById('project-label-hint');
@@ -99,7 +134,76 @@
   }
 
   function isCompleteEmployeeCode(code) {
-    return /^EMP-\d{4}-\d{4}$/.test(code);
+    return /^EMP-\d{4}-\d{4}$/i.test(code);
+  }
+
+  function employeeLookupQuery() {
+    return (codeInput.dataset.resolvedCode || normalizeCode(codeInput.value) || '').trim();
+  }
+
+  function clearResolvedEmployee() {
+    delete codeInput.dataset.resolvedCode;
+  }
+
+  function setResolvedEmployee(code) {
+    if (code) {
+      codeInput.dataset.resolvedCode = code;
+    } else {
+      clearResolvedEmployee();
+    }
+  }
+
+  function hideSuggestions() {
+    if (!suggestMenu) return;
+    suggestMenu.classList.add('d-none');
+    suggestMenu.innerHTML = '';
+    codeInput.setAttribute('aria-expanded', 'false');
+  }
+
+  function showSuggestions(items) {
+    if (!suggestMenu) return;
+    suggestMenu.innerHTML = '';
+    if (!items || !items.length) {
+      hideSuggestions();
+      return;
+    }
+    items.forEach(function (row) {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = row.text;
+      btn.addEventListener('click', function () {
+        codeInput.value = row.text;
+        setResolvedEmployee(row.code);
+        hideSuggestions();
+        scheduleLookups();
+      });
+      li.appendChild(btn);
+      suggestMenu.appendChild(li);
+    });
+    suggestMenu.classList.remove('d-none');
+    codeInput.setAttribute('aria-expanded', 'true');
+  }
+
+  function scheduleEmployeeSuggest() {
+    clearTimeout(suggestTimer);
+    const raw = (codeInput.value || '').trim();
+    if (raw.length < MIN_LOOKUP_LEN) {
+      hideSuggestions();
+      return;
+    }
+    suggestTimer = setTimeout(function () {
+      fetch(employeeSearchUrl + '?q=' + encodeURIComponent(raw), { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) { showSuggestions(data.results || []); })
+        .catch(function () { hideSuggestions(); });
+    }, 200);
+  }
+
+  function syncEmployeeIdentityFromServer(data) {
+    if (data && data.employee_code) {
+      setResolvedEmployee(data.employee_code);
+    }
   }
 
   function applyPunchUi(data) {
@@ -130,6 +234,7 @@
       return;
     }
     applyPunchUi(data);
+    syncEmployeeIdentityFromServer(data);
     if (!quiet) {
       if (data.open_session) {
         const inTime = data.check_in ? String(data.check_in).slice(0, 5) : '—';
@@ -185,8 +290,8 @@
   function loadSessionStatus(options) {
     const force = !!(options && options.force);
     const quiet = !!(options && options.quiet);
-    const code = normalizeCode(codeInput.value);
-    if (!code || !isCompleteEmployeeCode(code)) {
+    const code = employeeLookupQuery();
+    if (!code || code.length < MIN_LOOKUP_LEN) {
       hasOpenSession = false;
       applyPunchUi({ open_session: false });
       return Promise.resolve(null);
@@ -206,7 +311,9 @@
         if (seq !== sessionLoadSeq) return null;
         if (!data.ok) {
           if (!quiet && status === 404) {
-            showFeedback('Employee code not found — check the code and try again.', false);
+            showFeedback('Employee not found — check the code or name and try again.', false);
+          } else if (!quiet && status === 400 && data.error) {
+            showFeedback(data.error, false);
           }
           return null;
         }
@@ -219,7 +326,7 @@
   function loadTechnicianProjects(options) {
     const force = !!(options && options.force);
     const preserveProjectId = options && options.preserveProjectId ? String(options.preserveProjectId) : '';
-    const code = normalizeCode(codeInput.value);
+    const code = employeeLookupQuery();
 
     if (!code) {
       lastLoadedCode = '';
@@ -229,10 +336,10 @@
       return Promise.resolve(null);
     }
 
-    if (!force && !isCompleteEmployeeCode(code)) {
+    if (!force && code.length < MIN_LOOKUP_LEN) {
       if (projectUiState !== 'ready' && projectUiState !== 'none') {
         setProjectUiState('idle');
-        projectHelp.textContent = 'Keep typing your full employee code (e.g. EMP-2026-0002)…';
+        projectHelp.textContent = 'Keep typing your employee code or name…';
       }
       return Promise.resolve(null);
     }
@@ -267,7 +374,7 @@
           projectLabelHint.textContent = '';
           setProjectUiState('idle');
           projectHelp.textContent = status === 404
-            ? 'Employee code not found — check the code and try again.'
+            ? 'Employee not found — check the code or name and try again.'
             : (data.error || 'Could not load projects.');
           return null;
         }
@@ -297,19 +404,19 @@
   function scheduleLookups() {
     clearTimeout(projectLoadTimer);
     clearTimeout(sessionLoadTimer);
-    const code = normalizeCode(codeInput.value);
+    const code = employeeLookupQuery();
     if (!code) {
       loadSessionStatus();
       loadTechnicianProjects();
       return;
     }
-    if (!isCompleteEmployeeCode(code)) {
+    if (code.length < MIN_LOOKUP_LEN) {
       if (lastLoadedCode && code !== lastLoadedCode) {
         lastLoadedCode = '';
         technicianProjectCount = 0;
         projectSelect.innerHTML = '<option value="">— Select project —</option>';
         setProjectUiState('idle');
-        projectHelp.textContent = 'Keep typing your full employee code (e.g. EMP-2026-0002)…';
+        projectHelp.textContent = 'Keep typing your employee code or name…';
       }
       return;
     }
@@ -322,9 +429,9 @@
   }
 
   function runPunch(action) {
-    const code = (codeInput.value || '').trim();
-    if (!code) {
-      showFeedback('Please enter your employee code.', false);
+    const code = employeeLookupQuery();
+    if (!code || code.length < MIN_LOOKUP_LEN) {
+      showFeedback('Please enter your employee code or name.', false);
       return;
     }
 
@@ -426,13 +533,29 @@
     });
   }
 
-  codeInput.addEventListener('input', scheduleLookups);
-  codeInput.addEventListener('paste', function () { setTimeout(scheduleLookups, 0); });
+  codeInput.addEventListener('input', function () {
+    clearResolvedEmployee();
+    scheduleEmployeeSuggest();
+    scheduleLookups();
+  });
+  codeInput.addEventListener('paste', function () {
+    setTimeout(function () {
+      clearResolvedEmployee();
+      scheduleEmployeeSuggest();
+      scheduleLookups();
+    }, 0);
+  });
   codeInput.addEventListener('blur', function () {
+    setTimeout(hideSuggestions, 200);
     clearTimeout(projectLoadTimer);
     clearTimeout(sessionLoadTimer);
     loadSessionStatus({ force: true });
     loadTechnicianProjects({ force: true });
+  });
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.emp-lookup-wrap')) {
+      hideSuggestions();
+    }
   });
   codeInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {

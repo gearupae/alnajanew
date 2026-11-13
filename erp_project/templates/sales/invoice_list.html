@@ -180,7 +180,7 @@
                         </td>
                         <td class="col-customer"><span class="text-truncate" title="{{ invoice.customer.company|default:invoice.customer.name }}">{{ invoice.customer.company|default:invoice.customer.name }}</span></td>
                         <td class="text-nowrap">{{ invoice.invoice_date|date:"d/m/Y" }}</td>
-                        <td class="text-nowrap">{{ invoice.due_date|date:"d/m/Y" }}</td>
+                        <td class="text-nowrap">{{ invoice.due_date|date:"d/m/Y"|default:"—" }}</td>
                         <td>
                             {% if invoice.status == 'draft' %}
                                 <span class="badge bg-secondary">Draft</span>

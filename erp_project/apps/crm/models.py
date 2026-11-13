@@ -218,13 +218,13 @@ class Customer(BaseModel):
 
     @property
     def picker_option_label(self):
-        """Dropdown / Select2 label — includes name and company when both differ."""
+        """Dropdown / Select2 label — customer code and company (no contact name)."""
         number = self.customer_number
-        name = (self.name or '').strip()
         company = (self.company or '').strip()
-        if company and name and company.casefold() != name.casefold():
-            return f'{number} — {name} · {company}'
-        return f'{number} — {company or name or number}'
+        if company:
+            return f'{number} — {company}'
+        name = (self.name or '').strip()
+        return f'{number} — {name or number}'
 
     @property
     def public_upload_option_label(self):

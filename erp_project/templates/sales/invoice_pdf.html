@@ -57,10 +57,12 @@
                         <span class="addr-to-detail-label">Invoice date</span>
                         <span class="addr-to-detail-value">{{ invoice.invoice_date|date:"d/m/Y" }}</span>
                     </div>
+                    {% if invoice.due_date %}
                     <div class="addr-to-detail-row">
                         <span class="addr-to-detail-label">Due date</span>
                         <span class="addr-to-detail-value">{{ invoice.due_date|date:"d/m/Y" }}</span>
                     </div>
+                    {% endif %}
                     <div class="addr-to-detail-row">
                         <span class="addr-to-detail-label">Supply date</span>
                         <span class="addr-to-detail-value">{{ invoice.invoice_date|date:"d/m/Y" }}</span>
@@ -194,7 +196,7 @@
         <div class="notes-section">
             <div class="notes-title">Payment</div>
             <div class="notes-content">
-                <strong>Due:</strong> {{ invoice.due_date|date:"d/m/Y" }} · <strong>Currency:</strong> UAE Dirham (AED)
+                {% if invoice.due_date %}<strong>Due:</strong> {{ invoice.due_date|date:"d/m/Y" }} · {% endif %}<strong>Currency:</strong> UAE Dirham (AED)
                 {% if company.email %}<br><strong>Queries:</strong> {{ company.email }}{% endif %}
             </div>
         </div>

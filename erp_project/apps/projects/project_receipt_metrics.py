@@ -24,6 +24,27 @@ def linked_invoices_for_project_display(project):
     return _linked_invoices_for_project(project, include_drafts=True)
 
 
+def project_linked_invoice_payment_summary(project) -> dict:
+    """
+    Totals across linked sales invoices (non-cancelled), including drafts in the list UI.
+    Outstanding = sum of each invoice balance (total − paid).
+    """
+    invoices = [
+        inv
+        for inv in linked_invoices_for_project_display(project)
+        if inv and inv.is_active and inv.status != 'cancelled'
+    ]
+    total_amount = sum((inv.total_amount or Decimal('0.00') for inv in invoices), Decimal('0.00'))
+    paid = sum((inv.paid_amount or Decimal('0.00') for inv in invoices), Decimal('0.00'))
+    outstanding = sum((inv.balance for inv in invoices), Decimal('0.00'))
+    return {
+        'invoice_count': len(invoices),
+        'invoice_total_amount': total_amount.quantize(Decimal('0.01')),
+        'invoice_paid_amount': paid.quantize(Decimal('0.01')),
+        'invoice_outstanding': outstanding.quantize(Decimal('0.01')),
+    }
+
+
 def project_receipt_totals(project) -> dict:
     """
     Cash received from the customer for this project.
