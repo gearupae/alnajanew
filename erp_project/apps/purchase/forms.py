@@ -366,12 +366,9 @@ class PurchaseOrderForm(forms.ModelForm):
         self.fields['terms_and_conditions'].required = False
         self.fields['terms_and_conditions'].label = 'Terms & conditions'
         if not self.instance.pk and not self.is_bound:
-            from apps.settings_app.models import CompanySettings
+            from apps.settings_app.models import PurchaseOrderTermsTemplate
 
-            cs = CompanySettings.get_settings()
-            default_terms = (getattr(cs, 'po_default_terms', None) or '').strip()
-            if not default_terms:
-                default_terms = (cs.contract_default_terms or '').strip()
+            default_terms = (PurchaseOrderTermsTemplate.get_default_body() or '').strip()
             if default_terms:
                 self.fields['terms_and_conditions'].initial = default_terms
 

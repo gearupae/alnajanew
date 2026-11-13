@@ -323,7 +323,13 @@
             <h6 class="mb-0 fw-semibold"><i class="fas fa-file-contract me-2"></i>Terms &amp; conditions</h6>
         </div>
         <div class="card-body">
-            <p class="text-muted small mb-2">Shown at the bottom of the purchase order PDF. You can edit the text for this order.</p>
+            <p class="text-muted small mb-2">Shown at the bottom of the purchase order PDF. Choose a template from <a href="{% url 'settings:company' %}#po-terms-templates">Company Settings</a>, or edit the text for this order.</p>
+            <div class="mb-3">
+                <label class="form-label" for="poTermsTemplateSelect">Template</label>
+                <select id="poTermsTemplateSelect" class="form-select">
+                    <option value="">— Select template —</option>
+                </select>
+            </div>
             {{ form.terms_and_conditions }}
             {% if form.terms_and_conditions.errors %}
             <div class="text-danger small">{{ form.terms_and_conditions.errors|join:", " }}</div>
@@ -343,6 +349,36 @@
 {% block extra_js %}
 {{ po_inventory_items_data|json_script:"po-inventory-items-data" }}
 <script>
+const poTermsTemplates = {{ po_terms_templates_json|safe }};
+
+function setupPoTermsTemplateSelect() {
+    const select = document.getElementById('poTermsTemplateSelect');
+    const textarea = document.querySelector('[name="terms_and_conditions"]');
+    if (!select || !textarea) return;
+
+    const byId = {};
+    poTermsTemplates.forEach(t => {
+        byId[String(t.id)] = t;
+        const opt = document.createElement('option');
+        opt.value = String(t.id);
+        opt.textContent = t.name + (t.is_default ? ' (default)' : '');
+        select.appendChild(opt);
+    });
+
+    select.addEventListener('change', function() {
+        const template = byId[select.value];
+        if (!template) return;
+        textarea.value = template.body || '';
+    });
+
+    {% if not object %}
+    const defaultTemplate = poTermsTemplates.find(t => t.is_default) || poTermsTemplates[0];
+    if (defaultTemplate) {
+        select.value = String(defaultTemplate.id);
+    }
+    {% endif %}
+}
+
 // Tax Code data for JavaScript
 const taxCodes = [
     {% for tc in tax_codes %}
@@ -1049,6 +1085,8 @@ $(function() {
         loadSRItems(preselectSr);
     }
     {% endif %}
+
+    setupPoTermsTemplateSelect();
 });
 </script>
 {% endblock %}

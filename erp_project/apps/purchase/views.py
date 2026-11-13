@@ -68,6 +68,22 @@ def _active_inventory_items_json():
     return json.dumps(_active_inventory_items_data())
 
 
+def _po_terms_templates_context():
+    """Active PO terms templates for the purchase order form dropdown."""
+    from django.core.serializers.json import DjangoJSONEncoder
+
+    from apps.settings_app.models import PurchaseOrderTermsTemplate
+
+    templates = list(
+        PurchaseOrderTermsTemplate.objects.filter(is_active=True)
+        .order_by('sort_order', 'name')
+        .values('id', 'name', 'body', 'is_default')
+    )
+    return {
+        'po_terms_templates_json': json.dumps(templates, cls=DjangoJSONEncoder),
+    }
+
+
 def _pr_inventory_items_json():
     return _active_inventory_items_json()
 
@@ -1027,6 +1043,7 @@ class PurchaseOrderCreateView(CreatePermissionMixin, CreateView):
             context['items_formset'] = kwargs['items_formset']
         context['po_inventory_items_data'] = _active_inventory_items_data()
         context['po_inventory_items_json'] = json.dumps(context['po_inventory_items_data'])
+        context.update(_po_terms_templates_context())
         return context
     
     def post(self, request, *args, **kwargs):
@@ -1084,6 +1101,7 @@ class PurchaseOrderUpdateView(UpdatePermissionMixin, UpdateView):
             context['items_formset'] = kwargs['items_formset']
         context['po_inventory_items_data'] = _active_inventory_items_data()
         context['po_inventory_items_json'] = json.dumps(context['po_inventory_items_data'])
+        context.update(_po_terms_templates_context())
         return context
     
     def post(self, request, *args, **kwargs):
