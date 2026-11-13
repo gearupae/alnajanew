@@ -22,6 +22,11 @@
     --purple: #8b5cf6;
     --red: #ef4444;
     --teal: #14b8a6;
+
+    /* Data tables (list pages) */
+    --table-row-odd-bg: #ffffff;
+    --table-row-even-bg: #f0fdf4;
+    --table-row-hover-bg: #dcfce7;
 }
 
 /* Global Styles */
@@ -186,37 +191,54 @@ body {
     font-size: 1.05rem;
 }
 
-/* Tables */
-.table {
+/* Tables — global list style (reference: CRM customer list) */
+.main-content .table {
+    font-size: 15px;
+    line-height: 1.4;
     margin-bottom: 0;
 }
 
-.table thead th {
+.main-content .table thead th {
     background: var(--gray-100);
     border-bottom: 2px solid var(--gray-200);
     font-weight: 600;
-    text-transform: none;
-    font-size: 0.8125rem;
-    letter-spacing: 0.02em;
+    font-size: inherit;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
     padding: 12px 15px;
     color: var(--gray-900);
     white-space: nowrap;
+    vertical-align: middle;
 }
 
-.table thead.table-light th,
-.table-light thead th {
+.main-content .table thead.table-light th,
+.main-content .table-light thead th {
     background-color: var(--gray-100) !important;
     color: var(--gray-900) !important;
 }
 
-.table tbody td {
+.main-content .table tbody td {
     padding: 8px 15px;
     vertical-align: middle;
     border-bottom: 1px solid var(--gray-100);
+    font-size: inherit;
+    background-color: transparent;
 }
 
-.table tbody tr:hover {
-    background-color: var(--gray-50);
+.main-content .table tbody td a:not(.btn) {
+    font-size: inherit;
+}
+
+.main-content .table.table-hover tbody tr:nth-child(odd):not(:only-child) {
+    background-color: var(--table-row-odd-bg);
+}
+
+.main-content .table.table-hover tbody tr:nth-child(even):not(:only-child) {
+    background-color: var(--table-row-even-bg);
+}
+
+.main-content .table.table-hover tbody tr:hover {
+    background-color: var(--table-row-hover-bg) !important;
 }
 
 /* List tables: row opens record; column sort via DataTables */
@@ -228,18 +250,17 @@ table.erp-list-table thead th.col-actions,
 table.erp-list-table thead th.sorting_disabled {
     cursor: default;
 }
-table.erp-list-table tbody tr.erp-clickable-row {
-    cursor: pointer;
-}
-table.erp-list-table tbody tr.erp-clickable-row:hover {
-    background-color: #f0f9ff;
-}
 
 main table.erp-list-table tbody tr[data-href],
 main table.erp-list-table tbody tr.erp-clickable-row,
 main table.table tbody tr[data-href],
 main table.table tbody tr.erp-clickable-row {
     cursor: pointer;
+}
+
+table.dataTable.table-hover tbody tr:hover,
+table.dataTable.table-hover tbody tr:hover > td {
+    background-color: var(--table-row-hover-bg) !important;
 }
 
 div.dataTables_wrapper div.dataTables_info {
@@ -888,6 +909,11 @@ hr {
 .erp-detail-field .tabular-nums,
 .erp-detail-field p.tabular-nums {
     font-variant-numeric: tabular-nums;
+}
+
+/* List pages — filter card body (overrides Bootstrap py-* on card-body) */
+.main-content .card > .card-body:has(.list-filters-toolbar) {
+    padding: 0.5rem 0.875rem !important;
 }
 
 /* List pages — compact filter bar (single row, icon actions) */

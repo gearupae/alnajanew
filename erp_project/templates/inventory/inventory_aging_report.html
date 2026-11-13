@@ -26,7 +26,6 @@
 .aging-table th .sort-icon { opacity: 0.5; font-size: 0.7rem; margin-left: 3px; }
 .aging-table th.active-sort .sort-icon { opacity: 1; }
 .aging-table td { vertical-align: middle; font-size: 0.875rem; }
-.aging-table tbody tr:hover { background: #F9FAFB; }
 .aging-table { border-collapse: separate; border-spacing: 0; }
 .aging-table thead th:first-child  { border-radius: 6px 0 0 0; }
 .aging-table thead th:last-child   { border-radius: 0 6px 0 0; }
@@ -312,7 +311,7 @@
     <div class="card-body p-0">
         {% if rows %}
         <div class="table-responsive" style="overflow-x: auto;">
-            <table class="table aging-table mb-0">
+            <table class="table table-hover aging-table mb-0">
                 <thead>
                     <tr>
                         <th data-sort="name" onclick="sortBy('name')" title="Sort by name">

@@ -8,32 +8,14 @@
     overflow-x: hidden;
 }
 .crm-customer-table {
-    font-size: 0.875rem;
     table-layout: fixed;
     width: 100%;
-    margin-bottom: 0;
-}
-.crm-customer-table th,
-.crm-customer-table td {
-    vertical-align: middle;
-    font-size: inherit;
-    line-height: 1.4;
 }
 .crm-customer-table th:not(.col-actions):not(.col-id),
 .crm-customer-table td:not(.col-actions):not(.col-id) {
     overflow: hidden;
 }
-.crm-customer-table thead th {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-.crm-customer-table tbody td a:not(.btn) {
-    font-size: inherit;
-}
 .crm-customer-table .badge {
-    font-size: inherit;
     font-weight: 400;
     padding: 0.35em 0.55em;
 }
@@ -42,7 +24,7 @@
 }
 .crm-customer-table .crm-inline-select {
     font-weight: 400;
-    font-size: 0.8125rem;
+    font-size: inherit;
     padding: 0.25em 1.5rem 0.25em 0.45em;
     border-radius: 4px;
     border: 1px solid transparent;
@@ -467,7 +449,7 @@
 
 <!-- Filters -->
 <div class="card border-0 shadow-sm mb-4">
-    <div class="card-body py-3">
+    <div class="card-body">
         <form method="get" class="list-filters-toolbar crm-customers-filter-toolbar">
             {% if customer_show_all %}
             <input type="hidden" name="show_all" value="1">
