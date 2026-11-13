@@ -222,6 +222,7 @@
                     <table class="table table-sm table-hover align-middle mb-0" id="report-table">
                         <thead class="table-light"><tr id="report-thead"></tr></thead>
                         <tbody id="report-tbody"></tbody>
+                        <tfoot class="table-light d-none" id="report-tfoot"><tr id="report-tfoot-row"></tr></tfoot>
                     </table>
                 </div>
             </div>
@@ -380,6 +381,46 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function renderTableFooter(payload) {
+        var tfoot = document.getElementById('report-tfoot');
+        var rowEl = document.getElementById('report-tfoot-row');
+        rowEl.innerHTML = '';
+        var foot = payload.footer || {};
+        var cols = payload.columns || [];
+        var grand = foot.grand_total_value;
+        if (grand === undefined || grand === null || !cols.length) {
+            tfoot.classList.add('d-none');
+            return;
+        }
+        var valueIdx = cols.findIndex(function (c) { return c.key === 'total_value'; });
+        if (valueIdx < 0) {
+            tfoot.classList.add('d-none');
+            return;
+        }
+        if (valueIdx > 0) {
+            var label = document.createElement('td');
+            label.colSpan = valueIdx;
+            label.className = 'text-end fw-semibold border-top';
+            label.textContent = 'Consolidated total';
+            rowEl.appendChild(label);
+        } else {
+            var labelOnly = document.createElement('td');
+            labelOnly.className = 'text-end fw-semibold border-top';
+            labelOnly.textContent = 'Consolidated total';
+            rowEl.appendChild(labelOnly);
+        }
+        var valTd = document.createElement('td');
+        valTd.className = 'text-end fw-bold border-top';
+        valTd.textContent = 'AED ' + fmtKpiNum(grand, true);
+        rowEl.appendChild(valTd);
+        for (var j = valueIdx + 1; j < cols.length; j++) {
+            var empty = document.createElement('td');
+            empty.className = 'border-top';
+            rowEl.appendChild(empty);
+        }
+        tfoot.classList.remove('d-none');
+    }
+
     function renderTable(payload) {
         fillReportTable(
             document.getElementById('report-thead'),
@@ -387,6 +428,7 @@ document.addEventListener('DOMContentLoaded', function () {
             payload.columns,
             payload.rows
         );
+        renderTableFooter(payload);
     }
 
     function renderConsolidatedBar(payload) {
@@ -522,6 +564,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         document.getElementById('report-empty').classList.add('d-none');
         document.getElementById('report-table-wrap').classList.add('d-none');
+        document.getElementById('report-tfoot').classList.add('d-none');
         document.getElementById('report-consolidated-bar').classList.add('d-none');
         hideLowStockSection();
         document.getElementById('report-intro').classList.add('d-none');
@@ -635,6 +678,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     applyPreset();
     setTabFilters();
+    generate();
 })();
 });
 </script>

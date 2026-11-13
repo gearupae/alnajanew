@@ -42,6 +42,41 @@ def _company_context():
     }
 
 
+def _append_table_to_story(story, styles, doc, cols, rows, *, title: str | None = None):
+    """Build a ReportLab table block and append to story."""
+    if title:
+        story.append(Spacer(1, 6 * mm))
+        story.append(Paragraph(f"<b>{html.escape(title)}</b>", styles['Normal']))
+        story.append(Spacer(1, 2 * mm))
+    headers = [c['label'] for c in cols]
+    data = [headers]
+    for row in rows:
+        data.append([_cell_text(row, c) for c in cols])
+    tw = doc.width
+    cw = tw / max(len(headers), 1)
+    col_widths = [cw] * len(headers)
+    header_blue = colors.HexColor('#1e3a5f')
+    alt1 = colors.HexColor('#ffffff')
+    alt2 = colors.HexColor('#f7f9fc')
+    t = Table(data, repeatRows=1, colWidths=col_widths)
+    t.setStyle(
+        TableStyle(
+            [
+                ('BACKGROUND', (0, 0), (-1, 0), header_blue),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [alt1, alt2]),
+                ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#e5e7eb')),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]
+        )
+    )
+    story.append(t)
+
+
 def _cell_text(row: dict, col: dict):
     key = col['key']
     if key not in row:
@@ -172,6 +207,25 @@ def export_report_pdf(report_payload: dict, date_from: date, date_to: date, gene
     t.setStyle(TableStyle(ts))
     story.append(t)
 
+    low_tbl = report_payload.get('low_stock_table')
+    if low_tbl and low_tbl.get('rows'):
+        foot = low_tbl.get('footer') or {}
+        low_cols = list(low_tbl.get('columns', []))
+        low_rows = list(low_tbl['rows'])
+        if foot.get('grand_total_value') is not None and low_cols:
+            pad = [''] * (len(low_cols) - 2)
+            low_rows = low_rows + [
+                dict(zip([c['key'] for c in low_cols], pad + ['Low stock total', foot['grand_total_value']]))
+            ]
+        _append_table_to_story(
+            story,
+            styles,
+            doc,
+            low_cols,
+            low_rows,
+            title=low_tbl.get('title') or 'Low stock items',
+        )
+
     def _footer(canvas, doc_):
         canvas.saveState()
         canvas.setFont('Helvetica', 8)
@@ -261,6 +315,31 @@ def export_report_xlsx(report_payload: dict, date_from: date, date_to: date, gen
 
     for i in range(1, len(headers) + 1):
         ws.column_dimensions[get_column_letter(i)].width = min(28, max(12, len(headers[i - 1]) + 4))
+
+    low_tbl = report_payload.get('low_stock_table')
+    if low_tbl and low_tbl.get('rows'):
+        ws2 = wb.create_sheet(title='Low stock'[:31])
+        ws2.merge_cells(start_row=1, start_column=1, end_row=1, end_column=8)
+        ws2.cell(row=1, column=1, value=low_tbl.get('title') or 'Low stock items').font = Font(size=12, bold=True)
+        low_cols = low_tbl.get('columns', [])
+        start_row = 3
+        for col_idx, c in enumerate(low_cols, start=1):
+            cell = ws2.cell(row=start_row, column=col_idx, value=c['label'])
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.border = border
+        r_idx = start_row
+        for row in low_tbl['rows']:
+            r_idx += 1
+            for col_idx, c in enumerate(low_cols, start=1):
+                ws2.cell(row=r_idx, column=col_idx, value=_cell_text(row, c)).border = border
+        foot = low_tbl.get('footer') or {}
+        if foot.get('grand_total_value') is not None and low_cols:
+            r_idx += 1
+            for col_idx in range(1, len(low_cols) - 1):
+                ws2.cell(row=r_idx, column=col_idx, value='').border = border
+            ws2.cell(row=r_idx, column=len(low_cols) - 1, value='Consolidated (low stock)').font = total_font
+            ws2.cell(row=r_idx, column=len(low_cols), value=float(foot['grand_total_value'])).font = total_font
 
     out = io.BytesIO()
     wb.save(out)

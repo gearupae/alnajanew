@@ -260,6 +260,8 @@ def report_stock_balance(date_from: date, date_to: date) -> dict[str, Any]:
                 'closing': r['closing'],
                 'unit': r['unit'],
                 'barcode': r['barcode'],
+                'unit_cost': r.get('unit_cost', 0),
+                'total_value': r.get('total_value', 0),
             }
         )
     return {
@@ -275,8 +277,12 @@ def report_stock_balance(date_from: date, date_to: date) -> dict[str, Any]:
             {'key': 'issued', 'label': 'Total Out', 'format': 'number'},
             {'key': 'closing', 'label': 'Closing Balance', 'format': 'number'},
             {'key': 'unit', 'label': 'Unit'},
+            {'key': 'unit_cost', 'label': 'Unit Cost', 'format': 'money'},
+            {'key': 'total_value', 'label': 'Total Value', 'format': 'money'},
         ],
         'rows': rows,
+        'footer': base.get('footer', {}),
+        'low_stock_table': base.get('low_stock_table'),
     }
 
 
@@ -308,6 +314,7 @@ def report_inventory_valuation(date_from: date, date_to: date) -> dict[str, Any]
                 'last_updated': item.updated_at.date().isoformat() if item.updated_at else '',
             }
         )
+    low_table = summary.get('low_stock_table') or _low_stock_table_payload(summary['rows'])
     return {
         'report': 'inventory_valuation',
         'title': 'Inventory Valuation Report',
@@ -325,6 +332,7 @@ def report_inventory_valuation(date_from: date, date_to: date) -> dict[str, Any]
         ],
         'rows': rows,
         'footer': {'grand_total_value': float(grand), 'valuation_method': method_label},
+        'low_stock_table': low_table,
     }
 
 
