@@ -156,80 +156,80 @@
 <div class="row g-4">
     <div class="col-lg-8">
         <!-- Estimate Info -->
-        <div class="card mb-4">
+        <div class="card mb-4 erp-entity-overview">
             <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-address-card me-2 text-dark"></i>Estimate details</h6>
             </div>
-            <div class="card-body pt-0">
-                <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4 align-items-start">
-                    <div class="col">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Company</h6>
-                        <p class="fw-medium mb-0">{{ estimate.customer.company|default:"—" }}</p>
-                    </div>
-                    <div class="col">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Contact person</h6>
-                        <p class="mb-0">{{ estimate.customer.name|default:"—" }}</p>
-                    </div>
-                    <div class="col">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Title</h6>
-                        <p class="mb-0">{{ estimate.document_title|default:"QUOTATION" }}</p>
-                    </div>
-                    <div class="col">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Date</h6>
-                        <p class="mb-0">{{ estimate.date|date:"d/m/Y" }}</p>
-                    </div>
-                    <div class="col">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Valid until</h6>
-                        <p class="mb-0">{{ estimate.valid_until|date:"d/m/Y"|default:"—" }}</p>
-                    </div>
-                    <div class="col">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Assigned to</h6>
-                        <p class="mb-0">{% if estimate.assigned_to %}{{ estimate.assigned_to.get_full_name|default:estimate.assigned_to.username }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Prepared by</h6>
-                        <p class="mb-0">{{ estimate.prepared_by|default:"—" }}</p>
-                    </div>
+            <div class="card-body py-3">
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Company</div>
+    <div class="overview-value">{{ estimate.customer.company|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Contact person</div>
+    <div class="overview-value">{{ estimate.customer.name|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Title</div>
+    <div class="overview-value">{{ estimate.document_title|default:"QUOTATION" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Date</div>
+    <div class="overview-value">{{ estimate.date|date:"d/m/Y" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Valid until</div>
+    <div class="overview-value">{{ estimate.valid_until|date:"d/m/Y"|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Assigned to</div>
+    <div class="overview-value">{% if estimate.assigned_to %}{{ estimate.assigned_to.get_full_name|default:estimate.assigned_to.username }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Prepared by</div>
+    <div class="overview-value">{{ estimate.prepared_by|default:"—" }}</div>
+</div>
                     {% if estimate.project %}
-                    <div class="col">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Project</h6>
-                        <p class="mb-0 text-break">{{ estimate.project.name }}</p>
-                    </div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Project</div>
+    <div class="overview-value text-break">{{ estimate.project.name }}</div>
+</div>
                     {% endif %}
                     {% if estimate.type_of_occupancy %}
-                    <div class="col">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Type of occupancy</h6>
-                        <p class="mb-0">{{ estimate.get_type_of_occupancy_display }}</p>
-                    </div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Type of occupancy</div>
+    <div class="overview-value">{{ estimate.get_type_of_occupancy_display }}</div>
+</div>
                     {% endif %}
                     {% if estimate.type_of_work %}
-                    <div class="col">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Type of work</h6>
-                        <p class="mb-0">{{ estimate.get_type_of_work_display }}</p>
-                    </div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Type of work</div>
+    <div class="overview-value">{{ estimate.get_type_of_work_display }}</div>
+</div>
                     {% endif %}
                     {% if estimate.scope_of_work %}
-                    <div class="col">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Scope of work</h6>
-                        <p class="mb-0">{{ estimate.scope_of_work_label }}</p>
-                    </div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Scope of work</div>
+    <div class="overview-value">{{ estimate.scope_of_work_label }}</div>
+</div>
                     {% elif estimate.scope %}
                     <div class="col-12">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Scope</h6>
-                        <p class="mb-0">{% for label in estimate.scope_display_labels %}<span class="badge bg-light text-dark border me-1 mb-1">{{ label }}</span>{% endfor %}</p>
-                    </div>
+    <div class="overview-label">Scope</div>
+    <div class="overview-value">{% for label in estimate.scope_display_labels %}<span class="badge bg-light text-dark border me-1 mb-1">{{ label }}</span>{% endfor %}</div>
+</div>
                     {% endif %}
                     {% if estimate.status == 'rejected' %}
                     <div class="col-12">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Rejection reason</h6>
-                        <p class="mb-0">{{ estimate.rejection_reason|default:"—" }}</p>
-                    </div>
+    <div class="overview-label">Rejection reason</div>
+    <div class="overview-value">{{ estimate.rejection_reason|default:"—" }}</div>
+</div>
                     {% endif %}
                     {% if estimate.edit_approval_status == 'rejected' %}
                     <div class="col-12">
-                        <h6 class="text-muted mb-2 text-uppercase small fw-semibold">Edit rejection detail</h6>
-                        <p class="mb-0">{{ edit_rejection_detail|default:"—" }}</p>
-                    </div>
+    <div class="overview-label">Edit rejection detail</div>
+    <div class="overview-value">{{ edit_rejection_detail|default:"—" }}</div>
+</div>
                     {% endif %}
                 </div>
             </div>

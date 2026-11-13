@@ -21,26 +21,26 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0 fw-semibold">Contract type</h6></div>
+<div class="card mb-4 erp-entity-overview">
+    <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Contract type</h6></div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Is active</h6>
-                <p class="mb-0">{% if contract_type.is_active %}Yes{% else %}No{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Name</h6>
-                <p class="mb-0">{{ contract_type.name }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Slug</h6>
-                <p class="mb-0 font-monospace">{{ contract_type.slug|default:"—" }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Linked contracts</h6>
-                <p class="mb-0">{{ linked_contracts|length }}</p>
-            </div>
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if contract_type.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Name</div>
+    <div class="overview-value">{{ contract_type.name }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Slug</div>
+    <div class="overview-value font-monospace">{{ contract_type.slug|default:"—" }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Linked contracts</div>
+    <div class="overview-value">{{ linked_contracts|length }}</div>
+</div>
         </div>
     </div>
 </div>

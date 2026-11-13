@@ -2,32 +2,6 @@
 
 {% block extra_css %}
 <style>
-.po-detail-overview .overview-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: var(--gray-600);
-    margin-bottom: 0.25rem;
-}
-.po-detail-overview .overview-value {
-    font-weight: 500;
-    font-size: 0.9375rem;
-    color: var(--gray-900);
-    line-height: 1.4;
-    word-break: break-word;
-}
-.po-detail-overview .overview-section-title {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--gray-800);
-    padding-bottom: 0.4rem;
-    margin-bottom: 0.75rem;
-    border-bottom: 1px solid var(--gray-200);
-}
-.po-detail-overview .tabular-nums {
-    font-variant-numeric: tabular-nums;
-}
 .po-current-stock-header {
     background: #f0f9ff !important;
     color: #0369a1;
@@ -113,8 +87,8 @@
             </div>
         </div>
         {% endif %}
-        <div class="card mb-4 po-detail-overview">
-            <div class="card-header"><h6 class="mb-0 fw-semibold">Order details</h6></div>
+        <div class="card mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold"><i class="fas fa-address-card me-2 text-dark"></i>Order details</h6></div>
             <div class="card-body">
                 <div class="overview-section-title">General</div>
                 <div class="row g-3 mb-4">

@@ -44,66 +44,63 @@
 <div class="row g-4">
     <div class="col-lg-8">
         <!-- Item Details -->
-        <div class="card mb-4">
-            <div class="card-header"><h6 class="mb-0 fw-semibold">Item Details</h6></div>
+        <div class="card mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Item Details</h6></div>
             <div class="card-body">
-                <div class="row g-4">
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Is active</h6>
-                        <p class="mb-0">{% if item.is_active %}Yes{% else %}No{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Item code</h6>
-                        <p class="mb-0 font-monospace">{{ item.item_code }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Name</h6>
-                        <p class="mb-0">{{ item.name }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Status</h6>
-                        <p class="mb-0">{{ item.get_status_display }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Category</h6>
-                        <p class="mb-0">{{ item.category.name|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Item type</h6>
-                        <p class="mb-0">{{ item.get_item_type_display }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Unit</h6>
-                        <p class="mb-0">{{ item.unit }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Groups</h6>
-                        <p class="mb-0">
-                            {% if item.item_groups.all %}
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if item.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Item code</div>
+    <div class="overview-value font-monospace">{{ item.item_code }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Name</div>
+    <div class="overview-value">{{ item.name }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{{ item.get_status_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Category</div>
+    <div class="overview-value">{{ item.category.name|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Item type</div>
+    <div class="overview-value">{{ item.get_item_type_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Unit</div>
+    <div class="overview-value">{{ item.unit }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Groups</div>
+    <div class="overview-value">{% if item.item_groups.all %}
                             {% for g in item.item_groups.all %}
                             <span class="badge bg-light text-dark border me-1 mb-1">{{ g.name }}</span>
                             {% endfor %}
                             {% else %}
                             —
-                            {% endif %}
-                        </p>
-                    </div>
+                            {% endif %}</div>
+</div>
                     <div class="col-12">
-                        <h6 class="text-muted mb-2">Description</h6>
-                        <p class="mb-0">{{ item.description|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Purchase price</h6>
-                        <p class="mb-0">AED {{ item.purchase_price|floatformat:2 }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Selling price</h6>
-                        <p class="mb-0">AED {{ item.selling_price|floatformat:2 }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Minimum selling price</h6>
-                        <p class="mb-0">
-                            {% if item.minimum_selling_price > 0 %}
+    <div class="overview-label">Description</div>
+    <div class="overview-value">{{ item.description|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Purchase price</div>
+    <div class="overview-value">AED {{ item.purchase_price|floatformat:2 }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Selling price</div>
+    <div class="overview-value">AED {{ item.selling_price|floatformat:2 }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Minimum selling price</div>
+    <div class="overview-value">{% if item.minimum_selling_price > 0 %}
                                 {% if item.minimum_selling_price_type == 'percent' %}
                                     {{ item.minimum_selling_price|floatformat:2 }}%
                                     <span class="text-muted">(AED {{ item.get_effective_minimum_selling_price|floatformat:2 }})</span>
@@ -112,13 +109,11 @@
                                 {% endif %}
                             {% else %}
                                 —
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Maximum selling price</h6>
-                        <p class="mb-0">
-                            {% if item.maximum_selling_price > 0 %}
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Maximum selling price</div>
+    <div class="overview-value">{% if item.maximum_selling_price > 0 %}
                                 {% if item.maximum_selling_price_type == 'percent' %}
                                     {{ item.maximum_selling_price|floatformat:2 }}%
                                     <span class="text-muted">(AED {{ item.get_effective_maximum_selling_price|floatformat:2 }})</span>
@@ -127,73 +122,72 @@
                                 {% endif %}
                             {% else %}
                                 No cap
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Minimum selling price type</h6>
-                        <p class="mb-0">{{ item.get_minimum_selling_price_type_display }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Maximum selling price type</h6>
-                        <p class="mb-0">{{ item.get_maximum_selling_price_type_display }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Minimum stock</h6>
-                        <p class="mb-0">{{ item.minimum_stock }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Track by serial</h6>
-                        <p class="mb-0">{% if item.track_by_serial %}Yes{% else %}No{% endif %}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Tax code</h6>
-                        <p class="mb-0">{% if item.tax_code %}{{ item.tax_code.code }} — {{ item.tax_code.name }}{% else %}Out of Scope (0%){% endif %}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">VAT rate</h6>
-                        <p class="mb-0">{{ item.vat_rate }}%</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Condition status</h6>
-                        <p class="mb-0">{{ item.get_condition_status_display }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-muted mb-2">Condition notes</h6>
-                        <p class="mb-0">{{ item.condition_notes|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-muted mb-2">Condition changed at</h6>
-                        <p class="mb-0">{% if item.condition_changed_at %}{{ item.condition_changed_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Storage location master</h6>
-                        <p class="mb-0">{{ item.storage_location_master.name|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Storage location</h6>
-                        <p class="mb-0">{{ item.storage_location|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Barcode / Asset Code</h6>
-                        <p class="mb-0 font-monospace">{{ item.barcode|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Brand</h6>
-                        <p class="mb-0">{{ item.brand|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Serial / batch number</h6>
-                        <p class="mb-0">{{ item.serial_batch_number|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Purchase date</h6>
-                        <p class="mb-0">{% if item.purchase_date %}{{ item.purchase_date|date:"d/m/Y" }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Warranty expiry</h6>
-                        <p class="mb-0">{% if item.warranty_expiry %}{{ item.warranty_expiry|date:"d/m/Y" }}{% else %}—{% endif %}</p>
-                    </div>
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Minimum selling price type</div>
+    <div class="overview-value">{{ item.get_minimum_selling_price_type_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Maximum selling price type</div>
+    <div class="overview-value">{{ item.get_maximum_selling_price_type_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Minimum stock</div>
+    <div class="overview-value">{{ item.minimum_stock }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Track by serial</div>
+    <div class="overview-value">{% if item.track_by_serial %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Tax code</div>
+    <div class="overview-value">{% if item.tax_code %}{{ item.tax_code.code }} — {{ item.tax_code.name }}{% else %}Out of Scope (0%){% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">VAT rate</div>
+    <div class="overview-value">{{ item.vat_rate }}%</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Condition status</div>
+    <div class="overview-value">{{ item.get_condition_status_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Condition notes</div>
+    <div class="overview-value">{{ item.condition_notes|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Condition changed at</div>
+    <div class="overview-value">{% if item.condition_changed_at %}{{ item.condition_changed_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Storage location master</div>
+    <div class="overview-value">{{ item.storage_location_master.name|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Storage location</div>
+    <div class="overview-value">{{ item.storage_location|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Barcode / Asset Code</div>
+    <div class="overview-value font-monospace">{{ item.barcode|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Brand</div>
+    <div class="overview-value">{{ item.brand|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Serial / batch number</div>
+    <div class="overview-value">{{ item.serial_batch_number|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Purchase date</div>
+    <div class="overview-value">{% if item.purchase_date %}{{ item.purchase_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Warranty expiry</div>
+    <div class="overview-value">{% if item.warranty_expiry %}{{ item.warranty_expiry|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+</div>
                 </div>
             </div>
         </div>

@@ -15,6 +15,54 @@ from apps.inventory.serial_stock import item_available_qty
 from apps.projects.item_delivery import project_item_delivered_qty
 from apps.projects.models import Project, ProjectItemLine
 
+# Lines appended from consumable requests — not part of original project scope for public caps.
+_CONSUMABLE_GROUP_PREFIX = 'Consumable —'
+
+
+def _scoped_project_item_lines_qs(project: Project):
+    return ProjectItemLine.objects.filter(
+        project=project,
+        inventory_item__isnull=False,
+    ).exclude(group_name__startswith=_CONSUMABLE_GROUP_PREFIX)
+
+
+def project_scoped_qty_by_item(project: Project) -> dict[int, Decimal]:
+    """Inventory item quantities from project scope (estimate lines), excluding consumable mirrors."""
+    out: dict[int, Decimal] = {}
+    for row in (
+        _scoped_project_item_lines_qs(project)
+        .values('inventory_item_id')
+        .annotate(t=Sum('quantity'))
+    ):
+        item_id = row['inventory_item_id']
+        if item_id:
+            out[item_id] = row['t'] or Decimal('0')
+    return out
+
+
+def project_pending_request_qty(project: Project, item: Item) -> Decimal:
+    """Qty in open consumable requests (pending/approved, not yet dispensed)."""
+    total = (
+        ConsumableRequestItem.objects.filter(
+            item=item,
+            consumable_request__project=project,
+            consumable_request__is_active=True,
+            consumable_request__status__in=('pending', 'approved'),
+        ).aggregate(t=Sum('quantity'))['t']
+        or Decimal('0')
+    )
+    return total
+
+
+def project_public_max_request_qty(project: Project, item: Item) -> Decimal:
+    """Max qty the public form may request for this item on this project."""
+    scoped = project_scoped_qty_by_item(project).get(item.pk)
+    if not scoped or scoped <= 0:
+        return Decimal('0')
+    delivered = project_item_delivered_qty(project, item)
+    pending = project_pending_request_qty(project, item)
+    return max(Decimal('0'), scoped - delivered - pending)
+
 
 def get_public_item_request_user():
     User = get_user_model()
@@ -30,24 +78,12 @@ def get_public_item_request_user():
 
 
 def project_allocated_item_ids(project: Project) -> set[int]:
-    return set(
-        ProjectItemLine.objects.filter(
-            project=project,
-            inventory_item__isnull=False,
-        ).values_list('inventory_item_id', flat=True).distinct()
-    )
+    return set(project_scoped_qty_by_item(project).keys())
 
 
 def build_public_item_catalog(project: Project) -> list[dict]:
-    """Products allocated on the project (project item lines) with stock and delivery qty."""
-    on_project: dict[int, Decimal] = {}
-    for row in (
-        ProjectItemLine.objects.filter(project=project, inventory_item__isnull=False)
-        .values('inventory_item_id')
-        .annotate(t=Sum('quantity'))
-    ):
-        on_project[row['inventory_item_id']] = row['t'] or Decimal('0')
-
+    """Products on the project scope (estimate lines) with stock, delivery, and request limits."""
+    on_project = project_scoped_qty_by_item(project)
     allocated_ids = set(on_project.keys())
     if not allocated_ids:
         return []
@@ -58,12 +94,15 @@ def build_public_item_catalog(project: Project) -> list[dict]:
         .filter(item_type='product', pk__in=allocated_ids)
         .order_by('item_code', 'name')
     ):
+        max_qty = project_public_max_request_qty(project, item)
         catalog.append(
             {
                 'item': item,
                 'stock_qty': item_available_qty(item),
                 'project_qty': on_project.get(item.pk),
                 'delivered_qty': project_item_delivered_qty(project, item),
+                'pending_qty': project_pending_request_qty(project, item),
+                'max_request_qty': max_qty,
             }
         )
     return catalog
@@ -109,6 +148,16 @@ def parse_public_item_request_post(post, *, project: Project) -> list[tuple[Item
         qty = Item.normalize_quantity(item, qty)
         if item.requires_whole_quantity() and qty != qty.to_integral_value():
             raise ValidationError(f'{item.name} must be requested in whole units.')
+        max_qty = project_public_max_request_qty(project, item)
+        if max_qty <= 0:
+            raise ValidationError(
+                f'{item.name} is not available to request (already delivered or fully requested for this project).'
+            )
+        if qty > max_qty:
+            raise ValidationError(
+                f'{item.name}: maximum requestable quantity is {max_qty} '
+                f'(project scope {project_scoped_qty_by_item(project).get(item.pk, 0)}).'
+            )
         lines.append((item, qty))
 
     if not lines:

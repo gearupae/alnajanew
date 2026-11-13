@@ -26,26 +26,74 @@
 
 <div class="row">
     <div class="col-lg-8">
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white"><h6 class="mb-0 fw-semibold">Tenant</h6></div>
+        <div class="card border-0 shadow-sm mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Tenant</h6></div>
             <div class="card-body">
-                <div class="row g-4">
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Is active</h6><p class="mb-0">{% if tenant.is_active %}Yes{% else %}No{% endif %}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Tenant number</h6><p class="mb-0 font-monospace">{{ tenant.tenant_number }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Name</h6><p class="mb-0">{{ tenant.name }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Status</h6><p class="mb-0">{{ tenant.get_status_display }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Email</h6><p class="mb-0">{{ tenant.email|default:"—" }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Phone</h6><p class="mb-0">{{ tenant.phone|default:"—" }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Mobile</h6><p class="mb-0">{{ tenant.mobile|default:"—" }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Company</h6><p class="mb-0">{{ tenant.company|default:"—" }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Emirates ID</h6><p class="mb-0">{{ tenant.emirates_id|default:"—" }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Trade license</h6><p class="mb-0">{{ tenant.trade_license|default:"—" }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Tax Registration Number</h6><p class="mb-0">{{ tenant.trn|default:"—" }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">City</h6><p class="mb-0">{{ tenant.city|default:"—" }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Country</h6><p class="mb-0">{{ tenant.country|default:"—" }}</p></div>
-                    <div class="col-md-6"><h6 class="text-muted mb-2">AR account</h6><p class="mb-0">{% if tenant.ar_account %}{{ tenant.ar_account.code }} — {{ tenant.ar_account.name }}{% else %}—{% endif %}</p></div>
-                    <div class="col-12"><h6 class="text-muted mb-2">Address</h6><p class="mb-0">{{ tenant.address|default:"—" }}</p></div>
-                    <div class="col-12"><h6 class="text-muted mb-2">Notes</h6><p class="mb-0">{% if tenant.notes %}{{ tenant.notes|linebreaksbr }}{% else %}—{% endif %}</p></div>
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if tenant.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Tenant number</div>
+    <div class="overview-value font-monospace">{{ tenant.tenant_number }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Name</div>
+    <div class="overview-value">{{ tenant.name }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{{ tenant.get_status_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Email</div>
+    <div class="overview-value">{{ tenant.email|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Phone</div>
+    <div class="overview-value">{{ tenant.phone|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Mobile</div>
+    <div class="overview-value">{{ tenant.mobile|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Company</div>
+    <div class="overview-value">{{ tenant.company|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Emirates ID</div>
+    <div class="overview-value">{{ tenant.emirates_id|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Trade license</div>
+    <div class="overview-value">{{ tenant.trade_license|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Tax Registration Number</div>
+    <div class="overview-value">{{ tenant.trn|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">City</div>
+    <div class="overview-value">{{ tenant.city|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Country</div>
+    <div class="overview-value">{{ tenant.country|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">AR account</div>
+    <div class="overview-value">{% if tenant.ar_account %}{{ tenant.ar_account.code }} — {{ tenant.ar_account.name }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-12">
+    <div class="overview-label">Address</div>
+    <div class="overview-value">{{ tenant.address|default:"—" }}</div>
+</div>
+                    <div class="col-12">
+    <div class="overview-label">Notes</div>
+    <div class="overview-value">{% if tenant.notes %}{{ tenant.notes|linebreaksbr }}{% else %}—{% endif %}</div>
+</div>
                 </div>
             </div>
         </div>

@@ -19,20 +19,50 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0 fw-semibold">Unit</h6></div>
+<div class="card mb-4 erp-entity-overview">
+    <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Unit</h6></div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-3"><h6 class="text-muted mb-2">Is active</h6><p class="mb-0">{% if unit.is_active %}Yes{% else %}No{% endif %}</p></div>
-            <div class="col-md-3"><h6 class="text-muted mb-2">Unit number</h6><p class="mb-0">{{ unit.unit_number }}</p></div>
-            <div class="col-md-3"><h6 class="text-muted mb-2">Property</h6><p class="mb-0"><a href="{% url 'property:property_detail' unit.property.pk %}">{{ unit.property.name }}</a></p></div>
-            <div class="col-md-3"><h6 class="text-muted mb-2">Unit type</h6><p class="mb-0">{{ unit.get_unit_type_display }}</p></div>
-            <div class="col-md-3"><h6 class="text-muted mb-2">Floor</h6><p class="mb-0">{{ unit.floor|default:"—" }}</p></div>
-            <div class="col-md-3"><h6 class="text-muted mb-2">Area sqft</h6><p class="mb-0">{{ unit.area_sqft|floatformat:0 }}</p></div>
-            <div class="col-md-3"><h6 class="text-muted mb-2">Bedrooms</h6><p class="mb-0">{{ unit.bedrooms }}</p></div>
-            <div class="col-md-3"><h6 class="text-muted mb-2">Bathrooms</h6><p class="mb-0">{{ unit.bathrooms }}</p></div>
-            <div class="col-md-3"><h6 class="text-muted mb-2">Status</h6><p class="mb-0">{{ unit.get_status_display }}</p></div>
-            <div class="col-md-3"><h6 class="text-muted mb-2">Monthly rent</h6><p class="mb-0">AED {{ unit.monthly_rent|floatformat:2|intcomma }}</p></div>
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if unit.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Unit number</div>
+    <div class="overview-value">{{ unit.unit_number }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Property</div>
+    <div class="overview-value"><a href="{% url 'property:property_detail' unit.property.pk %}">{{ unit.property.name }}</a></div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Unit type</div>
+    <div class="overview-value">{{ unit.get_unit_type_display }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Floor</div>
+    <div class="overview-value">{{ unit.floor|default:"—" }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Area sqft</div>
+    <div class="overview-value">{{ unit.area_sqft|floatformat:0 }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Bedrooms</div>
+    <div class="overview-value">{{ unit.bedrooms }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Bathrooms</div>
+    <div class="overview-value">{{ unit.bathrooms }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{{ unit.get_status_display }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Monthly rent</div>
+    <div class="overview-value">AED {{ unit.monthly_rent|floatformat:2|intcomma }}</div>
+</div>
         </div>
     </div>
 </div>

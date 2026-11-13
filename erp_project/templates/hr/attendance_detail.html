@@ -28,84 +28,82 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0 fw-semibold">Attendance record</h6></div>
+<div class="card mb-4 erp-entity-overview">
+    <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Attendance record</h6></div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Is active</h6>
-                <p class="mb-0">{% if record.is_active %}Yes{% else %}No{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Employee</h6>
-                <p class="mb-0"><a href="{% url 'hr:employee_detail' record.employee.pk %}">{{ record.employee.full_name }}</a></p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Date</h6>
-                <p class="mb-0">{{ record.date|date:"d/m/Y" }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Check in</h6>
-                <p class="mb-0">{% if record.check_in %}{{ record.check_in|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Check out</h6>
-                <p class="mb-0">{% if record.check_out %}{{ record.check_out|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Check in latitude</h6>
-                <p class="mb-0 font-monospace">{% if record.check_in_latitude is not None %}{{ record.check_in_latitude }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Check in longitude</h6>
-                <p class="mb-0 font-monospace">{% if record.check_in_longitude is not None %}{{ record.check_in_longitude }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Check out latitude</h6>
-                <p class="mb-0 font-monospace">{% if record.check_out_latitude is not None %}{{ record.check_out_latitude }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Check out longitude</h6>
-                <p class="mb-0 font-monospace">{% if record.check_out_longitude is not None %}{{ record.check_out_longitude }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Status</h6>
-                <p class="mb-0">{{ record.get_status_display }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Source</h6>
-                <p class="mb-0">{{ record.get_source_display }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Project</h6>
-                <p class="mb-0">
-                    {% if record.project %}
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if record.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Employee</div>
+    <div class="overview-value"><a href="{% url 'hr:employee_detail' record.employee.pk %}">{{ record.employee.full_name }}</a></div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Date</div>
+    <div class="overview-value">{{ record.date|date:"d/m/Y" }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Check in</div>
+    <div class="overview-value">{% if record.check_in %}{{ record.check_in|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Check out</div>
+    <div class="overview-value">{% if record.check_out %}{{ record.check_out|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Check in latitude</div>
+    <div class="overview-value font-monospace">{% if record.check_in_latitude is not None %}{{ record.check_in_latitude }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Check in longitude</div>
+    <div class="overview-value font-monospace">{% if record.check_in_longitude is not None %}{{ record.check_in_longitude }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Check out latitude</div>
+    <div class="overview-value font-monospace">{% if record.check_out_latitude is not None %}{{ record.check_out_latitude }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Check out longitude</div>
+    <div class="overview-value font-monospace">{% if record.check_out_longitude is not None %}{{ record.check_out_longitude }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{{ record.get_status_display }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Source</div>
+    <div class="overview-value">{{ record.get_source_display }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Project</div>
+    <div class="overview-value">{% if record.project %}
                     <a href="{% url 'projects:project_detail' record.project.pk %}">{{ record.project.project_code }} — {{ record.project.name }}</a>
                     {% else %}
                     <span class="text-muted">—</span>
-                    {% endif %}
-                </p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Working hours</h6>
-                <p class="mb-0">{% if record.working_hours is not None %}{{ record.working_hours }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Late minutes</h6>
-                <p class="mb-0">{{ record.late_minutes }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Overtime hours</h6>
-                <p class="mb-0">{{ record.overtime_hours }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Overtime type</h6>
-                <p class="mb-0">{{ record.get_overtime_type_display }}</p>
-            </div>
+                    {% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Working hours</div>
+    <div class="overview-value">{% if record.working_hours is not None %}{{ record.working_hours }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Late minutes</div>
+    <div class="overview-value">{{ record.late_minutes }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Overtime hours</div>
+    <div class="overview-value">{{ record.overtime_hours }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Overtime type</div>
+    <div class="overview-value">{{ record.get_overtime_type_display }}</div>
+</div>
             <div class="col-12">
-                <h6 class="text-muted mb-2">Notes</h6>
-                <p class="mb-0">{% if record.notes %}{{ record.notes|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
+    <div class="overview-label">Notes</div>
+    <div class="overview-value">{% if record.notes %}{{ record.notes|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
         </div>
     </div>
 </div>

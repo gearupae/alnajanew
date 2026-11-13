@@ -48,7 +48,7 @@
     <div class="col-lg-8">
 
         <!-- Advance Info -->
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm mb-4 erp-entity-overview">
             <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-semibold">
                     <i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Advance Details
@@ -56,52 +56,46 @@
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Reference #</label>
-                        <p class="fw-semibold mb-0">{{ advance.advance_number }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Date</label>
-                        <p class="mb-0">{{ advance.date|date:"d/m/Y" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Customer</label>
-                        <p class="mb-0">
-                            <a href="{% url 'crm:customer_detail' advance.customer.pk %}" class="text-decoration-none">
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Reference #</div>
+    <div class="overview-value fw-semibold">{{ advance.advance_number }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Date</div>
+    <div class="overview-value">{{ advance.date|date:"d/m/Y" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Customer</div>
+    <div class="overview-value"><a href="{% url 'crm:customer_detail' advance.customer.pk %}" class="text-decoration-none">
                                 {{ advance.customer.name }}
-                            </a>
-                        </p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Project</label>
-                        <p class="mb-0">
-                            {% if advance.project %}
+                            </a></div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Project</div>
+    <div class="overview-value">{% if advance.project %}
                             <a href="{% url 'projects:project_detail' advance.project.pk %}" class="text-decoration-none">
                                 {{ advance.project.project_code }} — {{ advance.project.name }}
                             </a>
-                            {% else %}—{% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Bank Account</label>
-                        <p class="mb-0">{{ advance.bank_account.name }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Reference / Note</label>
-                        <p class="mb-0">{{ advance.reference|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Journal Entry</label>
-                        <p class="mb-0">
-                            {% if advance.journal_entry %}
+                            {% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Bank Account</div>
+    <div class="overview-value">{{ advance.bank_account.name }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Reference / Note</div>
+    <div class="overview-value">{{ advance.reference|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Journal Entry</div>
+    <div class="overview-value">{% if advance.journal_entry %}
                             <a href="{% url 'finance:journal_detail' advance.journal_entry.pk %}" class="text-decoration-none">
                                 {{ advance.journal_entry.entry_number }}
                             </a>
                             {% else %}
                             <span class="text-muted">—</span>
-                            {% endif %}
-                        </p>
-                    </div>
+                            {% endif %}</div>
+</div>
                 </div>
             </div>
         </div>

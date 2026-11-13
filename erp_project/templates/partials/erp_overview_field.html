@@ -1,0 +1,9 @@
+{# Standard entity overview field — matches project detail grid.
+   Usage:
+     {% include "partials/erp_overview_field.html" with label="Status" value=obj.get_status_display %}
+     {% include "partials/erp_overview_field.html" with label="Notes" value=obj.notes|linebreaksbr col_class="col-12" value_safe=True %}
+#}
+<div class="{{ col_class|default:'col-6 col-md-4 col-xl-3' }}">
+    <div class="overview-label">{{ label }}</div>
+    <div class="overview-value{% if value_class %} {{ value_class }}{% endif %}">{% if value_safe %}{{ value|safe }}{% else %}{{ value|default:"—" }}{% endif %}</div>
+</div>

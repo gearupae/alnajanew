@@ -21,38 +21,38 @@
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header"><h6 class="mb-0 fw-semibold">Warehouse details</h6></div>
+<div class="card erp-entity-overview">
+    <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Warehouse details</h6></div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Is active</h6>
-                <p class="mb-0">{% if warehouse.is_active %}Yes{% else %}No{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Code</h6>
-                <p class="mb-0 font-monospace">{{ warehouse.code }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Name</h6>
-                <p class="mb-0">{{ warehouse.name }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Status</h6>
-                <p class="mb-0">{{ warehouse.get_status_display }}</p>
-            </div>
-            <div class="col-md-6">
-                <h6 class="text-muted mb-2">Contact person</h6>
-                <p class="mb-0">{{ warehouse.contact_person|default:"—" }}</p>
-            </div>
-            <div class="col-md-6">
-                <h6 class="text-muted mb-2">Phone</h6>
-                <p class="mb-0">{{ warehouse.phone|default:"—" }}</p>
-            </div>
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if warehouse.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Code</div>
+    <div class="overview-value font-monospace">{{ warehouse.code }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Name</div>
+    <div class="overview-value">{{ warehouse.name }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{{ warehouse.get_status_display }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Contact person</div>
+    <div class="overview-value">{{ warehouse.contact_person|default:"—" }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Phone</div>
+    <div class="overview-value">{{ warehouse.phone|default:"—" }}</div>
+</div>
             <div class="col-12">
-                <h6 class="text-muted mb-2">Address</h6>
-                <p class="mb-0">{{ warehouse.address|default:"—"|linebreaksbr }}</p>
-            </div>
+    <div class="overview-label">Address</div>
+    <div class="overview-value">{{ warehouse.address|default:"—"|linebreaksbr }}</div>
+</div>
         </div>
     </div>
 </div>

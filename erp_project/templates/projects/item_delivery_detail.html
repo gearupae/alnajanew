@@ -31,36 +31,30 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0 fw-semibold">Delivery details</h6></div>
+<div class="card mb-4 erp-entity-overview">
+    <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Delivery details</h6></div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-4">
-                <h6 class="text-muted mb-2">Project</h6>
-                <p class="mb-0">
-                    <a href="{% url 'projects:project_detail' delivery.project.pk %}">{{ delivery.project.project_code }} — {{ delivery.project.name }}</a>
-                </p>
-            </div>
-            <div class="col-md-4">
-                <h6 class="text-muted mb-2">Item</h6>
-                <p class="mb-0">
-                    <a href="{% url 'inventory:item_detail' delivery.item.pk %}">{{ delivery.item.item_code }} — {{ delivery.item.name }}</a>
-                </p>
-            </div>
-            <div class="col-md-4">
-                <h6 class="text-muted mb-2">Quantity</h6>
-                <p class="mb-0">{{ delivery.quantity|floatformat:2 }}</p>
-            </div>
-            <div class="col-md-4">
-                <h6 class="text-muted mb-2">Delivered date</h6>
-                <p class="mb-0">{{ delivery.delivered_date|date:"d/m/Y" }}</p>
-            </div>
-            <div class="col-md-4">
-                <h6 class="text-muted mb-2">Delivered by</h6>
-                <p class="mb-0">
-                    {% if delivery.delivered_by %}{{ delivery.delivered_by|staff_label }}{% else %}<span class="text-muted">—</span>{% endif %}
-                </p>
-            </div>
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Project</div>
+    <div class="overview-value"><a href="{% url 'projects:project_detail' delivery.project.pk %}">{{ delivery.project.project_code }} — {{ delivery.project.name }}</a></div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Item</div>
+    <div class="overview-value"><a href="{% url 'inventory:item_detail' delivery.item.pk %}">{{ delivery.item.item_code }} — {{ delivery.item.name }}</a></div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Quantity</div>
+    <div class="overview-value">{{ delivery.quantity|floatformat:2 }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Delivered date</div>
+    <div class="overview-value">{{ delivery.delivered_date|date:"d/m/Y" }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Delivered by</div>
+    <div class="overview-value">{% if delivery.delivered_by %}{{ delivery.delivered_by|staff_label }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
         </div>
     </div>
 </div>

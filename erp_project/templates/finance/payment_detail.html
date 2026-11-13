@@ -44,77 +44,72 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <!-- Payment Info -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <h6 class="text-muted mb-2">Party</h6>
-                        <p class="fw-medium mb-0">{{ payment.party_name }}</p>
+        <div class="card mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3">
+                <h6 class="mb-0 fw-semibold"><i class="fas fa-address-card me-2 text-dark"></i>Payment details</h6>
+            </div>
+            <div class="card-body py-3">
+                <div class="overview-section-title">General</div>
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Party</div>
+                        <div class="overview-value">{{ payment.party_name }}
                         {% if payment.party_type %}
-                        <small class="text-muted text-capitalize">{{ payment.party_type }}</small>
-                        {% endif %}
+                        <small class="text-muted text-capitalize d-block">{{ payment.party_type }}</small>
+                        {% endif %}</div>
                     </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Payment Date</h6>
-                        <p class="mb-0">{{ payment.payment_date|date:"d/m/Y" }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Payment date</div>
+                        <div class="overview-value">{{ payment.payment_date|date:"d/m/Y" }}</div>
                     </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Payment Type</h6>
-                        <p class="mb-0 text-capitalize">{{ payment.get_payment_type_display }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Payment type</div>
+                        <div class="overview-value text-capitalize">{{ payment.get_payment_type_display }}</div>
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Payment Details -->
-        <div class="card mb-4">
-            <div class="card-header"><h6 class="mb-0 fw-semibold">Payment Details</h6></div>
-            <div class="card-body">
-                <div class="erp-detail-grid">
-                    <div class="erp-detail-field">
-                        <h6>Payment method</h6>
-                        <p>{{ payment.get_payment_method_display }}</p>
-                    </div>
+                <div class="overview-section-title">Details</div>
+                <div class="row g-3">
+<div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Payment method</div>
+    <div class="overview-value">{{ payment.get_payment_method_display }}</div>
+</div>
                     {% if payment.bank_account %}
-                    <div class="erp-detail-field">
-                        <h6>Bank account</h6>
-                        <p>{{ payment.bank_account.name }}</p>
-                    </div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Bank account</div>
+    <div class="overview-value">{{ payment.bank_account.name }}</div>
+</div>
                     {% endif %}
                     {% if payment.cash_account %}
-                    <div class="erp-detail-field">
-                        <h6>Cash account</h6>
-                        <p>{{ payment.cash_account.code }} — {{ payment.cash_account.name }}</p>
-                    </div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Cash account</div>
+    <div class="overview-value">{{ payment.cash_account.code }} — {{ payment.cash_account.name }}</div>
+</div>
                     {% endif %}
                     {% if payment.account %}
-                    <div class="erp-detail-field">
-                        <h6>Posted account</h6>
-                        <p>{{ payment.account.code }} — {{ payment.account.name }}</p>
-                    </div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Posted account</div>
+    <div class="overview-value">{{ payment.account.code }} — {{ payment.account.name }}</div>
+</div>
                     {% endif %}
                     {% if payment.reference %}
-                    <div class="erp-detail-field">
-                        <h6>Reference</h6>
-                        <p>{{ payment.reference }}</p>
-                    </div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Reference</div>
+    <div class="overview-value">{{ payment.reference }}</div>
+</div>
                     {% endif %}
                     {% if payment.attachment %}
-                    <div class="erp-detail-field">
-                        <h6>Attachment</h6>
-                        <p>
-                            <a href="{{ payment.attachment.url }}" target="_blank" rel="noopener">
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Attachment</div>
+    <div class="overview-value"><a href="{{ payment.attachment.url }}" target="_blank" rel="noopener">
                                 <i class="fas fa-paperclip me-1"></i>{{ payment.attachment.name|cut:"payments/attachments/" }}
-                            </a>
-                        </p>
-                    </div>
+                            </a></div>
+</div>
                     {% endif %}
                     {% if payment.notes %}
-                    <div class="erp-detail-field erp-detail-field-full">
-                        <h6>Notes</h6>
-                        <p>{{ payment.notes|linebreaksbr }}</p>
-                    </div>
+                    <div class="col-12">
+    <div class="overview-label">Notes</div>
+    <div class="overview-value">{{ payment.notes|linebreaksbr }}</div>
+</div>
                     {% endif %}
                 </div>
                 <hr>

@@ -30,102 +30,98 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card mb-4">
-            <div class="card-header"><h6 class="mb-0 fw-semibold">Leave details</h6></div>
+        <div class="card mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Leave details</h6></div>
             <div class="card-body">
-                <div class="row g-4">
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Is active</h6>
-                        <p class="mb-0">{% if leave.is_active %}Yes{% else %}No{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Employee</h6>
-                        <p class="mb-0"><a href="{% url 'hr:employee_detail' leave.employee.pk %}">{{ leave.employee.full_name }}</a></p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Leave type</h6>
-                        <p class="mb-0">{{ leave.leave_type.name }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Start date</h6>
-                        <p class="mb-0">{{ leave.start_date|date:"d/m/Y" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">End date</h6>
-                        <p class="mb-0">{{ leave.end_date|date:"d/m/Y" }}</p>
-                    </div>
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if leave.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Employee</div>
+    <div class="overview-value"><a href="{% url 'hr:employee_detail' leave.employee.pk %}">{{ leave.employee.full_name }}</a></div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Leave type</div>
+    <div class="overview-value">{{ leave.leave_type.name }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Start date</div>
+    <div class="overview-value">{{ leave.start_date|date:"d/m/Y" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">End date</div>
+    <div class="overview-value">{{ leave.end_date|date:"d/m/Y" }}</div>
+</div>
                     <div class="col-12">
-                        <h6 class="text-muted mb-2">Reason</h6>
-                        <p class="mb-0">{% if leave.reason %}{{ leave.reason|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Status</h6>
-                        <p class="mb-0">{{ leave.get_status_display }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Approved by</h6>
-                        <p class="mb-0">{% if leave.approved_by %}{{ leave.approved_by.get_full_name|default:leave.approved_by.username }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Approved at</h6>
-                        <p class="mb-0">{% if leave.approved_at %}{{ leave.approved_at|date:"d/m/Y H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Rejection reason</h6>
-                        <p class="mb-0">{% if leave.rejection_reason %}{{ leave.rejection_reason|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Medical certificate uploaded</h6>
-                        <p class="mb-0">{% if leave.medical_certificate_uploaded %}Yes{% else %}No{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Medical certificate</h6>
-                        <p class="mb-0">
-                            {% if has_attachment %}
+    <div class="overview-label">Reason</div>
+    <div class="overview-value">{% if leave.reason %}{{ leave.reason|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{{ leave.get_status_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Approved by</div>
+    <div class="overview-value">{% if leave.approved_by %}{{ leave.approved_by.get_full_name|default:leave.approved_by.username }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Approved at</div>
+    <div class="overview-value">{% if leave.approved_at %}{{ leave.approved_at|date:"d/m/Y H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Rejection reason</div>
+    <div class="overview-value">{% if leave.rejection_reason %}{{ leave.rejection_reason|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Medical certificate uploaded</div>
+    <div class="overview-value">{% if leave.medical_certificate_uploaded %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Medical certificate</div>
+    <div class="overview-value">{% if has_attachment %}
                             <a href="{% url 'hr:leave_attachment' leave.pk %}">Download</a>
                             {% else %}
                             <span class="text-muted">—</span>
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Covering employee</h6>
-                        <p class="mb-0">
-                            {% if leave.covering_employee %}
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Covering employee</div>
+    <div class="overview-value">{% if leave.covering_employee %}
                             <a href="{% url 'hr:employee_detail' leave.covering_employee.pk %}">{{ leave.covering_employee.full_name }}</a>
                             {% else %}
                             <span class="text-muted">—</span>
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Return date</h6>
-                        <p class="mb-0">{% if leave.return_date %}{{ leave.return_date|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Is half day</h6>
-                        <p class="mb-0">{% if leave.is_half_day %}Yes{% else %}No{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Start time</h6>
-                        <p class="mb-0">{% if leave.start_time %}{{ leave.start_time|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">End time</h6>
-                        <p class="mb-0">{% if leave.end_time %}{{ leave.end_time|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Requested working days</h6>
-                        <p class="mb-0">{{ leave.requested_working_days|floatformat:2 }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Reference number</h6>
-                        <p class="mb-0 font-monospace">{{ leave.reference_number|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Submitted publicly</h6>
-                        <p class="mb-0">{% if leave.submitted_publicly %}Yes{% else %}No{% endif %}</p>
-                    </div>
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Return date</div>
+    <div class="overview-value">{% if leave.return_date %}{{ leave.return_date|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is half day</div>
+    <div class="overview-value">{% if leave.is_half_day %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Start time</div>
+    <div class="overview-value">{% if leave.start_time %}{{ leave.start_time|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">End time</div>
+    <div class="overview-value">{% if leave.end_time %}{{ leave.end_time|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Requested working days</div>
+    <div class="overview-value">{{ leave.requested_working_days|floatformat:2 }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Reference number</div>
+    <div class="overview-value font-monospace">{{ leave.reference_number|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Submitted publicly</div>
+    <div class="overview-value">{% if leave.submitted_publicly %}Yes{% else %}No{% endif %}</div>
+</div>
                 </div>
             </div>
         </div>

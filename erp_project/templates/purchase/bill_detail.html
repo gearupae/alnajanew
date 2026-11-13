@@ -1,36 +1,5 @@
 {% extends 'base.html' %}
 
-{% block extra_css %}
-<style>
-.bill-detail-overview .overview-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: var(--gray-600);
-    margin-bottom: 0.25rem;
-}
-.bill-detail-overview .overview-value {
-    font-weight: 500;
-    font-size: 0.9375rem;
-    color: var(--gray-900);
-    line-height: 1.4;
-    word-break: break-word;
-}
-.bill-detail-overview .overview-section-title {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--gray-800);
-    padding-bottom: 0.4rem;
-    margin-bottom: 0.75rem;
-    border-bottom: 1px solid var(--gray-200);
-}
-.bill-detail-overview .tabular-nums {
-    font-variant-numeric: tabular-nums;
-}
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="page-header">
     <nav aria-label="breadcrumb">
@@ -83,8 +52,8 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card mb-4 bill-detail-overview">
-            <div class="card-header"><h6 class="mb-0 fw-semibold">Bill details</h6></div>
+        <div class="card mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold"><i class="fas fa-address-card me-2 text-dark"></i>Bill details</h6></div>
             <div class="card-body">
                 <div class="overview-section-title">General</div>
                 <div class="row g-3 mb-4">

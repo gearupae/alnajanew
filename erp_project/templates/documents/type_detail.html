@@ -21,30 +21,30 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0 fw-semibold">Document type</h6></div>
+<div class="card mb-4 erp-entity-overview">
+    <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Document type</h6></div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Is active</h6>
-                <p class="mb-0">{% if document_type.is_active %}Yes{% else %}No{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Name</h6>
-                <p class="mb-0">{{ document_type.name }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Alert days before</h6>
-                <p class="mb-0">{% if document_type.alert_days_before %}{{ document_type.alert_days_before }}{% else %}<span class="text-muted">Disabled</span>{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Documents</h6>
-                <p class="mb-0">{{ document_type.doc_count|default:document_type.documents.count }}</p>
-            </div>
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if document_type.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Name</div>
+    <div class="overview-value">{{ document_type.name }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Alert days before</div>
+    <div class="overview-value">{% if document_type.alert_days_before %}{{ document_type.alert_days_before }}{% else %}<span class="text-muted">Disabled</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Documents</div>
+    <div class="overview-value">{{ document_type.doc_count|default:document_type.documents.count }}</div>
+</div>
             <div class="col-12">
-                <h6 class="text-muted mb-2">Description</h6>
-                <p class="mb-0">{% if document_type.description %}{{ document_type.description|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
+    <div class="overview-label">Description</div>
+    <div class="overview-value">{% if document_type.description %}{{ document_type.description|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
         </div>
     </div>
 </div>

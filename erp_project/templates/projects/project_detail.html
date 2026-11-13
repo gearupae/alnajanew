@@ -64,32 +64,6 @@
     text-decoration: underline;
     color: var(--bs-primary);
 }
-.project-detail-overview .overview-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: var(--gray-600);
-    margin-bottom: 0.25rem;
-}
-.project-detail-overview .overview-value {
-    font-weight: 500;
-    font-size: 0.9375rem;
-    color: var(--gray-900);
-    line-height: 1.4;
-    word-break: break-word;
-}
-.project-detail-overview .overview-section-title {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--gray-800);
-    padding-bottom: 0.4rem;
-    margin-bottom: 0.75rem;
-    border-bottom: 1px solid var(--gray-200);
-}
-.project-detail-overview .tabular-nums {
-    font-variant-numeric: tabular-nums;
-}
 </style>
 {% endblock %}
 {% block content %}
@@ -203,7 +177,7 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card mb-4 project-detail-overview">
+        <div class="card mb-4 erp-entity-overview">
             <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-address-card me-2 text-dark"></i>Project details</h6>
             </div>
@@ -313,36 +287,36 @@
             </div>
         </div>
 
-        <div class="card mb-4">
+        <div class="card mb-4 erp-entity-overview">
             <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-chart-line me-2 text-dark"></i>Billing &amp; profit summary</h6>
             </div>
             <div class="card-body pt-0">
-                <div class="row g-4">
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Quotation price</h6>
-                        <p class="mb-0">{% if project_estimate_total > 0 %}AED {{ project_estimate_total|floatformat:2 }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Invoiced</h6>
-                        <p class="mb-0">{% if project_invoiced_amount > 0 %}AED {{ project_invoiced_amount|floatformat:2 }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Received</h6>
-                        <p class="mb-0 fw-semibold text-success">{% if project_received_amount > 0 %}AED {{ project_received_amount|floatformat:2 }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Balance</h6>
-                        <p class="mb-0">{% if project.contract_value > 0 or project_invoiced_amount > 0 or project_received_amount > 0 %}AED {{ project_balance_amount|floatformat:2 }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Total profit <span class="small fw-normal">({{ header_profit_label }})</span></h6>
-                        <p class="mb-0 fw-semibold">AED {{ header_profit_vs_expenses|floatformat:2 }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Team</h6>
-                        <p class="mb-0">{{ project_team.member_count }} member{% if project_team.member_count != 1 %}s{% endif %}{% if project_team.technician_count %}, {{ project_team.technician_count }} technician{% if project_team.technician_count != 1 %}s{% endif %}{% endif %}</p>
-                    </div>
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Quotation price</div>
+    <div class="overview-value">{% if project_estimate_total > 0 %}AED {{ project_estimate_total|floatformat:2 }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Invoiced</div>
+    <div class="overview-value">{% if project_invoiced_amount > 0 %}AED {{ project_invoiced_amount|floatformat:2 }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Received</div>
+    <div class="overview-value fw-semibold text-success">{% if project_received_amount > 0 %}AED {{ project_received_amount|floatformat:2 }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Balance</div>
+    <div class="overview-value">{% if project.contract_value > 0 or project_invoiced_amount > 0 or project_received_amount > 0 %}AED {{ project_balance_amount|floatformat:2 }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Total profit <span class="small fw-normal">({{ header_profit_label }})</span></div>
+    <div class="overview-value fw-semibold">AED {{ header_profit_vs_expenses|floatformat:2 }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Team</div>
+    <div class="overview-value">{{ project_team.member_count }} member{% if project_team.member_count != 1 %}s{% endif %}{% if project_team.technician_count %}, {{ project_team.technician_count }} technician{% if project_team.technician_count != 1 %}s{% endif %}{% endif %}</div>
+</div>
                 </div>
             </div>
         </div>

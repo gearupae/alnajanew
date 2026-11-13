@@ -23,25 +23,70 @@
 
 <div class="row">
     <div class="col-lg-8">
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white"><h6 class="mb-0 fw-semibold">Lease</h6></div>
+        <div class="card border-0 shadow-sm mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Lease</h6></div>
             <div class="card-body">
-                <div class="row g-4">
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Is active</h6><p class="mb-0">{% if lease.is_active %}Yes{% else %}No{% endif %}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Lease number</h6><p class="mb-0 font-monospace">{{ lease.lease_number }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Unit</h6><p class="mb-0">{% if lease.unit %}<a href="{% url 'property:unit_detail' lease.unit.pk %}">{{ lease.unit }}</a>{% else %}—{% endif %}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Tenant</h6><p class="mb-0"><a href="{% url 'property:tenant_detail' lease.tenant.pk %}">{{ lease.tenant.name }}</a></p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Start date</h6><p class="mb-0">{{ lease.start_date|date:"d/m/Y" }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">End date</h6><p class="mb-0">{{ lease.end_date|date:"d/m/Y" }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Annual rent</h6><p class="mb-0 fw-semibold">AED {{ lease.annual_rent|floatformat:2|intcomma }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Payment frequency</h6><p class="mb-0">{{ lease.get_payment_frequency_display }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Number of cheques</h6><p class="mb-0">{{ lease.number_of_cheques }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Security deposit</h6><p class="mb-0">AED {{ lease.security_deposit|floatformat:2|intcomma }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Deposit paid</h6><p class="mb-0">{% if lease.deposit_paid %}Yes{% else %}No{% endif %}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Status</h6><p class="mb-0">{{ lease.get_status_display }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Ejari number</h6><p class="mb-0">{{ lease.ejari_number|default:"—" }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Ejari registered</h6><p class="mb-0">{% if lease.ejari_registered %}Yes{% else %}No{% endif %}</p></div>
-                    <div class="col-12"><h6 class="text-muted mb-2">Notes</h6><p class="mb-0">{% if lease.notes %}{{ lease.notes|linebreaksbr }}{% else %}—{% endif %}</p></div>
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if lease.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Lease number</div>
+    <div class="overview-value font-monospace">{{ lease.lease_number }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Unit</div>
+    <div class="overview-value">{% if lease.unit %}<a href="{% url 'property:unit_detail' lease.unit.pk %}">{{ lease.unit }}</a>{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Tenant</div>
+    <div class="overview-value"><a href="{% url 'property:tenant_detail' lease.tenant.pk %}">{{ lease.tenant.name }}</a></div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Start date</div>
+    <div class="overview-value">{{ lease.start_date|date:"d/m/Y" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">End date</div>
+    <div class="overview-value">{{ lease.end_date|date:"d/m/Y" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Annual rent</div>
+    <div class="overview-value fw-semibold">AED {{ lease.annual_rent|floatformat:2|intcomma }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Payment frequency</div>
+    <div class="overview-value">{{ lease.get_payment_frequency_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Number of cheques</div>
+    <div class="overview-value">{{ lease.number_of_cheques }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Security deposit</div>
+    <div class="overview-value">AED {{ lease.security_deposit|floatformat:2|intcomma }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Deposit paid</div>
+    <div class="overview-value">{% if lease.deposit_paid %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{{ lease.get_status_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Ejari number</div>
+    <div class="overview-value">{{ lease.ejari_number|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Ejari registered</div>
+    <div class="overview-value">{% if lease.ejari_registered %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-12">
+    <div class="overview-label">Notes</div>
+    <div class="overview-value">{% if lease.notes %}{{ lease.notes|linebreaksbr }}{% else %}—{% endif %}</div>
+</div>
                 </div>
             </div>
         </div>

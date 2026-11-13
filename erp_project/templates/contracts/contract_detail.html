@@ -43,80 +43,75 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0 fw-semibold">Contract</h6></div>
+<div class="card mb-4 erp-entity-overview">
+    <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Contract</h6></div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Is active</h6>
-                <p class="mb-0">{% if contract.is_active %}Yes{% else %}No{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Contract number</h6>
-                <p class="mb-0 font-monospace">{{ contract.contract_number }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Status</h6>
-                <p class="mb-0">{{ contract.get_status_display }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Customer</h6>
-                <p class="mb-0">
-                    {% if contract.customer %}
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if contract.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Contract number</div>
+    <div class="overview-value font-monospace">{{ contract.contract_number }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{{ contract.get_status_display }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Customer</div>
+    <div class="overview-value">{% if contract.customer %}
                     <a href="{% url 'crm:customer_detail' contract.customer.pk %}">{{ contract.customer.name }}</a>
                     {% else %}
                     <span class="text-muted">—</span>
-                    {% endif %}
-                </p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Project</h6>
-                <p class="mb-0">
-                    {% if contract.project %}
+                    {% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Project</div>
+    <div class="overview-value">{% if contract.project %}
                     <a href="{% url 'projects:project_detail' contract.project.pk %}">
                         {{ contract.project.project_code }} — {{ contract.project.name }}
                     </a>
                     {% else %}
                     <span class="text-muted">—</span>
-                    {% endif %}
-                </p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Name</h6>
-                <p class="mb-0">{{ contract.name }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Contract value</h6>
-                <p class="mb-0">AED {{ contract.contract_value|floatformat:2|intcomma }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Start date</h6>
-                <p class="mb-0">{{ contract.start_date|date:"d/m/Y" }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">End date</h6>
-                <p class="mb-0">{{ contract.end_date|date:"d/m/Y" }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Remind before days</h6>
-                <p class="mb-0">{{ contract.remind_before_days }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Contract types</h6>
-                <p class="mb-0">
-                    {% for t in contract.contract_types.all %}
+                    {% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Name</div>
+    <div class="overview-value">{{ contract.name }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Contract value</div>
+    <div class="overview-value">AED {{ contract.contract_value|floatformat:2|intcomma }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Start date</div>
+    <div class="overview-value">{{ contract.start_date|date:"d/m/Y" }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">End date</div>
+    <div class="overview-value">{{ contract.end_date|date:"d/m/Y" }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Remind before days</div>
+    <div class="overview-value">{{ contract.remind_before_days }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Contract types</div>
+    <div class="overview-value">{% for t in contract.contract_types.all %}
                     <a href="{% url 'contracts:type_detail' t.pk %}" class="badge bg-light text-dark text-decoration-none me-1">{{ t.name }}</a>
                     {% empty %}
                     <span class="text-muted">—</span>
-                    {% endfor %}
-                </p>
-            </div>
+                    {% endfor %}</div>
+</div>
             <div class="col-12">
-                <h6 class="text-muted mb-2">Description</h6>
-                <p class="mb-0">{% if contract.description %}{{ contract.description|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
+    <div class="overview-label">Description</div>
+    <div class="overview-value">{% if contract.description %}{{ contract.description|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
             <div class="col-12">
-                <h6 class="text-muted mb-2">Scope of work</h6>
+                <div class="overview-label">Scope of work</div>
+                <div class="overview-value">
                 {% if contract.scope_of_work_lines %}
                 <ul class="mb-0 ps-3">
                     {% for line in contract.scope_of_work_lines %}
@@ -124,12 +119,13 @@
                     {% endfor %}
                 </ul>
                 {% else %}
-                <p class="mb-0 text-muted">—</p>
+                <span class="text-muted">—</span>
                 {% endif %}
+                </div>
             </div>
             <div class="col-12">
-                <h6 class="text-muted mb-2">Terms and conditions</h6>
-                <p class="mb-0">{% if contract.terms_and_conditions %}{{ contract.terms_and_conditions|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
+                <div class="overview-label">Terms and conditions</div>
+                <div class="overview-value">{% if contract.terms_and_conditions %}{{ contract.terms_and_conditions|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
             </div>
         </div>
     </div>

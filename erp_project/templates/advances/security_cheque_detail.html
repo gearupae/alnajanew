@@ -33,7 +33,7 @@
 <div class="row g-4">
     <!-- Left: Details + Journal entries -->
     <div class="col-lg-8">
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm mb-4 erp-entity-overview">
             <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-semibold">
                     <i class="fas fa-money-check me-2 text-primary"></i>Cheque Details
@@ -41,49 +41,47 @@
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Party / Vendor</label>
-                        <p class="fw-semibold mb-0">
-                            {% if cheque.vendor %}
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Party / Vendor</div>
+    <div class="overview-value fw-semibold">{% if cheque.vendor %}
                             <a href="{% url 'advances:vendor_detail' cheque.vendor.pk %}" class="text-decoration-none">
                                 {{ cheque.vendor.name }}
                             </a>
                             {% else %}
                             {{ cheque.party_name }}
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Cheque Number</label>
-                        <p class="fw-semibold mb-0">{{ cheque.cheque_number }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Bank Name</label>
-                        <p class="mb-0">{{ cheque.bank_name }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Amount</label>
-                        <p class="fw-semibold mb-0">AED {{ cheque.amount|floatformat:2|intcomma }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Cheque Date</label>
-                        <p class="mb-0">{{ cheque.cheque_date|date:"d/m/Y" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Issued Date</label>
-                        <p class="mb-0">{{ cheque.issued_date|date:"d/m/Y" }}</p>
-                    </div>
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Cheque Number</div>
+    <div class="overview-value fw-semibold">{{ cheque.cheque_number }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Bank Name</div>
+    <div class="overview-value">{{ cheque.bank_name }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Amount</div>
+    <div class="overview-value fw-semibold">AED {{ cheque.amount|floatformat:2|intcomma }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Cheque Date</div>
+    <div class="overview-value">{{ cheque.cheque_date|date:"d/m/Y" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Issued Date</div>
+    <div class="overview-value">{{ cheque.issued_date|date:"d/m/Y" }}</div>
+</div>
                     {% if cheque.purpose %}
                     <div class="col-12">
-                        <label class="form-label text-muted small">Purpose</label>
-                        <p class="mb-0">{{ cheque.purpose }}</p>
-                    </div>
+    <div class="overview-label">Purpose</div>
+    <div class="overview-value">{{ cheque.purpose }}</div>
+</div>
                     {% endif %}
                     {% if cheque.notes %}
                     <div class="col-12">
-                        <label class="form-label text-muted small">Notes</label>
-                        <p class="mb-0">{{ cheque.notes }}</p>
-                    </div>
+    <div class="overview-label">Notes</div>
+    <div class="overview-value">{{ cheque.notes }}</div>
+</div>
                     {% endif %}
                 </div>
             </div>

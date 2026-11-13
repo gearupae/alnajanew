@@ -30,80 +30,72 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0 fw-semibold">Document</h6></div>
+<div class="card mb-4 erp-entity-overview">
+    <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Document</h6></div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Is active</h6>
-                <p class="mb-0">{% if document.is_active %}Yes{% else %}No{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Document type</h6>
-                <p class="mb-0"><a href="{% url 'documents:type_detail' document.document_type.pk %}">{{ document.document_type.name }}</a></p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Entity type</h6>
-                <p class="mb-0">{{ document.get_entity_type_display }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Entity name</h6>
-                <p class="mb-0">{{ document.entity_name }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Entity ID</h6>
-                <p class="mb-0">
-                    {% if document.entity_id %}
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if document.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Document type</div>
+    <div class="overview-value"><a href="{% url 'documents:type_detail' document.document_type.pk %}">{{ document.document_type.name }}</a></div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Entity type</div>
+    <div class="overview-value">{{ document.get_entity_type_display }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Entity name</div>
+    <div class="overview-value">{{ document.entity_name }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Entity ID</div>
+    <div class="overview-value">{% if document.entity_id %}
                         {% if entity_url %}<a href="{{ entity_url }}">{{ document.entity_id }}</a>{% else %}{{ document.entity_id }}{% endif %}
                     {% else %}
                     <span class="text-muted">—</span>
-                    {% endif %}
-                </p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Document number</h6>
-                <p class="mb-0">{% if document.document_number %}{{ document.document_number }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Issue date</h6>
-                <p class="mb-0">{% if document.issue_date %}{{ document.issue_date|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Expiry date</h6>
-                <p class="mb-0 {% if document.is_expired %}text-danger{% elif document.is_expiring_soon %}text-warning{% endif %}">{{ document.expiry_date|date:"d/m/Y" }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Days until expiry</h6>
-                <p class="mb-0 {% if document.is_expired %}text-danger{% elif document.is_expiring_soon %}text-warning{% endif %}">{{ document.days_until_expiry }} days</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">File</h6>
-                <p class="mb-0">
-                    {% if document.file %}
+                    {% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Document number</div>
+    <div class="overview-value">{% if document.document_number %}{{ document.document_number }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Issue date</div>
+    <div class="overview-value">{% if document.issue_date %}{{ document.issue_date|date:"d/m/Y" }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Expiry date</div>
+    <div class="overview-value {% if document.is_expired %}text-danger{% elif document.is_expiring_soon %}text-warning{% endif %}">{{ document.expiry_date|date:"d/m/Y" }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Days until expiry</div>
+    <div class="overview-value {% if document.is_expired %}text-danger{% elif document.is_expiring_soon %}text-warning{% endif %}">{{ document.days_until_expiry }} days</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">File</div>
+    <div class="overview-value">{% if document.file %}
                     <a href="{{ document.file.url }}" target="_blank" rel="noopener noreferrer"><i class="fas fa-download me-1"></i>Download</a>
                     {% else %}
                     <span class="text-muted">—</span>
-                    {% endif %}
-                </p>
-            </div>
+                    {% endif %}</div>
+</div>
             <div class="col-12">
-                <h6 class="text-muted mb-2">Notes</h6>
-                <p class="mb-0">{% if document.notes %}{{ document.notes|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Created</h6>
-                <p class="mb-0 small">
-                    {% if document.created_at %}{{ document.created_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
-                    {% if document.created_by %}<br><span class="text-muted">{{ document.created_by.get_full_name|default:document.created_by.username }}</span>{% endif %}
-                </p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Last updated</h6>
-                <p class="mb-0 small">
-                    {% if document.updated_at %}{{ document.updated_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
-                    {% if document.updated_by %}<br><span class="text-muted">{{ document.updated_by.get_full_name|default:document.updated_by.username }}</span>{% endif %}
-                </p>
-            </div>
+    <div class="overview-label">Notes</div>
+    <div class="overview-value">{% if document.notes %}{{ document.notes|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Created</div>
+    <div class="overview-value small">{% if document.created_at %}{{ document.created_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+                    {% if document.created_by %}<br><span class="text-muted">{{ document.created_by.get_full_name|default:document.created_by.username }}</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Last updated</div>
+    <div class="overview-value small">{% if document.updated_at %}{{ document.updated_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+                    {% if document.updated_by %}<br><span class="text-muted">{{ document.updated_by.get_full_name|default:document.updated_by.username }}</span>{% endif %}</div>
+</div>
         </div>
     </div>
 </div>

@@ -141,120 +141,108 @@
 <div class="row g-4">
     <!-- Main Info -->
     <div class="col-lg-8">
-        <div class="card border-0 shadow-sm customer-info-card">
-            <div class="card-header bg-transparent">
+        <div class="card border-0 shadow-sm customer-info-card erp-entity-overview">
+            <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-semibold">
-                    <i class="fas fa-user me-2 text-primary"></i>Customer Information
+                    <i class="fas fa-address-card me-2 text-dark"></i>Customer information
                 </h6>
             </div>
             <div class="card-body">
                 <div class="row g-2">
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">Contact Name</label>
-                        <p class="fw-medium info-value">{{ customer.name }}</p>
-                    </div>
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">Company</label>
-                        <p class="fw-medium info-value">{{ customer.company|default:"-" }}</p>
-                    </div>
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">Email</label>
-                        <p class="info-value">
-                            {% if customer.email %}
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Contact Name</div>
+    <div class="overview-value">{{ customer.name }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Company</div>
+    <div class="overview-value">{{ customer.company|default:"-" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Email</div>
+    <div class="overview-value">{% if customer.email %}
                             <a href="mailto:{{ customer.email }}" class="text-decoration-none">
                                 <i class="fas fa-envelope me-1"></i>{{ customer.email }}
                             </a>
                             {% else %}
                             <span class="text-muted">-</span>
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">Phone</label>
-                        <p class="info-value">
-                            {% if customer.phone %}
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Phone</div>
+    <div class="overview-value">{% if customer.phone %}
                             <a href="tel:{{ customer.phone }}" class="text-decoration-none">
                                 <i class="fas fa-phone me-1"></i>{{ customer.phone }}
                             </a>
                             {% else %}
                             <span class="text-muted">-</span>
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">Type</label>
-                        <p class="fw-medium info-value">
-                            {% if customer.customer_type == 'lead' %}Lead{% else %}Customer{% endif %}
-                        </p>
-                    </div>
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Type</div>
+    <div class="overview-value">{% if customer.customer_type == 'lead' %}Lead{% else %}Customer{% endif %}</div>
+</div>
                     {% if customer.customer_type == 'customer' %}
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">Business type</label>
-                        <p class="fw-medium info-value">{{ customer.get_business_segment_display|default:"—" }}</p>
-                    </div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Business type</div>
+    <div class="overview-value">{{ customer.get_business_segment_display|default:"—" }}</div>
+</div>
                     {% elif customer.customer_type == 'lead' and customer.lead_kanban_stage %}
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">Pipeline stage</label>
-                        <p class="fw-medium info-value">{{ customer.lead_kanban_stage.name }}</p>
-                    </div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Pipeline stage</div>
+    <div class="overview-value">{{ customer.lead_kanban_stage.name }}</div>
+</div>
                     {% endif %}
                     {% if customer.customer_type == 'lead' and customer.opportunity_status %}
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">Opportunity status</label>
-                        <p class="fw-medium info-value">{{ customer.get_opportunity_status_display }}</p>
-                    </div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Opportunity status</div>
+    <div class="overview-value">{{ customer.get_opportunity_status_display }}</div>
+</div>
                     {% endif %}
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">Assigned salesman</label>
-                        <p class="fw-medium info-value">
-                            {% if customer.assigned_salesperson %}
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Assigned salesman</div>
+    <div class="overview-value">{% if customer.assigned_salesperson %}
                             {{ customer.assigned_salesman_label }}
                             {% else %}
                             <span class="text-muted">—</span>
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">VAT (TRN)</label>
-                        <p class="fw-medium info-value">{{ customer.trn|default:"-" }}</p>
-                    </div>
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">Website</label>
-                        <p class="info-value">
-                            {% if customer.website %}
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">VAT (TRN)</div>
+    <div class="overview-value">{{ customer.trn|default:"-" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Website</div>
+    <div class="overview-value">{% if customer.website %}
                             <a href="{{ customer.website }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
                                 <i class="fas fa-globe me-1"></i>{{ customer.website }}
                             </a>
                             {% else %}
                             <span class="text-muted">-</span>
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">Job type</label>
-                        <p class="fw-medium info-value">{% if customer.job_type %}{{ customer.get_job_type_display }}{% else %}-{% endif %}</p>
-                    </div>
-                    <div class="col-md-6 info-field">
-                        <label class="form-label text-muted small info-label">Project</label>
-                        <p class="info-value">
-                            {% if customer.primary_project %}
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Job type</div>
+    <div class="overview-value">{% if customer.job_type %}{{ customer.get_job_type_display }}{% else %}-{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Project</div>
+    <div class="overview-value">{% if customer.primary_project %}
                             <a href="{% url 'projects:project_detail' customer.primary_project.pk %}" class="text-decoration-none fw-medium">
                                 <i class="fas fa-project-diagram me-1"></i>{{ customer.primary_project.project_code }} — {{ customer.primary_project.name }}
                             </a>
                             {% else %}
                             <span class="text-muted">-</span>
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-12 info-field">
-                        <label class="form-label text-muted small info-label">Address</label>
-                        <p class="info-value">{{ customer.address|default:"-"|linebreaksbr }}</p>
-                    </div>
+                            {% endif %}</div>
+</div>
+                    <div class="col-12">
+    <div class="overview-label">Address</div>
+    <div class="overview-value">{{ customer.address|default:"-"|linebreaksbr }}</div>
+</div>
                     {% if customer.notes %}
-                    <div class="col-12 info-field">
-                        <label class="form-label text-muted small info-label">Notes</label>
-                        <p class="info-value">{{ customer.notes|linebreaksbr }}</p>
-                    </div>
+                    <div class="col-12">
+    <div class="overview-label">Notes</div>
+    <div class="overview-value">{{ customer.notes|linebreaksbr }}</div>
+</div>
                     {% endif %}
                 </div>
             </div>

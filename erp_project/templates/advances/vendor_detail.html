@@ -32,7 +32,7 @@
     <div class="col-lg-8">
 
         <!-- Vendor Info Card -->
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm mb-4 erp-entity-overview">
             <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-semibold">
                     <i class="fas fa-industry me-2 text-primary"></i>Vendor Information
@@ -40,76 +40,70 @@
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Name</label>
-                        <p class="fw-medium mb-0">{{ vendor.name }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Vendor number</label>
-                        <p class="mb-0">{{ vendor.vendor_number }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Contact person</label>
-                        <p class="mb-0">{{ vendor.contact_person|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Is active</label>
-                        <p class="mb-0">{% if vendor.is_active %}Yes{% else %}No{% endif %}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Email</label>
-                        <p class="mb-0">
-                            {% if vendor.email %}
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Name</div>
+    <div class="overview-value">{{ vendor.name }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Vendor number</div>
+    <div class="overview-value">{{ vendor.vendor_number }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Contact person</div>
+    <div class="overview-value">{{ vendor.contact_person|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if vendor.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Email</div>
+    <div class="overview-value">{% if vendor.email %}
                             <a href="mailto:{{ vendor.email }}" class="text-decoration-none">
                                 <i class="fas fa-envelope me-1"></i>{{ vendor.email }}
                             </a>
-                            {% else %}<span class="text-muted">—</span>{% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Phone</label>
-                        <p class="mb-0">
-                            {% if vendor.phone %}
+                            {% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Phone</div>
+    <div class="overview-value">{% if vendor.phone %}
                             <a href="tel:{{ vendor.phone }}" class="text-decoration-none">
                                 <i class="fas fa-phone me-1"></i>{{ vendor.phone }}
                             </a>
-                            {% else %}<span class="text-muted">—</span>{% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Tax Registration Number (TRN)</label>
-                        <p class="fw-medium mb-0">{{ vendor.trn|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Website</label>
-                        <p class="mb-0">
-                            {% if vendor.website %}
+                            {% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Tax Registration Number (TRN)</div>
+    <div class="overview-value">{{ vendor.trn|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Website</div>
+    <div class="overview-value">{% if vendor.website %}
                             <a href="{{ vendor.website }}" class="text-decoration-none" target="_blank" rel="noopener">
                                 <i class="fas fa-globe me-1"></i>{{ vendor.website }}
                             </a>
-                            {% else %}<span class="text-muted">—</span>{% endif %}
-                        </p>
-                    </div>
+                            {% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
                     <div class="col-12">
-                        <label class="form-label text-muted small">Address</label>
-                        <p class="mb-0">{% if vendor.address %}{{ vendor.address|linebreaks }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">City</label>
-                        <p class="mb-0">{{ vendor.city|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Country</label>
-                        <p class="mb-0">{{ vendor.country|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Payment terms</label>
-                        <p class="mb-0">{{ vendor.payment_terms|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Credit limit</label>
-                        <p class="mb-0">AED {{ vendor.credit_limit|floatformat:2|intcomma }}</p>
-                    </div>
+    <div class="overview-label">Address</div>
+    <div class="overview-value">{% if vendor.address %}{{ vendor.address|linebreaks }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">City</div>
+    <div class="overview-value">{{ vendor.city|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Country</div>
+    <div class="overview-value">{{ vendor.country|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Payment terms</div>
+    <div class="overview-value">{{ vendor.payment_terms|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Credit limit</div>
+    <div class="overview-value">AED {{ vendor.credit_limit|floatformat:2|intcomma }}</div>
+</div>
                     {% if vendor.trn_document or vendor.trade_license_document %}
                     <div class="col-12">
                         <label class="form-label text-muted small">Documents</label>
@@ -129,9 +123,9 @@
                     {% endif %}
                     {% if vendor.notes %}
                     <div class="col-12">
-                        <label class="form-label text-muted small">Notes</label>
-                        <p class="mb-0">{{ vendor.notes|linebreaks }}</p>
-                    </div>
+    <div class="overview-label">Notes</div>
+    <div class="overview-value">{{ vendor.notes|linebreaks }}</div>
+</div>
                     {% endif %}
                 </div>
             </div>

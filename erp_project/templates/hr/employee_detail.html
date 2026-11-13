@@ -10,108 +10,106 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card mb-4">
-            <div class="card-header"><h6 class="mb-0 fw-semibold">Employee details</h6></div>
+        <div class="card mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Employee details</h6></div>
             <div class="card-body">
-                <div class="row g-4">
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Is active</h6>
-                        <p class="mb-0">{% if employee.is_active %}Yes{% else %}No{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Employee code</h6>
-                        <p class="mb-0 font-monospace">{{ employee.employee_code }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">User</h6>
-                        <p class="mb-0">
-                            {% if employee.user %}{{ employee.user.get_full_name|default:employee.user.username }}{% else %}<span class="text-muted">—</span>{% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">First name</h6>
-                        <p class="mb-0">{{ employee.first_name }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Last name</h6>
-                        <p class="mb-0">{{ employee.last_name }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Email</h6>
-                        <p class="mb-0">{{ employee.email }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Phone</h6>
-                        <p class="mb-0">{{ employee.phone|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Gender</h6>
-                        <p class="mb-0">{{ employee.get_gender_display|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Department</h6>
-                        <p class="mb-0">{{ employee.department.name|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Designation</h6>
-                        <p class="mb-0">{{ employee.designation.name|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Date of birth</h6>
-                        <p class="mb-0">{{ employee.date_of_birth|date:"d/m/Y"|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Date of joining</h6>
-                        <p class="mb-0">{{ employee.date_of_joining|date:"d/m/Y"|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Probation period days</h6>
-                        <p class="mb-0">{{ employee.probation_period_days }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Status</h6>
-                        <p class="mb-0">{{ employee.get_status_display }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Basic salary</h6>
-                        <p class="mb-0">AED {{ employee.basic_salary|floatformat:2 }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Salary template</h6>
-                        <p class="mb-0">{% if employee.salary_template %}{{ employee.salary_template.name }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Company</h6>
-                        <p class="mb-0">{{ employee.company.name|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Location</h6>
-                        <p class="mb-0">{{ employee.get_location_display }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Contract type</h6>
-                        <p class="mb-0">{{ employee.get_contract_type_display|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Termination type</h6>
-                        <p class="mb-0">{{ employee.get_termination_type_display|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Is UAE national</h6>
-                        <p class="mb-0">{% if employee.is_uae_national %}Yes{% else %}No{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Emirates ID</h6>
-                        <p class="mb-0">{{ employee.emirates_id|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Visa number</h6>
-                        <p class="mb-0">{{ employee.visa_number|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Visa expiry</h6>
-                        <p class="mb-0">{{ employee.visa_expiry|date:"d/m/Y"|default:"—" }}</p>
-                    </div>
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if employee.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Employee code</div>
+    <div class="overview-value font-monospace">{{ employee.employee_code }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">User</div>
+    <div class="overview-value">{% if employee.user %}{{ employee.user.get_full_name|default:employee.user.username }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">First name</div>
+    <div class="overview-value">{{ employee.first_name }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Last name</div>
+    <div class="overview-value">{{ employee.last_name }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Email</div>
+    <div class="overview-value">{{ employee.email }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Phone</div>
+    <div class="overview-value">{{ employee.phone|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Gender</div>
+    <div class="overview-value">{{ employee.get_gender_display|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Department</div>
+    <div class="overview-value">{{ employee.department.name|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Designation</div>
+    <div class="overview-value">{{ employee.designation.name|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Date of birth</div>
+    <div class="overview-value">{{ employee.date_of_birth|date:"d/m/Y"|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Date of joining</div>
+    <div class="overview-value">{{ employee.date_of_joining|date:"d/m/Y"|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Probation period days</div>
+    <div class="overview-value">{{ employee.probation_period_days }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{{ employee.get_status_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Basic salary</div>
+    <div class="overview-value">AED {{ employee.basic_salary|floatformat:2 }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Salary template</div>
+    <div class="overview-value">{% if employee.salary_template %}{{ employee.salary_template.name }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Company</div>
+    <div class="overview-value">{{ employee.company.name|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Location</div>
+    <div class="overview-value">{{ employee.get_location_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Contract type</div>
+    <div class="overview-value">{{ employee.get_contract_type_display|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Termination type</div>
+    <div class="overview-value">{{ employee.get_termination_type_display|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is UAE national</div>
+    <div class="overview-value">{% if employee.is_uae_national %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Emirates ID</div>
+    <div class="overview-value">{{ employee.emirates_id|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Visa number</div>
+    <div class="overview-value">{{ employee.visa_number|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Visa expiry</div>
+    <div class="overview-value">{{ employee.visa_expiry|date:"d/m/Y"|default:"—" }}</div>
+</div>
                 </div>
             </div>
         </div>

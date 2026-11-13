@@ -454,26 +454,97 @@ div.dataTables_wrapper div.dataTables_info {
     font-variant-numeric: tabular-nums;
 }
 
-/* Simplified report pages (sales, leads, project internal/customer) */
+/* Simplified report pages (sales, leads, project internal/customer, period) */
 .erp-report-simple {
     font-size: 15px;
+    --erp-report-accent: #6366f1;
+}
+
+.erp-report-simple > .page-header {
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    border-radius: 10px;
+    border: 1px solid var(--gray-200);
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.erp-report-simple > .page-header h4 {
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
 }
 
 .erp-report-simple .card {
-    box-shadow: none;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
     border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.erp-report-simple .card > .card-header {
+    background: #f8fafc !important;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.erp-report-simple .card > .card-body:has(.list-filters-toolbar),
+.erp-report-simple .card > .card-body:has(form.row) {
+    background: #fafbfc;
 }
 
 .erp-report-simple .report-kpi-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
     margin-bottom: 1rem;
 }
 
+@media (min-width: 992px) {
+    .erp-report-simple .report-kpi-row {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
 .erp-report-simple .report-kpi-row > .metric-box {
-    flex: 1 1 10rem;
-    min-width: 9rem;
+    min-width: 0;
+    border-radius: 8px;
+    border: 1px solid var(--gray-200);
+    border-top: 3px solid var(--erp-metric-accent, #94a3b8);
+    background: var(--white);
+    padding: 0.75rem 0.875rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.erp-report-simple .report-kpi-row > .metric-box:nth-child(1) { --erp-metric-accent: #6366f1; }
+.erp-report-simple .report-kpi-row > .metric-box:nth-child(2) { --erp-metric-accent: #059669; }
+.erp-report-simple .report-kpi-row > .metric-box:nth-child(3) { --erp-metric-accent: #d97706; }
+.erp-report-simple .report-kpi-row > .metric-box:nth-child(4) { --erp-metric-accent: #0284c7; }
+.erp-report-simple .report-kpi-row > .metric-box:nth-child(5) { --erp-metric-accent: #7c3aed; }
+
+.erp-report-simple .metric-box--highlight {
+    background: #fffbeb;
+    border-color: #fde68a;
+    --erp-metric-accent: #d97706 !important;
+}
+
+.erp-report-simple .table thead th,
+.erp-report-simple .table thead.table-light th {
+    background: #f1f5f9 !important;
+    color: var(--gray-900) !important;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.erp-report-simple .sales-alert-list .alert {
+    border-radius: 8px;
+    border-left: 3px solid var(--bs-alert-color);
+}
+
+.erp-report-simple .internal-report-meta,
+.erp-report-simple .customer-report-meta {
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .erp-report-simple .report-section-header {
@@ -565,15 +636,88 @@ div.dataTables_wrapper div.dataTables_info {
     color: var(--white);
 }
 
+.erp-report-simple .report-kpi-row--wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 @media (min-width: 992px) {
-    .erp-report-simple .report-kpi-row--wide > .metric-box {
-        flex: 1 1 0;
+    .erp-report-simple .report-kpi-row--wide {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
+}
+
+/* Period-wise project report */
+.erp-report-period .period-report-kpi {
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    border-left: 3px solid var(--kpi-accent, #153a5c);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.erp-report-period .period-report-kpi--total { --kpi-accent: #153a5c; }
+.erp-report-period .period-report-kpi--active { --kpi-accent: #2563eb; }
+.erp-report-period .period-report-kpi--done { --kpi-accent: #059669; }
+.erp-report-period .period-report-kpi--hold { --kpi-accent: #d97706; }
+.erp-report-period .period-report-kpi--finance { --kpi-accent: #64748b; }
+
+@media (min-width: 992px) {
+    .erp-report-period .period-report-metrics {
+        flex-wrap: nowrap;
+    }
+    .erp-report-period .period-report-metrics > [class*="col-"] {
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: none;
+        width: auto;
+    }
+}
+
+.erp-report-period .period-report-group {
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.erp-report-period .period-report-group__header {
+    background: #f8fafc;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--gray-200);
+    font-weight: 600;
+    font-size: 0.9375rem;
+}
+
+.erp-report-period .period-report-group .table.period-report-table,
+.erp-report-period .period-report-table-wrap .period-report-table {
+    min-width: 88rem;
 }
 
 /* Reports hub (/reports/) */
 .erp-reports-hub {
-    max-width: 72rem;
+    max-width: none;
+}
+
+@media (min-width: 992px) {
+    .erp-reports-hub__grid a.erp-report-hub-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+        min-height: 11.5rem;
+    }
+
+    .erp-reports-hub__grid .erp-report-hub-card__icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1rem;
+    }
+
+    .erp-reports-hub__grid .erp-report-hub-card__desc {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+    }
 }
 
 .erp-reports-hub__hero {
@@ -1420,6 +1564,171 @@ hr {
         width: 50%;
         max-width: 50%;
     }
+}
+
+/* Entity detail overview — reference: project detail (overview-label / overview-value) */
+.erp-entity-overview .overview-label,
+.overview-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--gray-600);
+    margin-bottom: 0.25rem;
+    line-height: 1.25;
+}
+
+.erp-entity-overview .overview-value,
+.overview-value {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--gray-900);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.erp-entity-overview .overview-section-title,
+.overview-section-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.erp-entity-overview .overview-section-title:not(:first-child),
+.overview-section-title:not(:first-child) {
+    margin-top: 0.5rem;
+}
+
+.erp-entity-overview .tabular-nums,
+.overview-value.tabular-nums,
+.erp-entity-overview .overview-value .tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
+
+.erp-entity-overview > .card-header {
+    background: transparent !important;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+
+.erp-entity-overview > .card-body {
+    padding-top: 0.75rem;
+}
+
+/* Label + span / table rows used on some detail pages */
+.erp-entity-overview label.text-muted.small.d-block,
+.erp-entity-overview .text-muted.small.d-block:not(.overview-label) {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--gray-600) !important;
+    margin-bottom: 0.25rem;
+    line-height: 1.25;
+}
+
+.erp-entity-overview table.table-borderless td.text-muted {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--gray-600) !important;
+    vertical-align: top;
+    padding-top: 0.35rem;
+    width: 38%;
+}
+
+.erp-entity-overview table.table-borderless td:not(.text-muted) {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--gray-900);
+    line-height: 1.4;
+    word-break: break-word;
+    vertical-align: top;
+    padding-top: 0.35rem;
+}
+
+/* Legacy h6 + p and CRM info-field inside overview cards */
+.erp-entity-overview h6.text-muted.mb-2,
+.erp-entity-overview h6.text-muted.text-uppercase.small.fw-semibold.mb-2 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--gray-600) !important;
+    margin-bottom: 0.25rem;
+    line-height: 1.25;
+}
+
+.erp-entity-overview h6.text-muted.mb-2 + p,
+.erp-entity-overview h6.text-muted.text-uppercase.small.fw-semibold.mb-2 + p {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--gray-900);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.erp-entity-overview label.form-label.info-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--gray-600);
+    margin-bottom: 0.25rem;
+    line-height: 1.25;
+}
+
+.erp-entity-overview .info-value {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--gray-900);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+/* Detail pages: match project overview for common field rows (no extra class required) */
+.main-content .card > .card-body > .row.g-3 [class*="col-"] > h6.text-muted.mb-2,
+.main-content .card > .card-body > .row.g-4 [class*="col-"] > h6.text-muted.mb-2,
+.main-content .card > .card-body > .row[class*="row-cols"] > [class*="col"] > h6.text-muted.text-uppercase.small.fw-semibold.mb-2 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--gray-600) !important;
+    margin-bottom: 0.25rem;
+    line-height: 1.25;
+}
+
+.main-content .card > .card-body > .row.g-3 [class*="col-"] > h6.text-muted.mb-2 + p,
+.main-content .card > .card-body > .row.g-4 [class*="col-"] > h6.text-muted.mb-2 + p,
+.main-content .card > .card-body > .row[class*="row-cols"] > [class*="col"] > h6.text-muted.text-uppercase.small.fw-semibold.mb-2 + p {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--gray-900);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.main-content .card > .card-body > .row label.form-label.info-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--gray-600);
+    margin-bottom: 0.25rem;
+    line-height: 1.25;
+}
+
+.main-content .card > .card-body > .row .info-value {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--gray-900);
+    line-height: 1.4;
+    word-break: break-word;
 }
 
 /* Entity overview pages — aligned detail field grids (PR, PO, bills, etc.) */

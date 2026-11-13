@@ -45,71 +45,65 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0 fw-semibold">Task details</h6></div>
+<div class="card mb-4 erp-entity-overview">
+    <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Task details</h6></div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Is active</h6>
-                <p class="mb-0">{% if task.is_active %}Yes{% else %}No{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Project</h6>
-                <p class="mb-0">
-                    {% if task.project %}
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if task.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Project</div>
+    <div class="overview-value">{% if task.project %}
                     <a href="{% url 'projects:project_detail' task.project.pk %}">{{ task.project.project_code }} — {{ task.project.name }}</a>
                     {% else %}
                     <span class="text-muted">—</span>
-                    {% endif %}
-                </p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Customer / lead</h6>
-                <p class="mb-0">
-                    {% if task.customer %}
+                    {% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Customer / lead</div>
+    <div class="overview-value">{% if task.customer %}
                     <a href="{% url 'crm:customer_detail' task.customer.pk %}">{{ task.customer.customer_number }} — {{ task.customer.name }}</a>
                     {% if task.customer.customer_type == 'lead' %}
                     <span class="badge bg-info-subtle text-info-emphasis ms-1">Lead</span>
                     {% endif %}
                     {% else %}
                     <span class="text-muted">—</span>
-                    {% endif %}
-                </p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Name</h6>
-                <p class="mb-0">{{ task.name }}</p>
-            </div>
+                    {% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Name</div>
+    <div class="overview-value">{{ task.name }}</div>
+</div>
             <div class="col-12">
-                <h6 class="text-muted mb-2">Description</h6>
-                <p class="mb-0">{% if task.description %}{{ task.description|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Assigned to</h6>
-                <p class="mb-0">
-                    {% if task.assigned_to %}{{ task.assigned_to|staff_label }}{% else %}<span class="text-muted">—</span>{% endif %}
-                </p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Status</h6>
-                <p class="mb-0">{{ task.get_status_display }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Priority</h6>
-                <p class="mb-0">{{ task.get_priority_display }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Estimated hours</h6>
-                <p class="mb-0">{{ task.estimated_hours|floatformat:2 }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Start date</h6>
-                <p class="mb-0">{{ task.start_date|date:"d/m/Y"|default:"—" }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">End date</h6>
-                <p class="mb-0">{{ task.due_date|date:"d/m/Y"|default:"—" }}</p>
-            </div>
+    <div class="overview-label">Description</div>
+    <div class="overview-value">{% if task.description %}{{ task.description|linebreaksbr }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Assigned to</div>
+    <div class="overview-value">{% if task.assigned_to %}{{ task.assigned_to|staff_label }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{{ task.get_status_display }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Priority</div>
+    <div class="overview-value">{{ task.get_priority_display }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Estimated hours</div>
+    <div class="overview-value">{{ task.estimated_hours|floatformat:2 }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Start date</div>
+    <div class="overview-value">{{ task.start_date|date:"d/m/Y"|default:"—" }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">End date</div>
+    <div class="overview-value">{{ task.due_date|date:"d/m/Y"|default:"—" }}</div>
+</div>
         </div>
     </div>
 </div>

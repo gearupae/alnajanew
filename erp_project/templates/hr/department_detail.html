@@ -23,30 +23,30 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0 fw-semibold">Department details</h6></div>
+<div class="card mb-4 erp-entity-overview">
+    <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Department details</h6></div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Is active</h6>
-                <p class="mb-0">{% if department.is_active %}Yes{% else %}No{% endif %}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Name</h6>
-                <p class="mb-0">{{ department.name }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Code</h6>
-                <p class="mb-0 font-monospace">{{ department.code }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Manager</h6>
-                <p class="mb-0">{{ department.manager.get_full_name|default:department.manager.username|default:"—" }}</p>
-            </div>
-            <div class="col-md-3">
-                <h6 class="text-muted mb-2">Employees</h6>
-                <p class="mb-0">{{ department.employee_count|default:department.employees.count }}</p>
-            </div>
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if department.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Name</div>
+    <div class="overview-value">{{ department.name }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Code</div>
+    <div class="overview-value font-monospace">{{ department.code }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Manager</div>
+    <div class="overview-value">{{ department.manager.get_full_name|default:department.manager.username|default:"—" }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Employees</div>
+    <div class="overview-value">{{ department.employee_count|default:department.employees.count }}</div>
+</div>
         </div>
     </div>
 </div>

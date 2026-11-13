@@ -30,26 +30,65 @@
 
 <div class="row">
     <div class="col-lg-8">
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white"><h6 class="mb-0 fw-semibold">Invoice Details</h6></div>
+        <div class="card border-0 shadow-sm mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Invoice Details</h6></div>
             <div class="card-body">
-                <div class="row g-4">
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Tenant</h6><p class="mb-0"><a href="{% url 'property:tenant_detail' invoice.tenant.pk %}">{{ invoice.tenant.name }}</a></p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Status</h6><p class="mb-0">{{ invoice.get_status_display }}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Invoice date</h6><p class="mb-0">{{ invoice.invoice_date|date:"d M Y" }}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Due date</h6><p class="mb-0">{{ invoice.due_date|date:"d M Y" }}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Period</h6><p class="mb-0">{{ invoice.period_start|date:"d M Y" }} – {{ invoice.period_end|date:"d M Y" }}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Unit</h6><p class="mb-0">{% if invoice.unit %}{{ invoice.unit }}{% else %}—{% endif %}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Rent amount</h6><p class="mb-0">AED {{ invoice.rent_amount|floatformat:2|intcomma }}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">VAT ({{ invoice.vat_rate }}%)</h6><p class="mb-0">AED {{ invoice.vat_amount|floatformat:2|intcomma }}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Total</h6><p class="mb-0 fw-semibold">AED {{ invoice.total_amount|floatformat:2|intcomma }}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Paid</h6><p class="mb-0">AED {{ invoice.paid_amount|floatformat:2|intcomma }}</p></div>
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Balance</h6><p class="mb-0">AED {{ invoice.balance|floatformat:2|intcomma }}</p></div>
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Tenant</div>
+    <div class="overview-value"><a href="{% url 'property:tenant_detail' invoice.tenant.pk %}">{{ invoice.tenant.name }}</a></div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{{ invoice.get_status_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Invoice date</div>
+    <div class="overview-value">{{ invoice.invoice_date|date:"d M Y" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Due date</div>
+    <div class="overview-value">{{ invoice.due_date|date:"d M Y" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Period</div>
+    <div class="overview-value">{{ invoice.period_start|date:"d M Y" }} – {{ invoice.period_end|date:"d M Y" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Unit</div>
+    <div class="overview-value">{% if invoice.unit %}{{ invoice.unit }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Rent amount</div>
+    <div class="overview-value">AED {{ invoice.rent_amount|floatformat:2|intcomma }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">VAT ({{ invoice.vat_rate }}%)</div>
+    <div class="overview-value">AED {{ invoice.vat_amount|floatformat:2|intcomma }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Total</div>
+    <div class="overview-value fw-semibold">AED {{ invoice.total_amount|floatformat:2|intcomma }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Paid</div>
+    <div class="overview-value">AED {{ invoice.paid_amount|floatformat:2|intcomma }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Balance</div>
+    <div class="overview-value">AED {{ invoice.balance|floatformat:2|intcomma }}</div>
+</div>
                     {% if invoice.pdc %}
-                    <div class="col-md-4"><h6 class="text-muted mb-2">Linked PDC</h6><p class="mb-0"><a href="{% url 'property:pdc_detail' invoice.pdc.pk %}">{{ invoice.pdc.pdc_number }}</a></p></div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Linked PDC</div>
+    <div class="overview-value"><a href="{% url 'property:pdc_detail' invoice.pdc.pk %}">{{ invoice.pdc.pdc_number }}</a></div>
+</div>
                     {% endif %}
                     {% if invoice.notes %}
-                    <div class="col-12"><h6 class="text-muted mb-2">Notes</h6><p class="mb-0">{{ invoice.notes|linebreaksbr }}</p></div>
+                    <div class="col-12">
+    <div class="overview-label">Notes</div>
+    <div class="overview-value">{{ invoice.notes|linebreaksbr }}</div>
+</div>
                     {% endif %}
                 </div>
             </div>

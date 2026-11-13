@@ -27,44 +27,42 @@
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header"><h6 class="mb-0 fw-semibold">Session details</h6></div>
+<div class="card erp-entity-overview">
+    <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Session details</h6></div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-4">
-                <h6 class="text-muted mb-2">Client name</h6>
-                <p class="mb-0">{{ session.client_name }}</p>
-            </div>
-            <div class="col-md-4">
-                <h6 class="text-muted mb-2">Location</h6>
-                <p class="mb-0">{{ session.location }}</p>
-            </div>
-            <div class="col-md-4">
-                <h6 class="text-muted mb-2">Session date</h6>
-                <p class="mb-0">{{ session.session_date|date:"d/m/Y" }}</p>
-            </div>
-            <div class="col-md-4">
-                <h6 class="text-muted mb-2">Status</h6>
-                <p class="mb-0">
-                    {% if session.status == 'in_progress' %}
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Client name</div>
+    <div class="overview-value">{{ session.client_name }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Location</div>
+    <div class="overview-value">{{ session.location }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Session date</div>
+    <div class="overview-value">{{ session.session_date|date:"d/m/Y" }}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{% if session.status == 'in_progress' %}
                     <span class="badge bg-warning text-dark">In Progress</span>
                     {% else %}
                     <span class="badge bg-success">Completed</span>
-                    {% endif %}
-                </p>
-            </div>
-            <div class="col-md-4">
-                <h6 class="text-muted mb-2">Completed at</h6>
-                <p class="mb-0">{% if session.completed_at %}{{ session.completed_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
-            </div>
-            <div class="col-md-4">
-                <h6 class="text-muted mb-2">Line items</h6>
-                <p class="mb-0">{{ line_count }}</p>
-            </div>
+                    {% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Completed at</div>
+    <div class="overview-value">{% if session.completed_at %}{{ session.completed_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</div>
+</div>
+            <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Line items</div>
+    <div class="overview-value">{{ line_count }}</div>
+</div>
             <div class="col-12">
-                <h6 class="text-muted mb-2">Notes</h6>
-                <p class="mb-0">{{ session.notes|default:"—"|linebreaksbr }}</p>
-            </div>
+    <div class="overview-label">Notes</div>
+    <div class="overview-value">{{ session.notes|default:"—"|linebreaksbr }}</div>
+</div>
         </div>
     </div>
 </div>

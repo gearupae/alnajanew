@@ -21,21 +21,54 @@
 
 <div class="row">
     <div class="col-lg-8">
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white"><h6 class="mb-0 fw-semibold">Property</h6></div>
+        <div class="card border-0 shadow-sm mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Property</h6></div>
             <div class="card-body">
-                <div class="row g-4">
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Is active</h6><p class="mb-0">{% if property.is_active %}Yes{% else %}No{% endif %}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Property number</h6><p class="mb-0 font-monospace">{{ property.property_number }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Name</h6><p class="mb-0">{{ property.name }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Property type</h6><p class="mb-0">{{ property.get_property_type_display }}</p></div>
-                    <div class="col-12"><h6 class="text-muted mb-2">Address</h6><p class="mb-0">{{ property.address|default:"—" }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">City</h6><p class="mb-0">{{ property.city }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Emirate</h6><p class="mb-0">{{ property.emirate }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Country</h6><p class="mb-0">{{ property.country }}</p></div>
-                    <div class="col-md-3"><h6 class="text-muted mb-2">Total units</h6><p class="mb-0">{{ property.total_units }}</p></div>
-                    <div class="col-md-6"><h6 class="text-muted mb-2">AR account</h6><p class="mb-0">{% if property.ar_account %}{{ property.ar_account.code }} — {{ property.ar_account.name }}{% else %}—{% endif %}</p></div>
-                    <div class="col-12"><h6 class="text-muted mb-2">Description</h6><p class="mb-0">{% if property.description %}{{ property.description|linebreaksbr }}{% else %}—{% endif %}</p></div>
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if property.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Property number</div>
+    <div class="overview-value font-monospace">{{ property.property_number }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Name</div>
+    <div class="overview-value">{{ property.name }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Property type</div>
+    <div class="overview-value">{{ property.get_property_type_display }}</div>
+</div>
+                    <div class="col-12">
+    <div class="overview-label">Address</div>
+    <div class="overview-value">{{ property.address|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">City</div>
+    <div class="overview-value">{{ property.city }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Emirate</div>
+    <div class="overview-value">{{ property.emirate }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Country</div>
+    <div class="overview-value">{{ property.country }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Total units</div>
+    <div class="overview-value">{{ property.total_units }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">AR account</div>
+    <div class="overview-value">{% if property.ar_account %}{{ property.ar_account.code }} — {{ property.ar_account.name }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-12">
+    <div class="overview-label">Description</div>
+    <div class="overview-value">{% if property.description %}{{ property.description|linebreaksbr }}{% else %}—{% endif %}</div>
+</div>
                 </div>
             </div>
         </div>

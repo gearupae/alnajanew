@@ -39,50 +39,45 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card mb-4">
-            <div class="card-header"><h6 class="mb-0 fw-semibold">Movement details</h6></div>
+        <div class="card mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Movement details</h6></div>
             <div class="card-body">
-                <div class="row g-4">
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Is active</h6>
-                        <p class="mb-0">{% if movement.is_active %}Yes{% else %}No{% endif %}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Movement number</h6>
-                        <p class="mb-0 font-monospace">{{ movement.movement_number }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Movement date</h6>
-                        <p class="mb-0">{{ movement.movement_date|date:"d/m/Y" }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Approval</h6>
-                        <p class="mb-0">
-                            {% if movement.approval_status == 'pending' %}
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if movement.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Movement number</div>
+    <div class="overview-value font-monospace">{{ movement.movement_number }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Movement date</div>
+    <div class="overview-value">{{ movement.movement_date|date:"d/m/Y" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Approval</div>
+    <div class="overview-value">{% if movement.approval_status == 'pending' %}
                             <span class="badge bg-warning text-dark">Pending Approval</span>
                             {% elif movement.approval_status == 'rejected' %}
                             <span class="badge bg-danger">Rejected</span>
                             {% else %}
                             <span class="badge bg-success">Executed</span>
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Posted</h6>
-                        <p class="mb-0">{% if movement.posted %}Yes{% else %}No{% endif %}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-muted mb-2">Item</h6>
-                        <p class="mb-0">
-                            <a href="{% url 'inventory:item_detail' movement.item.pk %}" class="text-decoration-none">
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Posted</div>
+    <div class="overview-value">{% if movement.posted %}Yes{% else %}No{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Item</div>
+    <div class="overview-value"><a href="{% url 'inventory:item_detail' movement.item.pk %}" class="text-decoration-none">
                                 {{ movement.item.item_code }} — {{ movement.item.name }}
-                            </a>
-                        </p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Movement type</h6>
-                        <p class="mb-0">
-                            {% if movement.movement_type == 'in' %}
+                            </a></div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Movement type</div>
+    <div class="overview-value">{% if movement.movement_type == 'in' %}
                             <span class="badge badge-active">Stock In</span>
                             {% elif movement.movement_type == 'out' %}
                             <span class="badge badge-inactive">Stock Out</span>
@@ -94,75 +89,66 @@
                             <span class="badge bg-secondary">Adjustment (-)</span>
                             {% else %}
                             <span class="badge bg-secondary">{{ movement.get_movement_type_display }}</span>
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2">Source</h6>
-                        <p class="mb-0">{{ movement.get_source_display }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Warehouse</h6>
-                        <p class="mb-0">
-                            <a href="{% url 'inventory:warehouse_detail' movement.warehouse.pk %}" class="text-decoration-none">
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Source</div>
+    <div class="overview-value">{{ movement.get_source_display }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Warehouse</div>
+    <div class="overview-value"><a href="{% url 'inventory:warehouse_detail' movement.warehouse.pk %}" class="text-decoration-none">
                                 {{ movement.warehouse.code }} — {{ movement.warehouse.name }}
-                            </a>
-                        </p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">To warehouse</h6>
-                        <p class="mb-0">
-                            {% if movement.to_warehouse %}
+                            </a></div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">To warehouse</div>
+    <div class="overview-value">{% if movement.to_warehouse %}
                             <a href="{% url 'inventory:warehouse_detail' movement.to_warehouse.pk %}" class="text-decoration-none">
                                 {{ movement.to_warehouse.code }} — {{ movement.to_warehouse.name }}
                             </a>
                             {% else %}
                             —
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Adjustment reason</h6>
-                        <p class="mb-0">
-                            {% if movement.adjustment_reason %}
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Adjustment reason</div>
+    <div class="overview-value">{% if movement.adjustment_reason %}
                             {{ movement.get_adjustment_reason_display }}
                             {% else %}
                             —
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Quantity</h6>
-                        <p class="mb-0 fw-semibold">{{ movement.quantity }} {{ movement.item.unit }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Unit cost</h6>
-                        <p class="mb-0">AED {{ movement.unit_cost|floatformat:2 }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-muted mb-2">Total cost</h6>
-                        <p class="mb-0 fw-semibold">AED {{ movement.total_cost|floatformat:2 }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-muted mb-2">Reference</h6>
-                        <p class="mb-0">{{ movement.reference|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-muted mb-2">Journal entry</h6>
-                        <p class="mb-0">
-                            {% if movement.journal_entry %}
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Quantity</div>
+    <div class="overview-value fw-semibold">{{ movement.quantity }} {{ movement.item.unit }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Unit cost</div>
+    <div class="overview-value">AED {{ movement.unit_cost|floatformat:2 }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Total cost</div>
+    <div class="overview-value fw-semibold">AED {{ movement.total_cost|floatformat:2 }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Reference</div>
+    <div class="overview-value">{{ movement.reference|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Journal entry</div>
+    <div class="overview-value">{% if movement.journal_entry %}
                             <a href="{% url 'finance:journal_detail' movement.journal_entry.pk %}" class="text-decoration-none">
                                 {{ movement.journal_entry.entry_number }}
                             </a>
                             {% else %}
                             —
-                            {% endif %}
-                        </p>
-                    </div>
+                            {% endif %}</div>
+</div>
                     <div class="col-12">
-                        <h6 class="text-muted mb-2">Notes</h6>
-                        <p class="mb-0">{{ movement.notes|default:"—"|linebreaksbr }}</p>
-                    </div>
+    <div class="overview-label">Notes</div>
+    <div class="overview-value">{{ movement.notes|default:"—"|linebreaksbr }}</div>
+</div>
                 </div>
             </div>
         </div>

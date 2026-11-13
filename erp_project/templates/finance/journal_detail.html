@@ -87,19 +87,23 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card mb-4 border-0 shadow-sm">
-            <div class="card-body">
-                <div class="row g-4">
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2 small text-uppercase">Date</h6>
-                        <p class="mb-0 fw-medium">{{ entry.date|date:"d/m/Y" }}</p>
+        <div class="card mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3">
+                <h6 class="mb-0 fw-semibold"><i class="fas fa-address-card me-2 text-dark"></i>Journal entry details</h6>
+            </div>
+            <div class="card-body py-3">
+                <div class="row g-3">
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Date</div>
+                        <div class="overview-value fw-medium">{{ entry.date|date:"d/m/Y" }}</div>
                     </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2 small text-uppercase">Reference</h6>
-                        <p class="mb-0">{{ entry.reference|default:"-" }}</p>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Reference</div>
+                        <div class="overview-value">{{ entry.reference|default:"-" }}</div>
                     </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2 small text-uppercase">Status</h6>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Status</div>
+                        <div class="overview-value">
                         {% if entry.status == 'draft' %}
                         <span class="badge bg-secondary">Draft</span>
                         {% elif entry.status == 'posted' %}
@@ -107,15 +111,16 @@
                         {% else %}
                         <span class="badge bg-warning text-dark">Reversed</span>
                         {% endif %}
+                        </div>
                     </div>
-                    <div class="col-md-3">
-                        <h6 class="text-muted mb-2 small text-uppercase">Source</h6>
-                        <span class="badge bg-primary">{{ entry.get_source_module_display }}</span>
+                    <div class="col-6 col-md-4 col-xl-3">
+                        <div class="overview-label">Source</div>
+                        <div class="overview-value"><span class="badge bg-primary">{{ entry.get_source_module_display }}</span></div>
                     </div>
                     {% if entry.description %}
                     <div class="col-12">
-                        <h6 class="text-muted mb-2 small text-uppercase">Description</h6>
-                        <p class="mb-0">{{ entry.description }}</p>
+                        <div class="overview-label">Description</div>
+                        <div class="overview-value">{{ entry.description }}</div>
                     </div>
                     {% endif %}
                 </div>

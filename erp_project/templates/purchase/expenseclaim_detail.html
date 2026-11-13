@@ -161,8 +161,8 @@
         {% endif %}
         
         {% if claim.payment_journal_entry %}
-        <div class="card border-0 shadow-sm mb-3">
-            <div class="card-header bg-white py-3">
+        <div class="card border-0 shadow-sm mb-3 erp-entity-overview">
+            <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-bold"><i class="fas fa-money-check me-2 text-success"></i>Payment Journal Entry</h6>
             </div>
             <div class="card-body">
@@ -190,38 +190,35 @@
     </div>
     
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm mb-3">
-            <div class="card-header bg-white py-3">
+        <div class="card border-0 shadow-sm mb-3 erp-entity-overview">
+            <div class="card-header bg-transparent py-3">
                 <h6 class="mb-0 fw-bold"><i class="fas fa-info-circle me-2 text-primary"></i>Claim details</h6>
             </div>
             <div class="card-body">
-                <div class="erp-detail-grid">
-                    <div class="erp-detail-field">
-                        <h6>Claim number</h6>
-                        <p class="fw-medium">{{ claim.claim_number }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Employee</h6>
-                        <p>{{ claim.employee.get_full_name|default:claim.employee.username }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Project</h6>
-                        <p>
-                            {% if claim.project %}
+                <div class="row g-3">
+<div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Claim number</div>
+    <div class="overview-value fw-medium">{{ claim.claim_number }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Employee</div>
+    <div class="overview-value">{{ claim.employee.get_full_name|default:claim.employee.username }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Project</div>
+    <div class="overview-value">{% if claim.project %}
                             <a href="{% url 'projects:project_detail' claim.project.pk %}" class="text-decoration-none">
                                 {{ claim.project.project_code }} — {{ claim.project.name }}
                             </a>
-                            {% else %}—{% endif %}
-                        </p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Claim date</h6>
-                        <p>{{ claim.claim_date|date:"d/m/Y" }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Status</h6>
-                        <p>
-                            {% if claim.status == 'draft' %}
+                            {% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Claim date</div>
+    <div class="overview-value">{{ claim.claim_date|date:"d/m/Y" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{% if claim.status == 'draft' %}
                             <span class="badge bg-secondary">Draft</span>
                             {% elif claim.status == 'submitted' %}
                             <span class="badge bg-warning">Submitted</span>
@@ -233,64 +230,59 @@
                             <span class="badge bg-primary">Paid</span>
                             {% else %}
                             <span class="badge bg-secondary">{{ claim.get_status_display }}</span>
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Total amount</h6>
-                        <p class="fw-semibold">AED {{ claim.total_amount|floatformat:2|intcomma }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Total VAT</h6>
-                        <p>AED {{ claim.total_vat|floatformat:2|intcomma }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Approved by</h6>
-                        <p>{% if claim.approved_by %}{{ claim.approved_by.get_full_name|default:claim.approved_by.username }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Approved date</h6>
-                        <p>{% if claim.approved_date %}{{ claim.approved_date|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Journal entry</h6>
-                        <p>
-                            {% if claim.journal_entry %}
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Total amount</div>
+    <div class="overview-value fw-semibold">AED {{ claim.total_amount|floatformat:2|intcomma }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Total VAT</div>
+    <div class="overview-value">AED {{ claim.total_vat|floatformat:2|intcomma }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Approved by</div>
+    <div class="overview-value">{% if claim.approved_by %}{{ claim.approved_by.get_full_name|default:claim.approved_by.username }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Approved date</div>
+    <div class="overview-value">{% if claim.approved_date %}{{ claim.approved_date|date:"d/m/Y H:i" }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Journal entry</div>
+    <div class="overview-value">{% if claim.journal_entry %}
                             <a href="{% url 'finance:journal_detail' claim.journal_entry.pk %}" class="text-decoration-none">{{ claim.journal_entry.entry_number }}</a>
-                            {% else %}—{% endif %}
-                        </p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Payment journal entry</h6>
-                        <p>
-                            {% if claim.payment_journal_entry %}
+                            {% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Payment journal entry</div>
+    <div class="overview-value">{% if claim.payment_journal_entry %}
                             <a href="{% url 'finance:journal_detail' claim.payment_journal_entry.pk %}" class="text-decoration-none">{{ claim.payment_journal_entry.entry_number }}</a>
-                            {% else %}—{% endif %}
-                        </p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Paid from bank</h6>
-                        <p>{% if claim.paid_from_bank %}{{ claim.paid_from_bank.name }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Paid date</h6>
-                        <p>{% if claim.paid_date %}{{ claim.paid_date|date:"d/m/Y" }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Payment reference</h6>
-                        <p>{{ claim.payment_reference|default:"—" }}</p>
-                    </div>
+                            {% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Paid from bank</div>
+    <div class="overview-value">{% if claim.paid_from_bank %}{{ claim.paid_from_bank.name }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Paid date</div>
+    <div class="overview-value">{% if claim.paid_date %}{{ claim.paid_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Payment reference</div>
+    <div class="overview-value">{{ claim.payment_reference|default:"—" }}</div>
+</div>
                     {% if claim.rejection_reason %}
-                    <div class="erp-detail-field erp-detail-field-full">
-                        <h6>Rejection reason</h6>
-                        <p class="text-danger">{{ claim.rejection_reason|linebreaksbr }}</p>
-                    </div>
+                    <div class="col-12">
+    <div class="overview-label">Rejection reason</div>
+    <div class="overview-value text-danger">{{ claim.rejection_reason|linebreaksbr }}</div>
+</div>
                     {% endif %}
                     {% if claim.description %}
-                    <div class="erp-detail-field erp-detail-field-full">
-                        <h6>Description</h6>
-                        <p>{{ claim.description|linebreaksbr }}</p>
-                    </div>
+                    <div class="col-12">
+    <div class="overview-label">Description</div>
+    <div class="overview-value">{{ claim.description|linebreaksbr }}</div>
+</div>
                     {% endif %}
                 </div>
             </div>

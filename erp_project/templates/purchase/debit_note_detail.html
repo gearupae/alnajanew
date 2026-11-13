@@ -47,18 +47,17 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card mb-4">
-            <div class="card-header"><h6 class="mb-0 fw-semibold">Debit note details</h6></div>
+        <div class="card mb-4 erp-entity-overview">
+            <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">Debit note details</h6></div>
             <div class="card-body">
-                <div class="erp-detail-grid">
-                    <div class="erp-detail-field">
-                        <h6>Number</h6>
-                        <p class="fw-medium">{{ debit_note.number }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Status</h6>
-                        <p>
-                            {% if debit_note.status == 'draft' %}
+                <div class="row g-3">
+<div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Number</div>
+    <div class="overview-value fw-medium">{{ debit_note.number }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{% if debit_note.status == 'draft' %}
                             <span class="badge bg-secondary">Draft</span>
                             {% elif debit_note.status == 'approved' %}
                             <span class="badge bg-info text-dark">Approved</span>
@@ -66,78 +65,73 @@
                             <span class="badge badge-active">Posted</span>
                             {% else %}
                             <span class="badge bg-secondary">{{ debit_note.get_status_display }}</span>
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Issue date</h6>
-                        <p>{{ debit_note.issue_date|date:"d/m/Y" }}</p>
-                    </div>
-                    <div class="erp-detail-field erp-detail-field-span-2">
-                        <h6>Original bill</h6>
-                        <p>
-                            <a href="{% url 'purchase:bill_detail' debit_note.original_bill.pk %}" class="fw-medium text-decoration-none">{{ debit_note.original_bill.bill_number }}</a>
-                            <span class="text-muted small"> · {{ debit_note.original_bill.bill_date|date:"d/m/Y" }}</span>
-                        </p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Vendor credit note ref</h6>
-                        <p class="fw-medium">{{ debit_note.vendor_credit_note_ref }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Vendor credit note date</h6>
-                        <p>{{ debit_note.vendor_credit_note_date|date:"d/m/Y" }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Vendor</h6>
-                        <p class="fw-medium">{{ debit_note.vendor.name }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Vendor TRN</h6>
-                        <p>{{ debit_note.vendor_trn|default:"—" }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Reason</h6>
-                        <p>{{ debit_note.get_reason_display }}</p>
-                    </div>
+                            {% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Issue date</div>
+    <div class="overview-value">{{ debit_note.issue_date|date:"d/m/Y" }}</div>
+</div>
+                    <div class="col-12">
+    <div class="overview-label">Original bill</div>
+    <div class="overview-value"><a href="{% url 'purchase:bill_detail' debit_note.original_bill.pk %}" class="fw-medium text-decoration-none">{{ debit_note.original_bill.bill_number }}</a>
+                            <span class="text-muted small"> · {{ debit_note.original_bill.bill_date|date:"d/m/Y" }}</span></div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Vendor credit note ref</div>
+    <div class="overview-value fw-medium">{{ debit_note.vendor_credit_note_ref }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Vendor credit note date</div>
+    <div class="overview-value">{{ debit_note.vendor_credit_note_date|date:"d/m/Y" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Vendor</div>
+    <div class="overview-value fw-medium">{{ debit_note.vendor.name }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Vendor TRN</div>
+    <div class="overview-value">{{ debit_note.vendor_trn|default:"—" }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Reason</div>
+    <div class="overview-value">{{ debit_note.get_reason_display }}</div>
+</div>
                     {% if debit_note.reason_description %}
-                    <div class="erp-detail-field erp-detail-field-full">
-                        <h6>Reason description</h6>
-                        <p>{{ debit_note.reason_description|linebreaksbr }}</p>
-                    </div>
+                    <div class="col-12">
+    <div class="overview-label">Reason description</div>
+    <div class="overview-value">{{ debit_note.reason_description|linebreaksbr }}</div>
+</div>
                     {% endif %}
-                    <div class="erp-detail-field">
-                        <h6>Subtotal</h6>
-                        <p>AED {{ debit_note.subtotal|floatformat:2 }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>VAT amount</h6>
-                        <p>AED {{ debit_note.vat_amount|floatformat:2 }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Total</h6>
-                        <p class="fw-semibold">AED {{ debit_note.total|floatformat:2 }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Remaining bill value</h6>
-                        <p>AED {{ debit_note.remaining_bill_value|floatformat:2 }}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Journal entry</h6>
-                        <p>
-                            {% if debit_note.journal_entry %}
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Subtotal</div>
+    <div class="overview-value">AED {{ debit_note.subtotal|floatformat:2 }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">VAT amount</div>
+    <div class="overview-value">AED {{ debit_note.vat_amount|floatformat:2 }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Total</div>
+    <div class="overview-value fw-semibold">AED {{ debit_note.total|floatformat:2 }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Remaining bill value</div>
+    <div class="overview-value">AED {{ debit_note.remaining_bill_value|floatformat:2 }}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Journal entry</div>
+    <div class="overview-value">{% if debit_note.journal_entry %}
                             <a href="{% url 'finance:journal_detail' debit_note.journal_entry.pk %}" class="text-decoration-none">{{ debit_note.journal_entry.entry_number }}</a>
-                            {% else %}—{% endif %}
-                        </p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Approved by</h6>
-                        <p>{% if debit_note.approved_by %}{{ debit_note.approved_by.get_full_name|default:debit_note.approved_by.username }}{% else %}—{% endif %}</p>
-                    </div>
-                    <div class="erp-detail-field">
-                        <h6>Approved at</h6>
-                        <p>{% if debit_note.approved_at %}{{ debit_note.approved_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</p>
-                    </div>
+                            {% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Approved by</div>
+    <div class="overview-value">{% if debit_note.approved_by %}{{ debit_note.approved_by.get_full_name|default:debit_note.approved_by.username }}{% else %}—{% endif %}</div>
+</div>
+                    <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Approved at</div>
+    <div class="overview-value">{% if debit_note.approved_at %}{{ debit_note.approved_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</div>
+</div>
                 </div>
             </div>
         </div>

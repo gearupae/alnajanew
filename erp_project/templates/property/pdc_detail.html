@@ -56,42 +56,138 @@
                 {% endif %}
             </div>
 
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white"><h6 class="mb-0 fw-semibold">PDC record</h6></div>
+            <div class="card border-0 shadow-sm mb-4 erp-entity-overview">
+                <div class="card-header bg-transparent py-3"><h6 class="mb-0 fw-semibold">PDC record</h6></div>
                 <div class="card-body">
-                    <div class="row g-4">
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Is active</h6><p class="mb-0">{% if pdc.is_active %}Yes{% else %}No{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">PDC number</h6><p class="mb-0 font-monospace">{{ pdc.pdc_number }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Cheque number</h6><p class="mb-0">{{ pdc.cheque_number }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Bank name</h6><p class="mb-0">{{ pdc.bank_name }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Cheque date</h6><p class="mb-0">{{ pdc.cheque_date|date:"d/m/Y" }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Amount</h6><p class="mb-0 fw-semibold">AED {{ pdc.amount|floatformat:2|intcomma }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Customer</h6><p class="mb-0"><a href="{% url 'crm:customer_detail' pdc.customer.pk %}">{{ pdc.customer.name }}</a></p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Project</h6><p class="mb-0">{% if pdc.project %}<a href="{% url 'projects:project_detail' pdc.project.pk %}">{{ pdc.project.name }}</a>{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Drawer name</h6><p class="mb-0">{{ pdc.drawer_name|default:"—" }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Drawer account</h6><p class="mb-0">{{ pdc.drawer_account|default:"—" }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Purpose</h6><p class="mb-0">{{ pdc.get_purpose_display }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Status</h6><p class="mb-0">{{ pdc.get_status_display }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Deposit status</h6><p class="mb-0">{{ pdc.get_deposit_status_display }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Received date</h6><p class="mb-0">{{ pdc.received_date|date:"d/m/Y" }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Received by</h6><p class="mb-0">{% if pdc.received_by %}{{ pdc.received_by.get_full_name|default:pdc.received_by.username }}{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Deposited date</h6><p class="mb-0">{% if pdc.deposited_date %}{{ pdc.deposited_date|date:"d/m/Y" }}{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Deposited to bank</h6><p class="mb-0">{{ pdc.deposited_to_bank.name|default:"—" }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Deposited by</h6><p class="mb-0">{% if pdc.deposited_by %}{{ pdc.deposited_by.username }}{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Cleared date</h6><p class="mb-0">{% if pdc.cleared_date %}{{ pdc.cleared_date|date:"d/m/Y" }}{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Clearing reference</h6><p class="mb-0">{{ pdc.clearing_reference|default:"—" }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Journal entry</h6><p class="mb-0">{% if pdc.journal_entry %}<a href="{% url 'finance:journal_detail' pdc.journal_entry.pk %}">{{ pdc.journal_entry.entry_number }}</a>{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">PDC control journal</h6><p class="mb-0">{% if pdc.pdc_control_journal %}<a href="{% url 'finance:journal_detail' pdc.pdc_control_journal.pk %}">{{ pdc.pdc_control_journal.entry_number }}</a>{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Bounce date</h6><p class="mb-0">{% if pdc.bounce_date %}{{ pdc.bounce_date|date:"d/m/Y" }}{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Bounce reason</h6><p class="mb-0">{{ pdc.bounce_reason|default:"—" }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Bounce charges</h6><p class="mb-0">AED {{ pdc.bounce_charges|floatformat:2|intcomma }}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Bounce journal</h6><p class="mb-0">{% if pdc.bounce_journal %}<a href="{% url 'finance:journal_detail' pdc.bounce_journal.pk %}">{{ pdc.bounce_journal.entry_number }}</a>{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Replaced by</h6><p class="mb-0">{% if pdc.replaced_by %}<a href="{% url 'property:pdc_detail' pdc.replaced_by.pk %}">{{ pdc.replaced_by.pdc_number }}</a>{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Bank statement line</h6><p class="mb-0">{% if pdc.bank_statement_line %}#{{ pdc.bank_statement_line.pk }}{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Reconciled</h6><p class="mb-0">{% if pdc.reconciled %}Yes{% else %}No{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Reconciled date</h6><p class="mb-0">{% if pdc.reconciled_date %}{{ pdc.reconciled_date|date:"d/m/Y" }}{% else %}—{% endif %}</p></div>
-                        <div class="col-md-3"><h6 class="text-muted mb-2">Reconciled by</h6><p class="mb-0">{% if pdc.reconciled_by %}{{ pdc.reconciled_by.username }}{% else %}—{% endif %}</p></div>
-                        <div class="col-12"><h6 class="text-muted mb-2">Notes</h6><p class="mb-0">{% if pdc.notes %}{{ pdc.notes|linebreaksbr }}{% else %}—{% endif %}</p></div>
+                    <div class="row g-3">
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Is active</div>
+    <div class="overview-value">{% if pdc.is_active %}Yes{% else %}No{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">PDC number</div>
+    <div class="overview-value font-monospace">{{ pdc.pdc_number }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Cheque number</div>
+    <div class="overview-value">{{ pdc.cheque_number }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Bank name</div>
+    <div class="overview-value">{{ pdc.bank_name }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Cheque date</div>
+    <div class="overview-value">{{ pdc.cheque_date|date:"d/m/Y" }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Amount</div>
+    <div class="overview-value fw-semibold">AED {{ pdc.amount|floatformat:2|intcomma }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Customer</div>
+    <div class="overview-value"><a href="{% url 'crm:customer_detail' pdc.customer.pk %}">{{ pdc.customer.name }}</a></div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Project</div>
+    <div class="overview-value">{% if pdc.project %}<a href="{% url 'projects:project_detail' pdc.project.pk %}">{{ pdc.project.name }}</a>{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Drawer name</div>
+    <div class="overview-value">{{ pdc.drawer_name|default:"—" }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Drawer account</div>
+    <div class="overview-value">{{ pdc.drawer_account|default:"—" }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Purpose</div>
+    <div class="overview-value">{{ pdc.get_purpose_display }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Status</div>
+    <div class="overview-value">{{ pdc.get_status_display }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Deposit status</div>
+    <div class="overview-value">{{ pdc.get_deposit_status_display }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Received date</div>
+    <div class="overview-value">{{ pdc.received_date|date:"d/m/Y" }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Received by</div>
+    <div class="overview-value">{% if pdc.received_by %}{{ pdc.received_by.get_full_name|default:pdc.received_by.username }}{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Deposited date</div>
+    <div class="overview-value">{% if pdc.deposited_date %}{{ pdc.deposited_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Deposited to bank</div>
+    <div class="overview-value">{{ pdc.deposited_to_bank.name|default:"—" }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Deposited by</div>
+    <div class="overview-value">{% if pdc.deposited_by %}{{ pdc.deposited_by.username }}{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Cleared date</div>
+    <div class="overview-value">{% if pdc.cleared_date %}{{ pdc.cleared_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Clearing reference</div>
+    <div class="overview-value">{{ pdc.clearing_reference|default:"—" }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Journal entry</div>
+    <div class="overview-value">{% if pdc.journal_entry %}<a href="{% url 'finance:journal_detail' pdc.journal_entry.pk %}">{{ pdc.journal_entry.entry_number }}</a>{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">PDC control journal</div>
+    <div class="overview-value">{% if pdc.pdc_control_journal %}<a href="{% url 'finance:journal_detail' pdc.pdc_control_journal.pk %}">{{ pdc.pdc_control_journal.entry_number }}</a>{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Bounce date</div>
+    <div class="overview-value">{% if pdc.bounce_date %}{{ pdc.bounce_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Bounce reason</div>
+    <div class="overview-value">{{ pdc.bounce_reason|default:"—" }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Bounce charges</div>
+    <div class="overview-value">AED {{ pdc.bounce_charges|floatformat:2|intcomma }}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Bounce journal</div>
+    <div class="overview-value">{% if pdc.bounce_journal %}<a href="{% url 'finance:journal_detail' pdc.bounce_journal.pk %}">{{ pdc.bounce_journal.entry_number }}</a>{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Replaced by</div>
+    <div class="overview-value">{% if pdc.replaced_by %}<a href="{% url 'property:pdc_detail' pdc.replaced_by.pk %}">{{ pdc.replaced_by.pdc_number }}</a>{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Bank statement line</div>
+    <div class="overview-value">{% if pdc.bank_statement_line %}#{{ pdc.bank_statement_line.pk }}{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Reconciled</div>
+    <div class="overview-value">{% if pdc.reconciled %}Yes{% else %}No{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Reconciled date</div>
+    <div class="overview-value">{% if pdc.reconciled_date %}{{ pdc.reconciled_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-6 col-md-4 col-xl-3">
+    <div class="overview-label">Reconciled by</div>
+    <div class="overview-value">{% if pdc.reconciled_by %}{{ pdc.reconciled_by.username }}{% else %}—{% endif %}</div>
+</div>
+                        <div class="col-12">
+    <div class="overview-label">Notes</div>
+    <div class="overview-value">{% if pdc.notes %}{{ pdc.notes|linebreaksbr }}{% else %}—{% endif %}</div>
+</div>
                     </div>
                 </div>
             </div>
