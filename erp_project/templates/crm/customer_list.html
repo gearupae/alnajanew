@@ -531,7 +531,7 @@
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
         <div class="crm-customer-table-wrap">
-            <table class="table table-hover table-sm crm-customer-table mb-0">
+            <table class="table table-hover table-sm crm-customer-table mb-0" id="crmCustomerTable" data-erp-no-datatable="1">
                 <thead>
                     <tr>
                         <th class="col-id">#</th>
@@ -655,6 +655,9 @@
                 .then(function (data) {
                     if (data.html) {
                         tbody.insertAdjacentHTML('beforeend', data.html);
+                        if (window.erpRefreshListTableRows) {
+                            window.erpRefreshListTableRows(tbody.closest('table'));
+                        }
                     }
                     var visibleCount = Array.from(tbody.querySelectorAll('tr')).filter(function (row) {
                         return !row.querySelector('td[colspan]');

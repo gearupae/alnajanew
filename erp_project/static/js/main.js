@@ -161,6 +161,9 @@ function erpResolveRowHref(tr) {
         if (!href || href === '#' || href.indexOf('javascript:') === 0) {
             continue;
         }
+        if (href.indexOf('mailto:') === 0 || href.indexOf('tel:') === 0) {
+            continue;
+        }
         if (a.querySelector('.fa-edit, .fa-trash, .fa-pdf, .fa-file-pdf, .fa-download')) {
             continue;
         }
@@ -171,7 +174,7 @@ function erpResolveRowHref(tr) {
             detailHref = href;
             break;
         }
-        if (a.closest('.col-actions, .estimate-list-actions, .consumable-request-actions')) {
+        if (a.closest('.col-actions, .estimate-list-actions, .consumable-request-actions, .table-actions-inner')) {
             continue;
         }
         if (/\/\d+\/?(\?|#|$)/.test(href) && href.indexOf('_edit') === -1 && href.indexOf('/edit/') === -1) {
@@ -182,6 +185,15 @@ function erpResolveRowHref(tr) {
     }
     if (detailHref || recordHref) {
         return detailHref || recordHref;
+    }
+    const primaryCell = tr.querySelector('td.col-id a[href], td:first-child a[href]');
+    if (primaryCell) {
+        const primaryHref = primaryCell.getAttribute('href');
+        if (primaryHref && primaryHref.indexOf('mailto:') !== 0 && primaryHref.indexOf('tel:') !== 0) {
+            if (!primaryCell.closest('.col-actions, .table-actions-inner')) {
+                return primaryHref;
+            }
+        }
     }
     const actionsCell = tr.querySelector('.col-actions, .estimate-list-actions, td:last-child');
     if (actionsCell) {
@@ -211,67 +223,100 @@ function erpPrepareClickableRows(table) {
     });
 }
 
-function erpInitListTables() {
-    if (typeof jQuery === 'undefined') {
+function erpTableIsExcluded(table) {
+    if (!table || !table.classList || !table.classList.contains('table')) {
+        return true;
+    }
+    if (table.closest('td, #report-panel, .inline-form-container, .modal, .erp-no-list-table, [data-erp-no-list]')) {
+        return true;
+    }
+    if (table.id && table.id.indexOf('report-') === 0) {
+        return true;
+    }
+    if (table.dataset.erpDynamicTable === '1') {
+        return true;
+    }
+    if (!table.querySelector('thead th')) {
+        return true;
+    }
+    return false;
+}
+
+function erpShouldUseDataTables(table) {
+    if (table.dataset.erpNoDatatable === '1') {
+        return false;
+    }
+    if (!table.classList.contains('table-hover')) {
+        return false;
+    }
+    if (table.querySelector('thead a.estimate-sort-link, thead .estimate-sort-th a')) {
+        return false;
+    }
+    return true;
+}
+
+function erpWireListTable(table) {
+    if (erpTableIsExcluded(table)) {
         return;
     }
-    const $ = jQuery;
-    $('main .card .table-responsive table.table-hover, main .table-responsive table.table-hover').each(function () {
-        const table = this;
-        const $table = $(table);
-        if ($table.closest('td, #report-panel, .inline-form-container, .modal, .erp-no-list-table, [data-erp-no-list]').length) {
-            return;
-        }
-        if (table.id && table.id.indexOf('report-') === 0) {
-            return;
-        }
-        if (table.dataset.erpDynamicTable === '1') {
-            return;
-        }
-        if (!table.querySelector('thead')) {
-            return;
-        }
-        if (!table.querySelector('thead th')) {
-            return;
-        }
-        $table.addClass('erp-list-table');
+    table.classList.add('erp-list-table');
+    erpPrepareClickableRows(table);
 
-        erpPrepareClickableRows(table);
+    if (typeof jQuery === 'undefined' || !jQuery.fn.DataTable || !erpShouldUseDataTables(table)) {
+        return;
+    }
+    const $table = jQuery(table);
+    if (jQuery.fn.DataTable.isDataTable(table)) {
+        return;
+    }
 
-        if (!$.fn.DataTable || $.fn.DataTable.isDataTable(table)) {
-            return;
+    const nonSortable = [];
+    table.querySelectorAll('thead th').forEach(function (th, i) {
+        const label = (th.textContent || '').trim().toLowerCase();
+        if (th.classList.contains('col-actions') || label === 'actions' || label === 'action') {
+            nonSortable.push(i);
         }
+    });
 
-        const nonSortable = [];
-        table.querySelectorAll('thead th').forEach(function (th, i) {
-            const label = (th.textContent || '').trim().toLowerCase();
-            if (th.classList.contains('col-actions') || label === 'actions' || label === 'action') {
-                nonSortable.push(i);
-            }
-        });
+    const rowCount = $table.find('tbody tr').filter(function () {
+        return !this.querySelector('td[colspan]');
+    }).length;
+    const $card = $table.closest('.card');
+    const djangoPaginated = $card.find('.pagination').length > 0;
 
-        const rowCount = $table.find('tbody tr').filter(function () {
-            return !this.querySelector('td[colspan]');
-        }).length;
-        const $card = $table.closest('.card');
-        const djangoPaginated = $card.find('.pagination').length > 0;
-
-        $table.DataTable({
-            paging: !djangoPaginated && rowCount > 50,
-            pageLength: 25,
-            order: [],
-            ordering: true,
-            searching: false,
-            lengthChange: false,
-            info: rowCount > 25,
-            autoWidth: false,
-            columnDefs: nonSortable.length ? [{ orderable: false, targets: nonSortable }] : [],
-            drawCallback: function () {
-                erpPrepareClickableRows(table);
-            },
-        });
+    $table.DataTable({
+        paging: !djangoPaginated && rowCount > 50,
+        pageLength: 25,
+        order: [],
+        ordering: true,
+        searching: false,
+        lengthChange: false,
+        info: rowCount > 25,
+        autoWidth: false,
+        columnDefs: nonSortable.length ? [{ orderable: false, targets: nonSortable }] : [],
+        drawCallback: function () {
+            erpPrepareClickableRows(table);
+        },
     });
 }
+
+function erpInitListTables() {
+    document.querySelectorAll('main table.table').forEach(erpWireListTable);
+}
+
+function erpRefreshListTableRows(root) {
+    let table = null;
+    if (root && root.nodeType === 1) {
+        table = root.matches && root.matches('table.table') ? root : root.closest('table');
+    }
+    if (table) {
+        erpWireListTable(table);
+        return;
+    }
+    document.querySelectorAll('main table.table').forEach(erpWireListTable);
+}
+
+window.erpRefreshListTableRows = erpRefreshListTableRows;
 
 function erpInitListTableRowClicks() {
     const root = document.querySelector('main.main-content');
@@ -284,7 +329,10 @@ function erpInitListTableRowClicks() {
         if (!tr || !tr.dataset.href) {
             return;
         }
-        if (e.target.closest('a, button, input, select, textarea, label, form, .btn, .form-check, .dropdown-menu')) {
+        if (e.target.closest('a, button, input, select, textarea, label, form, .btn, .form-check, .dropdown-menu, .crm-inline-field-form, .estimate-status-inline')) {
+            return;
+        }
+        if (window.getSelection && String(window.getSelection()).trim().length) {
             return;
         }
         window.location.href = tr.dataset.href;
