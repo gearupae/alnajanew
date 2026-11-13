@@ -499,12 +499,15 @@ class PurchaseOrderItemForm(forms.ModelForm):
                 raise forms.ValidationError({'quantity': 'Enter a quantity greater than zero.'})
             return cleaned
 
+        if desc and qty > 0:
+            return cleaned
+
         if self.instance.pk and desc:
             return cleaned
 
         if qty > 0 or price > 0:
             raise forms.ValidationError(
-                {'inventory_item': 'Select an inventory item for each line.'}
+                {'inventory_item': 'Select an inventory item or enter a service description.'}
             )
         return cleaned
 
@@ -516,7 +519,8 @@ class BasePurchaseOrderItemFormSet(forms.BaseInlineFormSet):
         if super()._should_delete_form(form):
             return True
         if not form.instance.pk and form.cleaned_data:
-            if not form.cleaned_data.get('inventory_item'):
+            desc = (form.cleaned_data.get('description') or '').strip()
+            if not form.cleaned_data.get('inventory_item') and not desc:
                 return True
         return False
 

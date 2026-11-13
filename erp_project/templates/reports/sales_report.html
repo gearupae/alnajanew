@@ -161,22 +161,6 @@
 .sales-detail-table {
     margin-bottom: 0;
 }
-.sales-detail-table thead th {
-    background: #fbfcfd;
-    border-bottom: 1px solid #e9ecef;
-    color: #6c757d;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    padding: 0.85rem 1rem;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-.sales-detail-table tbody td {
-    border-bottom: 1px solid #f1f3f5;
-    font-size: 0.925rem;
-    vertical-align: middle;
-}
 .sales-detail-table tbody tr:last-child td {
     border-bottom: 0;
 }
@@ -481,7 +465,7 @@
     <div class="tab-content sales-detail-pane">
         <div class="tab-pane fade show active" id="tab-invoices" role="tabpanel">
             <div class="table-responsive sales-detail-table-wrap">
-                <table class="table sales-detail-table align-middle">
+                <table class="table table-hover sales-detail-table align-middle mb-0">
                     <thead>
                         <tr>
                             <th>Invoice</th><th>Customer</th><th>Salesman</th><th>Date</th>
@@ -516,7 +500,7 @@
 
         <div class="tab-pane fade" id="tab-collections" role="tabpanel">
             <div class="table-responsive sales-detail-table-wrap">
-                <table class="table sales-detail-table align-middle">
+                <table class="table table-hover sales-detail-table align-middle mb-0">
                     <thead>
                         <tr>
                             <th>Reference</th><th>Customer</th><th>Date</th><th class="text-end">Amount</th>
@@ -557,7 +541,7 @@
 
         <div class="tab-pane fade" id="tab-quotations" role="tabpanel">
             <div class="table-responsive sales-detail-table-wrap">
-                <table class="table sales-detail-table align-middle">
+                <table class="table table-hover sales-detail-table align-middle mb-0">
                     <thead>
                         <tr>
                             <th>Estimate</th><th>Customer</th><th>Salesman</th><th>Date</th><th>Status</th><th class="text-end">Amount</th>

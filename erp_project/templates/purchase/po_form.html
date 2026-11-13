@@ -36,10 +36,6 @@
 .po-current-stock-cell {
     min-width: 5.5rem;
 }
-.item-description {
-    margin-top: 0.25rem;
-    font-size: 0.8125rem;
-}
 .item-current-stock {
     background: #f0f9ff;
     color: #0c4a6e;
@@ -96,34 +92,34 @@
     <div class="card mb-4">
         <div class="card-header"><h6 class="mb-0 fw-semibold">Order details</h6></div>
         <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-4">
+            <div class="erp-form-grid">
+                <div class="erp-form-field">
                     <label class="form-label">Order date <span class="text-danger">*</span></label>
                     {{ form.order_date }}
                     {% if form.order_date.errors %}<div class="text-danger small">{{ form.order_date.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Expected delivery date</label>
                     {{ form.expected_delivery_date }}
                     {% if form.expected_delivery_date.errors %}<div class="text-danger small">{{ form.expected_delivery_date.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Vendor <span class="text-danger">*</span></label>
                     {{ form.vendor }}
                     {% if form.vendor.errors %}<div class="text-danger small">{{ form.vendor.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Project</label>
                     {{ form.project }}
                     {% if form.project.errors %}<div class="text-danger small">{{ form.project.errors|join:", " }}</div>{% endif %}
                     <small class="text-muted d-block mt-1">Optional. Vendor bills from this PO can use the same project for budget tracking.</small>
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Status</label>
                     {{ form.status }}
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Tax Inclusive <span class="text-danger">*</span></label>
                     {{ form.prices_include_vat }}
                     {% if form.prices_include_vat.help_text %}
@@ -132,7 +128,7 @@
                     {% if form.prices_include_vat.errors %}<div class="text-danger small">{{ form.prices_include_vat.errors|join:", " }}</div>{% endif %}
                 </div>
                 {% if 'purchase_request' in form.fields %}
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Purchase request</label>
                     {{ form.purchase_request }}
                     {% if form.purchase_request.errors %}<div class="text-danger small">{{ form.purchase_request.errors|join:", " }}</div>{% endif %}
@@ -144,7 +140,7 @@
                     {% endif %}
                 </div>
                 {% elif object and object.pk and object.purchase_request %}
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Purchase request</label>
                     <p class="mb-0 pt-1">
                         <a href="{% url 'purchase:pr_detail' object.purchase_request.pk %}" class="text-decoration-none fw-medium">
@@ -155,7 +151,7 @@
                 </div>
                 {% endif %}
                 {% if 'service_request' in form.fields %}
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Service request</label>
                     {{ form.service_request }}
                     {% if form.service_request.errors %}<div class="text-danger small">{{ form.service_request.errors|join:", " }}</div>{% endif %}
@@ -168,7 +164,7 @@
                     {% endif %}
                 </div>
                 {% elif object and object.pk and object.service_request %}
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Service request</label>
                     <p class="mb-0 pt-1">
                         <a href="{% url 'service_request:sr_detail' object.service_request.pk %}" class="text-decoration-none fw-medium">
@@ -179,20 +175,20 @@
                 </div>
                 {% endif %}
                 {% if object and object.pk %}
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label text-muted small">Saved subtotal</label>
                     <input type="text" class="form-control" value="AED {{ object.subtotal|floatformat:2 }}" readonly>
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label text-muted small">Saved VAT amount</label>
                     <input type="text" class="form-control" value="AED {{ object.vat_amount|floatformat:2 }}" readonly>
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label text-muted small">Saved total amount</label>
                     <input type="text" class="form-control fw-semibold" value="AED {{ object.total_amount|floatformat:2 }}" readonly>
                 </div>
                 {% endif %}
-                <div class="col-12">
+                <div class="erp-form-field erp-form-field-full">
                     <label class="form-label">Notes</label>
                     {{ form.notes }}
                     {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors|join:", " }}</div>{% endif %}
@@ -202,11 +198,16 @@
     </div>
     
     <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h6 class="mb-0 fw-semibold">Line Items</h6>
-            <button type="button" class="btn btn-sm btn-primary" onclick="addItemRow()">
-                <i class="fas fa-plus me-1"></i>Add Item
-            </button>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addServiceItemRow()">
+                    <i class="fas fa-wrench me-1"></i>Add service line
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="addInventoryItemRow()">
+                    <i class="fas fa-plus me-1"></i>Add item
+                </button>
+            </div>
         </div>
         <div class="card-body p-0">
             {{ items_formset.management_form }}
@@ -214,7 +215,7 @@
                 <table class="table mb-0">
                     <thead>
                         <tr>
-                            <th style="width:32%">Inventory item</th>
+                            <th style="width:32%">Item / service</th>
                             <th style="width:8%" class="text-center po-current-stock-header">Current stock</th>
                             <th style="width:9%">Qty</th>
                             <th style="width:11%" id="unitPriceColHeader">Unit Price</th>
@@ -226,12 +227,20 @@
                     </thead>
                     <tbody id="itemsBody">
                         {% for item_form in items_formset %}
-                        <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %}>
-                            <td>
+                        <tr class="item-row{% if item_form.inventory_item.value %} item-row-inventory{% elif item_form.description.value %} item-row-service{% else %} item-row-inventory{% endif %}" {% if item_form.DELETE.value %}style="display:none;"{% endif %}>
+                            <td class="po-line-cell">
                                 {{ item_form.id }}
                                 {{ item_form.is_vat_inclusive }}
+                                {% if item_form.inventory_item.value %}
                                 {{ item_form.inventory_item }}
-                                {{ item_form.description }}
+                                <input type="hidden" name="{{ item_form.prefix }}-description" class="item-description item-description-sync" value="{{ item_form.description.value|default:'' }}">
+                                {% elif item_form.description.value %}
+                                <input type="hidden" name="{{ item_form.prefix }}-inventory_item" value="">
+                                <input type="text" name="{{ item_form.prefix }}-description" class="form-control form-control-sm item-description item-description-service" value="{{ item_form.description.value|default:'' }}" placeholder="Service / line description…" maxlength="500">
+                                {% else %}
+                                {{ item_form.inventory_item }}
+                                <input type="hidden" name="{{ item_form.prefix }}-description" class="item-description item-description-sync" value="{{ item_form.description.value|default:'' }}">
+                                {% endif %}
                                 {% if item_form.inventory_item.errors %}
                                 <div class="text-danger small">{{ item_form.inventory_item.errors|join:", " }}</div>
                                 {% endif %}
@@ -307,8 +316,8 @@
     <div class="card mb-4">
         <div class="card-header"><h6 class="mb-0 fw-semibold"><i class="fas fa-calculator me-2"></i>Round-Off</h6></div>
         <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-4">
+            <div class="erp-form-grid">
+                <div class="erp-form-field">
                     <label class="form-label" for="{{ form.round_off.id_for_label }}">Round-off <span class="text-danger">*</span></label>
                     {{ form.round_off }}
                     {% if form.round_off.help_text %}<small class="text-muted d-block">{{ form.round_off.help_text }}</small>{% endif %}
@@ -399,8 +408,12 @@ function getVisiblePoRows() {
 function isPoRowFilled(row) {
     if (!row || row.style.display === 'none') return false;
     const inv = (row.querySelector('.item-inventory-select')?.value || '').trim();
+    const desc = (row.querySelector('.item-description-service')?.value || '').trim();
     const qty = parseFloat(row.querySelector('.item-qty')?.value || 0) || 0;
     const price = parseFloat(row.querySelector('.item-price')?.value || 0) || 0;
+    if (row.classList.contains('item-row-service')) {
+        return Boolean(desc) || qty > 0 || price > 0;
+    }
     return Boolean(inv) || qty > 0 || price > 0;
 }
 
@@ -431,12 +444,12 @@ function ensureTrailingEmptyRow() {
     if (suppressTrailingEmptyRow) return;
     const rows = getVisiblePoRows();
     if (!rows.length) {
-        addItemRow();
+        addInventoryItemRow();
         return;
     }
     const last = rows[rows.length - 1];
     if (isPoRowFilled(last)) {
-        addItemRow();
+        addInventoryItemRow();
     }
 }
 
@@ -636,15 +649,14 @@ function bindPoQtyInput(input) {
     });
 }
 
-function addItemRow(inventoryItemId = null, quantity = '0', unitPrice = '0', taxCodeId = null, description = '') {
+function addInventoryItemRow(inventoryItemId = null, quantity = '0', unitPrice = '0', taxCodeId = null, description = '') {
     const tbody = document.getElementById('itemsBody');
     const newRow = document.createElement('tr');
-    newRow.className = 'item-row';
+    newRow.className = 'item-row item-row-inventory';
     const idx = formCount;
     const hasInv = inventoryItemId != null && inventoryItemId !== '';
-    const safeDesc = escapeHtml(description).replace(/"/g, '&quot;');
     newRow.innerHTML = `
-        <td class="td-inv"></td>
+        <td class="po-line-cell td-inv"></td>
         <td class="text-center text-nowrap align-middle item-current-stock po-current-stock-cell text-muted small">—</td>
         <td><input type="number" name="items-${idx}-quantity" class="form-control form-control-sm item-qty" value="${formatPoQty(quantity)}" step="1" min="0"></td>
         <td><input type="number" name="items-${idx}-unit_price" class="form-control form-control-sm item-price" value="${unitPrice}" step="0.01" min="0"></td>
@@ -663,20 +675,47 @@ function addItemRow(inventoryItemId = null, quantity = '0', unitPrice = '0', tax
     const invSel = buildInventorySelect(`items-${idx}-inventory_item`, hasInv ? inventoryItemId : null);
     tdInv.appendChild(invSel);
     const descInput = document.createElement('input');
-    descInput.type = 'text';
+    descInput.type = 'hidden';
     descInput.name = `items-${idx}-description`;
-    descInput.className = 'form-control form-control-sm item-description mt-1';
-    descInput.placeholder = 'Line description (optional)';
-    descInput.maxLength = 500;
+    descInput.className = 'item-description item-description-sync';
     descInput.value = description || '';
     descInput.dataset.autoFilled = description ? '0' : '0';
     tdInv.appendChild(descInput);
-    bindPoDescriptionInput(descInput);
     initPoInventorySelect2(invSel);
     formCount++;
     document.getElementById('id_items-TOTAL_FORMS').value = formCount;
     hydrateTaxCodeDataRates();
     if (hasInv) applyInventoryDefaults(invSel, newRow);
+    const qtyInput = newRow.querySelector('.item-qty');
+    if (qtyInput) {
+        bindPoQtyInput(qtyInput);
+        calculateRowTotal(qtyInput);
+    }
+}
+
+function addServiceItemRow(description = '', quantity = '0', unitPrice = '0', taxCodeId = null) {
+    const tbody = document.getElementById('itemsBody');
+    const newRow = document.createElement('tr');
+    newRow.className = 'item-row item-row-service';
+    const idx = formCount;
+    newRow.innerHTML = `
+        <td class="po-line-cell">
+            <input type="hidden" name="items-${idx}-inventory_item" value="">
+            <input type="hidden" name="items-${idx}-is_vat_inclusive" value="${pricesIncludeVatEnabled() ? 'true' : 'false'}">
+            <input type="text" name="items-${idx}-description" class="form-control form-control-sm item-description item-description-service" value="${escapeHtml(description)}" placeholder="Service / line description…" maxlength="500">
+        </td>
+        <td class="text-center text-nowrap align-middle item-current-stock po-current-stock-cell text-muted small">—</td>
+        <td><input type="number" name="items-${idx}-quantity" class="form-control form-control-sm item-qty" value="${formatPoQty(quantity)}" step="1" min="0"></td>
+        <td><input type="number" name="items-${idx}-unit_price" class="form-control form-control-sm item-price" value="${unitPrice}" step="0.01" min="0"></td>
+        <td><select name="items-${idx}-tax_code" class="form-select form-select-sm item-tax-code">${getTaxCodeOptions(taxCodeId || defaultTaxCodeId)}</select></td>
+        <td class="text-end"><span class="row-vat text-muted small">0.00</span></td>
+        <td class="text-end"><span class="row-total fw-medium">0.00</span></td>
+        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow(this)"><i class="fas fa-times"></i></button></td>
+    `;
+    tbody.appendChild(newRow);
+    formCount++;
+    document.getElementById('id_items-TOTAL_FORMS').value = formCount;
+    hydrateTaxCodeDataRates();
     const qtyInput = newRow.querySelector('.item-qty');
     if (qtyInput) {
         bindPoQtyInput(qtyInput);
@@ -886,16 +925,25 @@ function loadPRItems(prId) {
                     data.items.forEach(item => {
                         const invId = item.inventory_item_id != null && item.inventory_item_id !== ''
                             ? item.inventory_item_id : null;
-                        addItemRow(
-                            invId,
-                            item.quantity || '0',
-                            item.unit_price || item.estimated_price || '0',
-                            item.tax_code_id || defaultTaxCodeId,
-                            item.description || ''
-                        );
+                        if (invId) {
+                            addInventoryItemRow(
+                                invId,
+                                item.quantity || '0',
+                                item.unit_price || item.estimated_price || '0',
+                                item.tax_code_id || defaultTaxCodeId,
+                                item.description || ''
+                            );
+                        } else {
+                            addServiceItemRow(
+                                item.description || '',
+                                item.quantity || '0',
+                                item.unit_price || item.estimated_price || '0',
+                                item.tax_code_id || defaultTaxCodeId
+                            );
+                        }
                     });
                 } else {
-                    addItemRow();
+                    addInventoryItemRow();
                 }
             } finally {
                 suppressTrailingEmptyRow = false;
@@ -940,16 +988,25 @@ function loadSRItems(srId) {
                     data.items.forEach(item => {
                         const invId = item.inventory_item_id != null && item.inventory_item_id !== ''
                             ? item.inventory_item_id : null;
-                        addItemRow(
-                            invId,
-                            item.quantity || '0',
-                            item.unit_price || item.estimated_price || '0',
-                            defaultTaxCodeId,
-                            item.description || ''
-                        );
+                        if (invId) {
+                            addInventoryItemRow(
+                                invId,
+                                item.quantity || '0',
+                                item.unit_price || item.estimated_price || '0',
+                                item.tax_code_id || defaultTaxCodeId,
+                                item.description || ''
+                            );
+                        } else {
+                            addServiceItemRow(
+                                item.description || item.service_description || '',
+                                item.quantity || '0',
+                                item.unit_price || item.estimated_price || '0',
+                                item.tax_code_id || defaultTaxCodeId
+                            );
+                        }
                     });
                 } else {
-                    addItemRow();
+                    addInventoryItemRow();
                 }
             } finally {
                 suppressTrailingEmptyRow = false;
@@ -1019,7 +1076,7 @@ $(function() {
         }
     });
     document.querySelectorAll('.item-row').forEach(row => {
-        const desc = row.querySelector('.item-description');
+        const desc = row.querySelector('.item-description-service');
         if (desc) bindPoDescriptionInput(desc);
         refreshRowStockFromSelect(row);
         const qty = row.querySelector('.item-qty');

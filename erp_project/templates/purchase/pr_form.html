@@ -2,12 +2,6 @@
 
 {% block extra_css %}
 <style>
-.pr-item-cell .item-inventory-select {
-    margin-bottom: 0.25rem;
-}
-.pr-item-cell .item-description-input {
-    margin-top: 0.25rem;
-}
 .pr-item-cell .select2-container {
     width: 100% !important;
 }
@@ -116,18 +110,18 @@
     <div class="card mb-4">
         <div class="card-header"><h6 class="mb-0 fw-semibold">Request details</h6></div>
         <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-4">
+            <div class="erp-form-grid">
+                <div class="erp-form-field">
                     <label class="form-label">Date <span class="text-danger">*</span></label>
                     {{ form.date }}
                     {% if form.date.errors %}<div class="text-danger small">{{ form.date.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Required by date</label>
                     {{ form.required_by_date }}
                     {% if form.required_by_date.errors %}<div class="text-danger small">{{ form.required_by_date.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Requested by</label>
                     {% if object and object.pk %}
                     <input type="text" class="form-control bg-light" value="{{ object.requested_by.get_full_name|default:object.requested_by.username }}" readonly>
@@ -135,17 +129,17 @@
                     <input type="text" class="form-control bg-light" value="{{ request.user.get_full_name|default:request.user.username }}" readonly>
                     {% endif %}
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Department</label>
                     {{ form.department }}
                     {% if form.department.errors %}<div class="text-danger small">{{ form.department.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Priority</label>
                     {{ form.priority }}
                     {% if form.priority.errors %}<div class="text-danger small">{{ form.priority.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Status</label>
                     {{ form.status }}
                     {% if object and object.pk and object.status != 'draft' and object.status != 'returned' %}
@@ -153,13 +147,13 @@
                     {% endif %}
                     {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors|join:", " }}</div>{% endif %}
                 </div>
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Vendor</label>
                     {{ form.vendor }}
                     {% if form.vendor.errors %}<div class="text-danger small">{{ form.vendor.errors|join:", " }}</div>{% endif %}
                 </div>
                 {% if 'service_request' in form.fields %}
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Service request</label>
                     {{ form.service_request }}
                     {% if form.service_request.errors %}<div class="text-danger small">{{ form.service_request.errors|join:", " }}</div>{% endif %}
@@ -172,7 +166,7 @@
                     {% endif %}
                 </div>
                 {% elif object and object.pk and object.service_request %}
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label">Service request</label>
                     <p class="mb-0 pt-1">
                         <a href="{% url 'service_request:sr_detail' object.service_request.pk %}" class="text-decoration-none fw-medium">
@@ -183,13 +177,13 @@
                 </div>
                 {% endif %}
                 {% if object and object.pk %}
-                <div class="col-md-4">
+                <div class="erp-form-field">
                     <label class="form-label text-muted small">Saved total amount</label>
                     <input type="text" class="form-control fw-semibold" value="AED {{ object.total_amount|floatformat:2 }}" readonly>
                 </div>
                 {% endif %}
                 {% if object and object.pk and object.rejection_reason %}
-                <div class="col-12">
+                <div class="erp-form-field erp-form-field-full">
                     <label class="form-label">Rejection reason</label>
                     <textarea class="form-control bg-light" rows="2" readonly>{{ object.rejection_reason }}</textarea>
                     {% if object.status == 'returned' %}
@@ -197,7 +191,7 @@
                     {% endif %}
                 </div>
                 {% endif %}
-                <div class="col-12">
+                <div class="erp-form-field erp-form-field-full">
                     <label class="form-label">Notes</label>
                     {{ form.notes }}
                     {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors|join:", " }}</div>{% endif %}
@@ -207,11 +201,16 @@
     </div>
     
     <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h6 class="mb-0 fw-semibold">Items</h6>
-            <button type="button" class="btn btn-sm btn-primary" onclick="addItemRow()">
-                <i class="fas fa-plus me-1"></i>Add Item
-            </button>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addServiceItemRow()">
+                    <i class="fas fa-wrench me-1"></i>Add service line
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="addInventoryItemRow()">
+                    <i class="fas fa-plus me-1"></i>Add item
+                </button>
+            </div>
         </div>
         <div class="card-body p-0">
             {{ items_formset.management_form }}
@@ -219,7 +218,7 @@
                 <table class="table mb-0">
                     <thead>
                         <tr>
-                            <th style="width:34%">Item</th>
+                            <th style="width:34%">Item / service</th>
                             <th style="width:8%" class="text-center pr-current-stock-header">Current stock</th>
                             <th style="width:8%">Qty</th>
                             <th style="width:10%">Unit</th>
@@ -230,11 +229,19 @@
                     </thead>
                     <tbody id="itemsBody">
                         {% for item_form in items_formset %}
-                        <tr class="item-row" {% if item_form.DELETE.value %}style="display:none;"{% endif %}>
+                        <tr class="item-row{% if item_form.inventory_item.value %} item-row-inventory{% elif item_form.description.value %} item-row-service{% else %} item-row-inventory{% endif %}" {% if item_form.DELETE.value %}style="display:none;"{% endif %}>
                             <td class="pr-item-cell">
                                 {{ item_form.id }}
+                                {% if item_form.inventory_item.value %}
                                 {{ item_form.inventory_item }}
-                                {{ item_form.description }}
+                                <input type="hidden" name="{{ item_form.prefix }}-description" class="item-description-sync" value="{{ item_form.description.value|default:'' }}">
+                                {% elif item_form.description.value %}
+                                <input type="hidden" name="{{ item_form.prefix }}-inventory_item" value="">
+                                <input type="text" name="{{ item_form.prefix }}-description" class="form-control form-control-sm item-description-input" value="{{ item_form.description.value|default:'' }}" placeholder="Service / line description…">
+                                {% else %}
+                                {{ item_form.inventory_item }}
+                                <input type="hidden" name="{{ item_form.prefix }}-description" class="item-description-sync" value="{{ item_form.description.value|default:'' }}">
+                                {% endif %}
                                 {% if item_form.inventory_item.errors %}
                                 <div class="text-danger small">{{ item_form.inventory_item.errors|join:", " }}</div>
                                 {% endif %}
@@ -396,10 +403,16 @@ function getVisiblePrRows() {
 function isPrRowFilled(row) {
     if (!row || row.style.display === 'none') return false;
     const inv = (row.querySelector('.item-inventory-select')?.value || '').trim();
-    const desc = (row.querySelector('.item-description-input')?.value || '').trim();
+    const descInput = row.querySelector('.item-description-input');
+    const desc = descInput && !row.classList.contains('item-row-inventory')
+        ? (descInput.value || '').trim()
+        : '';
     const qty = parseFloat(row.querySelector('.item-qty')?.value || 0) || 0;
     const cost = parseFloat(row.querySelector('.item-cost')?.value || 0) || 0;
-    return Boolean(inv) || Boolean(desc) || qty > 0 || cost > 0;
+    if (row.classList.contains('item-row-service')) {
+        return Boolean(desc) || qty > 0 || cost > 0;
+    }
+    return Boolean(inv) || qty > 0 || cost > 0;
 }
 
 function isPrRowEmpty(row) {
@@ -429,12 +442,12 @@ function ensureTrailingEmptyRow() {
     if (suppressTrailingEmptyRow) return;
     const rows = getVisiblePrRows();
     if (!rows.length) {
-        addItemRow();
+        addInventoryItemRow();
         return;
     }
     const last = rows[rows.length - 1];
     if (isPrRowFilled(last)) {
-        addItemRow();
+        addInventoryItemRow();
     }
 }
 
@@ -482,13 +495,11 @@ function updateRowStock(row, stockValue) {
 
 function applyInventoryDefaults(selectEl, row) {
     const id = parseInt(selectEl.value, 10);
-    const descInput = row.querySelector('.item-description-input');
+    const descSync = row.querySelector('.item-description-sync');
     if (!id) {
         updateRowStock(row, null);
+        if (descSync) descSync.value = '';
         return;
-    }
-    if (descInput) {
-        descInput.value = '';
     }
     const meta = PR_INVENTORY_ITEMS.find(x => String(x.id) === String(id));
     if (!meta) {
@@ -496,6 +507,9 @@ function applyInventoryDefaults(selectEl, row) {
         return;
     }
     updateRowStock(row, meta.current_stock);
+    if (descSync) {
+        descSync.value = (meta.label || '').trim();
+    }
     const cost = row.querySelector('.item-cost');
     if (cost) {
         const cur = parseFloat(cost.value);
@@ -521,14 +535,10 @@ function buildInventorySelect(name, selectedId) {
     return sel;
 }
 
-function addItemRow() {
-    addInventoryItemRow();
-}
-
 function addInventoryItemRow(inventoryItemId = null, quantity = '0', unit = 'pcs', estimatedPrice = '0', description = '') {
     const tbody = document.getElementById('itemsBody');
     const newRow = document.createElement('tr');
-    newRow.className = 'item-row';
+    newRow.className = 'item-row item-row-inventory';
     const idx = formCount;
     const hasInv = inventoryItemId != null && inventoryItemId !== '';
     const prUnit = SR_UNIT_TO_PR[(unit || '').toLowerCase()] || (unit || 'pcs').toLowerCase();
@@ -547,10 +557,9 @@ function addInventoryItemRow(inventoryItemId = null, quantity = '0', unit = 'pcs
     const invSel = buildInventorySelect(`items-${idx}-inventory_item`, hasInv ? inventoryItemId : null);
     tdInv.appendChild(invSel);
     const descInput = document.createElement('input');
-    descInput.type = 'text';
+    descInput.type = 'hidden';
     descInput.name = `items-${idx}-description`;
-    descInput.className = 'form-control form-control-sm item-description-input';
-    descInput.placeholder = 'Optional custom description…';
+    descInput.className = 'item-description-sync';
     descInput.value = description || '';
     tdInv.appendChild(descInput);
     const unitSel = newRow.querySelector('.item-unit-select');
@@ -573,7 +582,7 @@ function addInventoryItemRow(inventoryItemId = null, quantity = '0', unit = 'pcs
     updateRowTotal(newRow);
 }
 
-function addServiceItemRow(description, quantity, unit, estimatedPrice) {
+function addServiceItemRow(description = '', quantity = '0', unit = 'other', estimatedPrice = '0') {
     const tbody = document.getElementById('itemsBody');
     const newRow = document.createElement('tr');
     newRow.className = 'item-row item-row-service';
@@ -581,6 +590,7 @@ function addServiceItemRow(description, quantity, unit, estimatedPrice) {
     const prUnit = SR_UNIT_TO_PR[(unit || '').toLowerCase()] || 'other';
     newRow.innerHTML = `
         <td class="pr-item-cell">
+            <input type="hidden" name="items-${idx}-inventory_item" value="">
             <input type="text" name="items-${idx}-description" class="form-control form-control-sm item-description-input" value="${escapeHtml(description || '')}" placeholder="Service / line description…">
         </td>
         <td class="text-center text-nowrap align-middle item-current-stock pr-current-stock-cell text-muted small">—</td>

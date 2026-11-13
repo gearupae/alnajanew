@@ -296,6 +296,78 @@ body {
     background-color: var(--table-row-hover-bg) !important;
 }
 
+/* Bootstrap .table-sm — keep global list density (do not shrink cells) */
+.main-content .table.table-sm {
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.main-content .table.table-sm > :not(caption) > * > * {
+    padding: 4px 15px;
+}
+
+.main-content .table.table-sm thead > tr > th {
+    padding: 12px 15px;
+}
+
+/* DataTables row classes + padding (finance/inventory list pages) */
+.main-content table.dataTable.table-sm > :not(caption) > * > * {
+    padding: 4px 15px;
+}
+
+.main-content table.dataTable thead > tr > th,
+.main-content table.dataTable thead > tr > td,
+.main-content table.dataTable tfoot > tr > th,
+.main-content table.dataTable tfoot > tr > td {
+    padding: 12px 15px;
+}
+
+.main-content table.dataTable tbody > tr > th,
+.main-content table.dataTable tbody > tr > td {
+    padding: 4px 15px;
+    font-size: 15px;
+}
+
+.main-content .table.table-hover tbody tr.odd:not(:only-child),
+.main-content table.dataTable.table-hover tbody tr.odd:not(:only-child) {
+    background-color: var(--table-row-odd-bg);
+}
+
+.main-content .table.table-hover tbody tr.even:not(:only-child),
+.main-content table.dataTable.table-hover tbody tr.even:not(:only-child) {
+    background-color: var(--table-row-even-bg);
+}
+
+/* Dark summary tables (e.g. opening balance) */
+.main-content .table.table-dark thead th {
+    background-color: #212529;
+    color: #fff;
+    border-bottom-color: #32383e;
+}
+
+.main-content .table.table-dark tbody td {
+    background-color: transparent;
+    color: #fff;
+    border-bottom-color: #32383e;
+}
+
+/* Click-to-sort headers (inventory aging, etc.) */
+.main-content .table thead th[data-sort],
+.main-content .table.aging-table thead th[onclick] {
+    cursor: pointer;
+    user-select: none;
+}
+
+.main-content .table thead th .sort-icon {
+    opacity: 0.5;
+    font-size: 0.7rem;
+    margin-left: 3px;
+}
+
+.main-content .table thead th.active-sort .sort-icon {
+    opacity: 1;
+}
+
 /* List tables: row opens record; column sort via DataTables */
 table.erp-list-table thead th {
     cursor: pointer;
@@ -856,6 +928,92 @@ hr {
     color: var(--gray-900);
     font-variant-numeric: tabular-nums;
     line-height: 1.2;
+}
+
+/* Create / edit forms — responsive up to 4 fields per row without overflow */
+.erp-form-grid {
+    display: grid;
+    gap: 0.75rem 1rem;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 576px) {
+    .erp-form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 992px) {
+    .erp-form-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1200px) {
+    .erp-form-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.erp-form-field {
+    min-width: 0;
+}
+
+.erp-form-field-full {
+    grid-column: 1 / -1;
+}
+
+.erp-form-field .form-label {
+    margin-bottom: 0.25rem;
+    line-height: 1.25;
+}
+
+.erp-form-field .form-control,
+.erp-form-field .form-select {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.erp-form-field .select2-container {
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 0 !important;
+}
+
+.erp-form-field .select2-selection__rendered {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Bootstrap row forms in cards — prevent 3/4 column crush (select2, labels) */
+.main-content form .card .card-body > .row > [class*="col-"] {
+    min-width: 0;
+}
+
+.main-content form .card .card-body .row [class*="col-"] .form-control,
+.main-content form .card .card-body .row [class*="col-"] .form-select {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.main-content form .card .card-body .row [class*="col-"] .select2-container {
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 0 !important;
+}
+
+.main-content form .card .card-body .row [class*="col-"] .select2-selection__rendered {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (min-width: 768px) and (max-width: 1199.98px) {
+    .main-content form .card .card-body > .row > .col-md-3 {
+        flex: 0 0 auto;
+        width: 50%;
+    }
 }
 
 /* Entity overview pages — aligned detail field grids (PR, PO, bills, etc.) */
