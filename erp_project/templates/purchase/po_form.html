@@ -318,6 +318,19 @@
         </div>
     </div>
 
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0 fw-semibold"><i class="fas fa-file-contract me-2"></i>Terms &amp; conditions</h6>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-2">Shown at the bottom of the purchase order PDF. You can edit the text for this order.</p>
+            {{ form.terms_and_conditions }}
+            {% if form.terms_and_conditions.errors %}
+            <div class="text-danger small">{{ form.terms_and_conditions.errors|join:", " }}</div>
+            {% endif %}
+        </div>
+    </div>
+
     {% if object and object.is_active or not object %}
     <input type="hidden" name="is_active" value="on">
     {% endif %}

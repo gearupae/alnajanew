@@ -126,9 +126,11 @@
     min-width: 0;
 }
 .estimate-items-table .items-col-inventory {
-    width: 12%;
+    width: 14%;
+    min-width: 9.5rem;
+    max-width: 14rem;
     position: relative;
-    overflow: visible;
+    overflow: hidden;
 }
 .estimate-items-table tr.item-row:has(.select2-container--open) {
     position: relative;
@@ -187,12 +189,22 @@
     top: 0 !important;
 }
 .estimate-inventory-select2-dropdown {
-    min-width: 18rem !important;
     z-index: 2000 !important;
+    max-width: 20rem !important;
+    box-sizing: border-box;
+}
+.estimate-inventory-select2-dropdown .select2-results__option {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
 }
 .estimate-inventory-select2-dropdown .select2-results__options {
     max-height: min(40vh, 14rem) !important;
     overflow-y: auto !important;
+    overflow-x: hidden;
     overscroll-behavior: contain;
 }
 .estimate-inventory-select2-dropdown .select2-search__field {
@@ -1225,12 +1237,28 @@ function initInventorySelect2(selectEl) {
     $el.select2({
         theme: 'bootstrap-5',
         width: '100%',
-        placeholder: 'Search by code or name…',
+        placeholder: 'Search by code, name, or brand…',
         allowClear: true,
         dropdownParent: $(document.body),
         minimumResultsForSearch: 0,
-        dropdownAutoWidth: true,
+        dropdownAutoWidth: false,
         dropdownCssClass: 'estimate-inventory-select2-dropdown',
+        templateResult: function(data) {
+            if (!data.id) {
+                return data.text;
+            }
+            const meta = getInventoryMeta(data.id);
+            const label = meta ? formatInventoryItemLabel(meta) : (data.text || '');
+            const $row = $('<span></span>').text(label).attr('title', label);
+            return $row;
+        },
+        templateSelection: function(data) {
+            if (!data.id) {
+                return data.text;
+            }
+            const meta = getInventoryMeta(data.id);
+            return meta ? formatInventoryItemLabel(meta) : (data.text || '');
+        },
         language: {
             noResults: function() { return 'No matching items — try item code or name'; },
         },
@@ -1928,6 +1956,14 @@ function setupLineItemsInventoryScrollFix() {
 
     if (typeof $ !== 'undefined') {
         $(document).on('select2:open', '.item-inventory', function() {
+            const $sel = $(this);
+            const inst = $sel.data('select2');
+            if (inst && inst.$container) {
+                const colW = Math.round(inst.$container.outerWidth());
+                const w = Math.min(320, Math.max(152, colW));
+                const $dd = $('.estimate-inventory-select2-dropdown');
+                $dd.css({ width: w + 'px', minWidth: w + 'px', maxWidth: w + 'px' });
+            }
             requestAnimationFrame(function() {
                 const results = document.querySelector(
                     '.estimate-inventory-select2-dropdown .select2-results__options'

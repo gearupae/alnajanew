@@ -212,6 +212,12 @@
                         <div class="overview-value">{{ po.notes|linebreaksbr }}</div>
                     </div>
                     {% endif %}
+                    {% if po.terms_and_conditions %}
+                    <div class="col-12">
+                        <div class="overview-label">Terms &amp; conditions</div>
+                        <div class="overview-value">{{ po.terms_and_conditions|linebreaksbr }}</div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

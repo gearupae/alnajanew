@@ -516,6 +516,13 @@
         </div>
         {% endif %}
 
+        {% if po.terms_and_conditions %}
+        <div class="notes-section">
+            <div class="notes-title">Terms &amp; conditions</div>
+            <div class="notes-content">{{ po.terms_and_conditions|linebreaks }}</div>
+        </div>
+        {% endif %}
+
         <div class="notes-section">
             <div class="notes-title">Terms</div>
             <div class="notes-content">

@@ -290,12 +290,14 @@ class PurchaseOrderForm(forms.ModelForm):
         fields = [
             'is_active', 'vendor', 'project', 'purchase_request', 'service_request',
             'order_date', 'expected_delivery_date', 'status', 'notes',
+            'terms_and_conditions',
             'prices_include_vat', 'round_off',
         ]
         widgets = {
             'order_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'expected_delivery_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
+            'terms_and_conditions': forms.Textarea(attrs={'rows': 6, 'class': 'form-control'}),
             'round_off': forms.NumberInput(
                 attrs={'class': 'form-control', 'step': '0.01', 'id': 'id_round_off'},
             ),
@@ -361,6 +363,17 @@ class PurchaseOrderForm(forms.ModelForm):
         self.fields['status'].choices = PurchaseOrder.STATUS_CHOICES
         self.fields['expected_delivery_date'].required = False
         self.fields['notes'].required = False
+        self.fields['terms_and_conditions'].required = False
+        self.fields['terms_and_conditions'].label = 'Terms & conditions'
+        if not self.instance.pk and not self.is_bound:
+            from apps.settings_app.models import CompanySettings
+
+            cs = CompanySettings.get_settings()
+            default_terms = (getattr(cs, 'po_default_terms', None) or '').strip()
+            if not default_terms:
+                default_terms = (cs.contract_default_terms or '').strip()
+            if default_terms:
+                self.fields['terms_and_conditions'].initial = default_terms
 
         tax_inclusive = (
             self.instance.prices_include_vat

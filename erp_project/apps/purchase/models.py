@@ -283,6 +283,10 @@ class PurchaseOrder(BaseModel):
     expected_delivery_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     notes = models.TextField(blank=True)
+    terms_and_conditions = models.TextField(
+        blank=True,
+        help_text='Terms and conditions printed on the purchase order PDF.',
+    )
 
     prices_include_vat = models.BooleanField(
         default=False,
