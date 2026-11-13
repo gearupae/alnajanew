@@ -12,6 +12,7 @@ from apps.fleet.fleet_alerts import get_fleet_dashboard_alerts
 from apps.documents.document_alerts import get_documents_dashboard_alerts
 from apps.contracts.contract_alerts import get_contract_dashboard_alerts
 from apps.core.public_links import public_portal_links
+from apps.core.dashboard_shortcuts import dashboard_shortcuts
 
 
 @login_required
@@ -93,6 +94,10 @@ def dashboard(request):
         context['estimates_approved'] = Estimate.objects.filter(
             is_active=True, status__in=['approved', 'quotation_won'],
         ).count()
+        context['estimates_open'] = Estimate.objects.filter(
+            is_active=True,
+            status__in=['draft', 'sent', 'under_negotiation', 'approved'],
+        ).count()
         inv = Invoice.objects.filter(
             is_active=True,
             invoice_date__gte=today.replace(day=1),
@@ -101,10 +106,16 @@ def dashboard(request):
         agg = inv.aggregate(s=Sum('total_amount'))
         context['invoiced_month_total'] = agg['s'] if agg['s'] is not None else Decimal('0.00')
         context['invoiced_month_count'] = inv.count()
+        context['invoices_unpaid'] = Invoice.objects.filter(
+            is_active=True,
+            balance__gt=0,
+        ).exclude(status__in=['draft', 'cancelled']).count()
     except Exception:
         context['estimates_approved'] = 0
+        context['estimates_open'] = 0
         context['invoiced_month_total'] = Decimal('0.00')
         context['invoiced_month_count'] = 0
+        context['invoices_unpaid'] = 0
 
     try:
         from apps.contracts.models import Contract
@@ -139,6 +150,19 @@ def dashboard(request):
         request.user, 'contracts', 'view'
     )
     context['public_portal_links'] = public_portal_links(request)
+    context['dashboard_shortcuts'] = dashboard_shortcuts(request.user, request)
+
+    alert_total = (
+        len(context['gatepass_expiry_alerts'])
+        + len(context['fleet_expiry_alerts'])
+        + len(context['document_expiry_alerts'])
+        + len(context['contract_reminder_alerts'])
+    )
+    context['dashboard_alert_total'] = alert_total
+
+    from django.utils import timezone
+
+    context['dashboard_today'] = timezone.localdate()
 
     return render(request, 'core/dashboard.html', context)
 
