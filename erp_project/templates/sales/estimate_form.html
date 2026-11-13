@@ -126,11 +126,10 @@
     min-width: 0;
 }
 .estimate-items-table .items-col-inventory {
-    width: 14%;
-    min-width: 9.5rem;
-    max-width: 14rem;
+    width: 19%;
+    min-width: 12rem;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 .estimate-items-table tr.item-row:has(.select2-container--open) {
     position: relative;
@@ -167,8 +166,8 @@
 .estimate-items-table .items-col-inventory .select2-container--bootstrap-5 .select2-selection,
 .estimate-items-table .items-col-inventory .select2-container--bootstrap-5 .select2-selection--single {
     min-height: calc(1.5em + 0.5rem + 2px) !important;
-    height: calc(1.5em + 0.5rem + 2px) !important;
-    max-height: calc(1.5em + 0.5rem + 2px) !important;
+    height: auto !important;
+    max-height: none !important;
     padding: 0 !important;
     border-radius: var(--bs-border-radius-sm) !important;
     box-sizing: border-box;
@@ -176,12 +175,15 @@
     align-items: center !important;
 }
 .estimate-items-table .items-col-inventory .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
-    padding: 0 1.75rem 0 0.3rem !important;
-    line-height: 1.5 !important;
-    font-size: 0.875rem !important;
+    padding: 0.2rem 1.75rem 0.2rem 0.3rem !important;
+    line-height: 1.25 !important;
+    font-size: 0.8125rem !important;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
     flex: 1 1 auto;
 }
 .estimate-items-table .items-col-inventory .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
@@ -190,16 +192,26 @@
 }
 .estimate-inventory-select2-dropdown {
     z-index: 2000 !important;
-    max-width: 20rem !important;
+    width: auto !important;
+    min-width: 16rem !important;
+    max-width: min(36rem, 94vw) !important;
     box-sizing: border-box;
 }
 .estimate-inventory-select2-dropdown .select2-results__option {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: visible;
+    white-space: normal;
+    word-break: break-word;
     font-size: 0.8125rem;
-    padding-top: 0.35rem;
-    padding-bottom: 0.35rem;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+    line-height: 1.3;
+}
+.estimate-inventory-select2-dropdown .estimate-inv-option-main {
+    font-weight: 500;
+}
+.estimate-inventory-select2-dropdown .estimate-inv-option-code {
+    font-size: 0.75rem;
+    margin-top: 0.1rem;
 }
 .estimate-inventory-select2-dropdown .select2-results__options {
     max-height: min(40vh, 14rem) !important;
@@ -211,7 +223,7 @@
     width: 100% !important;
 }
 .estimate-items-table .items-col-desc {
-    width: 17%;
+    width: 14%;
 }
 /* Qty / Base / Profit / Profit # / Rate / Tax — a bit wider; totals 100% with other cols */
 .estimate-items-table .items-col-qty {
@@ -691,7 +703,7 @@
                                 <th class="items-col-drag" title="Drag rows to change line order"></th>
                                 <th class="items-col-group" title="Choose a group on the left to load items; edit the PDF section title on the right (screen layout only—does not change inventory).">Group</th>
                                 <th class="items-col-group-mult" title="Multiplied with qty for all lines in this group">Group ×</th>
-                                <th class="items-col-inventory" title="Item code, name, and brand">Inventory</th>
+                                <th class="items-col-inventory" title="Item name, brand, and code">Inventory</th>
                                 <th class="items-col-desc">Description</th>
                                 <th class="items-col-qty">Qty</th>
                                 <th class="items-col-base" title="Base price per unit">Base</th>
@@ -877,14 +889,20 @@ function escapeHtml(text) {
         .replace(/"/g, '&quot;');
 }
 
+function formatInventoryItemNameBrand(it) {
+    if (!it) return '';
+    const name = (it.name || '').trim();
+    const brand = (it.brand || '').trim();
+    if (name && brand) return `${name} · ${brand}`;
+    return name || brand || (it.item_code || '').trim();
+}
+
+/** Full label (code + name + brand) for tooltips and search text in <option>. */
 function formatInventoryItemLabel(it) {
     if (!it) return '';
-    let label = `${it.item_code || ''} — ${it.name || ''}`.trim();
-    const brand = (it.brand || '').trim();
-    if (brand) {
-        label += ` · ${brand}`;
-    }
-    return label;
+    const main = formatInventoryItemNameBrand(it);
+    const code = (it.item_code || '').trim();
+    return code && main !== code ? `${code} — ${main}` : main;
 }
 
 function getInventoryOptions(selectedId) {
@@ -1206,9 +1224,9 @@ function syncInventoryFieldHeight(row) {
     if (!desc || !selection) return;
     const h = Math.round(desc.getBoundingClientRect().height);
     if (h <= 0) return;
-    selection.style.setProperty('height', `${h}px`, 'important');
     selection.style.setProperty('min-height', `${h}px`, 'important');
-    selection.style.setProperty('max-height', `${h}px`, 'important');
+    selection.style.setProperty('height', 'auto', 'important');
+    selection.style.removeProperty('max-height');
 }
 
 function syncAllInventoryFieldHeights() {
@@ -1248,19 +1266,28 @@ function initInventorySelect2(selectEl) {
                 return data.text;
             }
             const meta = getInventoryMeta(data.id);
-            const label = meta ? formatInventoryItemLabel(meta) : (data.text || '');
-            const $row = $('<span></span>').text(label).attr('title', label);
-            return $row;
+            if (!meta) {
+                return data.text;
+            }
+            const main = formatInventoryItemNameBrand(meta);
+            const code = (meta.item_code || '').trim();
+            const full = formatInventoryItemLabel(meta);
+            const $wrap = $('<div class="estimate-inv-option"></div>').attr('title', full);
+            $wrap.append($('<div class="estimate-inv-option-main"></div>').text(main));
+            if (code) {
+                $wrap.append($('<div class="estimate-inv-option-code text-muted"></div>').text(code));
+            }
+            return $wrap;
         },
         templateSelection: function(data) {
             if (!data.id) {
                 return data.text;
             }
             const meta = getInventoryMeta(data.id);
-            return meta ? formatInventoryItemLabel(meta) : (data.text || '');
+            return meta ? formatInventoryItemNameBrand(meta) : (data.text || '');
         },
         language: {
-            noResults: function() { return 'No matching items — try item code or name'; },
+            noResults: function() { return 'No matching items — try code, name, or brand'; },
         },
     });
     if (current) {
@@ -1960,9 +1987,14 @@ function setupLineItemsInventoryScrollFix() {
             const inst = $sel.data('select2');
             if (inst && inst.$container) {
                 const colW = Math.round(inst.$container.outerWidth());
-                const w = Math.min(320, Math.max(152, colW));
+                const maxW = Math.min(576, Math.round(window.innerWidth * 0.94));
+                const w = Math.min(maxW, Math.max(280, colW, 320));
                 const $dd = $('.estimate-inventory-select2-dropdown');
-                $dd.css({ width: w + 'px', minWidth: w + 'px', maxWidth: w + 'px' });
+                $dd.css({
+                    width: w + 'px',
+                    minWidth: w + 'px',
+                    maxWidth: maxW + 'px',
+                });
             }
             requestAnimationFrame(function() {
                 const results = document.querySelector(
