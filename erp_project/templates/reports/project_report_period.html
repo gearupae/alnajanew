@@ -8,6 +8,27 @@
 .period-report-kpi--active { --kpi-accent: #0d6efd; }
 .period-report-kpi--done { --kpi-accent: #198754; }
 .period-report-kpi--hold { --kpi-accent: #fd7e14; }
+.period-report-kpi--finance { --kpi-accent: #6c757d; }
+
+@media (min-width: 992px) {
+    .period-report-metrics {
+        flex-wrap: nowrap;
+    }
+    .period-report-metrics > [class*="col-"] {
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: none;
+        width: auto;
+    }
+    .period-report-metrics .card-body .fw-bold.fs-5 {
+        font-size: 0.95rem !important;
+        line-height: 1.25;
+    }
+    .period-report-metrics .card-body .small {
+        font-size: 0.7rem;
+        line-height: 1.25;
+    }
+}
 
 .period-report-group {
     border: 1px solid #e9ecef;
@@ -104,8 +125,8 @@
     </div>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
+<div class="row g-2 g-lg-3 mb-4 period-report-metrics">
+    <div class="col-6 col-md-4 col-lg">
         <div class="card period-report-kpi period-report-kpi--total h-100">
             <div class="card-body py-3">
                 <div class="small text-muted">Total projects</div>
@@ -113,7 +134,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-4 col-lg">
         <div class="card period-report-kpi period-report-kpi--active h-100">
             <div class="card-body py-3">
                 <div class="small text-muted">In progress</div>
@@ -121,7 +142,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-4 col-lg">
         <div class="card period-report-kpi period-report-kpi--done h-100">
             <div class="card-body py-3">
                 <div class="small text-muted">Completed</div>
@@ -129,7 +150,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-4 col-lg">
         <div class="card period-report-kpi period-report-kpi--hold h-100">
             <div class="card-body py-3">
                 <div class="small text-muted">Planning / on hold</div>
@@ -137,36 +158,33 @@
             </div>
         </div>
     </div>
-</div>
-
-{% if financial_totals %}
-<div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <div class="card period-report-kpi h-100">
+    {% if financial_totals %}
+    <div class="col-6 col-md-4 col-lg">
+        <div class="card period-report-kpi period-report-kpi--finance h-100">
             <div class="card-body py-3">
                 <div class="small text-muted">Total contract value</div>
                 <div class="fw-bold fs-5">AED {{ financial_totals.contract_value|floatformat:2|intcomma }}</div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card period-report-kpi h-100">
+    <div class="col-6 col-md-4 col-lg">
+        <div class="card period-report-kpi period-report-kpi--finance h-100">
             <div class="card-body py-3">
                 <div class="small text-muted">Invoiced / received</div>
                 <div class="fw-bold fs-5">AED {{ financial_totals.invoiced_amount|floatformat:2|intcomma }} / <span class="text-success">{{ financial_totals.received_amount|floatformat:2|intcomma }}</span></div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card period-report-kpi h-100">
+    <div class="col-6 col-md-4 col-lg">
+        <div class="card period-report-kpi period-report-kpi--finance h-100">
             <div class="card-body py-3">
                 <div class="small text-muted">Actual cost / gross margin</div>
                 <div class="fw-bold fs-5">AED {{ financial_totals.actual_expense|floatformat:2|intcomma }} / <span class="{% if financial_totals.gross_margin >= 0 %}text-success{% else %}text-danger{% endif %}">{{ financial_totals.gross_margin|floatformat:2|intcomma }}</span></div>
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
-{% endif %}
 
 {% if groups %}
     {% for group in groups %}
