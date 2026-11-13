@@ -114,15 +114,15 @@
 <div class="card">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0 erp-ellipsis-cells">
                 <thead>
                     <tr>
-                        <th>Code</th>
-                        <th>Name</th>
-                        <th>Category</th>
-                        <th>Group</th>
-                        <th>Type</th>
-                        <th>Location</th>
+                        <th class="text-nowrap" style="width:7%">Code</th>
+                        <th class="erp-ellipsis" style="width:14%">Name</th>
+                        <th class="erp-ellipsis" style="width:10%">Category</th>
+                        <th class="erp-ellipsis" style="width:10%">Group</th>
+                        <th class="text-nowrap" style="width:7%">Type</th>
+                        <th class="erp-ellipsis" style="width:12%">Location</th>
                         <th class="text-end">Purchase Price</th>
                         <th class="text-end">Selling Price</th>
                         <th class="text-end">Stock</th>
@@ -134,12 +134,12 @@
                 <tbody>
                     {% for item in items %}
                     <tr>
-                        <td>
+                        <td class="text-nowrap">
                             <a href="{% url 'inventory:item_detail' item.pk %}" class="fw-medium text-decoration-none">{{ item.item_code }}</a>
                         </td>
-                        <td>{{ item.name }}</td>
-                        <td>{{ item.category.name|default:"-" }}</td>
-                        <td class="small">
+                        <td class="erp-ellipsis" title="{{ item.name|escape }}">{{ item.name }}</td>
+                        <td class="erp-ellipsis" title="{{ item.category.name|default:'-'|escape }}">{{ item.category.name|default:"-" }}</td>
+                        <td class="erp-ellipsis small" title="{% for g in item.item_groups.all %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
                             {% if item.item_groups.all %}
                             {% for g in item.item_groups.all %}
                             <span class="badge bg-light text-dark border me-1">{{ g.name }}</span>
@@ -155,7 +155,7 @@
                             <span class="badge" style="background:#f3e8ff;color:#7c3aed;">Service</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="erp-ellipsis" title="{% for sr in item.active_stock_records %}{{ sr.warehouse.name }}{% if not forloop.last %}, {% endif %}{% empty %}-{% endfor %}">
                             {% for sr in item.active_stock_records %}
                             <span class="badge bg-light text-dark border me-1 mb-1" title="{{ sr.quantity }} {{ item.unit }}">
                                 <i class="fas fa-warehouse me-1 text-muted" style="font-size:0.7em;"></i>{{ sr.warehouse.name }}

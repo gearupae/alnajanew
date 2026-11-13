@@ -252,15 +252,17 @@ body {
     background-color: var(--gray-100);
 }
 
-.main-content .table thead th {
+.main-content .table thead th,
+.main-content .table thead td {
     background: var(--gray-100);
     border-bottom: 2px solid var(--gray-200);
     border-top: 0;
-    font-weight: 600;
-    font-size: inherit;
+    padding: 4px 15px;
     text-transform: uppercase;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.4;
     letter-spacing: 0.04em;
-    padding: 12px 15px;
     color: var(--gray-900);
     white-space: nowrap;
     vertical-align: middle;
@@ -306,8 +308,11 @@ body {
     padding: 4px 15px;
 }
 
-.main-content .table.table-sm thead > tr > th {
-    padding: 12px 15px;
+.main-content .table.table-sm thead > tr > th,
+.main-content .table.table-sm thead > tr > td {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
 }
 
 /* DataTables row classes + padding (finance/inventory list pages) */
@@ -316,10 +321,20 @@ body {
 }
 
 .main-content table.dataTable thead > tr > th,
-.main-content table.dataTable thead > tr > td,
+.main-content table.dataTable thead > tr > td {
+    padding: 4px 15px;
+    text-transform: uppercase;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
 .main-content table.dataTable tfoot > tr > th,
 .main-content table.dataTable tfoot > tr > td {
-    padding: 12px 15px;
+    padding: 4px 15px;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: none;
 }
 
 .main-content table.dataTable tbody > tr > th,
@@ -339,10 +354,15 @@ body {
 }
 
 /* Dark summary tables (e.g. opening balance) */
-.main-content .table.table-dark thead th {
+.main-content .table.table-dark thead th,
+.main-content .table.table-dark thead td {
     background-color: #212529;
     color: #fff;
     border-bottom-color: #32383e;
+    padding: 4px 15px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
 }
 
 .main-content .table.table-dark tbody td {
@@ -394,6 +414,27 @@ div.dataTables_wrapper div.dataTables_info {
     font-size: 0.8125rem;
     color: var(--gray-600);
     padding-top: 0.5rem;
+}
+
+/* Long text in list tables — ellipsis with title tooltip on the cell */
+.main-content .table.erp-ellipsis-cells {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.main-content .table.erp-ellipsis-cells :is(th, td).erp-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 0;
+}
+
+.main-content .table.erp-ellipsis-cells :is(th, td).erp-ellipsis a:not(.btn) {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
 }
 
 /* Buttons - Black */

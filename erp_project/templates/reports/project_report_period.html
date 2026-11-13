@@ -194,17 +194,17 @@
             <span class="badge bg-primary">{{ group.count }} project{{ group.count|pluralize }} · {{ group.completed_projects }} completed</span>
         </div>
         <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle mb-0">
+            <table class="table table-sm table-hover align-middle mb-0 erp-ellipsis-cells">
                 <thead class="table-light">
                     <tr>
-                        <th>Code</th>
-                        <th>Project</th>
-                        <th>Customer</th>
-                        <th>Start</th>
-                        <th>End</th>
-                        <th>Salesman</th>
-                        <th>Site engineer</th>
-                        <th>Op. manager</th>
+                        <th class="text-nowrap" style="width:6%">Code</th>
+                        <th class="erp-ellipsis" style="width:11%">Project</th>
+                        <th class="erp-ellipsis" style="width:10%">Customer</th>
+                        <th class="text-nowrap" style="width:6%">Start</th>
+                        <th class="text-nowrap" style="width:6%">End</th>
+                        <th class="erp-ellipsis" style="width:8%">Salesman</th>
+                        <th class="erp-ellipsis" style="width:8%">Site engineer</th>
+                        <th class="erp-ellipsis" style="width:8%">Op. manager</th>
                         <th>Tasks</th>
                         <th class="text-end">Contract</th>
                         <th class="text-end">Invoiced</th>
@@ -217,14 +217,14 @@
                 <tbody>
                     {% for row in group.rows %}
                     <tr>
-                        <td><a href="{% url 'projects:project_detail' row.pk %}" class="text-decoration-none fw-medium">{{ row.project_code }}</a></td>
-                        <td>{{ row.name }}</td>
-                        <td>{{ row.customer_name }}</td>
+                        <td class="text-nowrap"><a href="{% url 'projects:project_detail' row.pk %}" class="text-decoration-none fw-medium">{{ row.project_code }}</a></td>
+                        <td class="erp-ellipsis" title="{{ row.name|escape }}">{{ row.name }}</td>
+                        <td class="erp-ellipsis" title="{{ row.customer_name|escape }}">{{ row.customer_name }}</td>
                         <td class="text-nowrap">{% if row.start_date %}{{ row.start_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
                         <td class="text-nowrap">{% if row.end_date %}{{ row.end_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-                        <td class="small">{{ row.salesman_label }}</td>
-                        <td class="small">{{ row.site_engineer_label }}</td>
-                        <td class="small">{{ row.operation_manager_label }}</td>
+                        <td class="erp-ellipsis small" title="{{ row.salesman_label|escape }}">{{ row.salesman_label }}</td>
+                        <td class="erp-ellipsis small" title="{{ row.site_engineer_label|escape }}">{{ row.site_engineer_label }}</td>
+                        <td class="erp-ellipsis small" title="{{ row.operation_manager_label|escape }}">{{ row.operation_manager_label }}</td>
                         <td class="text-nowrap">{{ row.completed_tasks }}/{{ row.total_tasks }} <span class="text-muted">({{ row.task_progress_percent }}%)</span></td>
                         <td class="text-end text-nowrap">AED {{ row.contract_value|floatformat:0|intcomma }}</td>
                         <td class="text-end text-nowrap">AED {{ row.invoiced_amount|floatformat:0|intcomma }}</td>
@@ -248,17 +248,17 @@
 <div class="card">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle mb-0">
+            <table class="table table-sm table-hover align-middle mb-0 erp-ellipsis-cells">
                 <thead class="table-light">
                     <tr>
-                        <th>Code</th>
-                        <th>Project</th>
-                        <th>Customer</th>
-                        <th>Start</th>
-                        <th>End</th>
-                        <th>Salesman</th>
-                        <th>Site engineer</th>
-                        <th>Op. manager</th>
+                        <th class="text-nowrap" style="width:6%">Code</th>
+                        <th class="erp-ellipsis" style="width:11%">Project</th>
+                        <th class="erp-ellipsis" style="width:10%">Customer</th>
+                        <th class="text-nowrap" style="width:6%">Start</th>
+                        <th class="text-nowrap" style="width:6%">End</th>
+                        <th class="erp-ellipsis" style="width:8%">Salesman</th>
+                        <th class="erp-ellipsis" style="width:8%">Site engineer</th>
+                        <th class="erp-ellipsis" style="width:8%">Op. manager</th>
                         <th>Tasks</th>
                         <th class="text-end">Contract</th>
                         <th class="text-end">Invoiced</th>
@@ -271,14 +271,14 @@
                 <tbody>
                     {% for row in rows %}
                     <tr>
-                        <td><a href="{% url 'projects:project_detail' row.pk %}" class="text-decoration-none fw-medium">{{ row.project_code }}</a></td>
-                        <td>{{ row.name }}</td>
-                        <td>{{ row.customer_name }}</td>
+                        <td class="text-nowrap"><a href="{% url 'projects:project_detail' row.pk %}" class="text-decoration-none fw-medium">{{ row.project_code }}</a></td>
+                        <td class="erp-ellipsis" title="{{ row.name|escape }}">{{ row.name }}</td>
+                        <td class="erp-ellipsis" title="{{ row.customer_name|escape }}">{{ row.customer_name }}</td>
                         <td class="text-nowrap">{% if row.start_date %}{{ row.start_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
                         <td class="text-nowrap">{% if row.end_date %}{{ row.end_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-                        <td class="small">{{ row.salesman_label }}</td>
-                        <td class="small">{{ row.site_engineer_label }}</td>
-                        <td class="small">{{ row.operation_manager_label }}</td>
+                        <td class="erp-ellipsis small" title="{{ row.salesman_label|escape }}">{{ row.salesman_label }}</td>
+                        <td class="erp-ellipsis small" title="{{ row.site_engineer_label|escape }}">{{ row.site_engineer_label }}</td>
+                        <td class="erp-ellipsis small" title="{{ row.operation_manager_label|escape }}">{{ row.operation_manager_label }}</td>
                         <td class="text-nowrap">{{ row.completed_tasks }}/{{ row.total_tasks }} <span class="text-muted">({{ row.task_progress_percent }}%)</span></td>
                         <td class="text-end text-nowrap">AED {{ row.contract_value|floatformat:0|intcomma }}</td>
                         <td class="text-end text-nowrap">AED {{ row.invoiced_amount|floatformat:0|intcomma }}</td>
