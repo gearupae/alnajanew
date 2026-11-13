@@ -1,0 +1,195 @@
+<div class="card border-0 shadow-sm mt-4" id="customer-soa">
+    <div class="card-header bg-transparent py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="mb-0">
+            <h6 class="mb-0 fw-semibold d-inline">
+                <i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Statement of account (SOA)
+            </h6>
+            <p class="small text-muted mb-0 mt-1">Outstanding invoices (unpaid / partially paid), projects, and estimates.</p>
+        </div>
+        <a href="{% url 'crm:customer_soa_print' customer.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-dark">
+            <i class="fas fa-print me-1"></i>Print / PDF
+        </a>
+    </div>
+    <div class="card-body pt-0">
+        <div class="row g-2 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="border rounded p-2 h-100 bg-light-subtle">
+                    <div class="text-muted small">Outstanding balance</div>
+                    <div class="fw-bold fs-5 text-danger">AED {{ soa_summary.outstanding|floatformat:2 }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="border rounded p-2 h-100">
+                    <div class="text-muted small">Open invoices</div>
+                    <div class="fw-bold fs-5">{{ soa_summary.open_invoice_count }}</div>
+                    <div class="small text-muted">AED {{ soa_summary.invoiced_open|floatformat:2 }} total · {{ soa_summary.paid_open|floatformat:2 }} paid</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="border rounded p-2 h-100">
+                    <div class="text-muted small">Projects</div>
+                    <div class="fw-bold fs-5">{{ soa_summary.project_count }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="border rounded p-2 h-100">
+                    <div class="text-muted small">Estimates</div>
+                    <div class="fw-bold fs-5">{{ soa_summary.estimate_count }}</div>
+                    <div class="small text-muted">AED {{ soa_summary.estimate_total|floatformat:2 }} combined</div>
+                </div>
+            </div>
+        </div>
+
+        <h6 class="fw-semibold small text-uppercase text-muted mb-2">Open invoices</h6>
+        {% if soa_open_invoices %}
+        <div class="table-responsive mb-4">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Date</th>
+                        <th>Due</th>
+                        <th>Status</th>
+                        <th>Project</th>
+                        <th>Estimate</th>
+                        <th class="text-end">Total</th>
+                        <th class="text-end">Paid</th>
+                        <th class="text-end">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in soa_open_invoices %}
+                    <tr>
+                        <td class="text-nowrap">
+                            <a href="{% url 'sales:invoice_detail' invoice.pk %}" class="fw-medium text-decoration-none">{{ invoice.invoice_number }}</a>
+                        </td>
+                        <td class="text-nowrap">{{ invoice.invoice_date|date:"d/m/Y" }}</td>
+                        <td class="text-nowrap">{% if invoice.due_date %}{{ invoice.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                        <td>
+                            {% if invoice.status == 'partial' %}
+                            <span class="badge" style="background:#fef3c7;color:#92400e;">Partial</span>
+                            {% elif invoice.status == 'sent' %}
+                            <span class="badge" style="background:#dbeafe;color:#1e40af;">Sent</span>
+                            {% elif invoice.status == 'overdue' %}
+                            <span class="badge bg-danger">Overdue</span>
+                            {% elif invoice.status == 'posted' %}
+                            <span class="badge bg-secondary">Posted</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ invoice.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="small">
+                            {% if invoice.estimate and invoice.estimate.project %}
+                            <a href="{% url 'projects:project_detail' invoice.estimate.project.pk %}" class="text-decoration-none">{{ invoice.estimate.project.project_code }}</a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="small">
+                            {% if invoice.estimate %}
+                            <a href="{% url 'sales:estimate_detail' invoice.estimate.pk %}" class="text-decoration-none">{{ invoice.estimate.display_estimate_number }}</a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end text-nowrap">{{ invoice.total_amount|floatformat:2 }}</td>
+                        <td class="text-end text-nowrap">{{ invoice.paid_amount|floatformat:2 }}</td>
+                        <td class="text-end fw-semibold text-nowrap">{{ invoice.balance|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-group-divider">
+                    <tr class="fw-semibold">
+                        <td colspan="6" class="text-end">Total outstanding</td>
+                        <td class="text-end">{{ soa_summary.invoiced_open|floatformat:2 }}</td>
+                        <td class="text-end">{{ soa_summary.paid_open|floatformat:2 }}</td>
+                        <td class="text-end text-danger">{{ soa_summary.outstanding|floatformat:2 }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted small mb-4">No unpaid or partially paid invoices.</p>
+        {% endif %}
+
+        <h6 class="fw-semibold small text-uppercase text-muted mb-2">Projects</h6>
+        {% if soa_projects %}
+        <div class="table-responsive mb-4">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th class="text-end">Contract</th>
+                        <th class="text-end">Invoiced</th>
+                        <th class="text-end">Received</th>
+                        <th class="text-end">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in soa_projects %}
+                    <tr>
+                        <td class="text-nowrap">
+                            <a href="{% url 'projects:project_detail' row.project.pk %}" class="fw-medium text-decoration-none">{{ row.project.project_code }}</a>
+                        </td>
+                        <td>{{ row.project.name }}</td>
+                        <td><span class="badge bg-secondary">{{ row.project.get_status_display }}</span></td>
+                        <td class="text-end text-nowrap">{% if row.contract_value %}AED {{ row.contract_value|floatformat:2 }}{% else %}—{% endif %}</td>
+                        <td class="text-end text-nowrap">AED {{ row.invoiced_amount|floatformat:2 }}</td>
+                        <td class="text-end text-nowrap">AED {{ row.received_amount|floatformat:2 }}</td>
+                        <td class="text-end fw-medium text-nowrap">AED {{ row.balance_amount|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted small mb-4">No projects linked to this customer.</p>
+        {% endif %}
+
+        <h6 class="fw-semibold small text-uppercase text-muted mb-2">Estimates / quotations</h6>
+        {% if soa_estimates %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Estimate #</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Project</th>
+                        <th class="text-end">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for estimate in soa_estimates %}
+                    <tr>
+                        <td class="text-nowrap">
+                            <a href="{% url 'sales:estimate_detail' estimate.pk %}" class="fw-medium text-decoration-none">{{ estimate.display_estimate_number }}</a>
+                        </td>
+                        <td class="text-nowrap">{{ estimate.date|date:"d/m/Y" }}</td>
+                        <td><span class="badge bg-secondary">{{ estimate.get_status_display }}</span></td>
+                        <td class="small">
+                            {% if estimate.project %}
+                            <a href="{% url 'projects:project_detail' estimate.project.pk %}" class="text-decoration-none">{{ estimate.project.project_code }}</a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end text-nowrap">{{ estimate.total_amount|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-group-divider">
+                    <tr class="fw-semibold">
+                        <td colspan="4" class="text-end">Combined estimate value</td>
+                        <td class="text-end">AED {{ soa_summary.estimate_total|floatformat:2 }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted small mb-0">No estimates for this customer.</p>
+        {% endif %}
+    </div>
+</div>

@@ -93,6 +93,9 @@
     </td>
     <td class="text-center col-actions">
         <div class="table-actions-inner">
+        <a href="{% url 'crm:customer_detail' customer.pk %}#customer-soa" class="btn btn-action btn-outline-dark" title="Statement of account">
+            <i class="fas fa-file-invoice-dollar"></i>
+        </a>
         {% if can_edit %}
         <a href="{% url 'crm:customer_edit' customer.pk %}" class="btn btn-action btn-outline-primary" title="Edit">
             <i class="fas fa-edit"></i>

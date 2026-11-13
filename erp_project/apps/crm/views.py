@@ -37,6 +37,7 @@ from .utils import (
     user_can_access_customer,
 )
 from .activity import get_customer_activity_feed
+from .customer_soa import build_customer_soa
 from apps.core.mixins import PermissionRequiredMixin, CreatePermissionMixin, UpdatePermissionMixin, DeletePermissionMixin
 from apps.core.utils import PermissionChecker
 from apps.settings_app.models import AuditLog
@@ -1052,7 +1053,30 @@ class CustomerDetailView(PermissionRequiredMixin, DetailView):
         from apps.contracts.customer_contracts import customer_contracts_context
 
         context.update(customer_contracts_context(self.request.user, self.object))
+        context.update(build_customer_soa(self.object, self.request.user))
         return context
+
+
+@login_required
+def customer_soa_print(request, pk):
+    if not (
+        request.user.is_superuser
+        or PermissionChecker.has_permission(request.user, 'crm', 'view')
+    ):
+        messages.error(request, 'Permission denied.')
+        return redirect('dashboard')
+    customer = get_object_or_404(
+        filter_customers_for_user(Customer.objects.all(), request.user),
+        pk=pk,
+    )
+    from django.utils import timezone
+
+    context = {
+        'customer': customer,
+        'generated_at': timezone.localtime(),
+        **build_customer_soa(customer, request.user),
+    }
+    return render(request, 'crm/customer_soa_print.html', context)
 
 
 class CustomerUpdateView(UpdatePermissionMixin, UpdateView):

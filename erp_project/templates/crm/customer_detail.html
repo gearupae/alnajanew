@@ -89,6 +89,9 @@
             <span class="text-muted">{{ customer.customer_number }}</span>
         </div>
         <div>
+            <a href="#customer-soa" class="btn btn-outline-dark">
+                <i class="fas fa-file-invoice-dollar me-2"></i>SOA
+            </a>
             {% if can_edit %}
             <a href="{% url 'crm:customer_edit' customer.pk %}" class="btn btn-primary">
                 <i class="fas fa-edit me-2"></i>Edit
@@ -224,6 +227,8 @@
                 </div>
             </div>
         </div>
+
+        {% include 'crm/includes/customer_soa.html' %}
 
         <div class="card border-0 shadow-sm mt-4">
             <div class="card-header bg-transparent py-3">
