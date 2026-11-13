@@ -6,6 +6,7 @@ app_name = 'projects'
 urlpatterns = [
     # Public (no auth) — must be before <int:pk> routes
     path('public-upload/', views.public_project_upload, name='public_upload'),
+    path('public-item-request/', views.public_project_item_request, name='public_item_request'),
     # Projects
     path('', views.ProjectListView.as_view(), name='project_list'),
     path('create/', views.ProjectCreateView.as_view(), name='project_create'),

@@ -1,0 +1,125 @@
+{% extends 'minimal_public.html' %}
+{% block title %}Request project items{% endblock %}
+{% block content %}
+<div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+        <h1 class="h4 fw-bold mb-1">Request items for a project</h1>
+        <p class="text-muted small mb-4">No login required. Choose the project, select items and quantities, then submit. The request appears on the project <strong>Items</strong> list; staff deliver with one click.</p>
+
+        <form method="get" class="mb-4" id="projectPickerForm">
+            <label for="id_project" class="form-label">Project <span class="text-danger">*</span></label>
+            <select name="project" id="id_project" class="form-select" required onchange="this.form.submit()">
+                    <option value="">— Select project —</option>
+                    {% for p in projects %}
+                    <option value="{{ p.pk }}" {% if selected_project and selected_project.pk == p.pk %}selected{% endif %}>{{ p.project_code }} — {{ p.name }}</option>
+                    {% endfor %}
+                </select>
+        </form>
+
+        {% if selected_project %}
+        <form method="post" id="publicItemRequestForm">
+            {% csrf_token %}
+            <input type="hidden" name="project" value="{{ selected_project.pk }}">
+            <input type="hidden" name="submit_request" value="1">
+
+            <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label small" for="id_requester_name">Your name <span class="text-muted">(optional)</span></label>
+                    <input type="text" name="requester_name" id="id_requester_name" class="form-control form-control-sm" maxlength="120" value="{{ posted_requester_name|default:'' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small" for="id_note">Note <span class="text-muted">(optional)</span></label>
+                    <input type="text" name="note" id="id_note" class="form-control form-control-sm" maxlength="500" value="{{ posted_note|default:'' }}">
+                </div>
+            </div>
+
+            <div class="table-responsive border rounded mb-3" style="max-height: 420px; overflow-y: auto;">
+                <table class="table table-sm table-hover mb-0 align-middle">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th style="width:2.5rem;"></th>
+                            <th>Item</th>
+                            <th class="text-center">Unit</th>
+                            <th class="text-center" title="Qty on project scope">On project</th>
+                            <th class="text-center" title="Available in stock">In stock</th>
+                            <th class="text-center" style="min-width:5.5rem;">Request qty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in catalog %}
+                        <tr>
+                            <td class="text-center">
+                                <input type="hidden" name="item_id" value="{{ row.item.pk }}">
+                                <input type="hidden" name="selected" value="0" class="item-selected-flag">
+                                <input type="checkbox" class="form-check-input item-pick" aria-label="Select {{ row.item.name }}">
+                            </td>
+                            <td>
+                                <span class="text-muted small font-monospace">{{ row.item.item_code }}</span>
+                                <span class="fw-medium d-block">{{ row.item.name }}</span>
+                            </td>
+                            <td class="text-center small">{{ row.item.unit }}</td>
+                            <td class="text-center small text-muted">
+                                {% if row.project_qty is not None %}{{ row.project_qty|floatformat:0 }}{% else %}—{% endif %}
+                            </td>
+                            <td class="text-center small">{{ row.stock_qty|floatformat:0 }}</td>
+                            <td class="text-center">
+                                <input type="number" name="quantity" class="form-control form-control-sm text-center item-qty"
+                                       min="{% if row.item.track_by_serial %}1{% else %}0.01{% endif %}"
+                                       step="{% if row.item.track_by_serial %}1{% else %}0.01{% endif %}"
+                                       value="1" disabled>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center text-muted py-4">No active inventory items.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100 py-2" id="submitItemRequest">
+                <i class="fas fa-paper-plane me-2"></i>Send request to {{ selected_project.project_code }}
+            </button>
+        </form>
+        {% else %}
+        <p class="text-muted small mb-0">Select a project above to load items.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    var form = document.getElementById('publicItemRequestForm');
+    if (!form) return;
+
+    function syncRow(cb) {
+        var tr = cb.closest('tr');
+        var flag = tr.querySelector('.item-selected-flag');
+        var qty = tr.querySelector('.item-qty');
+        if (!flag || !qty) return;
+        var on = cb.checked;
+        flag.value = on ? '1' : '0';
+        qty.disabled = !on;
+        if (on && (!qty.value || parseFloat(qty.value) <= 0)) {
+            qty.value = '1';
+        }
+    }
+
+    document.querySelectorAll('.item-pick').forEach(function (cb) {
+        cb.addEventListener('change', function () { syncRow(cb); });
+    });
+
+    form.addEventListener('submit', function (e) {
+        var any = false;
+        document.querySelectorAll('.item-pick:checked').forEach(function (cb) {
+            var qty = cb.closest('tr').querySelector('.item-qty');
+            if (qty && parseFloat(qty.value) > 0) any = true;
+        });
+        if (!any) {
+            e.preventDefault();
+            alert('Select at least one item and enter a quantity greater than zero.');
+        }
+    });
+})();
+</script>
+{% endblock %}

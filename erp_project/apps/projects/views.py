@@ -213,6 +213,86 @@ def public_project_upload(request):
     )
 
 
+@never_cache
+@require_http_methods(['GET', 'POST'])
+def public_project_item_request(request):
+    """
+    Public (no login): pick a project, select inventory items and quantities, submit a request.
+    Lines appear on the project Items table; staff deliver with the check action.
+    """
+    from .public_item_request import (
+        build_public_item_catalog,
+        create_public_project_item_request,
+        parse_public_item_request_post,
+    )
+
+    project_qs = Project.objects.filter(is_active=True).exclude(status='cancelled').order_by(
+        'project_code', 'name'
+    )
+    selected_project = None
+    catalog = []
+    raw_pid = (request.POST.get('project') or request.GET.get('project') or '').strip()
+    if raw_pid.isdigit():
+        selected_project = Project.objects.filter(pk=int(raw_pid), is_active=True).exclude(
+            status='cancelled'
+        ).first()
+
+    if request.method == 'POST' and request.POST.get('submit_request') == '1':
+        requester_name = (request.POST.get('requester_name') or '').strip()[:120]
+        note = (request.POST.get('note') or '').strip()[:500]
+        if not selected_project:
+            messages.error(request, 'Please select a project.')
+            return render(
+                request,
+                'projects/public_item_request_form.html',
+                {'projects': project_qs, 'posted_requester_name': requester_name, 'posted_note': note},
+                status=400,
+            )
+        try:
+            lines = parse_public_item_request_post(request.POST)
+            cr = create_public_project_item_request(
+                selected_project,
+                lines,
+                requester_name=requester_name,
+                note=note,
+            )
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0] if exc.messages else str(exc))
+            catalog = build_public_item_catalog(selected_project)
+            return render(
+                request,
+                'projects/public_item_request_form.html',
+                {
+                    'projects': project_qs,
+                    'selected_project': selected_project,
+                    'catalog': catalog,
+                    'posted_requester_name': requester_name,
+                    'posted_note': note,
+                },
+                status=400,
+            )
+        messages.success(
+            request,
+            f'Thank you. Request {cr.request_number} was sent for '
+            f'{selected_project.project_code} — {selected_project.name}. '
+            'The site team will deliver items to the project.',
+        )
+        return redirect(f"{reverse('projects:public_item_request')}?project={selected_project.pk}")
+
+    if selected_project:
+        catalog = build_public_item_catalog(selected_project)
+
+    return render(
+        request,
+        'projects/public_item_request_form.html',
+        {
+            'projects': project_qs,
+            'selected_project': selected_project,
+            'catalog': catalog,
+        },
+    )
+
+
 class TaskListView(PermissionRequiredMixin, ListView):
     """All tasks across projects with filters."""
     model = Task
@@ -1054,6 +1134,8 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
                 line.max_return_qty = min(returnable, line.quantity)
                 line.track_by_serial = item.track_by_serial
                 line.requires_whole_quantity = item.requires_whole_quantity()
+                gn = (line.group_name or '').strip()
+                line.from_consumable_request = gn.startswith('Consumable —')
             else:
                 line.delivered_qty = None
                 line.remaining_qty = None
@@ -1062,7 +1144,9 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
                 line.max_return_qty = None
                 line.track_by_serial = False
                 line.requires_whole_quantity = False
+                line.from_consumable_request = False
         context['project_item_lines'] = item_lines
+        context['public_item_request_url'] = reverse('projects:public_item_request')
         from .project_item_sections import build_project_item_sections
 
         sections = build_project_item_sections(item_lines)
@@ -1564,6 +1648,9 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
                 )
             if not delivered and not failed:
                 messages.info(request, 'No items were delivered.')
+            from .public_item_request import mark_consumable_requests_fulfilled_when_delivered
+
+            mark_consumable_requests_fulfilled_when_delivered(self.object, request.user)
             return redirect('projects:project_detail', pk=self.object.pk)
 
         if action in ('inline_deliver_item', 'inline_return_item'):
@@ -1666,6 +1753,10 @@ class ProjectDetailView(PermissionRequiredMixin, DetailView):
                         )
             except ValidationError as exc:
                 messages.error(request, exc.messages[0] if exc.messages else str(exc))
+            else:
+                from .public_item_request import mark_consumable_requests_fulfilled_when_delivered
+
+                mark_consumable_requests_fulfilled_when_delivered(self.object, request.user)
             return redirect('projects:project_detail', pk=self.object.pk)
 
         if action == 'return_serial_unit':

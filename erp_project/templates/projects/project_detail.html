@@ -426,6 +426,9 @@
                         <i class="fas fa-check me-1"></i>Deliver selected
                     </button>
                     {% endif %}
+                    <a href="{% url 'projects:public_item_request' %}?project={{ project.pk }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" title="Public link for site teams">
+                        <i class="fas fa-link me-1"></i>Public request
+                    </a>
                     {% if can_edit %}
                     <a href="{% url 'inventory:consumable_request_create' %}?project={{ project.pk }}" class="btn btn-sm btn-primary">
                         <i class="fas fa-plus me-1"></i>Request items
@@ -542,7 +545,7 @@
                             </tr>
                             {% endif %}
                             {% endifchanged %}
-                            <tr class="project-item-row{% if line.inventory_item_id %} project-item-row--inventory{% endif %}"
+                            <tr class="project-item-row{% if line.inventory_item_id %} project-item-row--inventory{% endif %}{% if line.from_consumable_request %} project-item-row--consumable-request{% endif %}"
                                 {% if line.inventory_item_id %}
                                 data-item-id="{{ line.inventory_item_id }}"
                                 data-line-id="{{ line.pk }}"
@@ -550,6 +553,7 @@
                                 data-max-return="{{ line.max_return_qty }}"
                                 data-can-return="{% if line.returnable_qty > 0 %}1{% else %}0{% endif %}"
                                 data-serial="{% if line.track_by_serial %}1{% else %}0{% endif %}"
+                                data-consumable-request="{% if line.from_consumable_request %}1{% else %}0{% endif %}"
                                 {% endif %}>
                                 {% if can_deliver_items %}
                                 <td class="text-center">
@@ -587,7 +591,7 @@
                                 </td>
                                 <td class="text-end fw-medium text-nowrap">AED {{ line.line_net|floatformat:2 }}</td>
                                 {% if can_deliver_items %}
-                                <td class="line-action-cell d-none text-center">
+                                <td class="line-action-cell {% if not line.from_consumable_request %}d-none{% endif %} text-center">
                                     {% if line.inventory_item_id and line.max_deliver_qty > 0 or line.returnable_qty > 0 %}
                                     <div class="d-inline-flex flex-wrap gap-1 align-items-center justify-content-center project-line-actions">
                                         {% if line.max_deliver_qty > 0 %}
@@ -596,6 +600,9 @@
                                             <input type="hidden" name="action" value="inline_deliver_item">
                                             <input type="hidden" name="item_id" value="{{ line.inventory_item_id }}">
                                             <input type="hidden" name="line_id" value="{{ line.pk }}">
+                                            {% if line.from_consumable_request %}
+                                            <input type="hidden" name="quantity" value="{% if line.track_by_serial %}{{ line.max_deliver_qty|floatformat:0 }}{% else %}{{ line.max_deliver_qty }}{% endif %}">
+                                            {% else %}
                                             <input type="number" name="quantity" class="form-control form-control-sm project-inline-qty"
                                                    min="{% if line.track_by_serial %}1{% else %}0.01{% endif %}"
                                                    max="{{ line.max_deliver_qty }}"
@@ -603,8 +610,9 @@
                                                    value="{% if line.track_by_serial %}{{ line.max_deliver_qty|floatformat:0 }}{% else %}{{ line.max_deliver_qty }}{% endif %}"
                                                    title="Max {{ line.max_deliver_qty }} for this line"
                                                    required>
+                                            {% endif %}
                                         </form>
-                                        <button type="submit" form="deliver-form-{{ line.pk }}" class="btn btn-sm btn-success" title="Deliver to project"><i class="fas fa-check"></i></button>
+                                        <button type="submit" form="deliver-form-{{ line.pk }}" class="btn btn-sm btn-success" title="{% if line.from_consumable_request %}Deliver request to project{% else %}Deliver to project{% endif %}"><i class="fas fa-check"></i></button>
                                         {% endif %}
                                         {% if line.returnable_qty > 0 %}
                                         <form method="post" class="d-flex gap-1 align-items-center project-inline-return-form m-0" id="return-form-{{ line.pk }}">
@@ -1471,22 +1479,37 @@ $(function () {
         bulkDeliverForm.submit();
     }
 
+    function isConsumableRequestRow(row) {
+        return row && row.getAttribute('data-consumable-request') === '1';
+    }
+
     function setRowSelected(row, selected) {
         row.querySelectorAll('.line-action-cell').forEach(function (cell) {
-            if (!selected || !cell.querySelector('.project-line-actions')) {
-                cell.classList.add('d-none');
+            if (!cell.querySelector('.project-line-actions')) {
                 return;
             }
-            cell.classList.remove('d-none');
+            if (isConsumableRequestRow(row) || selected) {
+                cell.classList.remove('d-none');
+                return;
+            }
+            cell.classList.add('d-none');
         });
     }
 
+    itemsTable.querySelectorAll('tr.project-item-row--consumable-request').forEach(function (row) {
+        setRowSelected(row, true);
+    });
+
     function syncHeaderActionCols() {
         var anySelected = itemsTable.querySelector('.project-item-select:checked');
+        var anyRequest = itemsTable.querySelector('tr[data-consumable-request="1"]');
+        var show = anySelected || anyRequest;
         headerActionCols.forEach(function (th) {
-            th.classList.toggle('d-none', !anySelected);
+            th.classList.toggle('d-none', !show);
         });
     }
+
+    syncHeaderActionCols();
 
     function syncSelectAll() {
         if (!selectAll) return;

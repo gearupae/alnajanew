@@ -1824,6 +1824,8 @@ def consumable_request_create(request):
             items_formset.instance = consumable_request
             items_formset.save()
             consumable_request.recalculate_total()
+            if consumable_request.project_id and consumable_request.status in ('pending', 'approved'):
+                sync_consumable_request_to_project_item_lines(consumable_request)
             # Save attachments
             for f in request.FILES.getlist('attachments'):
                 ConsumableRequestAttachment.objects.create(
