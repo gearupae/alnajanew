@@ -36,6 +36,18 @@
     font-weight: 600;
     padding: 0.35em 0.55em;
 }
+.invoice-list-filters .form-control,
+.invoice-list-filters .form-select {
+    min-height: 38px;
+}
+.invoice-list-filters .filter-actions .btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
 </style>
 {% endblock %}
 
@@ -48,7 +60,7 @@
         </p>
     </div>
     <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
-        <a href="{% url 'sales:invoice_list' %}?unpaid=1" class="btn btn-outline-warning{% if unpaid_only %} active{% endif %}">
+        <a href="{% url 'sales:invoice_list' %}?status=outstanding" class="btn btn-outline-warning{% if unpaid_only %} active{% endif %}">
             <i class="fas fa-clock me-2"></i>Unpaid invoices
         </a>
         {% if invoice_count %}
@@ -116,35 +128,31 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body py-3">
-        <form method="get" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label small text-muted">Search</label>
-                <input type="text" name="search" class="form-control" placeholder="Invoice #, Customer..." value="{{ request.GET.search }}">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label small text-muted">Status</label>
-                <select name="status" class="form-select">
-                    <option value="">All Status</option>
-                    {% for value, label in status_choices %}
-                    <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+        <form method="get" class="invoice-list-filters d-flex flex-nowrap align-items-center gap-2">
+            <input type="text" name="search" class="form-control flex-grow-1" style="min-width: 10rem;" placeholder="Invoice #, Customer..." value="{{ request.GET.search }}" title="Search">
+            <select name="status" class="form-select flex-shrink-0" style="width: auto; min-width: 11rem;" title="Status or payment balance">
+                <option value="">All invoices</option>
+                <optgroup label="Payment balance">
+                    {% for value, label in balance_filter_choices %}
+                    <option value="{{ value }}" {% if balance_filter == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small text-muted">&nbsp;</label>
-                <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" name="unpaid" value="1" id="filterUnpaid" {% if request.GET.unpaid == '1' %}checked{% endif %}>
-                    <label class="form-check-label small" for="filterUnpaid">Unpaid only</label>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-primary me-2">
-                    <i class="fas fa-filter me-1"></i>Filter
+                </optgroup>
+                <optgroup label="Invoice status">
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+                </optgroup>
+            </select>
+            <div class="filter-actions d-flex flex-shrink-0 gap-1">
+                <button type="submit" class="btn btn-primary" title="Apply filters" aria-label="Apply filters">
+                    <i class="fas fa-filter" aria-hidden="true"></i>
                 </button>
-                <a href="{% url 'sales:invoice_list' %}" class="btn btn-light">Clear</a>
+                <a href="{% url 'sales:invoice_list' %}" class="btn btn-light" title="Clear filters" aria-label="Clear filters">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </a>
                 {% if unpaid_only and invoice_count %}
-                <a href="{{ export_csv_url }}" class="btn btn-outline-secondary ms-1">
-                    <i class="fas fa-download me-1"></i>CSV
+                <a href="{{ export_csv_url }}" class="btn btn-outline-secondary" title="Download CSV" aria-label="Download CSV">
+                    <i class="fas fa-download" aria-hidden="true"></i>
                 </a>
                 {% endif %}
             </div>

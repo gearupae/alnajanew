@@ -2535,19 +2535,35 @@ class InvoiceListView(PermissionRequiredMixin, ListView):
             return HttpResponseForbidden('Permission denied.')
         qs = self.get_queryset()
         filename = f'invoices_{date.today().isoformat()}.csv'
-        if self.request.GET.get('unpaid') == '1':
+        balance_filter = self._invoice_list_balance_filter()
+        if balance_filter == 'outstanding':
             filename = f'unpaid_invoices_{date.today().isoformat()}.csv'
         return invoices_csv_response(qs, filename=filename)
+
+    def _invoice_list_balance_filter(self):
+        """Legacy ?unpaid=1 maps to status=outstanding."""
+        status = (self.request.GET.get('status') or '').strip()
+        if self.request.GET.get('unpaid') == '1':
+            return 'outstanding'
+        if status in ('outstanding', 'paid_in_full'):
+            return status
+        return ''
     
     def get_queryset(self):
-        from .unpaid_invoices import unpaid_invoices_queryset
+        from .unpaid_invoices import paid_in_full_invoices_queryset, unpaid_invoices_queryset
 
         queryset = Invoice.objects.filter(is_active=True).select_related('customer', 'estimate')
+        balance_filter = self._invoice_list_balance_filter()
+        status = (self.request.GET.get('status') or '').strip()
 
-        if self.request.GET.get('unpaid') == '1':
+        if balance_filter == 'outstanding':
             queryset = unpaid_invoices_queryset(queryset)
+        elif balance_filter == 'paid_in_full':
+            queryset = paid_in_full_invoices_queryset(queryset)
         else:
             queryset = queryset.order_by('-created_at')
+            if status:
+                queryset = queryset.filter(status=status)
         
         search = self.request.GET.get('search')
         if search:
@@ -2556,16 +2572,19 @@ class InvoiceListView(PermissionRequiredMixin, ListView):
                 Q(customer__name__icontains=search) |
                 Q(customer__company__icontains=search)
             )
-        
-        status = self.request.GET.get('status')
-        if status:
-            queryset = queryset.filter(status=status)
-        
+
         return queryset
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        unpaid_only = self.request.GET.get('unpaid') == '1'
+        from .unpaid_invoices import INVOICE_LIST_BALANCE_FILTERS
+
+        balance_filter = self._invoice_list_balance_filter()
+        unpaid_only = balance_filter == 'outstanding'
+        context['balance_filter_choices'] = INVOICE_LIST_BALANCE_FILTERS
+        context['balance_filter'] = balance_filter
+        status = (self.request.GET.get('status') or '').strip()
+        context['status_filter'] = status if status not in ('outstanding', 'paid_in_full') else ''
         context['title'] = 'Unpaid Invoices' if unpaid_only else 'Invoices'
         context['unpaid_only'] = unpaid_only
         context['customers'] = Customer.objects.filter(is_active=True)
@@ -2935,6 +2954,23 @@ class InvoiceDetailView(PermissionRequiredMixin, DetailView):
         context['advance_form_action'] = reverse(
             'advances:customer_advance_invoice_tab',
             args=[self.object.pk],
+        )
+
+        from apps.finance.models import Payment
+
+        context['invoice_payments'] = (
+            Payment.objects.filter(
+                invoice=self.object,
+                payment_type='received',
+                status='confirmed',
+            )
+            .select_related('bank_account', 'journal_entry')
+            .order_by('-payment_date', '-pk')
+        )
+        context['can_receive_payment'] = (
+            has_permission
+            and self.object.status != 'draft'
+            and self.object.balance > 0
         )
 
         return context
@@ -3313,13 +3349,20 @@ def invoice_receive_payment(request, pk):
                 invoice.status = 'partial'
             invoice.save()
             
-            messages.success(request, f'Payment of AED {amount:,.2f} received. Receipt: {payment.payment_number}')
+            messages.success(
+                request,
+                f'Payment of AED {amount:,.2f} received. Receipt voucher: {payment.payment_number}.',
+            )
         except Exception as e:
             journal.delete()
             payment.delete()
             messages.error(request, f'Error posting payment: {e}')
-        
-        return redirect('sales:invoice_detail', pk=pk)
+            return redirect('sales:invoice_detail', pk=pk)
+
+        return redirect(
+            reverse('sales:invoice_payment_receipt_pdf', kwargs={'invoice_pk': pk, 'payment_pk': payment.pk})
+            + '?print=1'
+        )
     
     # GET - Show payment form
     bank_accounts = BankAccount.objects.filter(is_active=True)
@@ -3330,3 +3373,116 @@ def invoice_receive_payment(request, pk):
         'today': date.today().strftime('%Y-%m-%d'),
     }
     return render(request, 'sales/invoice_receive_payment.html', context)
+
+
+@login_required
+def invoice_payment_receipt_pdf(request, invoice_pk, payment_pk):
+    """Printable receipt voucher for a payment recorded against a sales invoice."""
+    from django.http import HttpResponse
+    from django.template.loader import get_template
+
+    from apps.finance.models import Payment
+    from apps.settings_app.models import CompanySettings
+
+    invoice = get_object_or_404(
+        Invoice.objects.select_related('customer'),
+        pk=invoice_pk,
+    )
+    payment = get_object_or_404(
+        Payment.objects.select_related('bank_account', 'journal_entry'),
+        pk=payment_pk,
+        invoice_id=invoice.pk,
+        payment_type='received',
+    )
+
+    if payment.status == 'cancelled':
+        messages.error(request, 'This payment was cancelled.')
+        return redirect('sales:invoice_detail', pk=invoice_pk)
+
+    if not (request.user.is_superuser or PermissionChecker.has_permission(request.user, 'sales', 'view')):
+        messages.error(request, 'Permission denied.')
+        return redirect('sales:invoice_detail', pk=invoice_pk)
+
+    company = CompanySettings.get_settings()
+
+    def number_to_words(n):
+        ones = [
+            '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+            'Seventeen', 'Eighteen', 'Nineteen',
+        ]
+        tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+
+        if n < 20:
+            return ones[n]
+        if n < 100:
+            return tens[n // 10] + ('' if n % 10 == 0 else ' ' + ones[n % 10])
+        if n < 1000:
+            return ones[n // 100] + ' Hundred' + ('' if n % 100 == 0 else ' and ' + number_to_words(n % 100))
+        if n < 1000000:
+            return (
+                number_to_words(n // 1000)
+                + ' Thousand'
+                + ('' if n % 1000 == 0 else ' ' + number_to_words(n % 1000))
+            )
+        if n < 1000000000:
+            return (
+                number_to_words(n // 1000000)
+                + ' Million'
+                + ('' if n % 1000000 == 0 else ' ' + number_to_words(n % 1000000))
+            )
+        return str(n)
+
+    try:
+        amount_whole = int(payment.amount)
+        amount_decimal = int((payment.amount - amount_whole) * 100)
+        amount_words = number_to_words(amount_whole)
+        if amount_decimal > 0:
+            amount_words += f' and {amount_decimal}/100'
+        amount_words += ' Dirhams Only'
+    except (TypeError, ValueError, OverflowError):
+        amount_words = ''
+
+    balance_after = invoice.total_amount
+    for p in Payment.objects.filter(
+        invoice=invoice,
+        payment_type='received',
+        status='confirmed',
+    ).order_by('payment_date', 'pk'):
+        balance_after -= p.amount
+        if p.pk == payment.pk:
+            break
+
+    logo_absolute_url = ''
+    if company.logo:
+        logo_absolute_url = request.build_absolute_uri(company.logo.url)
+
+    context = {
+        'invoice': invoice,
+        'payment': payment,
+        'company': company,
+        'amount_words': amount_words,
+        'balance_after': balance_after,
+        'logo_absolute_url': logo_absolute_url,
+        'is_pdf': True,
+    }
+
+    output_format = request.GET.get('format', 'html')
+
+    if output_format == 'pdf':
+        try:
+            from weasyprint import HTML
+
+            template = get_template('sales/invoice_payment_receipt_pdf.html')
+            html_string = template.render(context)
+            html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
+            pdf = html.write_pdf()
+            response = HttpResponse(pdf, content_type='application/pdf')
+            safe_ref = payment.payment_number.replace('/', '-')
+            response['Content-Disposition'] = f'inline; filename="Receipt_{safe_ref}.pdf"'
+            return response
+        except ImportError:
+            messages.info(request, 'PDF generation requires WeasyPrint. Showing printable HTML version.')
+            return render(request, 'sales/invoice_payment_receipt_pdf.html', context)
+
+    return render(request, 'sales/invoice_payment_receipt_pdf.html', context)

@@ -21,6 +21,23 @@ def unpaid_invoices_queryset(base=None):
     )
 
 
+def paid_in_full_invoices_queryset(base=None):
+    """Posted/sent invoices with no remaining balance."""
+    qs = base if base is not None else Invoice.objects.filter(is_active=True)
+    return (
+        qs.select_related('customer')
+        .exclude(status__in=['draft', 'cancelled'])
+        .filter(total_amount__lte=F('paid_amount'))
+        .order_by('-invoice_date', '-invoice_number')
+    )
+
+
+INVOICE_LIST_BALANCE_FILTERS = (
+    ('outstanding', 'Outstanding (unpaid)'),
+    ('paid_in_full', 'Fully paid'),
+)
+
+
 def customer_display_name(invoice) -> str:
     customer = invoice.customer
     if not customer:
