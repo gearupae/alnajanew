@@ -107,6 +107,24 @@
 .customer-soa-card .table.customer-soa-table tfoot td {
     border-top-width: 2px;
 }
+
+.customer-related-metrics .customer-related-metric {
+    border: 1px solid var(--gray-200, #e5e5e5);
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    background: #fafafa;
+    min-width: 0;
+}
+.customer-related-metrics .customer-related-metric .metric-value {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+.customer-related-metrics .customer-related-metric .metric-label {
+    font-size: 0.75rem;
+    color: var(--gray-600, #525252);
+}
 </style>
 {% endblock %}
 
@@ -345,27 +363,30 @@
                     <i class="fas fa-history me-2 text-primary"></i>Related Transactions
                 </h6>
             </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <div class="border rounded p-3 text-center">
-                            <i class="fas fa-file-invoice text-warning fs-3 mb-2"></i>
-                            <p class="mb-0 small text-muted">Estimates</p>
-                            <h4 class="mb-0">{{ estimate_count }}</h4>
+            <div class="card-body py-3">
+                <div class="row g-2 customer-related-metrics">
+                    <div class="col-4">
+                        <div class="customer-related-metric d-flex align-items-center justify-content-between gap-2">
+                            <span class="metric-label text-nowrap">
+                                <i class="fas fa-file-invoice text-warning me-1" aria-hidden="true"></i>Estimates
+                            </span>
+                            <span class="metric-value text-dark">{{ estimate_count }}</span>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="border rounded p-3 text-center">
-                            <i class="fas fa-receipt text-success fs-3 mb-2"></i>
-                            <p class="mb-0 small text-muted">Invoices</p>
-                            <h4 class="mb-0">{{ invoice_count }}</h4>
+                    <div class="col-4">
+                        <div class="customer-related-metric d-flex align-items-center justify-content-between gap-2">
+                            <span class="metric-label text-nowrap">
+                                <i class="fas fa-receipt text-success me-1" aria-hidden="true"></i>Invoices
+                            </span>
+                            <span class="metric-value text-dark">{{ invoice_count }}</span>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="border rounded p-3 text-center">
-                            <i class="fas fa-project-diagram text-info fs-3 mb-2"></i>
-                            <p class="mb-0 small text-muted">Projects</p>
-                            <h4 class="mb-0">{{ project_count }}</h4>
+                    <div class="col-4">
+                        <div class="customer-related-metric d-flex align-items-center justify-content-between gap-2">
+                            <span class="metric-label text-nowrap">
+                                <i class="fas fa-project-diagram text-info me-1" aria-hidden="true"></i>Projects
+                            </span>
+                            <span class="metric-value text-dark">{{ project_count }}</span>
                         </div>
                     </div>
                 </div>
