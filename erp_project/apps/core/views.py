@@ -11,8 +11,7 @@ from apps.projects.gatepass_alerts import get_gatepass_dashboard_alerts
 from apps.fleet.fleet_alerts import get_fleet_dashboard_alerts
 from apps.documents.document_alerts import get_documents_dashboard_alerts
 from apps.contracts.contract_alerts import get_contract_dashboard_alerts
-from apps.core.public_links import public_portal_links
-from apps.core.dashboard_shortcuts import dashboard_shortcuts
+from apps.core.dashboard_pending import dashboard_important_notifications, dashboard_pending_work
 
 
 @login_required
@@ -149,8 +148,8 @@ def dashboard(request):
     context['contracts_can_view'] = request.user.is_superuser or PermissionChecker.has_permission(
         request.user, 'contracts', 'view'
     )
-    context['public_portal_links'] = public_portal_links(request)
-    context['dashboard_shortcuts'] = dashboard_shortcuts(request.user, request)
+    context['dashboard_pending_items'] = dashboard_pending_work(request.user, request)
+    context['dashboard_notifications'] = dashboard_important_notifications(request.user)
 
     alert_total = (
         len(context['gatepass_expiry_alerts'])

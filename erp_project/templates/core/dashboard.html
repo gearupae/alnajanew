@@ -2,127 +2,150 @@
 {% load humanize static %}
 
 {% block extra_css %}
-<link href="{% static 'css/dashboard.css' %}?v=20260317e" rel="stylesheet">
+<link href="{% static 'css/dashboard.css' %}?v=20260317f" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-home">
-    <header class="dash-welcome">
+<div class="page-header mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div>
-            <h1>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h1>
-            <p class="dash-sub">{{ app_name|default:"Al Najah" }} — your workspace at a glance</p>
+            <h4 class="mb-1 fw-bold">Dashboard</h4>
+            <p class="text-muted mb-0 small">
+                {{ app_name|default:"Al Najah" }} · {{ dashboard_today|date:"l, d F Y" }}
+            </p>
         </div>
-        <div class="dash-welcome-date">
-            <i class="far fa-calendar-alt me-1"></i>{{ dashboard_today|date:"l, d F Y" }}
-        </div>
-    </header>
+        <p class="text-muted mb-0 small">Hello, {{ request.user.get_full_name|default:request.user.username }}</p>
+    </div>
+</div>
 
-    {% if dashboard_shortcuts %}
-    <section aria-labelledby="dash-quick-title">
-        <div class="dash-section-title" id="dash-quick-title">Quick access</div>
-        <div class="dash-quick-grid">
-            {% for item in dashboard_shortcuts %}
-            <a href="{{ item.path }}" class="dash-quick-tile">
-                <div class="dash-quick-icon bg-{{ item.tone }} bg-opacity-10 text-{{ item.tone }}">
-                    <i class="fas {{ item.icon }}"></i>
-                </div>
-                <span>{{ item.title }}</span>
-            </a>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-
-    <section aria-labelledby="dash-kpi-title">
-        <div class="dash-section-title" id="dash-kpi-title">Overview · {{ dashboard_month_label }}</div>
-        <div class="row g-3 dash-kpi-row">
-            <div class="col-6 col-lg-3">
-                <div class="dash-kpi">
-                    <div class="dash-kpi-label">Open quotations</div>
-                    <div class="dash-kpi-value">{{ estimates_open }}</div>
-                    <p class="dash-kpi-hint">{{ estimates_approved }} approved / won</p>
-                </div>
-            </div>
-            <div class="col-6 col-lg-3">
-                <div class="dash-kpi">
-                    <div class="dash-kpi-label">Invoiced this month</div>
-                    <div class="dash-kpi-value">AED {{ invoiced_month_total|floatformat:0|intcomma }}</div>
-                    <p class="dash-kpi-hint">{{ invoiced_month_count }} invoice{% if invoiced_month_count != 1 %}s{% endif %}</p>
-                </div>
-            </div>
-            <div class="col-6 col-lg-3">
-                <div class="dash-kpi">
-                    <div class="dash-kpi-label">Unpaid invoices</div>
-                    <div class="dash-kpi-value">{{ invoices_unpaid }}</div>
-                    <p class="dash-kpi-hint">With balance due</p>
-                </div>
-            </div>
-            <div class="col-6 col-lg-3">
-                <div class="dash-kpi">
-                    <div class="dash-kpi-label">Active projects</div>
-                    <div class="dash-kpi-value">{{ project_in_progress }}</div>
-                    <p class="dash-kpi-hint">{{ project_total }} total · {{ contracts_active }} contracts</p>
-                </div>
+<div class="row g-4 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 dash-metric">
+            <div class="card-body">
+                <p class="text-muted mb-1 small">Open quotations</p>
+                <h3 class="mb-0 fw-bold">{{ estimates_open }}</h3>
+                <p class="text-muted small mb-0 mt-1">{{ estimates_approved }} approved / won</p>
             </div>
         </div>
-    </section>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 dash-metric">
+            <div class="card-body">
+                <p class="text-muted mb-1 small">Invoiced · {{ dashboard_month_label }}</p>
+                <h3 class="mb-0 fw-bold">AED {{ invoiced_month_total|floatformat:0|intcomma }}</h3>
+                <p class="text-muted small mb-0 mt-1">{{ invoiced_month_count }} posted</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 dash-metric">
+            <div class="card-body">
+                <p class="text-muted mb-1 small">Unpaid invoices</p>
+                <h3 class="mb-0 fw-bold text-danger">{{ invoices_unpaid }}</h3>
+                <p class="text-muted small mb-0 mt-1">Balance outstanding</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 dash-metric">
+            <div class="card-body">
+                <p class="text-muted mb-1 small">Projects in progress</p>
+                <h3 class="mb-0 fw-bold">{{ project_in_progress }}</h3>
+                <p class="text-muted small mb-0 mt-1">{{ project_total }} active · {{ contracts_active }} contracts</p>
+            </div>
+        </div>
+    </div>
+</div>
 
-    <section class="row g-3 dash-stats-row mb-4">
-        <div class="col-md-6">
-            <div class="dash-stat-card d-flex align-items-center justify-content-between">
-                <div>
-                    <div class="dash-section-title mb-2">Projects</div>
-                    <h3>{{ project_total }}</h3>
-                    <p class="dash-kpi-hint mb-0">{{ project_open }} open · {{ project_completed }} completed</p>
-                </div>
-                {% if is_superuser or 'projects' in user_permissions %}
-                <a href="{% url 'projects:project_list' %}" class="btn btn-sm btn-outline-dark">View all</a>
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold"><i class="fas fa-tasks text-primary me-2"></i>Pending work</h6>
+                <span class="badge bg-light text-dark border">{{ dashboard_pending_items|length }}</span>
+            </div>
+            <div class="card-body pt-0">
+                {% if dashboard_pending_items %}
+                <ul class="list-group list-group-flush dash-pending-list">
+                    {% for row in dashboard_pending_items %}
+                    <li class="list-group-item px-0 py-2">
+                        <a href="{{ row.path }}" class="text-decoration-none d-flex justify-content-between align-items-start gap-2">
+                            <span>
+                                <span class="d-block fw-semibold text-dark small">{{ row.title }}</span>
+                                <span class="d-block text-muted" style="font-size:0.8rem;">{{ row.detail }}</span>
+                            </span>
+                            {% if row.severity == 'danger' %}
+                            <span class="badge bg-danger">Action</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Review</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted small mb-0 py-2">No approvals or reviews waiting on you.</p>
                 {% endif %}
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="dash-stat-card d-flex align-items-center justify-content-between">
-                <div>
-                    <div class="dash-section-title mb-2">People</div>
-                    <h3>{{ employee_total }}</h3>
-                    <p class="dash-kpi-hint mb-0">{{ total_customers }} customers</p>
-                </div>
-                {% if is_superuser or 'hr' in user_permissions %}
-                <a href="{% url 'hr:employee_list' %}" class="btn btn-sm btn-outline-dark">Employees</a>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold"><i class="fas fa-bell text-warning me-2"></i>Important notifications</h6>
+                {% if unread_notification_count %}
+                <span class="badge bg-warning text-dark">{{ unread_notification_count }} unread</span>
+                {% endif %}
+            </div>
+            <div class="card-body pt-0">
+                {% if dashboard_notifications %}
+                <ul class="list-group list-group-flush">
+                    {% for n in dashboard_notifications %}
+                    <li class="list-group-item px-0 py-2">
+                        <a href="{{ n.open_url }}" class="text-decoration-none">
+                            <div class="fw-semibold text-dark small">{{ n.title }}</div>
+                            <div class="text-muted" style="font-size:0.8rem;">{{ n.message|truncatewords:18 }}</div>
+                            <div class="text-muted" style="font-size:0.72rem;">{{ n.created_at|naturaltime }}</div>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <form method="post" action="{% url 'notifications_mark_all_read' %}" class="mt-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'dashboard' %}">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">Mark all read</button>
+                </form>
+                {% else %}
+                <p class="text-muted small mb-0 py-2">You’re up to date — no unread notifications.</p>
                 {% endif %}
             </div>
         </div>
-    </section>
+    </div>
+</div>
 
-    {% if gatepass_expiry_alerts or fleet_expiry_alerts or document_expiry_alerts or contract_reminder_alerts %}
-    <section class="dash-alerts-wrap" aria-labelledby="dash-alerts-title">
-        <div class="d-flex align-items-center gap-2 mb-3">
-            <h2 id="dash-alerts-title" class="dash-section-title mb-0">Needs attention</h2>
-            {% if dashboard_alert_total %}
-            <span class="dash-alert-pill"><i class="fas fa-bell"></i> {{ dashboard_alert_total }}</span>
-            {% endif %}
-        </div>
-
-        {% if gatepass_expiry_alerts %}
-        <div class="card mb-3" id="dashboard-gatepass-expiry">
-            <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                <span class="fw-semibold small"><i class="fas fa-id-card-alt text-warning me-2"></i>Gate passes</span>
+{% if gatepass_expiry_alerts or fleet_expiry_alerts or document_expiry_alerts or contract_reminder_alerts %}
+<div class="mb-2 d-flex align-items-center gap-2">
+    <h6 class="mb-0 fw-semibold text-muted">Compliance alerts</h6>
+    {% if dashboard_alert_total %}<span class="badge bg-danger">{{ dashboard_alert_total }}</span>{% endif %}
+</div>
+<div class="row g-4 mb-4">
+    {% if gatepass_expiry_alerts %}
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-2 d-flex justify-content-between">
+                <span class="small fw-semibold"><i class="fas fa-id-card-alt text-warning me-1"></i>Gate passes</span>
                 <span class="text-muted small">{{ gatepass_expiry_alerts|length }}</span>
             </div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover mb-0 align-middle">
-                    <thead><tr><th>Status</th><th>Project</th><th>Member</th><th>Expiry</th><th></th></tr></thead>
+                    <thead class="table-light"><tr><th></th><th>Project</th><th>Member</th><th>Expiry</th><th></th></tr></thead>
                     <tbody>
                         {% for row in gatepass_expiry_alerts %}
                         <tr>
-                            <td>
-                                {% if row.severity == 'expired' %}<span class="badge bg-danger">Expired</span>
-                                {% elif row.severity == 'due_today' %}<span class="badge bg-danger">Today</span>
-                                {% else %}<span class="badge bg-secondary">≤10d</span>{% endif %}
-                            </td>
+                            <td>{% if row.severity == 'expired' %}<span class="badge bg-danger">Expired</span>{% else %}<span class="badge bg-secondary">Soon</span>{% endif %}</td>
                             <td><a href="{% url 'projects:project_detail' row.project.pk %}">{{ row.project.project_code }}</a></td>
                             <td>{{ row.member.get_full_name|default:row.member.username }}</td>
-                            <td class="text-nowrap">{{ row.expiry_date|date:"d/m/Y" }}</td>
+                            <td>{{ row.expiry_date|date:"d/m/Y" }}</td>
                             <td class="text-end"><a class="btn btn-sm btn-light" href="{% url 'projects:project_detail' row.project.pk %}">Open</a></td>
                         </tr>
                         {% endfor %}
@@ -130,94 +153,80 @@
                 </table>
             </div>
         </div>
-        {% endif %}
-
-        {% if fleet_expiry_alerts %}
-        <div class="card mb-3">
-            <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                <span class="fw-semibold small"><i class="fas fa-truck text-warning me-2"></i>Fleet documents</span>
+    </div>
+    {% endif %}
+    {% if fleet_expiry_alerts %}
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-2 d-flex justify-content-between">
+                <span class="small fw-semibold"><i class="fas fa-truck text-warning me-1"></i>Fleet</span>
                 <span class="text-muted small">{{ fleet_expiry_alerts|length }}</span>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm table-hover mb-0 align-middle">
-                    <thead><tr><th>Status</th><th>Document</th><th>Vehicle</th><th>Expiry</th><th></th></tr></thead>
+                <table class="table table-sm table-hover mb-0"><thead class="table-light"><tr><th></th><th>Doc</th><th>Vehicle</th><th>Expiry</th></tr></thead>
                     <tbody>
                         {% for row in fleet_expiry_alerts %}
                         <tr>
-                            <td>{% if row.severity == 'expired' %}<span class="badge bg-danger">Expired</span>{% else %}<span class="badge bg-secondary">Soon</span>{% endif %}</td>
+                            <td><span class="badge bg-{% if row.severity == 'expired' %}danger{% else %}secondary{% endif %}">{% if row.severity == 'expired' %}Expired{% else %}Soon{% endif %}</span></td>
                             <td>{{ row.kind_label }}</td>
                             <td>{{ row.vehicle_label }}</td>
                             <td>{{ row.expiry_date|date:"d/m/Y" }}</td>
-                            <td class="text-end">
-                                {% if fleet_can_edit %}<a class="btn btn-sm btn-light" href="{% url 'fleet:vehicle_edit' row.vehicle.pk %}">Edit</a>
-                                {% else %}<a class="btn btn-sm btn-light" href="{% url 'fleet:vehicle_list' %}">Fleet</a>{% endif %}
-                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
-        {% endif %}
-
-        {% if document_expiry_alerts %}
-        <div class="card mb-3">
-            <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                <span class="fw-semibold small"><i class="fas fa-folder-open text-warning me-2"></i>Compliance docs</span>
-                <div class="d-flex gap-2 align-items-center">
-                    <span class="text-muted small">{{ document_expiry_alerts|length }}</span>
-                    {% if documents_can_view %}<a href="{% url 'documents:document_list' %}?status=expiring" class="btn btn-sm btn-light">All</a>{% endif %}
-                </div>
+    </div>
+    {% endif %}
+    {% if document_expiry_alerts %}
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <span class="small fw-semibold"><i class="fas fa-folder-open text-warning me-1"></i>Documents</span>
+                {% if documents_can_view %}<a href="{% url 'documents:document_list' %}?status=expiring" class="btn btn-sm btn-light">All</a>{% endif %}
             </div>
             <div class="table-responsive">
-                <table class="table table-sm table-hover mb-0 align-middle">
-                    <thead><tr><th>Status</th><th>Type</th><th>Entity</th><th>Expiry</th><th></th></tr></thead>
+                <table class="table table-sm table-hover mb-0"><thead class="table-light"><tr><th></th><th>Type</th><th>Entity</th><th>Expiry</th></tr></thead>
                     <tbody>
                         {% for row in document_expiry_alerts %}
                         <tr>
-                            <td>{% if row.severity == 'expired' %}<span class="badge bg-danger">Expired</span>{% else %}<span class="badge bg-warning text-dark">Expiring</span>{% endif %}</td>
+                            <td><span class="badge bg-{% if row.severity == 'expired' %}danger{% else %}warning text-dark{% endif %}">{% if row.severity == 'expired' %}Expired{% else %}Expiring{% endif %}</span></td>
                             <td>{{ row.document_type }}</td>
                             <td>{{ row.entity_name }}</td>
                             <td>{{ row.expiry_date|date:"d/m/Y" }}</td>
-                            <td class="text-end"><a class="btn btn-sm btn-light" href="{% url 'documents:document_detail' row.document.pk %}">Open</a></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
-        {% endif %}
-
-        {% if contract_reminder_alerts %}
-        <div class="card mb-3">
-            <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                <span class="fw-semibold small"><i class="fas fa-file-contract text-warning me-2"></i>Contract renewals</span>
-                <div class="d-flex gap-2 align-items-center">
-                    <span class="text-muted small">{{ contract_reminder_alerts|length }}</span>
-                    {% if contracts_can_view %}<a href="{% url 'contracts:contract_list' %}?reminder_due=1" class="btn btn-sm btn-light">All</a>{% endif %}
-                </div>
+    </div>
+    {% endif %}
+    {% if contract_reminder_alerts %}
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <span class="small fw-semibold"><i class="fas fa-file-contract text-warning me-1"></i>Contracts</span>
+                {% if contracts_can_view %}<a href="{% url 'contracts:contract_list' %}?reminder_due=1" class="btn btn-sm btn-light">All</a>{% endif %}
             </div>
             <div class="table-responsive">
-                <table class="table table-sm table-hover mb-0 align-middle">
-                    <thead><tr><th>Status</th><th>Contract</th><th>Customer</th><th>End</th><th></th></tr></thead>
+                <table class="table table-sm table-hover mb-0"><thead class="table-light"><tr><th></th><th>Contract</th><th>Customer</th><th>End</th></tr></thead>
                     <tbody>
                         {% for row in contract_reminder_alerts %}
                         <tr>
-                            <td>{% if row.severity == 'expired' %}<span class="badge bg-danger">Ended</span>{% else %}<span class="badge bg-warning text-dark">Reminder</span>{% endif %}</td>
-                            <td><span class="fw-medium">{{ row.name }}</span><br><span class="small text-muted">{{ row.contract_number }}</span></td>
+                            <td><span class="badge bg-warning text-dark">Reminder</span></td>
+                            <td>{{ row.name }} <span class="text-muted small">{{ row.contract_number }}</span></td>
                             <td>{{ row.customer_name }}</td>
                             <td>{{ row.end_date|date:"d/m/Y" }}</td>
-                            <td class="text-end"><a class="btn btn-sm btn-light" href="{% url 'contracts:contract_detail' row.contract.pk %}">Open</a></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
-        {% endif %}
-    </section>
+    </div>
     {% endif %}
-
-    {% include 'partials/public_portal_links_card.html' %}
 </div>
+{% endif %}
 {% endblock %}
