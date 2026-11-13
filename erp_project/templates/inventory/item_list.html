@@ -114,27 +114,27 @@
 <div class="card">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0 erp-ellipsis-cells">
+            <table class="table table-hover mb-0 erp-ellipsis-cells inventory-item-table">
                 <thead>
                     <tr>
-                        <th class="text-nowrap" style="width:7%">Code</th>
-                        <th class="erp-ellipsis" style="width:14%">Name</th>
-                        <th class="erp-ellipsis" style="width:10%">Category</th>
-                        <th class="erp-ellipsis" style="width:10%">Group</th>
-                        <th class="text-nowrap" style="width:7%">Type</th>
-                        <th class="erp-ellipsis" style="width:12%">Location</th>
-                        <th class="text-end">Purchase Price</th>
-                        <th class="text-end">Selling Price</th>
-                        <th class="text-end">Stock</th>
-                        <th>Condition</th>
-                        <th>Status</th>
-                        <th class="text-center" style="min-width: 150px;">Actions</th>
+                        <th class="text-nowrap erp-col-tight">Code</th>
+                        <th class="text-nowrap">Name</th>
+                        <th class="text-nowrap">Category</th>
+                        <th class="text-nowrap">Group</th>
+                        <th class="text-nowrap erp-col-tight">Type</th>
+                        <th class="text-nowrap">Location</th>
+                        <th class="text-end text-nowrap erp-col-tight">Purchase Price</th>
+                        <th class="text-end text-nowrap erp-col-tight">Selling Price</th>
+                        <th class="text-end text-nowrap erp-col-tight">Stock</th>
+                        <th class="text-nowrap erp-col-tight">Condition</th>
+                        <th class="text-nowrap erp-col-tight">Status</th>
+                        <th class="text-center text-nowrap erp-col-tight col-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in items %}
                     <tr>
-                        <td class="text-nowrap">
+                        <td class="text-nowrap erp-col-tight">
                             <a href="{% url 'inventory:item_detail' item.pk %}" class="fw-medium text-decoration-none">{{ item.item_code }}</a>
                         </td>
                         <td class="erp-ellipsis" title="{{ item.name|escape }}">{{ item.name }}</td>
@@ -148,7 +148,7 @@
                             <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="erp-col-tight">
                             {% if item.item_type == 'product' %}
                             <span class="badge" style="background:#dbeafe;color:#1e40af;">Product</span>
                             {% else %}
@@ -164,9 +164,9 @@
                             <span class="text-muted small">-</span>
                             {% endfor %}
                         </td>
-                        <td class="text-end">{{ item.purchase_price|floatformat:2 }}</td>
-                        <td class="text-end">{{ item.selling_price|floatformat:2 }}</td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap erp-col-tight">{{ item.purchase_price|floatformat:2 }}</td>
+                        <td class="text-end text-nowrap erp-col-tight">{{ item.selling_price|floatformat:2 }}</td>
+                        <td class="text-end text-nowrap erp-col-tight">
                             {% if item.item_type == 'product' %}
                                 {% with stock_qty=item.total_stock_calc|default:0 %}
                                 {% if stock_qty < item.minimum_stock %}
@@ -179,7 +179,7 @@
                             -
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="erp-col-tight">
                             {% if item.condition_status == 'in_store' %}
                             <span class="badge" style="background:#dcfce7;color:#166534;">In Store</span>
                             {% elif item.condition_status == 'in_use' %}
@@ -192,7 +192,7 @@
                             <span class="badge bg-secondary">-</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="erp-col-tight">
                             {% if item.status == 'active' %}
                             <span class="badge badge-active">Active</span>
                             {% elif item.status == 'pending_approval' %}
@@ -203,7 +203,7 @@
                             <span class="badge badge-inactive">Inactive</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="erp-col-tight">
                             <div class="d-flex justify-content-center gap-1 flex-nowrap">{% if can_edit %}
                                 <a href="{% url 'inventory:item_edit' item.pk %}" class="btn btn-sm btn-outline-primary" title="Edit">
                                     <i class="fas fa-edit"></i>

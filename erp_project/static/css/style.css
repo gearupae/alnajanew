@@ -416,25 +416,42 @@ div.dataTables_wrapper div.dataTables_info {
     padding-top: 0.5rem;
 }
 
-/* Long text in list tables — ellipsis with title tooltip on the cell */
+/* Long text in list tables — ellipsis on data cells; scroll wide tables in .table-responsive */
 .main-content .table.erp-ellipsis-cells {
-    table-layout: fixed;
     width: 100%;
 }
 
-.main-content .table.erp-ellipsis-cells :is(th, td).erp-ellipsis {
+.main-content .table.erp-ellipsis-cells tbody :is(th, td).erp-ellipsis {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 0;
+    max-width: 11rem;
 }
 
-.main-content .table.erp-ellipsis-cells :is(th, td).erp-ellipsis a:not(.btn) {
+.main-content .table.erp-ellipsis-cells tbody :is(th, td).erp-ellipsis a:not(.btn) {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 100%;
+}
+
+/* Numeric, badge, and action columns — never shrink below content */
+.main-content .table :is(th, td).erp-col-tight {
+    width: 1%;
+    white-space: nowrap;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+.main-content .table.inventory-item-table {
+    min-width: 72rem;
+}
+
+.main-content .table :is(th, td).erp-col-money {
+    min-width: 6.25rem;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Buttons - Black */
