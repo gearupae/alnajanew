@@ -12,6 +12,8 @@ from apps.fleet.fleet_alerts import get_fleet_dashboard_alerts
 from apps.documents.document_alerts import get_documents_dashboard_alerts
 from apps.contracts.contract_alerts import get_contract_dashboard_alerts
 from apps.core.dashboard_pending import dashboard_important_notifications, dashboard_pending_work
+from apps.core.dashboard_shortcuts import dashboard_shortcuts
+from apps.core.dashboard_metrics import build_dashboard_metric_cards
 
 
 @login_required
@@ -97,6 +99,10 @@ def dashboard(request):
             is_active=True,
             status__in=['draft', 'sent', 'under_negotiation', 'approved'],
         ).count()
+        context['estimates_sent_pending'] = Estimate.objects.filter(
+            is_active=True,
+            status='sent',
+        ).count()
         inv = Invoice.objects.filter(
             is_active=True,
             invoice_date__gte=today.replace(day=1),
@@ -112,6 +118,7 @@ def dashboard(request):
     except Exception:
         context['estimates_approved'] = 0
         context['estimates_open'] = 0
+        context['estimates_sent_pending'] = 0
         context['invoiced_month_total'] = Decimal('0.00')
         context['invoiced_month_count'] = 0
         context['invoices_unpaid'] = 0
@@ -151,6 +158,23 @@ def dashboard(request):
     context['dashboard_pending_items'] = dashboard_pending_work(request.user, request)
     context['dashboard_notifications'] = dashboard_important_notifications(request.user)
 
+    try:
+        from apps.purchase.models import PurchaseRequest, ExpenseClaim
+
+        context['purchase_requests_pending'] = PurchaseRequest.objects.filter(
+            is_active=True,
+            status='pending',
+        ).count()
+        context['expense_claims_pending'] = ExpenseClaim.objects.filter(
+            is_active=True,
+            status='submitted',
+        ).count()
+    except Exception:
+        context['purchase_requests_pending'] = 0
+        context['expense_claims_pending'] = 0
+
+    context['pending_approval_count'] = len(context['dashboard_pending_items'])
+
     alert_total = (
         len(context['gatepass_expiry_alerts'])
         + len(context['fleet_expiry_alerts'])
@@ -158,6 +182,14 @@ def dashboard(request):
         + len(context['contract_reminder_alerts'])
     )
     context['dashboard_alert_total'] = alert_total
+
+    context['unread_notification_count'] = Notification.objects.filter(
+        user=request.user,
+        is_read=False,
+    ).count()
+
+    context['dashboard_shortcuts'] = dashboard_shortcuts(request.user, request)
+    context['dashboard_metric_cards'] = build_dashboard_metric_cards(request.user, context)
 
     from django.utils import timezone
 

@@ -2,7 +2,7 @@
 {% load humanize static %}
 
 {% block extra_css %}
-<link href="{% static 'css/dashboard.css' %}?v=20260317f" rel="stylesheet">
+<link href="{% static 'css/dashboard.css' %}?v=20260317g" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -18,47 +18,42 @@
     </div>
 </div>
 
-<div class="row g-4 mb-4">
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100 dash-metric">
-            <div class="card-body">
-                <p class="text-muted mb-1 small">Open quotations</p>
-                <h3 class="mb-0 fw-bold">{{ estimates_open }}</h3>
-                <p class="text-muted small mb-0 mt-1">{{ estimates_approved }} approved / won</p>
+<div class="row g-3 mb-4">
+    {% for card in dashboard_metric_cards %}
+    <div class="col-6 col-md-4 col-xl-3">
+        <a href="{{ card.path }}" class="dash-metric-link text-decoration-none text-body d-block h-100">
+            <div class="card border-0 shadow-sm h-100 dash-metric">
+                <div class="card-body">
+                    <p class="text-muted mb-1 small">{{ card.label }}</p>
+                    <h3 class="mb-0 fw-bold {% if card.accent == 'danger' %}text-danger{% elif card.accent == 'warning' %}text-warning{% elif card.accent == 'info' %}text-info{% elif card.accent == 'primary' %}text-primary{% endif %}">
+                        {{ card.value }}
+                    </h3>
+                    <p class="text-muted small mb-0 mt-1">{{ card.hint }} <i class="fas fa-chevron-right ms-1 opacity-50" style="font-size:0.65rem;"></i></p>
+                </div>
             </div>
-        </div>
+        </a>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100 dash-metric">
-            <div class="card-body">
-                <p class="text-muted mb-1 small">Invoiced · {{ dashboard_month_label }}</p>
-                <h3 class="mb-0 fw-bold">AED {{ invoiced_month_total|floatformat:0|intcomma }}</h3>
-                <p class="text-muted small mb-0 mt-1">{{ invoiced_month_count }} posted</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100 dash-metric">
-            <div class="card-body">
-                <p class="text-muted mb-1 small">Unpaid invoices</p>
-                <h3 class="mb-0 fw-bold text-danger">{{ invoices_unpaid }}</h3>
-                <p class="text-muted small mb-0 mt-1">Balance outstanding</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100 dash-metric">
-            <div class="card-body">
-                <p class="text-muted mb-1 small">Projects in progress</p>
-                <h3 class="mb-0 fw-bold">{{ project_in_progress }}</h3>
-                <p class="text-muted small mb-0 mt-1">{{ project_total }} active · {{ contracts_active }} contracts</p>
-            </div>
-        </div>
-    </div>
+    {% endfor %}
 </div>
 
+{% if dashboard_shortcuts %}
+<section class="mb-4" aria-labelledby="dash-quick-title">
+    <h6 class="text-muted text-uppercase small fw-bold mb-3" id="dash-quick-title">Quick links</h6>
+    <div class="dash-quick-grid">
+        {% for item in dashboard_shortcuts %}
+        <a href="{{ item.path }}" class="dash-quick-tile">
+            <div class="dash-quick-icon bg-{{ item.tone }} bg-opacity-10 text-{{ item.tone }}">
+                <i class="fas {{ item.icon }}"></i>
+            </div>
+            <span>{{ item.title }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
 <div class="row g-4 mb-4">
-    <div class="col-lg-6">
+    <div class="col-lg-6" id="dash-pending-work">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-tasks text-primary me-2"></i>Pending work</h6>
@@ -89,7 +84,7 @@
             </div>
         </div>
     </div>
-    <div class="col-lg-6">
+    <div class="col-lg-6" id="dash-notifications">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 fw-semibold"><i class="fas fa-bell text-warning me-2"></i>Important notifications</h6>
@@ -124,7 +119,7 @@
 </div>
 
 {% if gatepass_expiry_alerts or fleet_expiry_alerts or document_expiry_alerts or contract_reminder_alerts %}
-<div class="mb-2 d-flex align-items-center gap-2">
+<div class="mb-2 d-flex align-items-center gap-2" id="dash-compliance-alerts">
     <h6 class="mb-0 fw-semibold text-muted">Compliance alerts</h6>
     {% if dashboard_alert_total %}<span class="badge bg-danger">{{ dashboard_alert_total }}</span>{% endif %}
 </div>
