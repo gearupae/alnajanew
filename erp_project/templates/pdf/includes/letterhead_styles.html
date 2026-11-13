@@ -17,6 +17,134 @@
         border: 1px solid #d4d4d4;
     }
 
+  /* Unified quotation header shell (estimate / proforma PDF) */
+    .pdf-quotation-header {
+        background: #fafafa;
+        border: 1px solid #d4d4d4;
+        border-radius: 12px;
+        margin-bottom: 18px;
+        overflow: hidden;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .pdf-quotation-header .pdf-letterhead-header {
+        margin-bottom: 0;
+        border: none;
+        border-radius: 0;
+        border-bottom: 1px solid #d8d8d8;
+    }
+
+    .pdf-doc-title-band {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px 16px;
+        background: var(--pdf-navy);
+        color: #fff;
+    }
+
+    .pdf-doc-title-band-main {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+    }
+
+    .pdf-doc-type {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .pdf-doc-ref {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        opacity: 0.92;
+    }
+
+    .pdf-doc-status {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 4px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 4px;
+    }
+
+    .pdf-quotation-header .pdf-quotation-parties {
+        margin: 0;
+        border: none;
+        border-bottom: 1px solid #e5e5e5;
+        background: #fff;
+    }
+
+    .pdf-quotation-header .addr-block {
+        padding: 12px 16px;
+    }
+
+    .pdf-quotation-meta {
+        padding: 12px 16px 14px;
+        background: #fff;
+    }
+
+    .pdf-quotation-meta > .addr-label {
+        margin-bottom: 8px;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+        color: #525252;
+    }
+
+    .pdf-quotation-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px 20px;
+    }
+
+    @media print {
+        .pdf-quotation-meta-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    .pdf-meta-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 5px 0;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 9px;
+    }
+
+    .pdf-meta-item--wide {
+        grid-column: 1 / -1;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .pdf-meta-item--wide .pdf-meta-value {
+        text-align: left;
+    }
+
+    .pdf-meta-label {
+        color: #737373;
+        flex-shrink: 0;
+    }
+
+    .pdf-meta-value {
+        font-weight: 600;
+        color: #262626;
+        text-align: right;
+        line-height: 1.35;
+    }
+
     .pdf-letterhead-header::after {
         content: "";
         position: absolute;
@@ -225,18 +353,37 @@
         padding: 0 2px;
     }
 
-    .pdf-with-letterhead .addr-block.addr-from .addr-from-logo,
-    .pdf-with-letterhead .addr-block.addr-from > .addr-name:first-of-type {
+    .pdf-with-letterhead .addr-block.addr-from .addr-from-logo {
         display: none;
+    }
+
+    .pdf-quotation-header .addr-block.addr-from > .addr-name:first-of-type {
+        display: block;
     }
 
     .pdf-with-letterhead .company-header {
         display: none !important;
     }
 
-    .pdf-with-letterhead .addr-from-cert-images,
     .pdf-with-letterhead footer.doc-footer,
     .pdf-with-letterhead .doc-footer {
+        display: none !important;
+    }
+
+    .pdf-quotation-header .addr-from-cert-images {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .pdf-quotation-header .addr-from-cert-images img {
+        max-height: 42px;
+        max-width: 100px;
+        object-fit: contain;
+    }
+
+    .estimate-container.pdf-with-letterhead > .addr-grid .addr-from-cert-images {
         display: none !important;
     }
 
