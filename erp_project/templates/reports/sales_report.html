@@ -175,7 +175,6 @@
 .sales-detail-table tbody td {
     border-bottom: 1px solid #f1f3f5;
     font-size: 0.925rem;
-    padding: 0.85rem 1rem;
     vertical-align: middle;
 }
 .sales-detail-table tbody tr:hover {
@@ -408,7 +407,7 @@
 <div class="row g-2 mb-3">
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm sales-kpi sales-kpi--invoice h-100">
-            <div class="card-body py-2 px-3">
+            <div class="card-body">
                 <div class="text-muted sales-kpi-label">Invoiced</div>
                 <div class="fw-bold text-primary lh-sm sales-kpi-value">AED {{ invoiced.total|default:0|floatformat:2|intcomma }}</div>
                 <div class="text-muted sales-kpi-sub">{{ invoiced.count|default:0|intcomma }} invoice{{ invoiced.count|pluralize }}</div>
@@ -417,7 +416,7 @@
     </div>
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm sales-kpi sales-kpi--collected h-100">
-            <div class="card-body py-2 px-3">
+            <div class="card-body">
                 <div class="text-muted sales-kpi-label">Collected</div>
                 <div class="fw-bold text-success lh-sm sales-kpi-value">AED {{ collected.total|floatformat:2|intcomma }}</div>
                 <div class="text-muted sales-kpi-sub">{{ collected.count|intcomma }} in period</div>
@@ -426,7 +425,7 @@
     </div>
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm sales-kpi sales-kpi--outstanding h-100">
-            <div class="card-body py-2 px-3">
+            <div class="card-body">
                 <div class="text-muted sales-kpi-label">Outstanding AR</div>
                 <div class="fw-bold text-warning lh-sm sales-kpi-value">AED {{ outstanding.total|floatformat:2|intcomma }}</div>
                 <div class="text-muted sales-kpi-sub">{{ outstanding.count|default:0|intcomma }} open</div>
@@ -435,7 +434,7 @@
     </div>
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm sales-kpi sales-kpi--won h-100">
-            <div class="card-body py-2 px-3">
+            <div class="card-body">
                 <div class="text-muted sales-kpi-label">Quot won</div>
                 <div class="fw-bold text-success lh-sm sales-kpi-value">AED {{ won.total|default:0|floatformat:2|intcomma }}</div>
                 <div class="text-muted sales-kpi-sub">{{ won.count|default:0|intcomma }} · lost {{ lost.count|default:0|intcomma }}</div>

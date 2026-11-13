@@ -2,12 +2,6 @@
 
 {% block extra_css %}
 <style>
-.customer-info-card .card-header {
-    padding: 0.625rem 1rem;
-}
-.customer-info-card .card-body {
-    padding: 0.75rem 1rem 0.875rem;
-}
 .customer-info-card .info-field {
     margin-bottom: 0;
 }
@@ -24,11 +18,7 @@
     word-break: break-word;
 }
 
-.crm-activity-card .card-header {
-    padding: 0.625rem 1rem;
-}
 .crm-activity-card .card-body {
-    padding: 0.75rem 1rem;
     overflow: hidden;
 }
 .crm-activity-feed {
@@ -76,17 +66,6 @@
 #customer-soa {
     scroll-margin-top: calc(var(--navbar-height, 56px) + 1rem);
 }
-.customer-soa-card .customer-soa-metrics .metric-box {
-    border: 1px solid var(--gray-200, #e5e5e5);
-    border-radius: 0.375rem;
-    padding: 0.75rem 1rem;
-    height: 100%;
-    background: #fff;
-}
-.customer-soa-card .customer-soa-metrics .metric-box--highlight {
-    background: #fef2f2;
-    border-color: #fecaca;
-}
 .customer-soa-card .customer-soa-section-title {
     letter-spacing: 0.04em;
     margin-bottom: 0.5rem;
@@ -129,22 +108,8 @@
     }
 }
 
-.customer-related-metrics .customer-related-metric {
-    border: 1px solid var(--gray-200, #e5e5e5);
-    border-radius: 0.375rem;
-    padding: 0.5rem 0.75rem;
-    background: #fafafa;
+.customer-related-metrics .metric-box {
     min-width: 0;
-}
-.customer-related-metrics .customer-related-metric .metric-value {
-    font-size: 1.0625rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    line-height: 1.2;
-}
-.customer-related-metrics .customer-related-metric .metric-label {
-    font-size: 0.75rem;
-    color: var(--gray-600, #525252);
 }
 </style>
 {% endblock %}
@@ -384,10 +349,10 @@
                     <i class="fas fa-history me-2 text-primary"></i>Related Transactions
                 </h6>
             </div>
-            <div class="card-body py-3">
+            <div class="card-body">
                 <div class="row g-2 customer-related-metrics">
                     <div class="col-4">
-                        <div class="customer-related-metric d-flex align-items-center justify-content-between gap-2">
+                        <div class="metric-box metric-box--muted d-flex align-items-center justify-content-between gap-2">
                             <span class="metric-label text-nowrap">
                                 <i class="fas fa-file-invoice text-warning me-1" aria-hidden="true"></i>Estimates
                             </span>
@@ -395,7 +360,7 @@
                         </div>
                     </div>
                     <div class="col-4">
-                        <div class="customer-related-metric d-flex align-items-center justify-content-between gap-2">
+                        <div class="metric-box metric-box--muted d-flex align-items-center justify-content-between gap-2">
                             <span class="metric-label text-nowrap">
                                 <i class="fas fa-receipt text-success me-1" aria-hidden="true"></i>Invoices
                             </span>
@@ -403,7 +368,7 @@
                         </div>
                     </div>
                     <div class="col-4">
-                        <div class="customer-related-metric d-flex align-items-center justify-content-between gap-2">
+                        <div class="metric-box metric-box--muted d-flex align-items-center justify-content-between gap-2">
                             <span class="metric-label text-nowrap">
                                 <i class="fas fa-project-diagram text-info me-1" aria-hidden="true"></i>Projects
                             </span>

@@ -53,7 +53,7 @@
                 </thead>
                 <tbody>
                     {% for dn in debit_notes %}
-                    <tr>
+                    <tr class="erp-clickable-row" data-href="{% url 'purchase:debit_note_detail' dn.pk %}">
                         <td class="fw-medium">{{ dn.number }}</td>
                         <td>{{ dn.issue_date|date:"d/m/Y" }}</td>
                         <td>{{ dn.vendor.name }}</td>

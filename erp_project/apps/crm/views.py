@@ -133,6 +133,67 @@ def apply_customer_list_filters(queryset, params, *, apply_type=True):
     return queryset
 
 
+CUSTOMER_LIST_SORT_FIELDS = {
+    'number': 'customer_number',
+    'company': 'company',
+    'name': 'name',
+    'email': 'email',
+    'phone': 'phone',
+    'type': 'customer_type',
+    'status': 'status',
+    'salesman': 'assigned_salesperson__first_name',
+}
+
+
+def _customer_list_default_sort_key():
+    return 'number'
+
+
+def _parse_customer_list_sort(request_get):
+    default = _customer_list_default_sort_key()
+    sort_key = (request_get.get('sort') or default).strip()
+    if sort_key not in CUSTOMER_LIST_SORT_FIELDS:
+        sort_key = default
+    order = (request_get.get('order') or 'desc').lower()
+    if order not in ('asc', 'desc'):
+        order = 'desc'
+    return sort_key, order
+
+
+def _customer_list_sort_querystring(request_get, field):
+    """Next sort state for list links (toggles asc/desc on same column, drops page)."""
+    params = request_get.copy()
+    params.pop('page', None)
+    params.pop('partial', None)
+    default_sort = _customer_list_default_sort_key()
+    if field not in CUSTOMER_LIST_SORT_FIELDS:
+        field = default_sort
+    current = params.get('sort') or default_sort
+    if current not in CUSTOMER_LIST_SORT_FIELDS:
+        current = default_sort
+    order = (params.get('order') or 'desc').lower()
+    if order not in ('asc', 'desc'):
+        order = 'desc'
+    if current == field:
+        params['sort'] = field
+        params['order'] = 'asc' if order == 'desc' else 'desc'
+    else:
+        params['sort'] = field
+        params['order'] = 'asc'
+    return params.urlencode()
+
+
+def _customer_list_ordering(request_get):
+    sort_key, order = _parse_customer_list_sort(request_get)
+    field = CUSTOMER_LIST_SORT_FIELDS[sort_key]
+    prefix = '' if order == 'asc' else '-'
+    ordering = [f'{prefix}{field}']
+    if sort_key == 'salesman':
+        ordering.append(f'{prefix}assigned_salesperson__last_name')
+    ordering.append(f'{prefix}pk')
+    return ordering
+
+
 class CustomerListView(PermissionRequiredMixin, ListView):
     """List all customers with inline create form."""
     model = Customer
@@ -149,7 +210,7 @@ class CustomerListView(PermissionRequiredMixin, ListView):
                 self.request.user,
             ),
             self.request.GET,
-        ).order_by('-customer_number')
+        ).order_by(*_customer_list_ordering(self.request.GET))
 
     def get_paginate_by(self, queryset):
         if self.request.GET.get('show_all') == '1':
@@ -295,6 +356,13 @@ class CustomerListView(PermissionRequiredMixin, ListView):
         context['crm_customer_type_choices'] = Customer.CUSTOMER_TYPE_CHOICES
         context['crm_status_choices'] = Customer.STATUS_CHOICES
         context['crm_filter_date_range'] = customer_date_range_display(self.request.GET)
+        sort_key, order_dir = _parse_customer_list_sort(self.request.GET)
+        context['sort_field'] = sort_key
+        context['sort_order'] = order_dir
+        context['sort_links'] = {
+            key: _customer_list_sort_querystring(self.request.GET, key)
+            for key in CUSTOMER_LIST_SORT_FIELDS
+        }
         return_params = self.request.GET.copy()
         return_params.pop('partial', None)
         return_params.pop('page', None)

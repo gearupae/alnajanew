@@ -15,7 +15,6 @@
 }
 .crm-customer-table th,
 .crm-customer-table td {
-    padding: 0.35rem 0.4rem;
     vertical-align: middle;
     font-size: inherit;
     line-height: 1.4;
@@ -25,8 +24,10 @@
     overflow: hidden;
 }
 .crm-customer-table thead th {
-    font-size: inherit;
+    font-size: 0.75rem;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 .crm-customer-table tbody td a:not(.btn) {
     font-size: inherit;
@@ -471,6 +472,8 @@
             {% if customer_show_all %}
             <input type="hidden" name="show_all" value="1">
             {% endif %}
+            {% if sort_field %}<input type="hidden" name="sort" value="{{ sort_field }}">{% endif %}
+            {% if sort_order %}<input type="hidden" name="order" value="{{ sort_order }}">{% endif %}
             <div class="crm-filter-field crm-filter-search">
                 <input type="text" name="search" class="form-control" placeholder="Name, company, email, VAT..." value="{{ request.GET.search }}">
             </div>
@@ -534,14 +537,48 @@
             <table class="table table-hover table-sm crm-customer-table mb-0" id="crmCustomerTable" data-erp-no-datatable="1">
                 <thead>
                     <tr>
-                        <th class="col-id">#</th>
-                        <th class="col-company">Customer</th>
-                        <th class="col-name">Contact person</th>
-                        <th class="col-email">Email</th>
-                        <th class="col-phone">Phone</th>
-                        <th class="col-type">Type</th>
-                        {% if show_assign_salesman %}<th class="col-salesman">Salesman</th>{% endif %}
-                        <th class="col-status">Status</th>
+                        <th class="col-id erp-sort-th">
+                            <a href="{% url 'crm:customer_list' %}?{{ sort_links.number }}" class="erp-sort-link" title="Sort by customer number">
+                                #{% include 'crm/includes/erp_sort_icon.html' with column='number' %}
+                            </a>
+                        </th>
+                        <th class="col-company erp-sort-th">
+                            <a href="{% url 'crm:customer_list' %}?{{ sort_links.company }}" class="erp-sort-link" title="Sort by company">
+                                Customer{% include 'crm/includes/erp_sort_icon.html' with column='company' %}
+                            </a>
+                        </th>
+                        <th class="col-name erp-sort-th">
+                            <a href="{% url 'crm:customer_list' %}?{{ sort_links.name }}" class="erp-sort-link" title="Sort by contact person">
+                                Contact Person{% include 'crm/includes/erp_sort_icon.html' with column='name' %}
+                            </a>
+                        </th>
+                        <th class="col-email erp-sort-th">
+                            <a href="{% url 'crm:customer_list' %}?{{ sort_links.email }}" class="erp-sort-link" title="Sort by email">
+                                Email{% include 'crm/includes/erp_sort_icon.html' with column='email' %}
+                            </a>
+                        </th>
+                        <th class="col-phone erp-sort-th">
+                            <a href="{% url 'crm:customer_list' %}?{{ sort_links.phone }}" class="erp-sort-link" title="Sort by phone">
+                                Phone{% include 'crm/includes/erp_sort_icon.html' with column='phone' %}
+                            </a>
+                        </th>
+                        <th class="col-type erp-sort-th">
+                            <a href="{% url 'crm:customer_list' %}?{{ sort_links.type }}" class="erp-sort-link" title="Sort by type">
+                                Type{% include 'crm/includes/erp_sort_icon.html' with column='type' %}
+                            </a>
+                        </th>
+                        {% if show_assign_salesman %}
+                        <th class="col-salesman erp-sort-th">
+                            <a href="{% url 'crm:customer_list' %}?{{ sort_links.salesman }}" class="erp-sort-link" title="Sort by salesman">
+                                Salesman{% include 'crm/includes/erp_sort_icon.html' with column='salesman' %}
+                            </a>
+                        </th>
+                        {% endif %}
+                        <th class="col-status erp-sort-th">
+                            <a href="{% url 'crm:customer_list' %}?{{ sort_links.status }}" class="erp-sort-link" title="Sort by status">
+                                Status{% include 'crm/includes/erp_sort_icon.html' with column='status' %}
+                            </a>
+                        </th>
                         <th class="text-center col-actions">Actions</th>
                     </tr>
                 </thead>

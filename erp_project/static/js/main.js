@@ -272,10 +272,20 @@ function erpShouldUseDataTables(table) {
     if (!table.classList.contains('table-hover')) {
         return false;
     }
-    if (table.querySelector('thead a.estimate-sort-link, thead .estimate-sort-th a')) {
+    if (table.querySelector('thead a.estimate-sort-link, thead .estimate-sort-th a, thead a.erp-sort-link')) {
         return false;
     }
     return true;
+}
+
+function erpTableListRowCount(table) {
+    const body = table.tBodies[0];
+    if (!body) {
+        return 0;
+    }
+    return Array.from(body.querySelectorAll('tr')).filter(function (tr) {
+        return !tr.querySelector('td[colspan]');
+    }).length;
 }
 
 function erpWireListTable(table) {
@@ -293,6 +303,11 @@ function erpWireListTable(table) {
         return;
     }
 
+    // DataTables tn/18: colspan empty rows count as one column — skip until real data rows exist.
+    if (erpTableListRowCount(table) === 0) {
+        return;
+    }
+
     const nonSortable = [];
     table.querySelectorAll('thead th').forEach(function (th, i) {
         const label = (th.textContent || '').trim().toLowerCase();
@@ -301,9 +316,7 @@ function erpWireListTable(table) {
         }
     });
 
-    const rowCount = $table.find('tbody tr').filter(function () {
-        return !this.querySelector('td[colspan]');
-    }).length;
+    const rowCount = erpTableListRowCount(table);
     const $card = $table.closest('.card');
     const djangoPaginated = $card.find('.pagination').length > 0;
 
