@@ -2463,13 +2463,19 @@ def _parse_iso_date(s, default=None):
 
 
 def _json_safe_floats(obj):
-    """Replace NaN/inf floats so JsonResponse never fails."""
+    """Make report payloads JSON-serializable (NaN/inf, Decimal, dates)."""
     import math
+    from datetime import date, datetime
+    from decimal import Decimal
 
     if isinstance(obj, dict):
         return {k: _json_safe_floats(v) for k, v in obj.items()}
     if isinstance(obj, list):
         return [_json_safe_floats(v) for v in obj]
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, (date, datetime)):
+        return obj.isoformat()
     if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
         return None
     return obj

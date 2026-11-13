@@ -2,128 +2,11 @@
 {% load humanize %}
 
 {% block extra_css %}
-<style>
-.lead-report-kpi {
-    border-left: 3px solid var(--kpi-accent, #dee2e6);
-}
-.lead-report-kpi--success { --kpi-accent: #198754; }
-.lead-report-kpi--danger { --kpi-accent: #dc3545; }
-.lead-report-kpi--primary { --kpi-accent: #0d6efd; }
-.lead-report-kpi--muted { --kpi-accent: #6c757d; }
-
-.lead-stage-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
-    gap: 0.65rem;
-}
-.lead-stage-chip {
-    border: 1px solid #e9ecef;
-    border-radius: 0.5rem;
-    padding: 0.55rem 0.65rem;
-    background: #fff;
-    min-height: 0;
-}
-.lead-stage-chip.is-active {
-    border-color: #cfe2ff;
-    background: #f8fbff;
-}
-.lead-stage-chip__label {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: #6c757d;
-    margin-bottom: 0.15rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.lead-stage-chip__count {
-    font-size: 1.15rem;
-    font-weight: 700;
-    line-height: 1.1;
-}
-.lead-stage-bar {
-    height: 3px;
-    border-radius: 999px;
-    background: #eef1f4;
-    margin-top: 0.35rem;
-    overflow: hidden;
-}
-.lead-stage-bar__fill {
-    height: 100%;
-    border-radius: 999px;
-    background: #0d6efd;
-}
-.lead-stage-bar__fill--hot { background: #fd7e14; }
-.lead-stage-bar__fill--warm { background: #ffc107; }
-.lead-stage-bar__fill--cold { background: #0dcaf0; }
-.lead-stage-bar__fill--lost { background: #dc3545; }
-.lead-stage-bar__fill--won { background: #198754; }
-.lead-stage-bar__fill--unassigned { background: #adb5bd; }
-
-.lead-status-badge,
-.lead-stage-badge {
-    font-weight: 500;
-    border: 0;
-}
-.lead-stage-badge {
-    background-color: #dbeafe;
-    color: #1e40af;
-}
-.lead-status-badge {
-    background-color: #e9ecef;
-    color: #495057;
-}
-.lead-status-badge--active {
-    background-color: #dcfce7;
-    color: #166534;
-}
-.lead-status-badge--prospect {
-    background-color: #fef3c7;
-    color: #b45309;
-}
-.lead-status-badge--inactive {
-    background-color: #fee2e2;
-    color: #991b1b;
-}
-.lead-stage-badge--hot {
-    background-color: #ffedd5;
-    color: #c2410c;
-}
-.lead-stage-badge--warm {
-    background-color: #fef9c3;
-    color: #a16207;
-}
-.lead-stage-badge--cold {
-    background-color: #cff4fc;
-    color: #055160;
-}
-.lead-stage-badge--lost {
-    background-color: #f8d7da;
-    color: #842029;
-}
-.lead-stage-badge--won {
-    background-color: #d1e7dd;
-    color: #0f5132;
-}
-.lead-stage-badge--unassigned {
-    background-color: #e9ecef;
-    color: #495057;
-}
-.lead-stage-badge--negotiation,
-.lead-stage-badge--negotiating {
-    background-color: #cfe2ff;
-    color: #084298;
-}
-
-@media print {
-    .lead-report-kpi { break-inside: avoid; }
-    .lead-stage-grid { grid-template-columns: repeat(4, 1fr); }
-}
-</style>
+<style>{% include 'reports/includes/erp_report_print.css' %}</style>
 {% endblock %}
 
 {% block content %}
+<div class="erp-report-simple">
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <div>
         <nav aria-label="breadcrumb">
@@ -140,7 +23,7 @@
     </button>
 </div>
 
-<div class="card mb-3 border-0 shadow-sm">
+<div class="card mb-3">
     <div class="card-body py-2 px-3">
         <form method="get" class="list-filters-toolbar row g-2 align-items-end">
             <div class="col-sm-6 col-md-2">
@@ -182,104 +65,55 @@
     </div>
 </div>
 
-<div class="row g-2 mb-3">
-    <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm lead-report-kpi h-100">
-            <div class="card-body py-2 px-3">
-                <div class="text-muted small">Leads created</div>
-                <div class="fs-4 fw-bold lh-sm">{{ total_leads_created|intcomma }}</div>
-            </div>
-        </div>
+<div class="report-kpi-row report-kpi-row--wide">
+    <div class="metric-box">
+        <div class="metric-label">Leads created</div>
+        <div class="metric-value">{{ total_leads_created|intcomma }}</div>
     </div>
-    <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm lead-report-kpi lead-report-kpi--primary h-100">
-            <div class="card-body py-2 px-3">
-                <div class="text-muted small">Active leads</div>
-                <div class="fs-4 fw-bold lh-sm">{{ active_leads_count|intcomma }}</div>
-            </div>
-        </div>
+    <div class="metric-box">
+        <div class="metric-label">Active leads</div>
+        <div class="metric-value">{{ active_leads_count|intcomma }}</div>
     </div>
-    <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm lead-report-kpi lead-report-kpi--success h-100">
-            <div class="card-body py-2 px-3">
-                <div class="text-muted small">Converted</div>
-                <div class="fs-4 fw-bold lh-sm text-success">{{ converted_count|intcomma }}</div>
-                <div class="text-muted small">{{ conversion_rate_pct }}% conversion rate</div>
-            </div>
-        </div>
+    <div class="metric-box metric-box--highlight">
+        <div class="metric-label">Converted</div>
+        <div class="metric-value text-success">{{ converted_count|intcomma }}</div>
+        <div class="small text-muted">{{ conversion_rate_pct }}% conversion rate</div>
     </div>
-    <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm lead-report-kpi lead-report-kpi--muted h-100">
-            <div class="card-body py-2 px-3">
-                <div class="text-muted small">Pipeline value</div>
-                <div class="fs-5 fw-bold lh-sm">AED {{ pipeline_value|floatformat:2|intcomma }}</div>
-            </div>
-        </div>
+    <div class="metric-box">
+        <div class="metric-label">Pipeline value</div>
+        <div class="metric-value">AED {{ pipeline_value|floatformat:2|intcomma }}</div>
+        <div class="small text-muted">Estimates in period: AED {{ estimate_value_in_period|floatformat:2|intcomma }}</div>
     </div>
 </div>
 
-<div class="row g-3 mb-3">
-    <div class="col-lg-8">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body py-3 px-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0 fw-bold">Pipeline stages</h6>
-                    <div class="d-flex flex-wrap gap-2 small">
-                        <span class="badge bg-danger-subtle text-danger">Lost {{ lost_count }}</span>
-                        <span class="badge bg-success-subtle text-success">Won {{ won_stage_count }}</span>
-                        {% if negotiation_count %}
-                        <span class="badge bg-primary-subtle text-primary">Negotiation {{ negotiation_count }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="lead-stage-grid">
-                    {% for row in stage_rows %}
-                    <div class="lead-stage-chip{% if row.count %} is-active{% endif %}">
-                        <div class="lead-stage-chip__label" title="{{ row.name }}">{{ row.name }}</div>
-                        <div class="lead-stage-chip__count">{{ row.count|intcomma }}</div>
-                        <div class="lead-stage-bar">
-                            <div class="lead-stage-bar__fill lead-stage-bar__fill--{{ row.slug|default:'stage' }}"
-                                 style="width: {% widthratio row.count stage_max_count 100 %}%;"></div>
-                        </div>
-                    </div>
-                    {% empty %}
-                    <div class="text-muted small py-1">No pipeline stages configured.</div>
-                    {% endfor %}
-                    <div class="lead-stage-chip{% if unassigned_count %} is-active{% endif %}">
-                        <div class="lead-stage-chip__label">Unassigned</div>
-                        <div class="lead-stage-chip__count">{{ unassigned_count|intcomma }}</div>
-                        <div class="lead-stage-bar">
-                            <div class="lead-stage-bar__fill lead-stage-bar__fill--unassigned"
-                                 style="width: {% widthratio unassigned_count stage_max_count 100 %}%;"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="card mb-3">
+    <div class="card-header bg-white py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="report-section-header">Pipeline stages</span>
+        <span class="small text-muted">Lost {{ lost_count }} · Won {{ won_stage_count }}{% if negotiation_count %} · Negotiation {{ negotiation_count }}{% endif %}</span>
     </div>
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body py-3 px-3 d-flex flex-column justify-content-center">
-                <h6 class="fw-bold mb-3">Lead value</h6>
-                <div class="mb-3">
-                    <div class="text-muted small">Estimates in period</div>
-                    <div class="fs-5 fw-bold mb-0">AED {{ estimate_value_in_period|floatformat:2|intcomma }}</div>
-                </div>
-                <div>
-                    <div class="text-muted small">Latest estimate per active lead</div>
-                    <div class="fs-5 fw-bold mb-0">AED {{ pipeline_value|floatformat:2|intcomma }}</div>
-                </div>
-            </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" data-erp-no-datatable="1">
+                <thead class="table-light"><tr><th>Stage</th><th class="text-end">Leads</th></tr></thead>
+                <tbody>
+                    {% for row in stage_rows %}
+                    <tr><td>{{ row.name }}</td><td class="text-end fw-medium">{{ row.count|intcomma }}</td></tr>
+                    {% empty %}
+                    <tr><td colspan="2" class="text-muted report-empty-cell">No pipeline stages configured.</td></tr>
+                    {% endfor %}
+                    <tr><td>Unassigned</td><td class="text-end fw-medium">{{ unassigned_count|intcomma }}</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
 {% if salesperson_performance %}
-<div class="card border-0 shadow-sm mb-3">
-    <div class="card-body py-2 px-3">
-        <div class="text-muted text-uppercase fw-medium small mb-2">Salesperson performance</div>
+<div class="card mb-3">
+    <div class="card-header bg-white py-2"><span class="report-section-header">Salesperson performance</span></div>
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" data-erp-no-datatable="1">
                 <thead class="table-light">
                     <tr class="small">
                         <th>Salesperson</th>
@@ -310,13 +144,14 @@
 </div>
 {% endif %}
 
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold small text-uppercase text-muted">Active leads in period</h6>
+<div class="card">
+    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+        <span class="report-section-header">Active leads in period</span>
         <span class="small text-muted">{{ lead_details|length }} shown</span>
     </div>
-    <div class="table-responsive">
-        <table class="table table-sm table-hover align-middle mb-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" data-erp-no-datatable="1">
             <thead class="table-light">
                 <tr class="small">
                     <th>Lead</th>
@@ -348,14 +183,10 @@
                     <td>{{ row.salesperson_name }}</td>
                     <td class="text-nowrap">{{ row.created_at|date:"d/m/Y" }}</td>
                     <td>
-                        <span class="badge lead-status-badge lead-status-badge--{{ row.status_code|default:'active' }} fw-normal">
-                            {{ row.status }}
-                        </span>
+                        <span class="badge bg-light text-dark border">{{ row.status }}</span>
                     </td>
                     <td>
-                        <span class="badge lead-stage-badge lead-stage-badge--{{ row.stage_slug }} fw-normal">
-                            {{ row.stage_name }}
-                        </span>
+                        <span class="badge bg-light text-dark border">{{ row.stage_name }}</span>
                     </td>
                     <td>{{ row.job_type|default:"—" }}</td>
                     <td class="text-end text-nowrap">
@@ -371,6 +202,8 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
+</div>
 </div>
 {% endblock %}

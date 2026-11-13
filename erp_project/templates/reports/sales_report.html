@@ -2,239 +2,11 @@
 {% load humanize %}
 
 {% block extra_css %}
-<style>
-/* Slightly larger type across the sales report */
-.sales-report-page {
-    font-size: 0.9375rem;
-}
-.sales-report-page .sales-kpi-label {
-    font-size: 0.875rem;
-}
-.sales-report-page .sales-kpi-value {
-    font-size: 1.35rem;
-}
-.sales-report-page .sales-kpi-sub {
-    font-size: 0.875rem;
-}
-.sales-report-page .sales-section-heading {
-    font-size: 0.8125rem;
-}
-
-.sales-kpi { border-left: 3px solid var(--kpi-accent, #dee2e6); }
-.sales-kpi--invoice { --kpi-accent: #0d6efd; }
-.sales-kpi--collected { --kpi-accent: #198754; }
-.sales-kpi--outstanding { --kpi-accent: #fd7e14; }
-.sales-kpi--won { --kpi-accent: #20c997; }
-
-.sales-pipeline-grid {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 0.5rem;
-}
-@media (max-width: 992px) {
-    .sales-pipeline-grid { grid-template-columns: repeat(3, 1fr); }
-}
-.sales-pipeline-chip {
-    border: 1px solid #e9ecef;
-    border-radius: 0.45rem;
-    padding: 0.4rem 0.5rem;
-    text-align: center;
-}
-.sales-pipeline-chip.is-active { border-color: #cfe2ff; background: #f8fbff; }
-.sales-pipeline-chip__label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    color: #6c757d;
-    margin-bottom: 0.1rem;
-}
-.sales-pipeline-chip__count { font-size: 1.15rem; font-weight: 700; line-height: 1.1; }
-
-/* Detail tabs */
-.sales-detail-card {
-    overflow: hidden;
-}
-.sales-detail-tabs {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 0.35rem;
-    padding: 0.75rem 0.75rem 0;
-    background: linear-gradient(180deg, #f8f9fb 0%, #fff 100%);
-    border-bottom: 1px solid #eef0f3;
-}
-.sales-detail-tab {
-    --tab-accent: #6c757d;
-    appearance: none;
-    border: 1px solid #e3e7ee;
-    background: #fff;
-    border-radius: 0.65rem 0.65rem 0 0;
-    color: #495057;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 0.55rem;
-    flex: 1 1 0;
-    min-width: 0;
-    padding: 0.75rem 0.95rem;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
-}
-.sales-detail-tab:hover {
-    border-color: #cfd6e0;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
-}
-.sales-detail-tab.active {
-    border-color: var(--tab-accent);
-    border-bottom-color: #fff;
-    box-shadow: 0 -2px 0 var(--tab-accent) inset, 0 4px 14px rgba(15, 23, 42, 0.06);
-    color: #212529;
-    margin-bottom: -1px;
-    position: relative;
-    z-index: 1;
-}
-.sales-detail-tab__icon {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 0.55rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: color-mix(in srgb, var(--tab-accent) 12%, white);
-    color: var(--tab-accent);
-    flex-shrink: 0;
-    font-size: 0.95rem;
-}
-.sales-detail-tab__body {
-    text-align: left;
-    min-width: 0;
-    flex: 1 1 auto;
-}
-.sales-detail-tab__label {
-    display: block;
-    font-size: 0.9rem;
-    font-weight: 600;
-    line-height: 1.2;
-}
-.sales-detail-tab__meta {
-    display: block;
-    font-size: 0.8rem;
-    color: #6c757d;
-    line-height: 1.25;
-}
-.sales-detail-tab__count {
-    background: #eef1f5;
-    border-radius: 999px;
-    color: #495057;
-    font-size: 0.78rem;
-    font-weight: 700;
-    line-height: 1;
-    min-width: 1.5rem;
-    padding: 0.32rem 0.5rem;
-    text-align: center;
-    flex-shrink: 0;
-    margin-left: auto;
-}
-@media (max-width: 768px) {
-    .sales-detail-tabs {
-        flex-wrap: wrap;
-    }
-    .sales-detail-tab {
-        flex: 1 1 calc(50% - 0.2rem);
-    }
-    .sales-detail-tab--quotations {
-        flex: 1 1 100%;
-    }
-}
-.sales-detail-tab.active .sales-detail-tab__count {
-    background: color-mix(in srgb, var(--tab-accent) 16%, white);
-    color: var(--tab-accent);
-}
-.sales-detail-tab--invoice { --tab-accent: #0d6efd; }
-.sales-detail-tab--collections { --tab-accent: #198754; }
-.sales-detail-tab--quotations { --tab-accent: #20c997; }
-
-.sales-detail-pane {
-    padding: 0;
-}
-.sales-detail-table-wrap {
-    padding: 0.25rem 0 0;
-}
-.sales-detail-table {
-    margin-bottom: 0;
-}
-.sales-detail-table tbody tr:last-child td {
-    border-bottom: 0;
-}
-.sales-detail-empty {
-    color: #6c757d;
-    padding: 2.75rem 1rem;
-    text-align: center;
-}
-.sales-detail-empty__icon {
-    align-items: center;
-    background: #f1f3f5;
-    border-radius: 50%;
-    color: #adb5bd;
-    display: inline-flex;
-    font-size: 1.25rem;
-    height: 3rem;
-    justify-content: center;
-    margin-bottom: 0.75rem;
-    width: 3rem;
-}
-.sales-status-badge {
-    border-radius: 999px;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    padding: 0.32rem 0.6rem;
-}
-.sales-status-badge.is-won {
-    background: #d1e7dd;
-    color: #0f5132;
-}
-.sales-status-badge.is-lost {
-    background: #f8d7da;
-    color: #842029;
-}
-.sales-status-badge.is-default {
-    background: #e7f1ff;
-    color: #084298;
-}
-
-.sales-perf-table tbody tr.is-selected {
-    background: #f0f7ff;
-}
-.sales-alert-list .alert {
-    margin-bottom: 0.5rem;
-}
-.sales-alert-list .alert:last-child {
-    margin-bottom: 0;
-}
-
-@media (max-width: 768px) {
-    .sales-detail-tabs {
-        flex-direction: column;
-        gap: 0.45rem;
-        padding-bottom: 0.75rem;
-    }
-    .sales-detail-tab {
-        border-radius: 0.65rem;
-        width: 100%;
-    }
-    .sales-detail-tab.active {
-        margin-bottom: 0;
-    }
-}
-
-@media print {
-    .sales-kpi { break-inside: avoid; }
-    .sales-detail-tabs { display: none; }
-    .tab-pane { display: block !important; opacity: 1 !important; }
-}
-</style>
+<style>{% include 'reports/includes/erp_report_print.css' %}</style>
 {% endblock %}
 
 {% block content %}
-<div class="sales-report-page">
+<div class="erp-report-simple">
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <div>
         <nav aria-label="breadcrumb">
@@ -251,9 +23,9 @@
     </button>
 </div>
 
-<div class="card mb-3 border-0 shadow-sm">
+<div class="card mb-3">
     <div class="card-body py-2 px-3">
-        <form method="get" class="row g-2 align-items-end">
+        <form method="get" class="list-filters-toolbar row g-2 align-items-end">
             <div class="col-sm-4 col-md-3">
                 <label class="form-label mb-1">Start Date</label>
                 <input type="date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
@@ -306,16 +78,14 @@
 </div>
 {% endif %}
 
-<div class="card border-0 shadow-sm mb-3">
-    <div class="card-body py-2 px-3">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-            <div class="text-muted text-uppercase fw-medium sales-section-heading mb-0">
-                Salesman performance{% if is_current_month %} this month{% endif %}
-            </div>
-            <span class="text-muted small">Click a row to filter the report</span>
-        </div>
+<div class="card mb-3">
+    <div class="card-header bg-white py-2">
+        <span class="report-section-header">Salesman performance{% if is_current_month %} this month{% endif %}</span>
+        <span class="text-muted small ms-2">— click a name to filter</span>
+    </div>
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle sales-perf-table mb-0">
+            <table class="table table-hover align-middle mb-0" data-erp-no-datatable="1">
                 <thead class="table-light">
                     <tr>
                         <th>Salesman</th>
@@ -327,7 +97,7 @@
                 </thead>
                 <tbody>
                     {% for row in salesperson_performance %}
-                    <tr class="{% if row.is_selected %}is-selected{% elif row.collected_total <= 0 and row.invoiced_total <= 0 and row.won_total <= 0 %}text-muted{% endif %}">
+                    <tr class="{% if row.is_selected %}table-primary{% elif row.collected_total <= 0 and row.invoiced_total <= 0 and row.won_total <= 0 %}text-muted{% endif %}">
                         <td>
                             <a href="?start_date={{ start_date|date:'Y-m-d' }}&amp;end_date={{ end_date|date:'Y-m-d' }}&amp;salesperson={{ row.filter_key }}" class="text-decoration-none fw-medium {% if row.is_selected %}text-primary{% else %}text-dark{% endif %}">
                                 {{ row.label }}
@@ -343,7 +113,7 @@
             </table>
         </div>
         {% if filter_salesperson %}
-        <div class="mt-2">
+        <div class="px-3 py-2 border-top">
             <a href="?start_date={{ start_date|date:'Y-m-d' }}&amp;end_date={{ end_date|date:'Y-m-d' }}" class="small text-decoration-none">Clear salesman filter</a>
         </div>
         {% endif %}
@@ -351,11 +121,11 @@
 </div>
 
 {% if revenue_by_customer %}
-<div class="card border-0 shadow-sm mb-3">
-    <div class="card-body py-2 px-3">
-        <div class="text-muted text-uppercase fw-medium small mb-2">Revenue by customer</div>
+<div class="card mb-3">
+    <div class="card-header bg-white py-2"><span class="report-section-header">Revenue by customer</span></div>
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" data-erp-no-datatable="1">
                 <thead class="table-light">
                     <tr>
                         <th>Customer</th>
@@ -382,90 +152,65 @@
 </div>
 {% endif %}
 
-<div class="row g-2 mb-3">
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm sales-kpi sales-kpi--invoice h-100">
-            <div class="card-body">
-                <div class="text-muted sales-kpi-label">Invoiced</div>
-                <div class="fw-bold text-primary lh-sm sales-kpi-value">AED {{ invoiced.total|default:0|floatformat:2|intcomma }}</div>
-                <div class="text-muted sales-kpi-sub">{{ invoiced.count|default:0|intcomma }} invoice{{ invoiced.count|pluralize }}</div>
-            </div>
-        </div>
+<div class="report-kpi-row report-kpi-row--wide">
+    <div class="metric-box">
+        <div class="metric-label">Invoiced</div>
+        <div class="metric-value text-primary">AED {{ invoiced.total|default:0|floatformat:2|intcomma }}</div>
+        <div class="small text-muted">{{ invoiced.count|default:0|intcomma }} invoice{{ invoiced.count|pluralize }}</div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm sales-kpi sales-kpi--collected h-100">
-            <div class="card-body">
-                <div class="text-muted sales-kpi-label">Collected</div>
-                <div class="fw-bold text-success lh-sm sales-kpi-value">AED {{ collected.total|floatformat:2|intcomma }}</div>
-                <div class="text-muted sales-kpi-sub">{{ collected.count|intcomma }} in period</div>
-            </div>
-        </div>
+    <div class="metric-box">
+        <div class="metric-label">Collected</div>
+        <div class="metric-value text-success">AED {{ collected.total|floatformat:2|intcomma }}</div>
+        <div class="small text-muted">{{ collected.count|intcomma }} in period</div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm sales-kpi sales-kpi--outstanding h-100">
-            <div class="card-body">
-                <div class="text-muted sales-kpi-label">Outstanding AR</div>
-                <div class="fw-bold text-warning lh-sm sales-kpi-value">AED {{ outstanding.total|floatformat:2|intcomma }}</div>
-                <div class="text-muted sales-kpi-sub">{{ outstanding.count|default:0|intcomma }} open</div>
-            </div>
-        </div>
+    <div class="metric-box">
+        <div class="metric-label">Outstanding AR</div>
+        <div class="metric-value">AED {{ outstanding.total|floatformat:2|intcomma }}</div>
+        <div class="small text-muted">{{ outstanding.count|default:0|intcomma }} open</div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm sales-kpi sales-kpi--won h-100">
-            <div class="card-body">
-                <div class="text-muted sales-kpi-label">Quot won</div>
-                <div class="fw-bold text-success lh-sm sales-kpi-value">AED {{ won.total|default:0|floatformat:2|intcomma }}</div>
-                <div class="text-muted sales-kpi-sub">{{ won.count|default:0|intcomma }} · lost {{ lost.count|default:0|intcomma }}</div>
-            </div>
-        </div>
+    <div class="metric-box">
+        <div class="metric-label">Quotations won</div>
+        <div class="metric-value text-success">AED {{ won.total|default:0|floatformat:2|intcomma }}</div>
+        <div class="small text-muted">{{ won.count|default:0|intcomma }} won · {{ lost.count|default:0|intcomma }} lost</div>
     </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-3">
-    <div class="card-body py-2 px-3">
-        <div class="text-muted text-uppercase fw-medium mb-2 sales-section-heading">Quotations in period</div>
-        <div class="sales-pipeline-grid">
-            {% for row in pipeline_rows %}
-            <div class="sales-pipeline-chip{% if row.count %} is-active{% endif %}">
-                <div class="sales-pipeline-chip__label">{{ row.label }}</div>
-                <div class="sales-pipeline-chip__count">{{ row.count|intcomma }}</div>
-            </div>
-            {% endfor %}
+{% if pipeline_rows %}
+<div class="card mb-3">
+    <div class="card-header bg-white py-2"><span class="report-section-header">Quotation pipeline (period)</span></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" data-erp-no-datatable="1">
+                <thead class="table-light"><tr><th>Stage / status</th><th class="text-end">Count</th></tr></thead>
+                <tbody>
+                    {% for row in pipeline_rows %}
+                    <tr><td>{{ row.label }}</td><td class="text-end fw-medium">{{ row.count|intcomma }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
+{% endif %}
 
-<div class="card border-0 shadow-sm sales-detail-card">
-    <div class="sales-detail-tabs" role="tablist">
-        <button class="sales-detail-tab sales-detail-tab--invoice active" data-bs-toggle="tab" data-bs-target="#tab-invoices" type="button" role="tab" aria-selected="true">
-            <span class="sales-detail-tab__icon"><i class="fas fa-file-invoice"></i></span>
-            <span class="sales-detail-tab__body">
-                <span class="sales-detail-tab__label">Invoices</span>
-                <span class="sales-detail-tab__meta">AED {{ invoiced.total|default:0|floatformat:0|intcomma }} invoiced</span>
-            </span>
-            <span class="sales-detail-tab__count">{{ invoiced.count|default:0|intcomma }}</span>
-        </button>
-        <button class="sales-detail-tab sales-detail-tab--collections" data-bs-toggle="tab" data-bs-target="#tab-collections" type="button" role="tab" aria-selected="false">
-            <span class="sales-detail-tab__icon"><i class="fas fa-hand-holding-usd"></i></span>
-            <span class="sales-detail-tab__body">
-                <span class="sales-detail-tab__label">Collections</span>
-                <span class="sales-detail-tab__meta">AED {{ collected.total|floatformat:0|intcomma }} collected</span>
-            </span>
-            <span class="sales-detail-tab__count">{{ collected.count|default:0|intcomma }}</span>
-        </button>
-        <button class="sales-detail-tab sales-detail-tab--quotations" data-bs-toggle="tab" data-bs-target="#tab-quotations" type="button" role="tab" aria-selected="false">
-            <span class="sales-detail-tab__icon"><i class="fas fa-file-signature"></i></span>
-            <span class="sales-detail-tab__body">
-                <span class="sales-detail-tab__label">Quotations</span>
-                <span class="sales-detail-tab__meta">{{ quotation_rows|length|intcomma }} in selected period</span>
-            </span>
-            <span class="sales-detail-tab__count">{{ quotation_rows|length|intcomma }}</span>
-        </button>
+<div class="card mb-3">
+    <div class="card-header bg-white py-2">
+        <ul class="nav nav-pills gap-1" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-invoices" type="button" role="tab">Invoices ({{ invoiced.count|default:0|intcomma }})</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-collections" type="button" role="tab">Collections ({{ collected.count|default:0|intcomma }})</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-quotations" type="button" role="tab">Quotations ({{ quotation_rows|length|intcomma }})</button>
+            </li>
+        </ul>
     </div>
-    <div class="tab-content sales-detail-pane">
+    <div class="tab-content">
         <div class="tab-pane fade show active" id="tab-invoices" role="tabpanel">
-            <div class="table-responsive sales-detail-table-wrap">
-                <table class="table table-hover sales-detail-table align-middle mb-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" data-erp-no-datatable="1">
                     <thead>
                         <tr>
                             <th>Invoice</th><th>Customer</th><th>Salesman</th><th>Date</th>
@@ -483,15 +228,7 @@
                             <td class="text-end {% if row.balance %}text-warning fw-semibold{% else %}text-muted{% endif %}">{{ row.balance|floatformat:2|intcomma }}</td>
                         </tr>
                         {% empty %}
-                        <tr>
-                            <td colspan="6">
-                                <div class="sales-detail-empty">
-                                    <div class="sales-detail-empty__icon"><i class="fas fa-file-invoice"></i></div>
-                                    <div class="fw-semibold mb-1">No invoices in this period</div>
-                                    <div class="small">Adjust the date range or create a new invoice.</div>
-                                </div>
-                            </td>
-                        </tr>
+                        <tr><td colspan="6" class="report-empty-cell text-muted">No invoices in this period.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -499,8 +236,8 @@
         </div>
 
         <div class="tab-pane fade" id="tab-collections" role="tabpanel">
-            <div class="table-responsive sales-detail-table-wrap">
-                <table class="table table-hover sales-detail-table align-middle mb-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" data-erp-no-datatable="1">
                     <thead>
                         <tr>
                             <th>Reference</th><th>Customer</th><th>Date</th><th class="text-end">Amount</th>
@@ -524,15 +261,7 @@
                         </tr>
                         {% endfor %}
                         {% if not payment_rows and not receipt_rows %}
-                        <tr>
-                            <td colspan="4">
-                                <div class="sales-detail-empty">
-                                    <div class="sales-detail-empty__icon"><i class="fas fa-hand-holding-usd"></i></div>
-                                    <div class="fw-semibold mb-1">No collections in this period</div>
-                                    <div class="small">Payments and customer receipts will appear here.</div>
-                                </div>
-                            </td>
-                        </tr>
+                        <tr><td colspan="4" class="report-empty-cell text-muted">No collections in this period.</td></tr>
                         {% endif %}
                     </tbody>
                 </table>
@@ -540,8 +269,8 @@
         </div>
 
         <div class="tab-pane fade" id="tab-quotations" role="tabpanel">
-            <div class="table-responsive sales-detail-table-wrap">
-                <table class="table table-hover sales-detail-table align-middle mb-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" data-erp-no-datatable="1">
                     <thead>
                         <tr>
                             <th>Estimate</th><th>Customer</th><th>Salesman</th><th>Date</th><th>Status</th><th class="text-end">Amount</th>
@@ -555,23 +284,15 @@
                             <td class="text-muted">{{ row.salesman_name }}</td>
                             <td class="text-muted">{{ row.date|date:"d/m/Y" }}</td>
                             <td>
-                                <span class="sales-status-badge
-                                    {% if row.status_code == 'quotation_won' %}is-won
-                                    {% elif row.status_code == 'quotation_lost' %}is-lost
-                                    {% else %}is-default{% endif %}">{{ row.status }}</span>
+                                <span class="badge
+                                    {% if row.status_code == 'quotation_won' %}bg-success
+                                    {% elif row.status_code == 'quotation_lost' %}bg-danger
+                                    {% else %}bg-secondary{% endif %}">{{ row.status }}</span>
                             </td>
                             <td class="text-end fw-semibold">AED {{ row.total_amount|floatformat:2|intcomma }}</td>
                         </tr>
                         {% empty %}
-                        <tr>
-                            <td colspan="6">
-                                <div class="sales-detail-empty">
-                                    <div class="sales-detail-empty__icon"><i class="fas fa-file-signature"></i></div>
-                                    <div class="fw-semibold mb-1">No quotations in this period</div>
-                                    <div class="small">Create estimates or widen the date range to see activity.</div>
-                                </div>
-                            </td>
-                        </tr>
+                        <tr><td colspan="6" class="report-empty-cell text-muted">No quotations in this period.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -582,19 +303,3 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
-<script>
-(function () {
-  document.querySelectorAll('.sales-detail-tab[data-bs-toggle="tab"]').forEach(function (tab) {
-    tab.addEventListener('shown.bs.tab', function (event) {
-      document.querySelectorAll('.sales-detail-tab').forEach(function (btn) {
-        btn.classList.remove('active');
-        btn.setAttribute('aria-selected', 'false');
-      });
-      event.target.classList.add('active');
-      event.target.setAttribute('aria-selected', 'true');
-    });
-  });
-})();
-</script>
-{% endblock %}

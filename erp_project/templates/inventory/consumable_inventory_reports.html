@@ -46,6 +46,14 @@
         color: var(--white, #fff);
         border-color: var(--black, #111);
     }
+    .consumable-report-table { min-width: 64rem; }
+    .report-table-wrap .erp-ellipsis,
+    .report-table-wrap tbody td.erp-ellipsis {
+        max-width: 10rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
     @media (max-width: 767.98px) {
         .reports-toolbar .btn { width: 100%; margin-bottom: 0.35rem; }
         .chart-box { height: 220px; }
@@ -144,6 +152,7 @@
     <div id="report-panel" class="card border shadow-sm position-relative" data-erp-no-list>
         <div class="card-body position-relative">
             <div id="report-result-heading" class="d-none small text-muted mb-2 fw-semibold"></div>
+            <div id="report-result-description" class="d-none small text-muted mb-3"></div>
 
             <div id="report-intro" class="text-center text-muted py-5 px-2">
                 <i class="fas fa-table fa-2x mb-3 opacity-50 d-block text-secondary"></i>
@@ -165,7 +174,7 @@
                     <path d="M154 50l4 4 8-10" stroke="#4338ca" stroke-width="3" fill="none" stroke-linecap="round"/>
                 </svg>
                 <h6 class="fw-semibold">No rows for this report</h6>
-                <p class="text-muted small mb-0">There are no active product items, or nothing matches the filters and date range.</p>
+                <p id="report-empty-message" class="text-muted small mb-0">There are no active product items, or nothing matches the filters and date range.</p>
             </div>
 
             <div id="report-analytics-extras" class="d-none mb-4">
@@ -219,7 +228,7 @@
 
             <div id="report-table-wrap" class="report-table-wrap d-none">
                 <div class="table-responsive">
-                    <table class="table table-sm table-hover align-middle mb-0 erp-no-list-table" id="report-table" data-erp-dynamic-table="1">
+                    <table class="table table-sm table-hover align-middle mb-0 erp-no-list-table consumable-report-table" id="report-table" data-erp-dynamic-table="1" data-erp-no-datatable="1">
                         <thead class="table-light"><tr id="report-thead"></tr></thead>
                         <tbody id="report-tbody"></tbody>
                         <tfoot class="table-light d-none" id="report-tfoot"><tr id="report-tfoot-row"></tr></tfoot>
@@ -263,6 +272,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentReport = 'stock_summary';
     let currentTitle = 'Stock summary';
     let lastPayload = null;
+    let generating = false;
     let chartMonthly, chartPie, chartBar;
 
     function apiBase(path) {
@@ -281,8 +291,21 @@ document.addEventListener('DOMContentLoaded', function () {
         return n;
     }
 
+    function fmtDateCell(v) {
+        if (v === undefined || v === null || v === '') return '';
+        var s = String(v);
+        var p = s.split('T')[0].split('-');
+        if (p.length === 3 && p[0].length === 4) {
+            return p[2] + '/' + p[1] + '/' + p[0];
+        }
+        return s;
+    }
+
     function fmtCell(v, col) {
         if (v === undefined || v === null) return '';
+        if (col.format === 'date') {
+            return fmtDateCell(v);
+        }
         if (col.format === 'money' || col.format === 'number') {
             var n = toNum(v);
             if (!isNaN(n)) {
@@ -294,6 +317,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         return String(v);
     }
+
+    var REPORT_EMPTY_HINTS = {
+        stock_summary: 'No active product items found for this period.',
+        low_stock: 'No items are below minimum stock for this period.',
+        inventory_analytics: 'No product items to analyse for this period.',
+        inventory_valuation: 'No items to value for this period.',
+        warranty: 'No items match the warranty filter (try “All”).',
+        stock_movement: 'No stock movements were recorded in this date range.',
+        stock_balance: 'No balance rows for this period.',
+    };
 
     function applyPreset() {
         var p = document.getElementById('period-preset').value;
@@ -353,7 +386,13 @@ document.addEventListener('DOMContentLoaded', function () {
         (columns || []).forEach(function (col) {
             var th = document.createElement('th');
             th.className = 'text-nowrap';
-            th.textContent = col.label;
+            if (col.format === 'money' || col.format === 'number') {
+                th.className += ' text-end';
+            }
+            th.textContent = col.label || col.key;
+            if (col.hint) {
+                th.title = col.hint;
+            }
             theadEl.appendChild(th);
         });
         (rows || []).forEach(function (row) {
@@ -370,10 +409,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     badge.textContent = (v === undefined || v === null) ? '' : String(v);
                     td.appendChild(badge);
                 } else {
+                    var cellText = fmtCell(v, col);
                     if (col.format === 'money' || col.format === 'number') {
-                        td.className = 'text-end';
+                        td.className = 'text-end text-nowrap';
                     }
-                    td.textContent = fmtCell(v, col);
+                    if (cellText.length > 24) {
+                        td.classList.add('erp-ellipsis');
+                        td.title = cellText;
+                    }
+                    td.textContent = cellText;
                 }
                 tr.appendChild(td);
             });
@@ -516,7 +560,7 @@ document.addEventListener('DOMContentLoaded', function () {
         wrap.classList.remove('d-none');
         var k = payload.kpi || {};
         document.getElementById('kpi-items').textContent = (k.total_items !== undefined && k.total_items !== null) ? String(k.total_items) : '—';
-        document.getElementById('kpi-value').textContent = fmtKpiNum(k.total_value, true);
+        document.getElementById('kpi-value').textContent = 'AED ' + fmtKpiNum(k.total_value, true);
         document.getElementById('kpi-low').textContent = (k.low_stock_count !== undefined && k.low_stock_count !== null) ? String(k.low_stock_count) : '—';
         document.getElementById('kpi-turn').textContent = fmtKpiNum(k.avg_turnover_rate, false);
         destroyCharts();
@@ -554,8 +598,21 @@ document.addEventListener('DOMContentLoaded', function () {
         el.classList.toggle('d-none', !text);
     }
 
+    function setResultDescription(text) {
+        var el = document.getElementById('report-result-description');
+        el.textContent = text || '';
+        el.classList.toggle('d-none', !text);
+    }
+
+    function setEmptyMessage(reportKey) {
+        var msg = REPORT_EMPTY_HINTS[reportKey] || 'No rows match the selected report and filters.';
+        document.getElementById('report-empty-message').textContent = msg;
+    }
+
     async function generate() {
+        if (generating) return;
         if (!validateDates()) return;
+        generating = true;
         var df = document.getElementById('date-from').value;
         var dt = document.getElementById('date-to').value;
         if (!df || !dt) {
@@ -569,6 +626,7 @@ document.addEventListener('DOMContentLoaded', function () {
         hideLowStockSection();
         document.getElementById('report-intro').classList.add('d-none');
         setResultHeading('');
+        setResultDescription('');
         document.getElementById('report-loading').classList.add('show');
         var lm = document.querySelector('#report-loading .loading-message');
         if (lm) lm.textContent = 'Generating…';
@@ -595,6 +653,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('generate-label').classList.remove('d-none');
             document.getElementById('generate-spinner').classList.add('d-none');
             if (!data.rows || data.rows.length === 0) {
+                setEmptyMessage(currentReport);
                 document.getElementById('report-intro').classList.add('d-none');
                 document.getElementById('report-empty').classList.remove('d-none');
                 document.getElementById('report-analytics-extras').classList.add('d-none');
@@ -602,6 +661,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 hideLowStockSection();
                 destroyCharts();
                 setExportEnabled(false);
+                generating = false;
                 return;
             }
             document.getElementById('report-intro').classList.add('d-none');
@@ -609,6 +669,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var heading = currentTitle;
             if (data.title) heading = data.title;
             setResultHeading(heading + ' · ' + df + ' → ' + dt);
+            setResultDescription(data.description || '');
             renderTable(data);
             renderConsolidatedBar(data);
             renderLowStockSection(data);
@@ -626,6 +687,8 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('generate-spinner').classList.add('d-none');
             if (window.toastr) toastr.error(e.message || 'Error');
             else alert(e.message || 'Error');
+        } finally {
+            generating = false;
         }
     }
 
@@ -651,11 +714,11 @@ document.addEventListener('DOMContentLoaded', function () {
             hideLowStockSection();
             document.getElementById('report-analytics-extras').classList.add('d-none');
             document.getElementById('report-empty').classList.add('d-none');
-            document.getElementById('report-loading').classList.remove('show');
-            document.getElementById('report-intro').classList.remove('d-none');
             setResultHeading('');
+            setResultDescription('');
             destroyCharts();
             setExportEnabled(false);
+            generate();
         });
     });
 

@@ -2,55 +2,11 @@
 {% load humanize %}
 
 {% block extra_css %}
-<style>
-.customer-report-section {
-    scroll-margin-top: 5rem;
-}
-.customer-report-section__title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: #153a5c;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.35rem;
-    border-bottom: 2px solid #e9ecef;
-}
-.customer-report-header {
-    background: linear-gradient(135deg, #153a5c 0%, #1e4976 100%);
-    color: #fff;
-    border-radius: 0.5rem;
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1.5rem;
-}
-.customer-report-meta {
-    background: #f8f9fb;
-    border: 1px solid #e9ecef;
-    border-radius: 0.5rem;
-    padding: 1rem 1.25rem;
-}
-.customer-report-kpi {
-    border-left: 3px solid var(--kpi-accent, #153a5c);
-}
-.customer-report-kpi--progress { --kpi-accent: #198754; }
-.customer-report-kpi--team { --kpi-accent: #0d6efd; }
-.customer-report-kpi--tech { --kpi-accent: #fd7e14; }
-.customer-report-kpi--tasks { --kpi-accent: #6f42c1; }
-
-@media print {
-    .no-print { display: none !important; }
-    .customer-report-section { break-inside: avoid-page; page-break-inside: avoid; }
-    .customer-report-header {
-        background: #153a5c !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-    .card { border: 1px solid #dee2e6 !important; box-shadow: none !important; }
-}
-</style>
+<style>{% include 'reports/includes/erp_report_print.css' %}</style>
 {% endblock %}
 
 {% block content %}
+<div class="erp-report-simple">
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 no-print">
     <div>
         <nav aria-label="breadcrumb">
@@ -163,84 +119,36 @@
     {% endif %}
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card customer-report-kpi customer-report-kpi--progress h-100">
-            <div class="card-body py-3">
-                <div class="small text-muted">Task progress</div>
-                <div class="fw-bold fs-5">{{ report.completed_count }} / {{ report.total_tasks }} completed</div>
-                <div class="small text-muted">{{ report.task_progress_percent|floatformat:1 }}%</div>
-            </div>
-        </div>
+<div class="report-kpi-row report-kpi-row--wide mb-3">
+    <div class="metric-box">
+        <div class="metric-label">Task progress</div>
+        <div class="metric-value">{{ report.completed_count }} / {{ report.total_tasks }}</div>
+        <div class="small text-muted">{{ report.task_progress_percent|floatformat:1 }}% complete</div>
     </div>
-    <div class="col-md-3">
-        <div class="card customer-report-kpi customer-report-kpi--team h-100">
-            <div class="card-body py-3">
-                <div class="small text-muted">Team members</div>
-                <div class="fw-bold fs-5">{{ report.team_member_count }}</div>
-            </div>
-        </div>
+    <div class="metric-box">
+        <div class="metric-label">Team · technicians</div>
+        <div class="metric-value">{{ report.team_member_count }} · {{ report.technician_count }}</div>
+        <div class="small text-muted">{{ report.pending_count }} open tasks</div>
     </div>
-    <div class="col-md-3">
-        <div class="card customer-report-kpi customer-report-kpi--tech h-100">
-            <div class="card-body py-3">
-                <div class="small text-muted">Technicians</div>
-                <div class="fw-bold fs-5">{{ report.technician_count }}</div>
-            </div>
-        </div>
+    <div class="metric-box">
+        <div class="metric-label">Contract value</div>
+        <div class="metric-value">AED {{ report.contract_value|floatformat:2|intcomma }}</div>
     </div>
-    <div class="col-md-3">
-        <div class="card customer-report-kpi customer-report-kpi--tasks h-100">
-            <div class="card-body py-3">
-                <div class="small text-muted">Open tasks</div>
-                <div class="fw-bold fs-5">{{ report.pending_count }}</div>
-            </div>
-        </div>
+    <div class="metric-box">
+        <div class="metric-label">Invoiced / received</div>
+        <div class="metric-value">AED {{ report.billing.invoiced_amount|floatformat:2|intcomma }}</div>
+        <div class="small text-success">Received AED {{ report.billing.received_amount|floatformat:2|intcomma }}{% if report.billing_progress_pct is not None %} ({{ report.billing_progress_pct }}%){% endif %}</div>
     </div>
-</div>
-
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card customer-report-kpi h-100" style="--kpi-accent: #0d6efd;">
-            <div class="card-body py-3">
-                <div class="small text-muted">Contract value</div>
-                <div class="fw-bold fs-5">AED {{ report.contract_value|floatformat:2|intcomma }}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card customer-report-kpi h-100" style="--kpi-accent: #198754;">
-            <div class="card-body py-3">
-                <div class="small text-muted">Invoiced</div>
-                <div class="fw-bold fs-5">AED {{ report.billing.invoiced_amount|floatformat:2|intcomma }}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card customer-report-kpi h-100" style="--kpi-accent: #20c997;">
-            <div class="card-body py-3">
-                <div class="small text-muted">Received</div>
-                <div class="fw-bold fs-5 text-success">AED {{ report.billing.received_amount|floatformat:2|intcomma }}</div>
-                {% if report.billing_progress_pct is not None %}
-                <div class="small text-muted">{{ report.billing_progress_pct }}% of contract</div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card customer-report-kpi h-100" style="--kpi-accent: #fd7e14;">
-            <div class="card-body py-3">
-                <div class="small text-muted">Balance due</div>
-                <div class="fw-bold fs-5">AED {{ report.billing.balance_amount|floatformat:2|intcomma }}</div>
-            </div>
-        </div>
+    <div class="metric-box">
+        <div class="metric-label">Balance due</div>
+        <div class="metric-value">AED {{ report.billing.balance_amount|floatformat:2|intcomma }}</div>
     </div>
 </div>
 
 {% if report.billing_invoices %}
 <div class="card mb-4 customer-report-section" id="section-billing">
     <div class="card-body">
-        <h6 class="customer-report-section__title"><i class="fas fa-file-invoice-dollar me-2"></i>Billing summary</h6>
+        <h6 class="customer-report-section__title">Billing summary</h6>
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle mb-0">
                 <thead class="table-light">
@@ -292,7 +200,7 @@
 <!-- Team members -->
 <div class="card mb-4 customer-report-section" id="section-team">
     <div class="card-body">
-        <h6 class="customer-report-section__title"><i class="fas fa-users me-2"></i>Team members</h6>
+        <h6 class="customer-report-section__title">Team members</h6>
         {% if report.team_members %}
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle mb-0">
@@ -331,7 +239,7 @@
 <!-- Technicians -->
 <div class="card mb-4 customer-report-section" id="section-technicians">
     <div class="card-body">
-        <h6 class="customer-report-section__title"><i class="fas fa-hard-hat me-2"></i>Technicians</h6>
+        <h6 class="customer-report-section__title">Technicians</h6>
         {% if report.technicians %}
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle mb-0">
@@ -370,7 +278,7 @@
 <!-- Completed tasks -->
 <div class="card mb-4 customer-report-section" id="section-completed">
     <div class="card-body">
-        <h6 class="customer-report-section__title"><i class="fas fa-check-circle me-2 text-success"></i>Tasks completed</h6>
+        <h6 class="customer-report-section__title">Tasks completed</h6>
         {% if report.completed_tasks %}
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle mb-0">
@@ -410,7 +318,7 @@
 <!-- All tasks -->
 <div class="card mb-4 customer-report-section" id="section-tasks">
     <div class="card-body">
-        <h6 class="customer-report-section__title"><i class="fas fa-list-check me-2"></i>All project tasks</h6>
+        <h6 class="customer-report-section__title">All project tasks</h6>
         {% if report.tasks %}
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle mb-0">
@@ -462,4 +370,5 @@
 </div>
 
 {% endif %}
+</div>
 {% endblock %}

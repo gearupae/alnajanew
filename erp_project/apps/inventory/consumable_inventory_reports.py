@@ -129,16 +129,17 @@ def _attach_valuation_to_rows(rows: list[dict]) -> Decimal:
 
 
 LOW_STOCK_TABLE_COLUMNS = [
-    {'key': 'item_name', 'label': 'Item Name'},
-    {'key': 'category', 'label': 'Category'},
-    {'key': 'location', 'label': 'Location / Shelf'},
-    {'key': 'barcode', 'label': 'Barcode / Asset Code'},
-    {'key': 'unit', 'label': 'Unit'},
-    {'key': 'closing', 'label': 'Qty on Hand', 'format': 'number'},
-    {'key': 'minimum', 'label': 'Min Level', 'format': 'number'},
-    {'key': 'shortfall', 'label': 'Shortfall', 'format': 'number'},
-    {'key': 'unit_cost', 'label': 'Unit Cost', 'format': 'money'},
-    {'key': 'total_value', 'label': 'Stock Value', 'format': 'money'},
+    {'key': 'item_code', 'label': 'Item Code', 'hint': 'ERP item code'},
+    {'key': 'item_name', 'label': 'Item Name', 'hint': 'Product / consumable name'},
+    {'key': 'category', 'label': 'Category', 'hint': 'Inventory category'},
+    {'key': 'location', 'label': 'Storage Location', 'hint': 'Warehouse shelf or bin'},
+    {'key': 'barcode', 'label': 'Barcode', 'hint': 'Barcode or asset tag'},
+    {'key': 'unit', 'label': 'UoM', 'hint': 'Unit of measure (ea, box, kg, …)'},
+    {'key': 'closing', 'label': 'Qty on Hand', 'format': 'number', 'hint': 'Quantity at end of selected period'},
+    {'key': 'minimum', 'label': 'Min Stock', 'format': 'number', 'hint': 'Minimum stock level configured on item'},
+    {'key': 'shortfall', 'label': 'Shortfall', 'format': 'number', 'hint': 'Qty needed to reach minimum (0 if OK)'},
+    {'key': 'unit_cost', 'label': 'Unit Cost (AED)', 'format': 'money', 'hint': 'Purchase or weighted average cost'},
+    {'key': 'total_value', 'label': 'Stock Value (AED)', 'format': 'money', 'hint': 'Qty on hand × unit cost'},
 ]
 
 
@@ -149,6 +150,7 @@ def _low_stock_rows_from_summary(rows: list[dict]) -> list[dict]:
         out.append(
             {
                 'item_id': r.get('item_id'),
+                'item_code': r.get('item_code', '') or '',
                 'item_name': r['item_name'],
                 'category': r.get('category', ''),
                 'location': r.get('location', ''),
@@ -193,6 +195,7 @@ def report_stock_summary(date_from: date, date_to: date) -> dict[str, Any]:
         rows.append(
             {
                 'item_id': item.id,
+                'item_code': item.item_code,
                 'item_name': item.name,
                 'category': item.category.name if item.category_id else '',
                 'unit': item.unit,
@@ -211,20 +214,22 @@ def report_stock_summary(date_from: date, date_to: date) -> dict[str, Any]:
     return {
         'report': 'stock_summary',
         'title': 'Stock Summary Report',
+        'description': 'Opening, movements, and closing quantity per active product for the selected date range. Values use purchase / average cost.',
         'columns': [
-            {'key': 'item_name', 'label': 'Item Name'},
-            {'key': 'category', 'label': 'Category'},
-            {'key': 'location', 'label': 'Location / Shelf'},
-            {'key': 'barcode', 'label': 'Barcode / Asset Code'},
-            {'key': 'unit', 'label': 'Unit'},
-            {'key': 'opening', 'label': 'Opening Stock', 'format': 'number'},
-            {'key': 'received', 'label': 'Received', 'format': 'number'},
-            {'key': 'issued', 'label': 'Issued', 'format': 'number'},
-            {'key': 'closing', 'label': 'Closing Stock', 'format': 'number'},
-            {'key': 'minimum', 'label': 'Min Level', 'format': 'number'},
-            {'key': 'unit_cost', 'label': 'Unit Cost', 'format': 'money'},
-            {'key': 'total_value', 'label': 'Total Value', 'format': 'money'},
-            {'key': 'status', 'label': 'Status'},
+            {'key': 'item_code', 'label': 'Item Code', 'hint': 'ERP item code'},
+            {'key': 'item_name', 'label': 'Item Name', 'hint': 'Product / consumable name'},
+            {'key': 'category', 'label': 'Category', 'hint': 'Inventory category'},
+            {'key': 'location', 'label': 'Storage Location', 'hint': 'Shelf, bin, or warehouse location'},
+            {'key': 'barcode', 'label': 'Barcode', 'hint': 'Barcode or asset tag'},
+            {'key': 'unit', 'label': 'UoM', 'hint': 'Unit of measure'},
+            {'key': 'opening', 'label': 'Opening Qty', 'format': 'number', 'hint': 'Qty before period start date'},
+            {'key': 'received', 'label': 'Received (+)', 'format': 'number', 'hint': 'Stock in during period (receipts, adjustments +)'},
+            {'key': 'issued', 'label': 'Issued (−)', 'format': 'number', 'hint': 'Stock out during period (issues, adjustments −)'},
+            {'key': 'closing', 'label': 'Closing Qty', 'format': 'number', 'hint': 'Qty on hand at period end'},
+            {'key': 'minimum', 'label': 'Min Stock', 'format': 'number', 'hint': 'Configured minimum level'},
+            {'key': 'unit_cost', 'label': 'Unit Cost (AED)', 'format': 'money', 'hint': 'Cost per unit'},
+            {'key': 'total_value', 'label': 'Stock Value (AED)', 'format': 'money', 'hint': 'Closing qty × unit cost'},
+            {'key': 'status', 'label': 'Stock Status', 'hint': 'Low, OK, or Excess vs minimum'},
         ],
         'rows': rows,
         'footer': {'grand_total_value': float(grand_total)},
@@ -238,6 +243,7 @@ def report_low_stock(date_from: date, date_to: date) -> dict[str, Any]:
     return {
         'report': 'low_stock',
         'title': 'Low Stock Report',
+        'description': 'Items below minimum stock for the period. Reorder using shortfall and value columns.',
         'columns': low_table['columns'],
         'rows': low_table['rows'],
         'footer': low_table.get('footer', {}),
@@ -251,6 +257,7 @@ def report_stock_balance(date_from: date, date_to: date) -> dict[str, Any]:
         rows.append(
             {
                 'item_id': r['item_id'],
+                'item_code': r.get('item_code', ''),
                 'item_name': r['item_name'],
                 'category': r['category'],
                 'location': r['location'],
@@ -267,18 +274,20 @@ def report_stock_balance(date_from: date, date_to: date) -> dict[str, Any]:
     return {
         'report': 'stock_balance',
         'title': 'Stock Balance Report',
+        'description': 'Period movement summary: opening, total in/out, and closing balance per item.',
         'columns': [
-            {'key': 'item_name', 'label': 'Item Name'},
-            {'key': 'category', 'label': 'Category'},
-            {'key': 'location', 'label': 'Location / Shelf'},
-            {'key': 'barcode', 'label': 'Barcode / Asset Code'},
-            {'key': 'opening', 'label': 'Opening Balance', 'format': 'number'},
-            {'key': 'received', 'label': 'Total In', 'format': 'number'},
-            {'key': 'issued', 'label': 'Total Out', 'format': 'number'},
-            {'key': 'closing', 'label': 'Closing Balance', 'format': 'number'},
-            {'key': 'unit', 'label': 'Unit'},
-            {'key': 'unit_cost', 'label': 'Unit Cost', 'format': 'money'},
-            {'key': 'total_value', 'label': 'Total Value', 'format': 'money'},
+            {'key': 'item_code', 'label': 'Item Code', 'hint': 'ERP item code'},
+            {'key': 'item_name', 'label': 'Item Name', 'hint': 'Product name'},
+            {'key': 'category', 'label': 'Category', 'hint': 'Inventory category'},
+            {'key': 'location', 'label': 'Storage Location', 'hint': 'Shelf or warehouse location'},
+            {'key': 'barcode', 'label': 'Barcode', 'hint': 'Barcode or asset tag'},
+            {'key': 'opening', 'label': 'Opening Qty', 'format': 'number', 'hint': 'Balance at period start'},
+            {'key': 'received', 'label': 'Total In (+)', 'format': 'number', 'hint': 'All receipts in period'},
+            {'key': 'issued', 'label': 'Total Out (−)', 'format': 'number', 'hint': 'All issues in period'},
+            {'key': 'closing', 'label': 'Closing Qty', 'format': 'number', 'hint': 'Balance at period end'},
+            {'key': 'unit', 'label': 'UoM', 'hint': 'Unit of measure'},
+            {'key': 'unit_cost', 'label': 'Unit Cost (AED)', 'format': 'money', 'hint': 'Cost per unit'},
+            {'key': 'total_value', 'label': 'Stock Value (AED)', 'format': 'money', 'hint': 'Closing qty × unit cost'},
         ],
         'rows': rows,
         'footer': base.get('footer', {}),
@@ -303,6 +312,7 @@ def report_inventory_valuation(date_from: date, date_to: date) -> dict[str, Any]
         rows.append(
             {
                 'item_id': r['item_id'],
+                'item_code': item.item_code,
                 'item_name': r['item_name'],
                 'category': r['category'],
                 'unit': r['unit'],
@@ -318,17 +328,19 @@ def report_inventory_valuation(date_from: date, date_to: date) -> dict[str, Any]
     return {
         'report': 'inventory_valuation',
         'title': 'Inventory Valuation Report',
+        'description': f'Closing quantity valued using company method: {method_label}.',
         'valuation_method': method_label,
         'columns': [
-            {'key': 'item_name', 'label': 'Item Name'},
-            {'key': 'category', 'label': 'Category'},
-            {'key': 'location', 'label': 'Location / Shelf'},
-            {'key': 'barcode', 'label': 'Barcode / Asset Code'},
-            {'key': 'unit', 'label': 'Unit'},
-            {'key': 'qty', 'label': 'Qty in Hand', 'format': 'number'},
-            {'key': 'unit_cost', 'label': 'Unit Cost', 'format': 'money'},
-            {'key': 'total_value', 'label': 'Total Value', 'format': 'money'},
-            {'key': 'last_updated', 'label': 'Last Updated'},
+            {'key': 'item_code', 'label': 'Item Code', 'hint': 'ERP item code'},
+            {'key': 'item_name', 'label': 'Item Name', 'hint': 'Product name'},
+            {'key': 'category', 'label': 'Category', 'hint': 'Inventory category'},
+            {'key': 'location', 'label': 'Storage Location', 'hint': 'Shelf or warehouse location'},
+            {'key': 'barcode', 'label': 'Barcode', 'hint': 'Barcode or asset tag'},
+            {'key': 'unit', 'label': 'UoM', 'hint': 'Unit of measure'},
+            {'key': 'qty', 'label': 'Qty on Hand', 'format': 'number', 'hint': 'Closing qty for the period'},
+            {'key': 'unit_cost', 'label': 'Unit Cost (AED)', 'format': 'money', 'hint': 'Valuation cost per unit'},
+            {'key': 'total_value', 'label': 'Total Value (AED)', 'format': 'money', 'hint': 'Qty × unit cost'},
+            {'key': 'last_updated', 'label': 'Last Updated', 'format': 'date', 'hint': 'Item master last changed'},
         ],
         'rows': rows,
         'footer': {'grand_total_value': float(grand), 'valuation_method': method_label},
@@ -348,6 +360,7 @@ def report_warranty(date_from: date, date_to: date, warranty_filter: str) -> dic
                 continue
             rows.append(
                 {
+                    'item_code': item.item_code,
                     'item_name': item.name,
                     'brand': item.brand or '',
                     'serial_batch': item.serial_batch_number or '',
@@ -374,6 +387,7 @@ def report_warranty(date_from: date, date_to: date, warranty_filter: str) -> dic
             continue
         rows.append(
             {
+                'item_code': item.item_code,
                 'item_name': item.name,
                 'brand': item.brand or '',
                 'serial_batch': item.serial_batch_number or '',
@@ -389,16 +403,18 @@ def report_warranty(date_from: date, date_to: date, warranty_filter: str) -> dic
     return {
         'report': 'warranty',
         'title': 'Warranty Period Report',
+        'description': 'Warranty status snapshot (not limited by date range). Use the warranty filter for expired / expiring items.',
         'columns': [
-            {'key': 'item_name', 'label': 'Item Name'},
-            {'key': 'brand', 'label': 'Brand'},
-            {'key': 'location', 'label': 'Location / Shelf'},
-            {'key': 'barcode', 'label': 'Barcode / Asset Code'},
-            {'key': 'serial_batch', 'label': 'Serial / Batch No'},
-            {'key': 'purchase_date', 'label': 'Purchase Date'},
-            {'key': 'warranty_expiry', 'label': 'Warranty Expiry'},
-            {'key': 'days_remaining', 'label': 'Days Remaining', 'format': 'number'},
-            {'key': 'status', 'label': 'Status'},
+            {'key': 'item_code', 'label': 'Item Code', 'hint': 'ERP item code'},
+            {'key': 'item_name', 'label': 'Item Name', 'hint': 'Product name'},
+            {'key': 'brand', 'label': 'Brand', 'hint': 'Manufacturer or brand'},
+            {'key': 'location', 'label': 'Storage Location', 'hint': 'Current storage location'},
+            {'key': 'barcode', 'label': 'Barcode', 'hint': 'Barcode or asset tag'},
+            {'key': 'serial_batch', 'label': 'Serial / Batch', 'hint': 'Serial or batch number'},
+            {'key': 'purchase_date', 'label': 'Purchase Date', 'format': 'date', 'hint': 'Date item was purchased'},
+            {'key': 'warranty_expiry', 'label': 'Warranty End', 'format': 'date', 'hint': 'Warranty expiry date'},
+            {'key': 'days_remaining', 'label': 'Days Left', 'format': 'number', 'hint': 'Days until expiry (negative if expired)'},
+            {'key': 'status', 'label': 'Warranty Status', 'hint': 'Active, Expiring Soon, Expired, or N/A'},
         ],
         'rows': rows,
     }
@@ -436,6 +452,7 @@ def report_stock_movement(date_from: date, date_to: date, group_by: str) -> dict
         raw_rows.append(
             {
                 'date': m.movement_date.isoformat(),
+                'item_code': m.item.item_code,
                 'item_name': m.item.name,
                 'barcode': m.item.barcode or '',
                 'location': m.item.get_storage_shelf_label(),
@@ -466,16 +483,18 @@ def report_stock_movement(date_from: date, date_to: date, group_by: str) -> dict
     return {
         'report': 'stock_movement',
         'title': 'Stock Movement Report',
+        'description': 'Every stock movement in the date range. Group by date or item using the toolbar filter.',
         'columns': [
-            {'key': 'date', 'label': 'Date'},
-            {'key': 'item_name', 'label': 'Item Name'},
-            {'key': 'location', 'label': 'Location / Shelf'},
-            {'key': 'barcode', 'label': 'Barcode / Asset Code'},
-            {'key': 'type', 'label': 'Transaction Type'},
-            {'key': 'quantity', 'label': 'Quantity', 'format': 'number'},
-            {'key': 'reference', 'label': 'Reference No'},
-            {'key': 'moved_by', 'label': 'Moved By'},
-            {'key': 'remarks', 'label': 'Remarks'},
+            {'key': 'date', 'label': 'Movement Date', 'format': 'date', 'hint': 'Posting date of movement'},
+            {'key': 'item_code', 'label': 'Item Code', 'hint': 'ERP item code'},
+            {'key': 'item_name', 'label': 'Item Name', 'hint': 'Product name'},
+            {'key': 'location', 'label': 'Storage Location', 'hint': 'Item storage location'},
+            {'key': 'barcode', 'label': 'Barcode', 'hint': 'Barcode or asset tag'},
+            {'key': 'type', 'label': 'Movement Type', 'hint': 'Received, Issued, Transfer, Adjustment, …'},
+            {'key': 'quantity', 'label': 'Qty', 'format': 'number', 'hint': 'Absolute quantity moved'},
+            {'key': 'reference', 'label': 'Reference', 'hint': 'Linked document (GRN, issue, etc.)'},
+            {'key': 'moved_by', 'label': 'Recorded By', 'hint': 'User who posted the movement'},
+            {'key': 'remarks', 'label': 'Notes', 'hint': 'Movement notes'},
         ],
         'rows': rows,
     }
@@ -541,6 +560,7 @@ def report_inventory_analytics(date_from: date, date_to: date) -> dict[str, Any]
     return {
         'report': 'inventory_analytics',
         'title': 'Inventory Analytics Report',
+        'description': 'KPIs, charts, and stock health for active products in the selected period.',
         'kpi': {
             'total_items': len(summary['rows']),
             'total_value': float(total_value.quantize(Decimal('0.01'))),
@@ -555,16 +575,18 @@ def report_inventory_analytics(date_from: date, date_to: date) -> dict[str, Any]
             'top_data': top_data,
         },
         'columns': [
-            {'key': 'item_name', 'label': 'Item Name'},
-            {'key': 'category', 'label': 'Category'},
-            {'key': 'location', 'label': 'Location / Shelf'},
-            {'key': 'barcode', 'label': 'Barcode / Asset Code'},
-            {'key': 'closing', 'label': 'Closing Stock', 'format': 'number'},
-            {'key': 'status', 'label': 'Status'},
+            {'key': 'item_code', 'label': 'Item Code', 'hint': 'ERP item code'},
+            {'key': 'item_name', 'label': 'Item Name', 'hint': 'Product name'},
+            {'key': 'category', 'label': 'Category', 'hint': 'Inventory category'},
+            {'key': 'location', 'label': 'Storage Location', 'hint': 'Shelf or warehouse'},
+            {'key': 'barcode', 'label': 'Barcode', 'hint': 'Barcode or asset tag'},
+            {'key': 'closing', 'label': 'Closing Qty', 'format': 'number', 'hint': 'Qty on hand at period end'},
+            {'key': 'status', 'label': 'Stock Status', 'hint': 'Low, OK, or Excess'},
         ],
         'rows': [
             {
                 'item_id': r['item_id'],
+                'item_code': r.get('item_code', ''),
                 'item_name': r['item_name'],
                 'category': r['category'],
                 'location': r['location'],

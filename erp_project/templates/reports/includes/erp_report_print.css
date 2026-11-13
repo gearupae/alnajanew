@@ -1,0 +1,6 @@
+@media print {
+    .no-print { display: none !important; }
+    .erp-report-simple .card { break-inside: avoid; box-shadow: none !important; }
+    .erp-report-simple .tab-pane { display: block !important; opacity: 1 !important; }
+    .erp-report-simple .nav-pills { display: none !important; }
+}
