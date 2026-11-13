@@ -1181,11 +1181,14 @@ hr {
 /* col-md-4 in forms = legacy 3-across; render as 4-across on desktop (see selectors below) */
 @media (min-width: 992px) {
     .main-content form .card .card-body > .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
-    .main-content form .card .card-body form > .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
-    .main-content form .card .card-body form .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
-    .main-content .card .card-body > form > .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
-    .main-content .card .card-body form > .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
-    .main-content .card .card-body form .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8) {
+.main-content form .card .card-body form > .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
+.main-content form .card .card-body form .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
+.main-content .card .card-body > form > .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
+.main-content .card .card-body form > .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
+.main-content .card .card-body form .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
+.main-content .inline-form-container form .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
+.main-content form:not(.list-filters-toolbar) > .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
+    .main-content [data-crm-compact-form] > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8) {
         flex: 0 0 auto;
         width: 25%;
         max-width: 25%;
@@ -1204,7 +1207,13 @@ hr {
     .main-content .card .card-body form > .row > .col-md-3,
     .main-content .card .card-body form > .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
     .main-content .card .card-body form .row > .col-md-3,
-    .main-content .card .card-body form .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8) {
+    .main-content .card .card-body form .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
+    .main-content .inline-form-container form .row > .col-md-3,
+    .main-content .inline-form-container form .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
+    .main-content form:not(.list-filters-toolbar) > .row > .col-md-3,
+    .main-content form:not(.list-filters-toolbar) > .row > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8),
+    .main-content [data-crm-compact-form] > .col-md-3,
+    .main-content [data-crm-compact-form] > .col-md-4:not(.col-12):not(.col-md-12):not(.col-md-6):not(.col-md-8) {
         flex: 0 0 auto;
         width: 50%;
         max-width: 50%;
