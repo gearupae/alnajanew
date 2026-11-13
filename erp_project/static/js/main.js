@@ -206,10 +206,19 @@ function erpInitListTables() {
     $('main .card .table-responsive table.table-hover, main .table-responsive table.table-hover').each(function () {
         const table = this;
         const $table = $(table);
-        if ($table.closest('td, .inline-form-container, .modal, .erp-no-list-table, [data-erp-no-list]').length) {
+        if ($table.closest('td, #report-panel, .inline-form-container, .modal, .erp-no-list-table, [data-erp-no-list]').length) {
+            return;
+        }
+        if (table.id && table.id.indexOf('report-') === 0) {
+            return;
+        }
+        if (table.dataset.erpDynamicTable === '1') {
             return;
         }
         if (!table.querySelector('thead')) {
+            return;
+        }
+        if (!table.querySelector('thead th')) {
             return;
         }
         $table.addClass('erp-list-table');

@@ -141,7 +141,7 @@
         </div>
     </div>
 
-    <div id="report-panel" class="card border shadow-sm position-relative">
+    <div id="report-panel" class="card border shadow-sm position-relative" data-erp-no-list>
         <div class="card-body position-relative">
             <div id="report-result-heading" class="d-none small text-muted mb-2 fw-semibold"></div>
 
@@ -219,7 +219,7 @@
 
             <div id="report-table-wrap" class="report-table-wrap d-none">
                 <div class="table-responsive">
-                    <table class="table table-sm table-hover align-middle mb-0" id="report-table">
+                    <table class="table table-sm table-hover align-middle mb-0 erp-no-list-table" id="report-table" data-erp-dynamic-table="1">
                         <thead class="table-light"><tr id="report-thead"></tr></thead>
                         <tbody id="report-tbody"></tbody>
                         <tfoot class="table-light d-none" id="report-tfoot"><tr id="report-tfoot-row"></tr></tfoot>
@@ -236,7 +236,7 @@
                 <p id="report-low-stock-empty" class="text-muted small d-none mb-0">No items are below minimum level for this period.</p>
                 <div id="report-low-stock-table-wrap" class="report-table-wrap d-none">
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle mb-0" id="report-low-stock-table">
+                        <table class="table table-sm table-hover align-middle mb-0 erp-no-list-table" id="report-low-stock-table" data-erp-dynamic-table="1">
                             <thead class="table-light"><tr id="report-low-thead"></tr></thead>
                             <tbody id="report-low-tbody"></tbody>
                         </table>
