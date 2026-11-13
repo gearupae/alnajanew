@@ -55,33 +55,36 @@ def build_public_item_catalog(project: Project) -> list[dict]:
 
 
 def parse_public_item_request_post(post) -> list[tuple[Item, Decimal]]:
-    """Validate POST item_id[] / qty[] pairs; return (item, qty) lines."""
-    item_ids = post.getlist('item_id')
-    quantities = post.getlist('quantity')
-    selected_flags = post.getlist('selected')
+    """Validate POST selected_<id> and qty_<id> fields (disabled qty inputs are not submitted)."""
+    selected_ids: list[int] = []
+    for key, val in post.items():
+        if not key.startswith('selected_') or val != '1':
+            continue
+        raw = key[len('selected_') :]
+        if raw.isdigit():
+            selected_ids.append(int(raw))
 
-    if not item_ids:
+    if not selected_ids:
         raise ValidationError('Select at least one item and enter a quantity.')
 
-    lines: list[tuple[Item, Decimal]] = []
-    id_set = {int(x) for x in item_ids if str(x).isdigit()}
-    items_by_id = {i.pk: i for i in Item.usable().filter(item_type='product', pk__in=id_set)}
+    items_by_id = {
+        i.pk: i for i in Item.usable().filter(item_type='product', pk__in=selected_ids)
+    }
 
-    for i, raw_id in enumerate(item_ids):
-        if i < len(selected_flags) and selected_flags[i] != '1':
-            continue
-        if not str(raw_id).isdigit():
-            continue
-        item = items_by_id.get(int(raw_id))
+    lines: list[tuple[Item, Decimal]] = []
+    for item_id in selected_ids:
+        item = items_by_id.get(item_id)
         if not item:
             continue
-        raw_qty = quantities[i] if i < len(quantities) else ''
+        raw_qty = post.get(f'qty_{item_id}', '')
+        if raw_qty in (None, ''):
+            raise ValidationError(f'Enter a quantity for {item.name}.')
         try:
             qty = Decimal(str(raw_qty).strip().replace(',', '.'))
-        except (InvalidOperation, AttributeError):
-            raise ValidationError(f'Invalid quantity for {item.name}.')
+        except (InvalidOperation, AttributeError, TypeError):
+            raise ValidationError(f'Enter a valid quantity for {item.name}.')
         if qty <= 0:
-            continue
+            raise ValidationError(f'Quantity for {item.name} must be greater than zero.')
         qty = Item.normalize_quantity(item, qty)
         if item.requires_whole_quantity() and qty != qty.to_integral_value():
             raise ValidationError(f'{item.name} must be requested in whole units.')

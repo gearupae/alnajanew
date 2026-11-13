@@ -1,19 +1,108 @@
 {% extends 'minimal_public.html' %}
 {% block title %}Request project items{% endblock %}
+{% block extra_css %}
+<style>
+    .pir-hero {
+        background: linear-gradient(135deg, #111 0%, #2d3748 100%);
+        border-radius: 0.75rem;
+        color: #fff;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+    .pir-hero .badge-project {
+        background: rgba(255,255,255,0.15);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+    .pir-card {
+        border: 0;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+    }
+    .pir-table-wrap {
+        max-height: min(52vh, 480px);
+        overflow: auto;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.5rem;
+    }
+  .pir-table thead th {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #64748b;
+        background: #f8fafc;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        box-shadow: 0 1px 0 #e2e8f0;
+    }
+    .pir-table tbody tr.item-row-selected {
+        background-color: #ecfdf5;
+    }
+    .pir-table tbody tr:hover:not(.item-row-selected) {
+        background-color: #f8fafc;
+    }
+    .pir-table .item-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+        line-height: 1.3;
+    }
+    .pir-table .item-code {
+        font-family: var(--bs-font-monospace, monospace);
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+    .pir-qty {
+        width: 4.25rem;
+        margin: 0 auto;
+        text-align: center;
+    }
+    .pir-qty:disabled {
+        background: #f1f5f9;
+        opacity: 0.65;
+    }
+    .pir-search {
+        max-width: 20rem;
+    }
+    .pir-summary {
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+    .pir-stock-low {
+        color: #b45309;
+        font-weight: 600;
+    }
+    .pir-stock-ok {
+        color: #15803d;
+    }
+</style>
+{% endblock %}
 {% block content %}
-<div class="card shadow-sm border-0">
-    <div class="card-body p-4">
+<div class="pir-card card">
+    <div class="card-body p-4 p-md-5">
+        {% if selected_project %}
+        <div class="pir-hero">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div>
+                    <p class="small text-white-50 mb-1 mb-md-0">Request materials</p>
+                    <h1 class="h4 fw-bold mb-0">{{ selected_project.name }}</h1>
+                </div>
+                <span class="badge rounded-pill badge-project px-3 py-2">{{ selected_project.project_code }}</span>
+            </div>
+        </div>
+        {% else %}
         <h1 class="h4 fw-bold mb-1">Request items for a project</h1>
-        <p class="text-muted small mb-4">No login required. Choose the project, select items and quantities, then submit. The request appears on the project <strong>Items</strong> list; staff deliver with one click.</p>
+        <p class="text-muted small mb-4">No login required. Pick a project, select items and quantities, then submit.</p>
+        {% endif %}
 
         <form method="get" class="mb-4" id="projectPickerForm">
-            <label for="id_project" class="form-label">Project <span class="text-danger">*</span></label>
-            <select name="project" id="id_project" class="form-select" required onchange="this.form.submit()">
-                    <option value="">— Select project —</option>
-                    {% for p in projects %}
-                    <option value="{{ p.pk }}" {% if selected_project and selected_project.pk == p.pk %}selected{% endif %}>{{ p.project_code }} — {{ p.name }}</option>
-                    {% endfor %}
-                </select>
+            <label for="id_project" class="form-label fw-semibold small text-uppercase text-muted" style="letter-spacing:0.04em;">Project</label>
+            <select name="project" id="id_project" class="form-select form-select-lg" onchange="this.form.submit()">
+                <option value="">— Choose project —</option>
+                {% for p in projects %}
+                <option value="{{ p.pk }}" {% if selected_project and selected_project.pk == p.pk %}selected{% endif %}>{{ p.project_code }} — {{ p.name }}</option>
+                {% endfor %}
+            </select>
         </form>
 
         {% if selected_project %}
@@ -22,66 +111,81 @@
             <input type="hidden" name="project" value="{{ selected_project.pk }}">
             <input type="hidden" name="submit_request" value="1">
 
-            <div class="row g-2 mb-3">
+            <div class="row g-3 mb-4">
                 <div class="col-md-6">
-                    <label class="form-label small" for="id_requester_name">Your name <span class="text-muted">(optional)</span></label>
-                    <input type="text" name="requester_name" id="id_requester_name" class="form-control form-control-sm" maxlength="120" value="{{ posted_requester_name|default:'' }}">
+                    <label class="form-label fw-semibold" for="id_requester_name">Your name</label>
+                    <input type="text" name="requester_name" id="id_requester_name" class="form-control" maxlength="120" placeholder="Site engineer / technician" value="{{ posted_requester_name|default:'' }}">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label small" for="id_note">Note <span class="text-muted">(optional)</span></label>
-                    <input type="text" name="note" id="id_note" class="form-control form-control-sm" maxlength="500" value="{{ posted_note|default:'' }}">
+                    <label class="form-label fw-semibold" for="id_note">Note</label>
+                    <input type="text" name="note" id="id_note" class="form-control" maxlength="500" placeholder="Urgency, location, etc." value="{{ posted_note|default:'' }}">
                 </div>
             </div>
 
-            <div class="table-responsive border rounded mb-3" style="max-height: 420px; overflow-y: auto;">
-                <table class="table table-sm table-hover mb-0 align-middle">
-                    <thead class="table-light sticky-top">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                <label class="form-label fw-semibold mb-0">Items</label>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <input type="search" id="pirItemSearch" class="form-control form-control-sm pir-search" placeholder="Search code or name…" autocomplete="off">
+                    <span class="pir-summary"><span id="pirSelectedCount">0</span> selected</span>
+                </div>
+            </div>
+
+            <div class="pir-table-wrap mb-4">
+                <table class="table table-sm table-hover mb-0 align-middle pir-table">
+                    <thead>
                         <tr>
-                            <th style="width:2.5rem;"></th>
+                            <th class="text-center" style="width:2.75rem;"></th>
                             <th>Item</th>
                             <th class="text-center">Unit</th>
-                            <th class="text-center" title="Qty on project scope">On project</th>
-                            <th class="text-center" title="Available in stock">In stock</th>
-                            <th class="text-center" style="min-width:5.5rem;">Request qty</th>
+                            <th class="text-center">On project</th>
+                            <th class="text-center">In stock</th>
+                            <th class="text-center">Qty</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="pirItemBody">
                         {% for row in catalog %}
-                        <tr>
-                            <td class="text-center">
-                                <input type="hidden" name="item_id" value="{{ row.item.pk }}">
-                                <input type="hidden" name="selected" value="0" class="item-selected-flag">
-                                <input type="checkbox" class="form-check-input item-pick" aria-label="Select {{ row.item.name }}">
+                        <tr class="pir-item-row" data-search="{{ row.item.item_code|lower }} {{ row.item.name|lower }}">
+                            <td class="text-center ps-2">
+                                <input type="hidden" name="selected_{{ row.item.pk }}" value="0" class="item-selected-flag" id="sel-{{ row.item.pk }}">
+                                <input type="checkbox" class="form-check-input item-pick mt-0" id="pick-{{ row.item.pk }}" aria-label="Select {{ row.item.name }}">
                             </td>
                             <td>
-                                <span class="text-muted small font-monospace">{{ row.item.item_code }}</span>
-                                <span class="fw-medium d-block">{{ row.item.name }}</span>
+                                <span class="item-code d-block">{{ row.item.item_code }}</span>
+                                <span class="item-name">{{ row.item.name }}</span>
                             </td>
-                            <td class="text-center small">{{ row.item.unit }}</td>
-                            <td class="text-center small text-muted">
-                                {% if row.project_qty is not None %}{{ row.project_qty|floatformat:0 }}{% else %}—{% endif %}
+                            <td class="text-center small text-muted">{{ row.item.unit }}</td>
+                            <td class="text-center small">
+                                {% if row.project_qty is not None %}{{ row.project_qty|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}
                             </td>
-                            <td class="text-center small">{{ row.stock_qty|floatformat:0 }}</td>
-                            <td class="text-center">
-                                <input type="number" name="quantity" class="form-control form-control-sm text-center item-qty"
+                            <td class="text-center small {% if row.stock_qty > 0 %}pir-stock-ok{% else %}pir-stock-low{% endif %}">
+                                {{ row.stock_qty|floatformat:0 }}
+                            </td>
+                            <td class="text-center pe-2">
+                                <input type="number" name="qty_{{ row.item.pk }}" id="qty-{{ row.item.pk }}"
+                                       class="form-control form-control-sm pir-qty item-qty"
                                        min="{% if row.item.track_by_serial %}1{% else %}0.01{% endif %}"
                                        step="{% if row.item.track_by_serial %}1{% else %}0.01{% endif %}"
-                                       value="1" disabled>
+                                       value="1" disabled inputmode="decimal" aria-label="Quantity for {{ row.item.name }}">
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="6" class="text-center text-muted py-4">No active inventory items.</td></tr>
+                        <tr><td colspan="6" class="text-center text-muted py-5">No active inventory items.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
 
-            <button type="submit" class="btn btn-success w-100 py-2" id="submitItemRequest">
-                <i class="fas fa-paper-plane me-2"></i>Send request to {{ selected_project.project_code }}
+            <p class="small text-muted mb-3">Tick items, set quantity, then send. The warehouse team will see the request on project <strong>{{ selected_project.project_code }}</strong> and deliver with one click.</p>
+
+            <button type="submit" class="btn btn-success btn-lg w-100 shadow-sm" id="submitItemRequest">
+                <i class="fas fa-paper-plane me-2"></i>Send request
             </button>
         </form>
-        {% else %}
-        <p class="text-muted small mb-0">Select a project above to load items.</p>
+        {% elif not selected_project %}
+        <div class="text-center text-muted py-4" id="pirEmptyState">
+            <i class="fas fa-box-open fa-2x mb-3 opacity-50 d-block"></i>
+            Choose a project to load the item list.
+        </div>
         {% endif %}
     </div>
 </div>
@@ -90,36 +194,64 @@
 <script>
 (function () {
     var form = document.getElementById('publicItemRequestForm');
-    if (!form) return;
+    var search = document.getElementById('pirItemSearch');
+    var countEl = document.getElementById('pirSelectedCount');
+
+    function updateSelectedCount() {
+        if (!countEl || !form) return;
+        countEl.textContent = String(form.querySelectorAll('.item-pick:checked').length);
+    }
 
     function syncRow(cb) {
         var tr = cb.closest('tr');
-        var flag = tr.querySelector('.item-selected-flag');
-        var qty = tr.querySelector('.item-qty');
+        var itemId = cb.id.replace('pick-', '');
+        var flag = document.getElementById('sel-' + itemId);
+        var qty = document.getElementById('qty-' + itemId);
         if (!flag || !qty) return;
         var on = cb.checked;
         flag.value = on ? '1' : '0';
         qty.disabled = !on;
+        tr.classList.toggle('item-row-selected', on);
         if (on && (!qty.value || parseFloat(qty.value) <= 0)) {
             qty.value = '1';
         }
+        updateSelectedCount();
     }
 
-    document.querySelectorAll('.item-pick').forEach(function (cb) {
-        cb.addEventListener('change', function () { syncRow(cb); });
-    });
-
-    form.addEventListener('submit', function (e) {
-        var any = false;
-        document.querySelectorAll('.item-pick:checked').forEach(function (cb) {
-            var qty = cb.closest('tr').querySelector('.item-qty');
-            if (qty && parseFloat(qty.value) > 0) any = true;
+    if (search) {
+        search.addEventListener('input', function () {
+            var q = (search.value || '').trim().toLowerCase();
+            document.querySelectorAll('.pir-item-row').forEach(function (tr) {
+                var hay = tr.getAttribute('data-search') || '';
+                tr.style.display = !q || hay.indexOf(q) !== -1 ? '' : 'none';
+            });
         });
-        if (!any) {
-            e.preventDefault();
-            alert('Select at least one item and enter a quantity greater than zero.');
-        }
-    });
+    }
+
+    if (form) {
+        document.querySelectorAll('.item-pick').forEach(function (cb) {
+            cb.addEventListener('change', function () { syncRow(cb); });
+        });
+
+        form.addEventListener('submit', function (e) {
+            document.querySelectorAll('.item-pick:checked').forEach(function (cb) {
+                var itemId = cb.id.replace('pick-', '');
+                var qty = document.getElementById('qty-' + itemId);
+                if (qty) qty.disabled = false;
+            });
+            var any = false;
+            document.querySelectorAll('.item-pick:checked').forEach(function (cb) {
+                var itemId = cb.id.replace('pick-', '');
+                var qty = document.getElementById('qty-' + itemId);
+                if (qty && parseFloat(qty.value) > 0) any = true;
+            });
+            if (!any) {
+                e.preventDefault();
+                alert('Select at least one item and enter a quantity greater than zero.');
+            }
+        });
+        updateSelectedCount();
+    }
 })();
 </script>
 {% endblock %}
